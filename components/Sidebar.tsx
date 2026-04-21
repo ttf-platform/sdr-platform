@@ -17,7 +17,13 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 
-const navigation = [
+interface NavigationItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+}
+
+const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Campaigns', href: '/campaigns', icon: Target },
   { name: 'Leads', href: '/leads', icon: Users },
@@ -28,7 +34,7 @@ const navigation = [
   { name: 'Database', href: '/database', icon: Database },
 ]
 
-const secondaryNavigation = [
+const secondaryNavigation: NavigationItem[] = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
@@ -54,7 +60,7 @@ export default function Sidebar() {
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={item.href as any}
               className={clsx(
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                 isActive
@@ -82,7 +88,7 @@ export default function Sidebar() {
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={item.href as any}
               className={clsx(
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                 isActive
