@@ -1,53 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+:root {
+  --background: #F5F4F0;
+  --foreground: #1C1A17;
+  --primary: #2C4A3E;
+  --accent: #7AAF8E;
+  --muted: rgba(28, 26, 23, 0.45);
+  --border: rgba(28, 26, 23, 0.09);
+  --card: #FFFFFF;
 }
 
-@keyframes slideUp {
-  from { 
-    opacity: 0; 
-    transform: translateY(10px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
 }
 
 body {
-  font-family: 'DM Sans', system-ui, sans-serif;
-  background-color: #F5F4F0;
-  color: #1C1917;
-}
-
-/* Scrollbar personnalisé */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #F5F5F4;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #D6D3D1;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #A8A29E;
-}
-
-/* Animations globales */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: 'rlig' 1, 'calt' 1;
 }
