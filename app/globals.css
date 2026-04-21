@@ -1,15 +1,39 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
+  /* SDR Platform Design System */
   --background: #F5F4F0;
-  --foreground: #1C1A17;
-  --primary: #2C4A3E;
-  --accent: #7AAF8E;
-  --muted: rgba(28, 26, 23, 0.45);
-  --border: rgba(28, 26, 23, 0.09);
   --card: #FFFFFF;
+  --primary: #2C4A3E;
+  --primary-hover: #234136;
+  --accent: #7AAF8E;
+  --accent-light: #E8F4ED;
+  --foreground: #1C1B17;
+  --muted: rgba(28, 27, 23, 0.45);
+  --border: rgba(28, 27, 23, 0.09);
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3B82F6;
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  --gradient-success: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+  --gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+[data-theme="dark"] {
+  --background: #0A0B0A;
+  --card: #161716;
+  --primary: #7AAF8E;
+  --primary-hover: #68A07B;
+  --accent: #2C4A3E;
+  --foreground: #F5F4F0;
+  --muted: rgba(245, 244, 240, 0.45);
+  --border: rgba(245, 244, 240, 0.09);
 }
 
 * {
@@ -19,7 +43,106 @@
 }
 
 body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: var(--background);
   color: var(--foreground);
-  background: var(--background);
-  font-feature-settings: 'rlig' 1, 'calt' 1;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom components */
+.btn-primary {
+  @apply bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+}
+
+.btn-secondary {
+  @apply bg-[var(--accent-light)] hover:bg-[var(--accent)] text-[var(--primary)] hover:text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+}
+
+.card {
+  @apply bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-sm;
+}
+
+.metric-card {
+  @apply card p-6 hover:shadow-md transition-shadow duration-200;
+}
+
+/* Status indicators */
+.status-active {
+  @apply bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.status-paused {
+  @apply bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.status-draft {
+  @apply bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium;
+}
+
+/* Progress bars */
+.progress-bar {
+  @apply w-full bg-gray-200 rounded-full h-2 overflow-hidden;
+}
+
+.progress-fill {
+  @apply h-full rounded-full transition-all duration-500 ease-out;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .card {
+    @apply rounded-lg;
+  }
+  
+  .metric-card {
+    @apply p-4;
+  }
 }
