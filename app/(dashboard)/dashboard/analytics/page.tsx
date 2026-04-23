@@ -21,13 +21,7 @@ export default function AnalyticsPage() {
       const opens = data?.reduce((a, c) => a + (c.open_count || 0), 0) || 0
       const replies = data?.reduce((a, c) => a + (c.reply_count || 0), 0) || 0
       const bounces = data?.reduce((a, c) => a + (c.bounce_count || 0), 0) || 0
-      setStats({
-        sent,
-        open_rate: sent > 0 ? ((opens/sent)*100).toFixed(1) : '0.0',
-        reply_rate: sent > 0 ? ((replies/sent)*100).toFixed(1) : '0.0',
-        replies,
-        bounce_rate: sent > 0 ? ((bounces/sent)*100).toFixed(1) : '0.0'
-      })
+      setStats({ sent, open_rate: sent > 0 ? ((opens/sent)*100).toFixed(1) : '0.0', reply_rate: sent > 0 ? ((replies/sent)*100).toFixed(1) : '0.0', replies, bounce_rate: sent > 0 ? ((bounces/sent)*100).toFixed(1) : '0.0' })
     })
   }, [])
 
@@ -46,7 +40,7 @@ export default function AnalyticsPage() {
         </select>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[
           { label: 'EMAILS SENT', value: stats.sent, color: 'text-[#1a1a2e]' },
           { label: 'OPEN RATE', value: stats.open_rate + '%', color: 'text-[#3b6bef]' },
@@ -69,20 +63,26 @@ export default function AnalyticsPage() {
           <thead>
             <tr className="border-b border-[#f0ece6]">
               <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">CAMPAIGN</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">SENT</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">OPENED</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">OPEN %</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">SENT</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">OPENED</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">OPEN %</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">REPLIES</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">REPLY %</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">BOUNCES</th>
             </tr>
           </thead>
           <tbody>
             {campaigns.length === 0 ? (
-              <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-[#8a7e6e]">No campaign data yet</td></tr>
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-[#8a7e6e]">No campaign data yet</td></tr>
             ) : campaigns.map(c => (
-              <tr key={c.id} className="border-b border-[#f7f4f0]">
-                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.name}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count || 0}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.open_count || 0}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(1) + '%' : '0.0%'}</td>
+              <tr key={c.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5]">
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] font-medium">{c.name}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.sent_count || 0}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.open_count || 0}</td>
+                <td className="px-5 py-3 text-sm text-[#3b6bef] text-right font-medium">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(1)+'%' : '0.0%'}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.reply_count || 0}</td>
+                <td className="px-5 py-3 text-sm text-green-600 text-right font-medium">{c.sent_count > 0 ? ((c.reply_count/c.sent_count)*100).toFixed(1)+'%' : '0.0%'}</td>
+                <td className="px-5 py-3 text-sm text-red-500 text-right">{c.bounce_count || 0}</td>
               </tr>
             ))}
           </tbody>
@@ -95,7 +95,7 @@ export default function AnalyticsPage() {
           <div className="text-center py-8 text-sm text-[#8a7e6e]">No data yet</div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={campaigns.map(c => ({ name: c.name.slice(0,12), sent: c.sent_count || 0 }))}>
+            <BarChart data={campaigns.map(c => ({ name: c.name.slice(0,10), sent: c.sent_count || 0 }))}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
