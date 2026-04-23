@@ -56,51 +56,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href)
   const ws = (workspace?.workspaces as any)
-  const initials = user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'
+  const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || ''
+  const initials = firstName?.[0]?.toUpperCase() || '?'
 
   if (!user) return <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">Loading...</div></div>
 
   return (
     <div className="min-h-screen bg-[#f5f2ee]">
       <nav className="bg-white border-b border-[#e8e3dc] sticky top-0 z-50">
-        <div className="flex items-center px-4 h-12 gap-1">
-          <Link href="/dashboard" className="flex items-center gap-1 mr-4 flex-shrink-0">
+        <div className="flex items-center px-4 h-12">
+          <Link href="/dashboard" className="flex items-center gap-1 mr-5 flex-shrink-0">
             <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#3b6bef]">tra</span></span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide">
+          <div className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide min-w-0">
             {navItems.map(item => {
               const Icon = item.icon
               const active = isActive(item.href)
               return (
                 <Link key={item.href} href={item.href}
-                  className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors font-medium " +
-                    (active ? 'bg-[#eef1fd] text-[#3b6bef]' : 'text-[#4a4a5a] hover:bg-[#f0ece6] hover:text-[#1a1a2e]')}>
-                  <Icon size={14} strokeWidth={active ? 2.5 : 2} />
-                  {item.label}
+                  className={"flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors font-medium " +
+                    (active ? 'bg-[#eef1fd] text-[#3b6bef]' : 'text-[#4a4a5a] hover:bg-[#f0ece6]')}>
+                  <Icon size={13} strokeWidth={active ? 2.5 : 2} />
+                  <span className="hidden lg:inline">{item.label}</span>
                 </Link>
               )
             })}
           </div>
 
-          <div className="hidden md:flex items-center gap-2 ml-auto flex-shrink-0">
+          <div className="hidden md:flex items-center gap-2 ml-3 flex-shrink-0">
             {role === 'owner' && (
               <Link href="/dashboard/admin"
-                className={"flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-semibold " + (pathname.startsWith('/dashboard/admin') ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50')}>
+                className={"text-xs px-2 py-1 rounded-lg font-semibold " + (pathname.startsWith('/dashboard/admin') ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50')}>
                 ♦ Admin
               </Link>
             )}
-            <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-2 py-1 rounded-lg whitespace-nowrap">
-              {ws?.credits || 100} / 100 credits
-            </span>
-            <div ref={avatarRef} className="relative">
-              <button onClick={() => setAvatarOpen(!avatarOpen)}
-                className="w-8 h-8 rounded-full bg-[#3b6bef] flex items-center justify-center text-white text-sm font-bold hover:opacity-90">
+            <div className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#8a7e6e" strokeWidth="1.2"/><path d="M6 3.5v2.5l1.5 1.5" stroke="#8a7e6e" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              {ws?.credits || 100} / 100
+            </div>
+            <div ref={avatarRef} className="relative flex items-center gap-1.5 cursor-pointer" onClick={() => setAvatarOpen(!avatarOpen)}>
+              <div className="w-7 h-7 rounded-full bg-[#3b6bef] flex items-center justify-center text-white text-xs font-bold">
                 {initials}
-              </button>
+              </div>
+              <span className="text-sm font-medium text-[#1a1a2e] hidden lg:inline">{firstName}</span>
               {avatarOpen && (
-                <div className="absolute right-0 top-10 w-56 bg-white border border-[#e8e3dc] rounded-xl shadow-lg overflow-hidden z-50">
+                <div className="absolute right-0 top-9 w-52 bg-white border border-[#e8e3dc] rounded-xl shadow-lg overflow-hidden z-50">
                   <div className="px-4 py-3 border-b border-[#f0ece6]">
+                    <div className="text-xs font-medium text-[#1a1a2e]">{firstName}</div>
                     <div className="text-xs text-[#8a7e6e] truncate">{user?.email}</div>
                   </div>
                   <Link href="/dashboard/settings" onClick={() => setAvatarOpen(false)}
@@ -110,7 +113,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {role === 'owner' && (
                     <Link href="/dashboard/admin" onClick={() => setAvatarOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-purple-600 font-medium hover:bg-purple-50">
-                      ♦ Admin <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded ml-auto">ADMIN</span>
+                      ♦ Admin <span className="text-xs bg-purple-100 px-1.5 py-0.5 rounded ml-auto">ADMIN</span>
                     </Link>
                   )}
                   <div className="border-t border-[#f0ece6]">
@@ -156,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </nav>
 
-      <main className="p-4 md:p-6">
+      <main className="max-w-7xl mx-auto px-6 py-6">
         {children}
       </main>
     </div>
