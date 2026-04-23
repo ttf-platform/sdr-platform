@@ -28,12 +28,12 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">{(workspace?.workspaces as any)?.name || '...'}</h1>
           <p className="text-sm text-[#8a7e6e]">Your outbound performance at a glance</p>
         </div>
-        <a href="/dashboard/campaigns/new" className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">+ New Campaign</a>
+        <a href="/dashboard/campaigns" className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">+ New Campaign</a>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -51,7 +51,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0ece6]">
+        <div className="px-5 py-4 border-b border-[#f0ece6]">
           <h2 className="font-semibold text-[#1a1a2e]">Recent Campaigns</h2>
         </div>
         <table className="w-full">
@@ -68,7 +68,7 @@ export default function DashboardPage() {
           <tbody>
             {campaigns.length === 0 ? (
               <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-[#8a7e6e]">
-                No campaigns yet — <a href="/dashboard/campaigns/new" className="text-[#3b6bef] font-medium">create your first</a>
+                No campaigns yet — <a href="/dashboard/campaigns" className="text-[#3b6bef] font-medium">create your first</a>
               </td></tr>
             ) : campaigns.map((c: any) => (
               <tr key={c.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5] cursor-pointer" onClick={() => window.location.href = '/dashboard/campaigns/' + c.id}>
@@ -77,8 +77,8 @@ export default function DashboardPage() {
                   <span className={"text-xs px-2 py-0.5 rounded font-medium " + (c.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600')}>{c.status}</span>
                 </td>
                 <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count || 0}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(1) + '%' : '—'}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.reply_count/c.sent_count)*100).toFixed(1) + '%' : '—'}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(1)+'%' : '—'}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.reply_count/c.sent_count)*100).toFixed(1)+'%' : '—'}</td>
                 <td className="px-5 py-3 text-sm text-[#8a7e6e]">{new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
               </tr>
             ))}
