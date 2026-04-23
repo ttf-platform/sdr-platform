@@ -16,10 +16,7 @@ export default function MorningBriefPage() {
       const { data: member } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', session.user.id).single()
       if (!member) return
       setWorkspaceId(member.workspace_id)
-      const { data } = await supabase.from('morning_briefs')
-        .select('*')
-        .eq('workspace_id', member.workspace_id)
-        .order('brief_date', { ascending: false })
+      const { data } = await supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false })
       setBriefs(data || [])
       if (data && data.length > 0) setSelected(data[0])
     })
@@ -27,19 +24,10 @@ export default function MorningBriefPage() {
 
   async function generateBrief() {
     setGenerating(true)
-    const res = await fetch('/api/morning-brief/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspace_id: workspaceId })
-    }).then(r => r.json())
-    if (res.brief) {
-      setBriefs(prev => [res.brief, ...prev])
-      setSelected(res.brief)
-    }
+    const res = await fetch('/api/morning-brief/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: workspaceId }) }).then(r => r.json())
+    if (res.brief) { setBriefs(prev => [res.brief, ...prev]); setSelected(res.brief) }
     setGenerating(false)
   }
-
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
     <div className="max-w-2xl">
@@ -48,9 +36,8 @@ export default function MorningBriefPage() {
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>
           <p className="text-sm text-[#8a7e6e]">Your daily AI-powered outbound intelligence</p>
         </div>
-        <button onClick={generateBrief} disabled={generating}
-          className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 flex items-center gap-2">
-          {generating ? 'Generating...' : '☕ Send me today's brief'}
+        <button onClick={generateBrief} disabled={generating} className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
+          {generating ? 'Generating...' : 'Send me today brief'}
         </button>
       </div>
 
@@ -60,7 +47,7 @@ export default function MorningBriefPage() {
           <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No briefs yet</h2>
           <p className="text-sm text-[#8a7e6e] mb-4">Generate your first morning brief to get AI-powered insights on your pipeline.</p>
           <button onClick={generateBrief} disabled={generating} className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-            {generating ? 'Generating...' : '☕ Generate first brief'}
+            {generating ? 'Generating...' : 'Generate first brief'}
           </button>
         </div>
       ) : (
@@ -69,7 +56,7 @@ export default function MorningBriefPage() {
             <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
               <div className="bg-gradient-to-r from-[#3b6bef] to-[#8b5cf6] px-5 py-4">
                 <div className="text-white text-xs font-medium mb-1">{new Date(selected.brief_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-                <div className="text-white font-bold text-lg flex items-center gap-2">☕ Morning Coffee Brief</div>
+                <div className="text-white font-bold text-lg">☕ Morning Coffee Brief</div>
               </div>
               <div className="p-5">
                 {selected.content?.sections?.map((s: any, i: number) => (
@@ -77,13 +64,10 @@ export default function MorningBriefPage() {
                     <div className="text-xs font-bold uppercase tracking-wider text-[#3b6bef] mb-2">{s.title}</div>
                     <p className="text-sm text-[#4a3f32] leading-relaxed">{s.content}</p>
                   </div>
-                )) || (
-                  <p className="text-sm text-[#4a3f32] leading-relaxed">{typeof selected.content === 'string' ? selected.content : JSON.stringify(selected.content)}</p>
-                )}
+                )) || <p className="text-sm text-[#4a3f32]">{typeof selected.content === 'string' ? selected.content : ''}</p>}
               </div>
             </div>
           )}
-
           <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-[#f0ece6] flex items-center gap-2">
               <span className="text-lg">☕</span>
@@ -93,8 +77,7 @@ export default function MorningBriefPage() {
               </div>
             </div>
             {briefs.map(b => (
-              <div key={b.id} onClick={() => setSelected(b)}
-                className={"flex items-center justify-between px-5 py-3 border-b border-[#f7f4f0] cursor-pointer hover:bg-[#faf8f5] " + (selected?.id === b.id ? 'bg-[#f7f8ff]' : '')}>
+              <div key={b.id} onClick={() => setSelected(b)} className={"flex items-center justify-between px-5 py-3 border-b border-[#f7f4f0] cursor-pointer hover:bg-[#faf8f5] " + (selected?.id === b.id ? 'bg-[#f7f8ff]' : '')}>
                 <div className="flex items-center gap-3">
                   <span className="text-xl">☕</span>
                   <div>
