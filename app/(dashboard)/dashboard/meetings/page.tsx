@@ -17,7 +17,7 @@ export default function MeetingsPage() {
     })
   }, [])
 
-  const bookingLink = user ? `https://sentra.app/book/${user.email?.split('@')[0]}` : ''
+  const bookingLink = user ? 'https://sentra.app/book/' + (user.email?.split('@')[0] || '') : ''
 
   function copyLink() {
     navigator.clipboard.writeText(bookingLink)
@@ -26,7 +26,7 @@ export default function MeetingsPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Meetings</h1>
@@ -43,34 +43,29 @@ export default function MeetingsPage() {
       </div>
 
       <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-5 flex items-start gap-3">
-        <span className="text-xl">🔗</span>
-        <div className="flex-1">
+        <span className="text-xl flex-shrink-0">🔗</span>
+        <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-[#3b6bef] mb-1">Your booking link</div>
-          <div className="text-sm text-[#6b5e4e] mb-2">{bookingLink}</div>
+          <div className="text-sm text-[#6b5e4e] truncate mb-2">{bookingLink}</div>
           <button onClick={copyLink} className="bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg text-sm font-medium">
             {copied ? '✓ Copied' : 'Copy link'}
           </button>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <div className="flex gap-1 border border-[#e8e3dc] rounded-xl p-1 bg-white">
-          <button onClick={() => setView('list')} className={"px-3 py-1.5 rounded-lg text-sm font-medium transition-colors " + (view === 'list' ? 'bg-white border border-[#e8e3dc] text-[#1a1a2e]' : 'text-[#8a7e6e]')}>
-            📋 List
-          </button>
-          <button onClick={() => setView('calendar')} className={"px-3 py-1.5 rounded-lg text-sm font-medium transition-colors " + (view === 'calendar' ? 'bg-white border border-[#e8e3dc] text-[#1a1a2e]' : 'text-[#8a7e6e]')}>
-            📅 Calendar
-          </button>
+      <div className="flex items-center gap-3 mb-5">
+        <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl">
+          <button onClick={() => setView('list')} className={"px-3 py-1.5 rounded-lg text-sm font-medium transition-colors " + (view === 'list' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📋 List</button>
+          <button onClick={() => setView('calendar')} className={"px-3 py-1.5 rounded-lg text-sm font-medium transition-colors " + (view === 'calendar' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📅 Calendar</button>
         </div>
-      </div>
-
-      <div className="flex gap-1 mb-4 border border-[#e8e3dc] rounded-xl p-1 bg-white w-fit">
-        {(['upcoming','all','cancelled'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={"px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors " + (tab === t ? 'bg-white border border-[#e8e3dc] text-[#3b6bef] font-semibold' : 'text-[#8a7e6e]')}>
-            {t}
-          </button>
-        ))}
+        <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl">
+          {(['upcoming','all','cancelled'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={"px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors " + (tab === t ? 'bg-white shadow-sm text-[#3b6bef] font-semibold' : 'text-[#8a7e6e]')}>
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center mb-5">
