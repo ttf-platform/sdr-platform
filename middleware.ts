@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -19,21 +18,7 @@ export async function middleware(request: NextRequest) {
       }
     }
   )
-
-  const { data: { user } } = await supabase.auth.getUser()
-  const { pathname } = request.nextUrl
-
-  const publicPaths = ['/', '/login', '/signup', '/onboarding', '/api/auth', '/api/workspace']
-  const isPublic = publicPaths.some(p => pathname.startsWith(p))
-
-  if (!user && !isPublic) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
+  await supabase.auth.getUser()
   return supabaseResponse
 }
 
