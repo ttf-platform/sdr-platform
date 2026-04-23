@@ -11,6 +11,7 @@ export default function NewCampaignPage() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [parsingIcp, setParsingIcp] = useState(false)
   const [workspaceId, setWorkspaceId] = useState<string|null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [campaign, setCampaign] = useState({ name: '', icp: '', tone: 'professional', product: '' })
@@ -34,6 +35,18 @@ export default function NewCampaignPage() {
       }
     })
   }, [])
+
+  async function parseIcp() {
+    if (!campaign.icp) return
+    setParsingIcp(true)
+    const res = await fetch('/api/icp/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: campaign.icp })
+    }).then(r => r.json())
+    if (res.icp?.summary) setCampaign({...campaign, icp: res.icp.summary})
+    setParsingIcp(false)
+  }
 
   async function generateSequence() {
     setGenerating(true)
@@ -69,7 +82,12 @@ export default function NewCampaignPage() {
     <div className="p-6 max-w-3xl">
       <div className="mb-6">
         <a href="/dashboard/campaigns" className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] mb-3 inline-block">← Back to campaigns</a>
-        <h1 className="text-xl font-bold text-[#1a1a2e]">New Campaign</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-[#1a1a2e]">New Campaign</h1>
+          <a href="/dashboard/campaigns/suggestions" className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#f0ece6] flex items-center gap-1.5">
+            ✦ AI Suggestions
+          </a>
+        </div>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -87,10 +105,17 @@ export default function NewCampaignPage() {
               placeholder="VP Sales EMEA — Q2" />
           </div>
           <div>
-            <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Target ICP</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-[#6b5e4e]">Target ICP</label>
+              <button onClick={parseIcp} disabled={parsingIcp || !campaign.icp}
+                className="text-xs text-[#3b6bef] font-medium hover:underline disabled:opacity-40">
+                {parsingIcp ? 'Parsing...' : '✦ Parse with AI'}
+              </button>
+            </div>
             <textarea value={campaign.icp} onChange={e=>setCampaign({...campaign,icp:e.target.value})}
               className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none"
-              rows={3} placeholder="Describe your target..." />
+              rows={3} placeholder="Describe your target in plain language — e.g. VP Sales at B2B SaaS companies, 50-500 employees, Series A to C..." />
+            <p className="text-xs text-[#b0a898] mt-1">Type naturally, then click Parse with AI to structure it.</p>
           </div>
           <div>
             <label className="text-xs font-medium text-[#6b5e4e] mb-2 block">Tone</label>
