@@ -1,5 +1,11 @@
 'use client'
 import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
 
@@ -12,12 +18,14 @@ export default function SignupPage() {
   async function handleFinish() {
     setLoading(true)
     setError('')
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(r => r.json())
-    if (res.error) { setError(res.error); setLoading(false); return }
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({ email: data.email, password: data.password, options: { data: { full_name: data.name } } })
+    if (signupError) { setError(signupError.message); setLoading(false); return }
+    const { error: loginError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
+    if (loginError) { setError(loginError.message); setLoading(false); return }
+    const wsRes = await fetch('/api/workspace/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceName: data.workspaceName }) }).then(r => r.json())
+    if (wsRes.workspace) {
+      await fetch('/api/workspace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone, onboarding_completed: true }) })
+    }
     window.location.href = '/dashboard'
   }
 
