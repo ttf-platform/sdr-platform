@@ -1,26 +1,25 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient()
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [workspace, setWorkspace] = useState<any>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { window.location.href = '/login'; return }
       setUser(session.user)
-      supabase.from('workspace_members')
+      const { data: member } = await supabase.from('workspace_members')
         .select('workspace_id, role, workspaces(name, plan)')
-        .eq('user_id', session.user.id)
-        .single()
-        .then(({ data }) => setWorkspace(data))
+        .eq('user_id', session.user.id).single()
+      setWorkspace(member)
     })
   }, [])
 
@@ -30,62 +29,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/dashboard/campaigns', label: 'Campaigns' },
-    { href: '/dashboard/prospects', label: 'Prospects' },
-    { href: '/dashboard/inbox', label: 'Inbox' },
-    { href: '/dashboard/pipeline', label: 'Pipeline' },
-    { href: '/dashboard/analytics', label: 'Analytics' },
-    { href: '/dashboard/morning-brief', label: 'Morning Brief' },
-    { href: '/dashboard/meetings', label: 'Meetings' },
-    { href: '/dashboard/team', label: 'Team' },
-    { href: '/dashboard/settings', label: 'Settings' },
+    { href: '/dashboard', label: 'Dashboard', icon: '⊞' },
+    { href: '/dashboard/campaigns', label: 'Campaigns', icon: '▸' },
+    { href: '/dashboard/prospects', label: 'Prospects', icon: '👤' },
+    { href: '/dashboard/analytics', label: 'Analytics', icon: '📊' },
+    { href: '/dashboard/inbox', label: 'Inbox', icon: '✉' },
+    { href: '/dashboard/meetings', label: 'Meetings', icon: '📅' },
+    { href: '/dashboard/pipeline', label: 'Pipeline', icon: '📈' },
+    { href: '/dashboard/settings', label: 'Settings', icon: '⚙' },
   ]
+
+  const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href)
 
   if (!user) return <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">Loading...</div></div>
 
   return (
-    <div className="flex h-screen bg-[#f5f2ee]">
-      <aside className="w-56 bg-[#faf8f5] border-r border-[#e8e3dc] flex flex-col flex-shrink-0">
-        <div className="p-4 border-b border-[#ede8e1]">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#1a1a2e] rounded-lg flex items-center justify-center">
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7L5.5 10.5L12 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span className="font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
+    <div className="min-h-screen bg-[#f5f2ee]">
+      <nav className="bg-white border-b border-[#e8e3dc] sticky top-0 z-50">
+        <div className="flex items-center px-4 h-12">
+          <Link href="/dashboard" className="flex items-center gap-1 mr-6 flex-shrink-0">
+            <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#3b6bef]">tra</span></span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-1 flex-1 overflow-x-auto">
+            {navItems.map(item => (
+              <Link key={item.href} href={item.href}
+                className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors " +
+                  (isActive(item.href) ? 'bg-[#eef1fd] text-[#3b6bef] font-medium' : 'text-[#6b5e4e] hover:bg-[#f0ece6]')}>
+                {item.label}
+              </Link>
+            ))}
           </div>
-        </div>
-        {workspace && (
-          <div className="mx-2 mt-3 bg-[#f0ece6] rounded-lg px-3 py-2 border border-[#e0dbd4]">
-            <div className="text-xs font-semibold text-[#1a1a2e] truncate">{(workspace.workspaces as any)?.name || 'My Workspace'}</div>
-            <div className="text-[10px] text-[#8a7e6e]">{(workspace.workspaces as any)?.plan || 'trial'} · {workspace.role}</div>
-          </div>
-        )}
-        <nav className="flex-1 p-2 mt-2 flex flex-col gap-0.5">
-          {navItems.map(item => (
-            <Link key={item.href} href={item.href}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[#6b5e4e] text-sm hover:bg-[#ede8e1] hover:text-[#1a1a2e] transition-colors">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="p-3 border-t border-[#ede8e1]">
-          <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f0ece6] rounded-lg border border-[#e0dbd4]">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#3b6bef] to-[#8b5cf6] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+
+          <div className="hidden md:flex items-center gap-3 ml-auto flex-shrink-0">
+            <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-2 py-1 rounded-lg">
+              {(workspace?.workspaces as any)?.plan || 'trial'}
+            </span>
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3b6bef] to-[#8b5cf6] flex items-center justify-center text-white text-xs font-bold cursor-pointer"
+              onClick={signOut} title="Sign out">
               {user?.email?.[0].toUpperCase()}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-[#1a1a2e] truncate">{user?.email}</div>
-            </div>
           </div>
-          <button onClick={signOut} className="w-full text-xs text-[#8a7e6e] hover:text-[#1a1a2e] text-left px-2 py-1 mt-2">
-            Sign out
+
+          <button className="md:hidden ml-auto p-2 text-[#6b5e4e]" onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? '✕' : '☰'}
           </button>
         </div>
-      </aside>
-      <main className="flex-1 overflow-auto">{children}</main>
+
+        {menuOpen && (
+          <div className="md:hidden border-t border-[#e8e3dc] bg-white">
+            {navItems.map(item => (
+              <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
+                className={"flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] " +
+                  (isActive(item.href) ? 'text-[#3b6bef] font-medium bg-[#eef1fd]' : 'text-[#6b5e4e]')}>
+                {item.icon} {item.label}
+              </Link>
+            ))}
+            <button onClick={signOut} className="w-full text-left px-4 py-3 text-sm text-red-500">Sign out</button>
+          </div>
+        )}
+      </nav>
+
+      <main className="p-4 md:p-6">
+        {children}
+      </main>
     </div>
   )
 }
