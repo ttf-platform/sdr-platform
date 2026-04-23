@@ -26,68 +26,64 @@ export default function DashboardPage() {
     })
   }, [])
 
-  const statusColor = (s: string) => s === 'active' ? 'text-green-600 bg-green-50' : s === 'draft' ? 'text-amber-600 bg-amber-50' : 'text-gray-500 bg-gray-100'
-
   return (
-    <div className="p-4 max-w-2xl">
-      <div className="mb-3">
-        <h1 className="text-2xl font-bold text-[#1a1a2e]">{(workspace?.workspaces as any)?.name || '...'}</h1>
-        <p className="text-sm text-[#8a7e6e]">Your outbound performance at a glance</p>
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{(workspace?.workspaces as any)?.name || '...'}</h1>
+          <p className="text-sm text-[#8a7e6e]">Your outbound performance at a glance</p>
+        </div>
+        <a href="/dashboard/campaigns/new" className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">+ New Campaign</a>
       </div>
 
-      <a href="/dashboard/campaigns/new" className="inline-flex items-center gap-1 bg-[#3b6bef] text-white px-4 py-2.5 rounded-lg text-sm font-semibold mb-5">
-        + New Campaign
-      </a>
-
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">CAMPAIGNS</div>
-          <div className="text-3xl font-bold text-[#1a1a2e]">{stats.campaigns}</div>
-        </div>
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">EMAILS SENT</div>
-          <div className="text-3xl font-bold text-[#3b6bef]">{stats.sent}</div>
-        </div>
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">OPEN RATE</div>
-          <div className="text-3xl font-bold text-[#1a1a2e]">{stats.open_rate}%</div>
-        </div>
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">REPLY RATE</div>
-          <div className="text-3xl font-bold text-[#1a1a2e]">{stats.reply_rate}%</div>
-        </div>
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'CAMPAIGNS', value: stats.campaigns, color: 'text-[#1a1a2e]' },
+          { label: 'EMAILS SENT', value: stats.sent, color: 'text-[#3b6bef]' },
+          { label: 'OPEN RATE', value: stats.open_rate + '%', color: 'text-[#1a1a2e]' },
+          { label: 'REPLY RATE', value: stats.reply_rate + '%', color: 'text-[#1a1a2e]' },
+        ].map(kpi => (
+          <div key={kpi.label} className="bg-white border border-[#e8e3dc] rounded-xl p-4">
+            <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">{kpi.label}</div>
+            <div className={"text-3xl font-bold " + kpi.color}>{kpi.value}</div>
+          </div>
+        ))}
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0ece6]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0ece6]">
           <h2 className="font-semibold text-[#1a1a2e]">Recent Campaigns</h2>
-          <a href="/dashboard/campaigns/new" className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-semibold">+ New Campaign</a>
         </div>
-        <div className="grid grid-cols-4 px-4 py-2 border-b border-[#f0ece6]">
-          <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider col-span-2">CAMPAIGN</span>
-          <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider text-center">STATUS</span>
-          <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider text-right">SENT</span>
-        </div>
-        {campaigns.length === 0 ? (
-          <div className="px-4 py-10 text-center">
-            <div className="text-sm text-[#8a7e6e] mb-3">No campaigns yet</div>
-            <a href="/dashboard/campaigns/new" className="text-sm text-[#3b6bef] font-medium">Create your first campaign →</a>
-          </div>
-        ) : campaigns.map((c: any) => (
-          <a key={c.id} href={"/dashboard/campaigns/" + c.id} className="grid grid-cols-4 px-4 py-3 border-b border-[#f7f4f0] hover:bg-[#faf8f5] items-center">
-            <div className="col-span-2">
-              <div className="text-sm font-medium text-[#1a1a2e] truncate">{c.name}</div>
-              <div className="text-xs text-[#8a7e6e]">{c.prospect_count || 0} prospects</div>
-            </div>
-            <div className="text-center">
-              <span className={"text-xs px-2 py-0.5 rounded-full font-medium capitalize " + statusColor(c.status)}>{c.status}</span>
-            </div>
-            <div className="text-right">
-              <div className="text-sm font-mono font-medium text-[#1a1a2e]">{c.sent_count || 0}</div>
-              <div className="text-xs text-[#8a7e6e]">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(0)+'% open' : '—'}</div>
-            </div>
-          </a>
-        ))}
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-[#f0ece6]">
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">CAMPAIGN</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">STATUS</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">SENT</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">👁 OPEN RATE</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">✅ REPLY RATE</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">CREATED</th>
+            </tr>
+          </thead>
+          <tbody>
+            {campaigns.length === 0 ? (
+              <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-[#8a7e6e]">
+                No campaigns yet — <a href="/dashboard/campaigns/new" className="text-[#3b6bef] font-medium">create your first</a>
+              </td></tr>
+            ) : campaigns.map((c: any) => (
+              <tr key={c.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5] cursor-pointer" onClick={() => window.location.href = '/dashboard/campaigns/' + c.id}>
+                <td className="px-5 py-3 text-sm font-medium text-[#1a1a2e]">{c.name}</td>
+                <td className="px-5 py-3">
+                  <span className={"text-xs px-2 py-0.5 rounded font-medium " + (c.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600')}>{c.status}</span>
+                </td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count || 0}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(1) + '%' : '—'}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e]">{c.sent_count > 0 ? ((c.reply_count/c.sent_count)*100).toFixed(1) + '%' : '—'}</td>
+                <td className="px-5 py-3 text-sm text-[#8a7e6e]">{new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
