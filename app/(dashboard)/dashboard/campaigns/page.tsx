@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 
 const supabase = createClient()
 
@@ -12,6 +13,7 @@ export default function CampaignsPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [workspaceId, setWorkspaceId] = useState<string|null>(null)
+  const [showPrefs, setShowPrefs] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -58,10 +60,12 @@ export default function CampaignsPage() {
           <p className="text-sm text-[#8a7e6e]">Manage your outbound campaigns</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium">🕐 Sending Preferences</button>
+          <button onClick={() => setShowPrefs(v => !v)} className={'flex items-center gap-1.5 border px-3 py-2 rounded-lg text-sm font-medium ' + (showPrefs ? 'border-[#3b6bef] text-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] bg-white text-[#1a1a2e]')}>🕐 Sending Preferences</button>
           <a href="/dashboard/campaigns/new" className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">+ New Campaign</a>
         </div>
       </div>
+
+      <SendingPreferencesPanel open={showPrefs} onClose={() => setShowPrefs(false)} />
 
       <div className="flex gap-1 mb-6 p-1 bg-[#f0ece6] rounded-xl w-fit">
         <button onClick={() => setTab('my')} className={"px-4 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'my' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>My Campaigns</button>
