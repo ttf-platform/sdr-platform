@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, FileText, TrendingUp, Settings, Sun } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus } from 'lucide-react'
 
 const supabase = createClient()
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [workspace, setWorkspace] = useState<any>(null)
+  const [role, setRole] = useState<string>('')
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = usePathname()
 
@@ -18,9 +19,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!session) { window.location.href = '/login'; return }
       setUser(session.user)
       const { data: member } = await supabase.from('workspace_members')
-        .select('workspace_id, role, workspaces(name, plan)')
+        .select('workspace_id, role, workspaces(name, plan, credits)')
         .eq('user_id', session.user.id).single()
-      setWorkspace(member)
+      if (member) { setWorkspace(member); setRole(member.role) }
     })
   }, [])
 
@@ -38,10 +39,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/meetings', label: 'Meetings', icon: Calendar },
     { href: '/dashboard/morning-brief', label: 'Morning Brief', icon: Sun },
     { href: '/dashboard/pipeline', label: 'Pipeline', icon: TrendingUp },
+    { href: '/dashboard/team', label: 'Team', icon: UserPlus },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
   ]
 
   const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href)
+  const ws = (workspace?.workspaces as any)
 
   if (!user) return <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">Loading...</div></div>
 
@@ -68,8 +71,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="hidden md:flex items-center gap-2 ml-auto flex-shrink-0">
+            {role === 'owner' && (
+              <Link href="/dashboard/admin"
+                className={"flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-semibold " + (pathname.startsWith('/dashboard/admin') ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50')}>
+                ♦ Admin
+              </Link>
+            )}
             <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-2 py-1 rounded-lg whitespace-nowrap">
-              100 / 100 credits
+              {ws?.credits || 100} / 100 credits
             </span>
             <div className="w-7 h-7 rounded-full bg-[#3b6bef] flex items-center justify-center text-white text-xs font-bold cursor-pointer flex-shrink-0"
               onClick={signOut} title="Sign out">
@@ -94,6 +103,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Link>
               )
             })}
+            {role === 'owner' && (
+              <Link href="/dashboard/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-purple-600 font-medium">
+                ♦ Admin Dashboard
+              </Link>
+            )}
             <button onClick={signOut} className="w-full text-left px-4 py-3 text-sm text-red-500">Sign out</button>
           </div>
         )}
