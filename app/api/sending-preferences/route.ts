@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_SENDING_PREFS } from "@/lib/types/sending-prefs";
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -25,7 +25,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
