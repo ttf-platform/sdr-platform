@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
 
@@ -9,19 +8,16 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [data, setData] = useState({ email: '', password: '', name: '', workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
-  const supabase = createClient()
 
   async function handleFinish() {
     setLoading(true)
     setError('')
-    const { error: signupError } = await supabase.auth.signUp({ email: data.email, password: data.password, options: { data: { full_name: data.name } } })
-    if (signupError) { setError(signupError.message); setLoading(false); setStep(0); return }
-    const { error: loginError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
-    if (loginError) { setError(loginError.message); setLoading(false); return }
-    const wsRes = await fetch('/api/workspace/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceName: data.workspaceName }) }).then(r => r.json())
-    if (wsRes.workspace) {
-      await fetch('/api/workspace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone, onboarding_completed: true }) })
-    }
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(r => r.json())
+    if (res.error) { setError(res.error); setLoading(false); return }
     window.location.href = '/dashboard'
   }
 
@@ -51,9 +47,9 @@ export default function SignupPage() {
           {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
           {step === 0 && (<>
             <h2 className="text-lg font-bold text-[#1a1a2e]">Create your account</h2>
-            <input type="text" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Full name" required />
-            <input type="email" value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Email" required />
-            <input type="password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Password (8+ chars)" required minLength={8} />
+            <input type="text" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Full name" />
+            <input type="email" value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Email" />
+            <input type="password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Password (8+ chars)" minLength={8} />
             <button onClick={()=>setStep(1)} disabled={!data.email||!data.password||!data.name} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
             <p className="text-center text-xs text-[#8a7e6e]">Already have an account? <a href="/login" className="text-[#3b6bef] font-medium">Sign in</a></p>
           </>)}
