@@ -19,5 +19,9 @@ export async function POST(request: Request) {
   )
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  const response = NextResponse.json({ success: true })
+  cookieStore.getAll().forEach(({ name, value }) => {
+    response.cookies.set(name, value, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' })
+  })
+  return response
 }
