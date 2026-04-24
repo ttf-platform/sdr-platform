@@ -9,6 +9,8 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await admin.auth.getUser(token)
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  await admin.auth.admin.updateUserById(user.id, { email_confirm: true })
+
   const { workspaceName } = await request.json()
 
   const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).slice(2, 6)
