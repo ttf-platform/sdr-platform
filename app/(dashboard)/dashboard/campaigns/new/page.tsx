@@ -61,14 +61,24 @@ export default function NewCampaignPage() {
   }
 
   async function saveCampaign() {
+    if (!workspaceId) {
+      alert('Workspace not found. Please refresh the page.')
+      return
+    }
     setLoading(true)
-    const { data: camp } = await supabase.from('campaigns').insert({
+    const { data: camp, error: campError } = await supabase.from('campaigns').insert({
       workspace_id: workspaceId,
       name: campaign.name,
       status: 'draft',
       icp_snapshot: { icp: campaign.icp, tone: campaign.tone, parsed: parsedIcp }
     }).select().single()
-    if (camp && sequence.length > 0) {
+    if (campError || !camp) {
+      console.error('Campaign insert failed:', campError)
+      setLoading(false)
+      alert('Failed to save campaign. Please try again.')
+      return
+    }
+    if (sequence.length > 0) {
       await supabase.from('campaign_steps').insert(
         sequence.map((s, i) => ({ campaign_id: camp.id, step_number: i+1, subject: s.subject, body: s.body, delay_days: i === 0 ? 0 : 3 }))
       )

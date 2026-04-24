@@ -1,11 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient()
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
 
@@ -18,14 +15,25 @@ export default function SignupPage() {
   async function handleFinish() {
     setLoading(true)
     setError('')
-    const { data: signupData, error: signupError } = await supabase.auth.signUp({ email: data.email, password: data.password, options: { data: { full_name: data.name } } })
+    const { error: signupError } = await supabase.auth.signUp({ email: data.email, password: data.password, options: { data: { full_name: data.name } } })
     if (signupError) { setError(signupError.message); setLoading(false); return }
     const { error: loginError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
     if (loginError) { setError(loginError.message); setLoading(false); return }
-    const wsRes = await fetch('/api/workspace/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceName: data.workspaceName }) }).then(r => r.json())
-    if (wsRes.workspace) {
-      await fetch('/api/workspace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone, onboarding_completed: true }) })
+    const wsRes = await fetch('/api/workspace/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceName: data.workspaceName })
+    }).then(r => r.json())
+    if (!wsRes.workspace) {
+      setError(wsRes.error || 'Failed to create workspace. Please try again.')
+      setLoading(false)
+      return
     }
+    await fetch('/api/workspace/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone, onboarding_completed: true })
+    })
     window.location.href = '/dashboard'
   }
 
