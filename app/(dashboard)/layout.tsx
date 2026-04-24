@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone } from 'lucide-react'
+import TrialBadge from '@/components/TrialBadge'
 
 const supabase = createClient()
 
@@ -91,6 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ♦ Admin
               </Link>
             )}
+            <TrialBadge />
             <div className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg whitespace-nowrap">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#8a7e6e" strokeWidth="1.2"/><path d="M6 3.5v2.5l1.5 1.5" stroke="#8a7e6e" strokeWidth="1.2" strokeLinecap="round"/></svg>
               {ws?.credits || 100} / 100
@@ -138,6 +140,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {menuOpen && (
           <div className="md:hidden border-t border-[#e8e3dc] bg-white">
+            <div className="px-4 py-3 border-b border-[#f0ece6] flex items-center justify-between">
+              <TrialBadge />
+              <div className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg">
+                {ws?.credits || 100} / 100 credits
+              </div>
+            </div>
             {navItems.map(item => {
               const Icon = item.icon
               return (
