@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr'
 
 export async function POST(request: Request) {
   console.log('[SIGNUP] route hit')
@@ -8,21 +8,19 @@ export async function POST(request: Request) {
   console.log('[SIGNUP] payload received for email:', email, '| workspaceName:', workspaceName)
 
   const admin = createAdminClient()
-  // cookieJar accumulates Set-Cookie values across multiple setAll calls (signUp + signInWithPassword)
-  // and forwards them to the browser via explicit res.cookies.set() — required in Route Handlers
-  // because next/headers cookieStore.set() does not propagate to the outgoing response
   const cookieJar: Record<string, { name: string; value: string; options: any }> = {}
 
+  // @supabase/ssr@0.1.0 createServerClient uses cookies.get/set/remove (old API).
+  // setAll is never triggered because setItem checks cookies.set which is undefined here.
+  // We handle cookie persistence manually after signInWithPassword via cookieJar.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet) {
-          console.log('[SIGNUP] setAll called with', cookiesToSet.map(c => c.name))
-          cookiesToSet.forEach(c => { cookieJar[c.name] = c })
-        }
+        get(name: string) { return request.cookies.get(name)?.value },
+        set(name: string, value: string, options: any) { cookieJar[name] = { name, value, options } },
+        remove(name: string, options: any) { delete cookieJar[name] }
       }
     }
   )
@@ -46,7 +44,7 @@ export async function POST(request: Request) {
     console.warn('[SIGNUP] existing email detected (identities empty), user:', signupData.user?.id)
     return respond({ error: 'An account with this email already exists.' }, 400)
   }
-  console.log('[SIGNUP] signUp ok, user id:', signupData.user.id, '| email_confirmed_at:', signupData.user.email_confirmed_at)
+  console.log('[SIGNUP] signUp ok, user id:', signupData.user.id)
 
   console.log('[SIGNUP] calling auto-confirm...')
   const { error: confirmError } = await admin.auth.admin.updateUserById(signupData.user.id, { email_confirm: true })
@@ -57,12 +55,26 @@ export async function POST(request: Request) {
   }
 
   console.log('[SIGNUP] calling signInWithPassword...')
-  const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+  const { error: loginError, data: signInData } = await supabase.auth.signInWithPassword({ email, password })
   if (loginError) {
     console.error('[SIGNUP] signInWithPassword error:', loginError.message)
     return respond({ error: loginError.message }, 400)
   }
   console.log('[SIGNUP] signInWithPassword ok')
+
+  // Manually serialize session into chunked cookies — createServerClient@0.1.0's setItem
+  // uses cookies.set (old API) which is now provided above, but signInWithPassword
+  // resolves synchronously before _persistSession fires its async storage.setItem.
+  // Force-writing the session here guarantees cookies are in the jar before respond().
+  if (signInData.session) {
+    const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL!.split('//')[1].split('.')[0]
+    const cookieKey = `sb-${projectRef}-auth-token`
+    const chunks = createChunks(cookieKey, JSON.stringify(signInData.session))
+    chunks.forEach(({ name, value }) => {
+      cookieJar[name] = { name, value, options: { ...DEFAULT_COOKIE_OPTIONS } }
+    })
+    console.log('[SIGNUP] manually persisted session cookies:', chunks.map(c => c.name))
+  }
 
   const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).slice(2, 6)
   console.log('[SIGNUP] inserting workspace with slug:', slug)

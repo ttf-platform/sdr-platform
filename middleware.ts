@@ -14,12 +14,17 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        // get/set/remove: old API required by @supabase/ssr@0.1.0 (getAll/setAll not called by this version)
+        get(name: string) { return request.cookies.get(name)?.value },
+        set(name: string, value: string, options: any) {
+          request.cookies.set({ name, value, ...options })
           supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options))
+          supabaseResponse.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          request.cookies.set({ name, value: '', ...options })
+          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse.cookies.set({ name, value: '', ...options })
         }
       }
     }
