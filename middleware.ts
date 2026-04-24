@@ -3,10 +3,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname
-  const sbCookies = request.cookies.getAll().filter(c => c.name.startsWith('sb-'))
-  console.log('[MIDDLEWARE] path:', path, '| sb-cookies:', sbCookies.map(c => c.name))
-
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -14,7 +10,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        // get/set/remove: old API required by @supabase/ssr@0.1.0 (getAll/setAll not called by this version)
+        // get/set/remove: old API required by @supabase/ssr@0.1.0
         get(name: string) { return request.cookies.get(name)?.value },
         set(name: string, value: string, options: any) {
           request.cookies.set({ name, value, ...options })
@@ -30,17 +26,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user }, error: getUserError } = await supabase.auth.getUser()
-  console.log('[MIDDLEWARE] getUser result — user id:', user?.id ?? 'null', '| error:', getUserError?.message ?? 'none')
+  const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    console.log('[MIDDLEWARE] no user → redirecting to /login')
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  console.log('[MIDDLEWARE] user ok → letting through')
   return supabaseResponse
 }
 
