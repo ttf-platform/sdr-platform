@@ -64,9 +64,13 @@ export async function POST(request: Request) {
     workspace_id: workspace.id, user_id: signupData.user.id, role: 'owner', invite_accepted: true
   })
 
+  // booking_slug: firstname-xxxx (4 random alphanum). Collision chance is negligible at this scale.
+  const firstName = name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'
+  const bookingSlug = `${firstName}-${Math.random().toString(36).slice(2, 6)}`.slice(0, 30)
+
   await admin.from('workspace_profiles').insert({
     workspace_id: workspace.id, company_name: companyName, product_description: product,
-    icp_description: icp, tone, onboarding_completed: true
+    icp_description: icp, tone, onboarding_completed: true, booking_slug: bookingSlug,
   })
 
   return respond({ success: true })
