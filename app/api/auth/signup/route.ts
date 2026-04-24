@@ -1,6 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 
 export async function POST(request: Request) {
@@ -8,22 +7,32 @@ export async function POST(request: Request) {
   const { email, password, name, workspaceName, companyName, product, icp, tone } = await request.json()
   console.log('[SIGNUP] payload received for email:', email, '| workspaceName:', workspaceName)
 
-  const cookieStore = cookies()
   const admin = createAdminClient()
+  // cookieJar accumulates Set-Cookie values across multiple setAll calls (signUp + signInWithPassword)
+  // and forwards them to the browser via explicit res.cookies.set() — required in Route Handlers
+  // because next/headers cookieStore.set() does not propagate to the outgoing response
+  const cookieJar: Record<string, { name: string; value: string; options: any }> = {}
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return cookieStore.getAll() },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
           console.log('[SIGNUP] setAll called with', cookiesToSet.map(c => c.name))
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+          cookiesToSet.forEach(c => { cookieJar[c.name] = c })
         }
       }
     }
   )
+
+  function respond(body: object, status = 200) {
+    const res = NextResponse.json(body, { status })
+    Object.values(cookieJar).forEach(({ name, value, options }) => res.cookies.set(name, value, options))
+    console.log('[SIGNUP] respond() attaching cookies:', Object.keys(cookieJar))
+    return res
+  }
 
   console.log('[SIGNUP] calling signUp...')
   const { data: signupData, error: signupError } = await supabase.auth.signUp({
@@ -31,11 +40,11 @@ export async function POST(request: Request) {
   })
   if (signupError) {
     console.error('[SIGNUP] signUp error:', signupError.message)
-    return NextResponse.json({ error: signupError.message }, { status: 400 })
+    return respond({ error: signupError.message }, 400)
   }
   if (!signupData.user || signupData.user.identities?.length === 0) {
     console.warn('[SIGNUP] existing email detected (identities empty), user:', signupData.user?.id)
-    return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 400 })
+    return respond({ error: 'An account with this email already exists.' }, 400)
   }
   console.log('[SIGNUP] signUp ok, user id:', signupData.user.id, '| email_confirmed_at:', signupData.user.email_confirmed_at)
 
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
   const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
   if (loginError) {
     console.error('[SIGNUP] signInWithPassword error:', loginError.message)
-    return NextResponse.json({ error: loginError.message }, { status: 400 })
+    return respond({ error: loginError.message }, 400)
   }
   console.log('[SIGNUP] signInWithPassword ok')
 
@@ -64,7 +73,7 @@ export async function POST(request: Request) {
 
   if (wsError || !workspace) {
     console.error('[SIGNUP] workspace insert failed for user', signupData.user.id, wsError)
-    return NextResponse.json({ error: 'Failed to create workspace. Please contact support.' }, { status: 500 })
+    return respond({ error: 'Failed to create workspace. Please contact support.' }, 500)
   }
   console.log('[SIGNUP] workspace created, id:', workspace.id)
 
@@ -88,5 +97,5 @@ export async function POST(request: Request) {
   }
 
   console.log('[SIGNUP] returning success')
-  return NextResponse.json({ success: true })
+  return respond({ success: true })
 }
