@@ -10,12 +10,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // log mount so we can see if /login is hit unexpectedly after signup/signin
+  if (typeof window !== 'undefined') {
+    console.log('[LOGIN] page mounted, referrer:', document.referrer)
+  }
+
   async function handle(e: any) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    console.log('[LOGIN] submit — calling signInWithPassword for:', email)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    console.log('[LOGIN] signInWithPassword result — user:', data?.user?.id ?? 'null', '| session:', data?.session ? 'present' : 'null', '| error:', error?.message ?? 'none')
     if (error) { setError(error.message); setLoading(false); return }
+    console.log('[LOGIN] success, navigating to /dashboard')
     window.location.href = '/dashboard'
   }
 
