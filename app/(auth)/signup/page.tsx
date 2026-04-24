@@ -1,8 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-
-const supabase = createClient()
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
 
@@ -15,28 +12,20 @@ export default function SignupPage() {
   async function handleFinish() {
     setLoading(true)
     setError('')
-    const { error: signupError } = await supabase.auth.signUp({ email: data.email, password: data.password, options: { data: { full_name: data.name } } })
-    if (signupError) { setError(signupError.message); setLoading(false); return }
-    const { error: loginError, data: loginData } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
-    if (loginError) { setError(loginError.message); setLoading(false); return }
-    const wsRes = await fetch('/api/workspace/create', {
+    const res = await fetch('/api/auth/signup', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${loginData.session?.access_token}`
-      },
-      body: JSON.stringify({ workspaceName: data.workspaceName })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: data.email, password: data.password, name: data.name,
+        workspaceName: data.workspaceName, companyName: data.companyName,
+        product: data.product, icp: data.icp, tone: data.tone
+      })
     }).then(r => r.json())
-    if (!wsRes.workspace) {
-      setError(wsRes.error || 'Failed to create workspace. Please try again.')
+    if (!res.success) {
+      setError(res.error || 'Something went wrong. Please try again.')
       setLoading(false)
       return
     }
-    await fetch('/api/workspace/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone, onboarding_completed: true })
-    })
     window.location.href = '/dashboard'
   }
 
