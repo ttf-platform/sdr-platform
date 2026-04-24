@@ -9,15 +9,31 @@ export default function TrialBadge() {
   const [trial, setTrial] = useState<{ endDate: string; status: string } | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
-      const { data: member } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', session.user.id).single()
-      if (!member) return
-      const { data: ws } = await supabase.from('workspaces').select('trial_end_date, subscription_status').eq('id', member.workspace_id).single()
-      if (ws && ws.subscription_status === 'trialing') {
-        setTrial({ endDate: ws.trial_end_date, status: ws.subscription_status })
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session || cancelled) return
+        const { data: member } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+        if (!member || cancelled) return
+        const { data: ws } = await supabase
+          .from('workspaces')
+          .select('trial_end_date, subscription_status')
+          .eq('id', member.workspace_id)
+          .maybeSingle()
+        if (cancelled) return
+        if (ws && ws.subscription_status === 'trialing' && ws.trial_end_date) {
+          setTrial({ endDate: ws.trial_end_date, status: ws.subscription_status })
+        }
+      } catch (e) {
+        // silent fail — badge just doesn't show
       }
-    })
+    })()
+    return () => { cancelled = true }
   }, [])
 
   if (!trial) return null
@@ -45,7 +61,7 @@ export default function TrialBadge() {
   return (
     <Link
       href="/dashboard/settings?tab=billing"
-      className={"text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors " + className}
+      className={"text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap " + className}
     >
       {text}
     </Link>
