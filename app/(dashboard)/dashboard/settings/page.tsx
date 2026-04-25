@@ -98,19 +98,35 @@ export default function SettingsPage() {
             <input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Sender name <span className="text-[#b0a898] font-normal">OPTIONAL</span></label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-xs font-semibold text-[#6b5e4e]">Sender name</label>
+              <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
+            </div>
             <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Industry <span className="text-[#b0a898] font-normal">OPTIONAL</span></label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="text-xs font-semibold text-[#6b5e4e]">Industry</label>
+                <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 15% to AI quality</span>
+              </div>
               <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="e.g. SaaS, Fintech" />
+              <p className={`text-xs mt-1 ${form.industry ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                {form.industry ? '1 industry ✓' : '0/1 industry minimum'}
+              </p>
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Company size</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="text-xs font-semibold text-[#6b5e4e]">Company size</label>
+                <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 10% to AI quality</span>
+              </div>
               <select value={form.company_size} onChange={e => setForm({...form, company_size: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
-                {['1-10','11-50','51-200','201-1000','1000+'].map(s => <option key={s}>{s} employees</option>)}
+                <option value="">Select...</option>
+                {['1-10','11-50','51-200','201-1000','1000+'].map(s => <option key={s} value={s}>{s} employees</option>)}
               </select>
+              <p className={`text-xs mt-1 ${form.company_size ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                {form.company_size ? 'Selected ✓' : 'Not selected'}
+              </p>
             </div>
           </div>
         </div>
@@ -120,16 +136,35 @@ export default function SettingsPage() {
         <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">PRODUCT & AUDIENCE</div>
         <div className="flex flex-col gap-3">
           <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Product description *</label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-xs font-semibold text-[#6b5e4e]">Product description *</label>
+              <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 20% to AI quality</span>
+            </div>
             <textarea value={form.product_description} onChange={e => setForm({...form, product_description: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} />
+            <p className={`text-xs mt-1 ${form.product_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+              {form.product_description.length}/30 chars{form.product_description.length >= 30 ? ' ✓' : ''}
+            </p>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Describe your ideal customer <span className="text-[#b0a898] font-normal">ICP</span></label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-xs font-semibold text-[#6b5e4e]">Describe your ideal customer</label>
+              <span className="text-xs text-[#b0a898]">ICP</span>
+              <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 25% to AI quality</span>
+            </div>
             <textarea value={form.icp_description} onChange={e => setForm({...form, icp_description: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="e.g. VP Sales at B2B SaaS companies, 50-500 employees, Series A to C, struggling with outbound volume" />
+            <p className={`text-xs mt-1 ${form.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+              {form.icp_description.length}/30 chars{form.icp_description.length >= 30 ? ' ✓' : ''}
+            </p>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Value proposition <span className="text-[#b0a898] font-normal">OPTIONAL</span></label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-xs font-semibold text-[#6b5e4e]">Value proposition</label>
+              <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 20% to AI quality</span>
+            </div>
             <textarea value={form.value_proposition} onChange={e => setForm({...form, value_proposition: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={2} />
+            <p className={`text-xs mt-1 ${form.value_proposition.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+              {form.value_proposition.length}/20 chars{form.value_proposition.length >= 20 ? ' ✓' : ''}
+            </p>
           </div>
           <div>
             <label className="text-xs font-semibold text-[#6b5e4e] mb-2 block">Email tone</label>
@@ -143,8 +178,14 @@ export default function SettingsPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Pain points / Buying signals <span className="text-[#b0a898] font-normal">OPTIONAL</span></label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-xs font-semibold text-[#6b5e4e]">Pain points / Buying signals</label>
+              <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 10% to AI quality</span>
+            </div>
             <textarea value={form.pain_points} onChange={e => setForm({...form, pain_points: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={2} />
+            <p className={`text-xs mt-1 ${form.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+              {form.pain_points.length}/20 chars{form.pain_points.length >= 20 ? ' ✓' : ''}
+            </p>
           </div>
         </div>
       </div>

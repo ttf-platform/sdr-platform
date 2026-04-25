@@ -3,7 +3,7 @@
 export interface ProfileForScore {
   product_description?: string | null
   icp_description?: string | null
-  sender_name?: string | null
+  sender_name?: string | null       // kept as field, no score impact
   value_proposition?: string | null
   icp_industries?: string[] | null
   icp_company_size?: string | null
@@ -17,12 +17,12 @@ interface Criterion {
   passes: (v: ProfileForScore) => boolean
 }
 
-const CRITERIA: Criterion[] = [
+// Total = 100. sender_name intentionally excluded from scoring.
+export const CRITERIA: Criterion[] = [
   { key: 'product_description', label: 'company description',          points: 20, passes: p => (p.product_description?.length  ?? 0) >= 30 },
   { key: 'icp_description',     label: 'ideal customer description',   points: 25, passes: p => (p.icp_description?.length     ?? 0) >= 30 },
-  { key: 'sender_name',         label: 'sender name',                  points: 10, passes: p => !!p.sender_name?.trim() },
-  { key: 'value_proposition',   label: 'value proposition',            points: 15, passes: p => (p.value_proposition?.length   ?? 0) >= 20 },
-  { key: 'icp_industries',      label: 'target industry',              points: 10, passes: p => (p.icp_industries?.filter(Boolean).length ?? 0) > 0 },
+  { key: 'value_proposition',   label: 'value proposition',            points: 20, passes: p => (p.value_proposition?.length   ?? 0) >= 20 },
+  { key: 'icp_industries',      label: 'target industry',              points: 15, passes: p => (p.icp_industries?.filter(Boolean).length ?? 0) > 0 },
   { key: 'icp_company_size',    label: 'target company size',          points: 10, passes: p => !!p.icp_company_size?.trim() },
   { key: 'pain_points',         label: 'pain points / buying signals', points: 10, passes: p => (p.pain_points?.length          ?? 0) >= 20 },
 ]

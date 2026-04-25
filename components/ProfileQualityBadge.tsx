@@ -1,5 +1,5 @@
 'use client'
-import { calculateProfileScore, getMissingCriteria } from '@/lib/profile-quality'
+import { calculateProfileScore } from '@/lib/profile-quality'
 import type { ProfileForScore } from '@/lib/profile-quality'
 
 interface Props {
@@ -9,20 +9,23 @@ interface Props {
 
 export default function ProfileQualityBadge({ profile, className = '' }: Props) {
   if (!profile) return null
-  const score   = calculateProfileScore(profile)
-  const missing = getMissingCriteria(profile)
+  const score = calculateProfileScore(profile)
 
   let pillCls: string
   let label: string
+  let subtext: string
   if (score >= 70) {
     pillCls = 'bg-green-50 text-green-700 border border-green-200'
     label   = `✨ Premium AI quality (${score}%)`
+    subtext = 'Your AI outputs will be highly tailored.'
   } else if (score >= 30) {
     pillCls = 'bg-amber-50 text-amber-700 border border-amber-200'
     label   = `📊 Good AI quality (${score}%)`
+    subtext = 'Fill more fields to reach Premium.'
   } else {
     pillCls = 'bg-red-50 text-red-600 border border-red-200'
     label   = `⚠️ Limited AI quality (${score}%)`
+    subtext = 'Complete your profile to unlock better outputs.'
   }
 
   return (
@@ -30,13 +33,7 @@ export default function ProfileQualityBadge({ profile, className = '' }: Props) 
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${pillCls}`}>
         {label}
       </span>
-      {missing.length > 0 && (
-        <p className="text-xs text-[#8a7e6e] mt-1">
-          Add to improve:{' '}
-          {missing.slice(0, 3).join(', ')}
-          {missing.length > 3 ? ` +${missing.length - 3} more` : ''}
-        </p>
-      )}
+      <span className="text-xs text-[#8a7e6e] ml-2">{subtext}</span>
     </div>
   )
 }
