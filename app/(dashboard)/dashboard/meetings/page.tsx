@@ -59,6 +59,13 @@ export default function MeetingsPage() {
   const [cForm, setCForm] = useState({ title:'', meeting_at:'', duration_min:30, attendee_email:'', attendee_name:'', company_name:'', notes:'' })
   const [creating, setCreating]   = useState(false)
   const [createErr, setCreateErr] = useState('')
+  const [toast, setToast] = useState<{ msg: string; showBriefLink: boolean } | null>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 8000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   // Scheduler settings
   const [sSlug, setSSlug]       = useState('')
@@ -116,6 +123,13 @@ export default function MeetingsPage() {
     const res = await fetch('/api/meetings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...cForm, duration_min: Number(cForm.duration_min) }) }).then(r => r.json())
     if (res.error) { setCreateErr(res.error); setCreating(false); return }
     setShowCreate(false)
+    const meetingDate = cForm.meeting_at.split('T')[0]
+    const todayDate   = new Date().toLocaleDateString('en-CA')
+    const isToday     = meetingDate === todayDate
+    setToast({
+      msg: isToday ? 'Meeting created. Regenerate your Morning Brief to include it.' : 'Meeting created.',
+      showBriefLink: isToday,
+    })
     setCForm({ title:'', meeting_at:'', duration_min:30, attendee_email:'', attendee_name:'', company_name:'', notes:'' })
     loadMeetings(); setCreating(false)
   }
@@ -307,6 +321,17 @@ export default function MeetingsPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ── Toast ───────────────────────────────────────────────────────── */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-sm">
+          <span className="text-sm text-[#1a1a2e] flex-1">{toast.msg}</span>
+          {toast.showBriefLink && (
+            <a href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline">Go to brief →</a>
+          )}
+          <button onClick={() => setToast(null)} className="text-[#8a7e6e] hover:text-[#1a1a2e] flex-shrink-0 ml-1">✕</button>
         </div>
       )}
 
