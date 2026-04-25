@@ -327,7 +327,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                 </button>
               </div>
 
-              <p className="text-xs text-[#b0a898] mt-5">We've also sent you a confirmation email.</p>
+              <p className="text-sm text-[#8a7e6e] mt-5">You're all set! You can safely close this window. We've sent the invite to your email.</p>
             </div>
           )}
         </div>
