@@ -1,9 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
+import { billingGuard } from '@/lib/billing-guard'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(request: Request) {
+  const guard = await billingGuard()
+  if (guard.blocked) return guard.response
+
   const { campaign, profile } = await request.json()
 
   const msg = await client.messages.create({

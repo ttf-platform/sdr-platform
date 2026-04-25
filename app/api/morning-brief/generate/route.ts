@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { calculateProfileScore } from '@/lib/profile-quality'
+import { getTrialStatus } from '@/lib/trial-status'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -26,6 +27,17 @@ export async function POST(request: Request) {
   if (!workspace_id) return NextResponse.json({ error: 'workspace_id required' }, { status: 400 })
 
   const admin = createAdminClient()
+
+  // Trial enforcement
+  const { data: wsCheck } = await admin
+    .from('workspaces').select('subscription_status, trial_end_date')
+    .eq('id', workspace_id).single()
+  if (getTrialStatus(wsCheck ?? {}).blockedActions) {
+    return NextResponse.json(
+      { error: 'Your trial has expired. Please upgrade to continue.', code: 'TRIAL_EXPIRED' },
+      { status: 402 },
+    )
+  }
 
   const [{ data: profile }, { data: campaigns }, { count: prospectCount }, { data: ownerMember }] = await Promise.all([
     admin.from('workspace_profiles').select('*').eq('workspace_id', workspace_id).single(),

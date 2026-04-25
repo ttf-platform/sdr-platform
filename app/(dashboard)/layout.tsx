@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
+import { getTrialStatus } from '@/lib/trial-status'
 
 const supabase = createClient()
 
@@ -12,6 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null)
   const [workspace, setWorkspace] = useState<any>(null)
   const [role, setRole] = useState<string>('')
+  const [billingData, setBillingData] = useState<{ blocked: boolean; daysRemaining: number; status: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const avatarRef = useRef<HTMLDivElement>(null)
@@ -22,9 +24,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!session) { window.location.href = '/login'; return }
       setUser(session.user)
       const { data: member } = await supabase.from('workspace_members')
-        .select('workspace_id, role, workspaces(name, plan, credits)')
+        .select('workspace_id, role, workspaces(name, plan, credits, subscription_status, trial_end_date)')
         .eq('user_id', session.user.id).single()
-      if (member) { setWorkspace(member); setRole(member.role) }
+      if (member) {
+        setWorkspace(member); setRole(member.role)
+        const ws = member.workspaces as any
+        const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
+        setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
+      }
     })
   }, [])
 
@@ -167,6 +174,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
       </nav>
+
+      {/* Trial expiry banner (3 days or less) */}
+      {billingData && !billingData.blocked && billingData.status === 'trialing' && billingData.daysRemaining <= 3 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-4">
+          <p className="text-sm text-amber-800 font-medium">
+            ⚠ Your trial ends in {billingData.daysRemaining} day{billingData.daysRemaining !== 1 ? 's' : ''}.
+            Add a payment method to keep access.
+          </p>
+          <Link href="/dashboard/billing" className="text-xs font-bold text-amber-700 underline whitespace-nowrap">
+            Upgrade now →
+          </Link>
+        </div>
+      )}
+
+      {/* Trial expired overlay */}
+      {billingData?.blocked && pathname !== '/dashboard/billing' && pathname !== '/dashboard/settings' && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+            <div className="text-4xl mb-4">🔒</div>
+            <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">Your trial has ended</h2>
+            <p className="text-sm text-[#6b5e4e] mb-6 leading-relaxed">
+              Upgrade to continue sending campaigns, generating briefs, and booking meetings.
+              Your data is safe — nothing is deleted.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Link href="/dashboard/billing"
+                className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-xl py-3 text-sm font-semibold transition-colors">
+                Upgrade now →
+              </Link>
+              <Link href="/dashboard/settings"
+                className="w-full border border-[#e8e3dc] text-[#6b5e4e] rounded-xl py-3 text-sm transition-colors hover:bg-[#f5f2ee]">
+                Account settings
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-6 py-6">
         {children}
