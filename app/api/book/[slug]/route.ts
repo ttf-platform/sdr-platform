@@ -5,22 +5,11 @@ import { generateICS } from '@/lib/ics'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
 
-function withinWindow(slotStart: Date, slotEnd: Date, windows: { start: string; end: string }[]): boolean {
-  const toMins = (d: Date) => d.getHours() * 60 + d.getMinutes()
-  const ss = toMins(slotStart)
-  const se = toMins(slotEnd)
-  return windows.some(w => {
-    const [wsh, wsm] = w.start.split(':').map(Number)
-    const [weh, wem] = w.end.split(':').map(Number)
-    return ss >= wsh * 60 + wsm && se <= weh * 60 + wem
-  })
-}
-
 async function getProfile(slug: string) {
   const admin = createAdminClient()
   return admin
     .from('workspace_profiles')
-    .select('booking_config, booking_slug, workspace_id, workspaces(name)')
+    .select('booking_config, booking_slug, workspace_id, company_name, workspaces(name)')
     .eq('booking_slug', slug)
     .single()
 }
@@ -44,15 +33,16 @@ export async function GET(_: Request, { params }: { params: { slug: string } }) 
   }
 
   return NextResponse.json({
-    slug:                params.slug,
-    owner_name:          ownerName,
-    workspace_name:      (profile.workspaces as any)?.name ?? '',
-    timezone:            cfg.timezone            ?? 'America/Toronto',
-    meeting_durations:   cfg.meeting_durations   ?? [30],
+    slug:                 params.slug,
+    owner_name:           ownerName,
+    company_name:         (profile as any).company_name ?? '',
+    workspace_name:       (profile.workspaces as any)?.name ?? '',
+    timezone:             cfg.timezone             ?? 'America/Toronto',
+    meeting_durations:    cfg.meeting_durations    ?? [30],
     availability_windows: cfg.availability_windows ?? {},
-    buffer_minutes:      cfg.buffer_minutes      ?? 15,
-    video_meeting_url:   cfg.video_meeting_url   ?? null,
-    welcome_message:     cfg.welcome_message     ?? null,
+    buffer_minutes:       cfg.buffer_minutes       ?? 15,
+    video_meeting_url:    cfg.video_meeting_url    ?? null,
+    welcome_message:      cfg.welcome_message      ?? null,
   })
 }
 
@@ -75,32 +65,48 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   if (!EMAIL_RE.test(attendee_email)) {
     return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
   }
-  if (!(cfg.meeting_durations ?? []).includes(duration_min)) {
+  if (!(cfg.meeting_durations ?? [30]).includes(duration_min)) {
     return NextResponse.json({ error: 'Invalid meeting duration' }, { status: 400 })
   }
 
-  const slotStart = new Date(meeting_at)
-  const slotEnd   = new Date(slotStart.getTime() + duration_min * 60_000)
+  // ── Timezone-safe parsing: extract date/time directly from the string ──────
+  // meeting_at format: "YYYY-MM-DDTHH:MM:SS" (naive local, no timezone suffix)
+  const naive       = meeting_at.slice(0, 16)          // "YYYY-MM-DDTHH:MM"
+  const datePart    = naive.slice(0, 10)                // "YYYY-MM-DD"
+  const [slotH, slotM] = naive.slice(11).split(':').map(Number)
+  const slotStartMins  = slotH * 60 + slotM
+  const slotEndMins    = slotStartMins + duration_min
 
-  const dayName = DAY_NAMES[slotStart.getDay()]
-  const windows: { start: string; end: string }[] = cfg.availability_windows?.[dayName] ?? []
+  // getUTCDay() on noon-UTC avoids any date boundary issue regardless of server tz
+  const dayName = DAY_NAMES[new Date(`${datePart}T12:00:00.000Z`).getUTCDay()]
+  const windows = (cfg.availability_windows?.[dayName] ?? []) as { start: string; end: string }[]
+
   if (!windows.length) return NextResponse.json({ error: 'No availability on this day' }, { status: 400 })
-  if (!withinWindow(slotStart, slotEnd, windows)) {
-    return NextResponse.json({ error: 'Selected slot is outside availability hours' }, { status: 400 })
-  }
 
-  // Conflict check: fetch all scheduled meetings that day, check overlap + buffer in JS
-  const dayStart = new Date(slotStart); dayStart.setHours(0, 0, 0, 0)
-  const dayEnd   = new Date(dayStart.getTime() + 86_400_000)
+  const slotInWindow = windows.some(w => {
+    const [wsh, wsm] = w.start.split(':').map(Number)
+    const [weh, wem] = w.end.split(':').map(Number)
+    return slotStartMins >= wsh * 60 + wsm && slotEndMins <= weh * 60 + wem
+  })
+  if (!slotInWindow) return NextResponse.json({ error: 'Selected slot is outside availability hours' }, { status: 400 })
+
+  // ── Conflict check using explicit UTC timestamps ───────────────────────────
+  const hPad = String(slotH).padStart(2, '0')
+  const mPad = String(slotM).padStart(2, '0')
+  const slotStartUTC = new Date(`${datePart}T${hPad}:${mPad}:00.000Z`)
+  const slotEndUTC   = new Date(slotStartUTC.getTime() + duration_min * 60_000)
+  const dayStartUTC  = new Date(`${datePart}T00:00:00.000Z`)
+  const dayEndUTC    = new Date(`${datePart}T23:59:59.999Z`)
 
   const { data: dayMeetings } = await admin
     .from('meetings').select('meeting_at, duration_min')
     .eq('workspace_id', profile.workspace_id).eq('status', 'scheduled')
-    .gte('meeting_at', dayStart.toISOString()).lt('meeting_at', dayEnd.toISOString())
+    .gte('meeting_at', dayStartUTC.toISOString())
+    .lt('meeting_at',  dayEndUTC.toISOString())
 
   const bufMs = (cfg.buffer_minutes ?? 15) * 60_000
-  const ns = slotStart.getTime()
-  const ne = slotEnd.getTime()
+  const ns    = slotStartUTC.getTime()
+  const ne    = slotEndUTC.getTime()
   const conflict = (dayMeetings ?? []).some(m => {
     const ms = new Date(m.meeting_at).getTime()
     const me = ms + m.duration_min * 60_000
@@ -116,15 +122,15 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   const { data: meeting, error: insErr } = await admin
     .from('meetings')
     .insert({
-      workspace_id:   profile.workspace_id,
-      user_id:        ownerMember.user_id,
-      title:          `Meeting with ${attendee_name || attendee_email}`,
-      meeting_at,
+      workspace_id:  profile.workspace_id,
+      user_id:       ownerMember.user_id,
+      title:         `Meeting with ${attendee_name || attendee_email}`,
+      meeting_at:    slotStartUTC.toISOString(),   // explicit UTC for consistent storage
       duration_min,
       attendee_email,
-      attendee_name:  attendee_name  ?? null,
-      company_name:   company_name   ?? null,
-      notes:          notes          ?? null,
+      attendee_name:  attendee_name ?? null,
+      company_name:   company_name  ?? null,
+      notes:          notes         ?? null,
       booking_slug:   params.slug,
       status:         'scheduled',
     })
@@ -135,9 +141,9 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
   const ics = generateICS({
     ...meeting,
-    organizer_email:    ownerData?.user?.email             ?? '',
-    organizer_name:     ownerData?.user?.user_metadata?.full_name ?? '',
-    video_meeting_url:  cfg.video_meeting_url ?? null,
+    organizer_email:   ownerData?.user?.email                    ?? '',
+    organizer_name:    ownerData?.user?.user_metadata?.full_name ?? '',
+    video_meeting_url: cfg.video_meeting_url ?? null,
   })
 
   return NextResponse.json({ meeting, ics }, { status: 201 })
