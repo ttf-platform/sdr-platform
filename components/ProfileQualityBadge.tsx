@@ -16,16 +16,16 @@ export default function ProfileQualityBadge({ profile, className = '' }: Props) 
   let subtext: string
   if (score >= 70) {
     pillCls = 'bg-green-50 text-green-700 border border-green-200'
-    label   = `✨ Premium AI quality (${score}%)`
-    subtext = 'Your AI outputs will be highly tailored.'
+    label   = `✨ Full context (${score}%)`
+    subtext = 'Your AI will write like you, target like you, sell like you.'
   } else if (score >= 30) {
     pillCls = 'bg-amber-50 text-amber-700 border border-amber-200'
-    label   = `📊 Good AI quality (${score}%)`
-    subtext = 'Fill more fields to reach Premium.'
+    label   = `📊 Decent context (${score}%)`
+    subtext = 'Complete more fields for emails that feel personally written.'
   } else {
     pillCls = 'bg-red-50 text-red-600 border border-red-200'
-    label   = `⚠️ Limited AI quality (${score}%)`
-    subtext = 'Complete your profile to unlock better outputs.'
+    label   = `⚠️ Limited context (${score}%)`
+    subtext = 'Add details so your AI can write in your voice and target the right prospects.'
   }
 
   return (
