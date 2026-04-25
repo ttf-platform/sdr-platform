@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
 const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
 const PLAN_PRICES: Record<string, number> = { starter: 149, pro: 299, power: 399 }
 
-export default function SignupPage() {
+function SignupForm() {
   const searchParams = useSearchParams()
   const planParam = searchParams.get('plan') ?? 'starter'
   const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'starter'
@@ -114,5 +114,13 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">Loading...</div></div>}>
+      <SignupForm />
+    </Suspense>
   )
 }
