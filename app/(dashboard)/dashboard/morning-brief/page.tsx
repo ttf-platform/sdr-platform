@@ -335,6 +335,7 @@ export default function MorningBriefPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [profile, setProfile] = useState<ProfileForScore | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [todayMeetingsMeta, setTodayMeetingsMeta] = useState<{ count: number; latestAt: string | null }>({ count: 0, latestAt: null })
 
   // Morning Brief delivery settings (UI-only until Sprint 4 persistence)
   const [briefEnabled, setBriefEnabled] = useState(true)
@@ -350,7 +351,7 @@ export default function MorningBriefPage() {
       setWorkspaceId(member.workspace_id)
 
       const [{ data: wp }, { data: briefList }] = await Promise.all([
-        supabase.from('workspace_profiles').select('product_description, icp_description, sender_name, value_proposition, icp_industries, icp_company_size, pain_points').eq('workspace_id', member.workspace_id).single(),
+        supabase.from('workspace_profiles').select('product_description, icp_description, sender_name, value_proposition, icp_industries, icp_company_size, pain_points, booking_config').eq('workspace_id', member.workspace_id).single(),
         supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false }),
       ])
 
@@ -358,10 +359,43 @@ export default function MorningBriefPage() {
       setProfileLoaded(true)
       setBriefs(briefList || [])
       if (briefList && briefList.length > 0) setSelected(briefList[0])
+
+      // Query today's meetings for regenerate banner
+      const tz = (wp as any)?.booking_config?.timezone ?? 'UTC'
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz })
+      const tzParts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(new Date())
+      const offsetPart = tzParts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+      const offsetMatch = offsetPart.match(/GMT([+-]\d{2}:\d{2})/)
+      const offset = offsetMatch ? offsetMatch[1] : '+00:00'
+      const dayStart = new Date(`${todayStr}T00:00:00${offset}`)
+      const dayEnd   = new Date(`${todayStr}T23:59:59.999${offset}`)
+      const { data: mtgs } = await supabase
+        .from('meetings')
+        .select('created_at')
+        .eq('workspace_id', member.workspace_id)
+        .eq('status', 'scheduled')
+        .gte('meeting_at', dayStart.toISOString())
+        .lte('meeting_at', dayEnd.toISOString())
+        .order('created_at', { ascending: false })
+      setTodayMeetingsMeta({ count: mtgs?.length ?? 0, latestAt: mtgs?.[0]?.created_at ?? null })
     })
   }, [])
 
   const profileGated = !profileLoaded || profile === null || calculateProfileScore(profile) < MIN_PROFILE_SCORE
+
+  // Today's brief detection + regenerate logic
+  const tz       = (profile as any)?.booking_config?.timezone ?? 'UTC'
+  const todayStr = profileLoaded ? new Date().toLocaleDateString('en-CA', { timeZone: tz }) : ''
+  const todayBrief    = todayStr ? (briefs.find(b => b.brief_date === todayStr) ?? null) : null
+  const briefOutdated = todayMeetingsMeta.count > 0 && (!todayBrief || (todayMeetingsMeta.latestAt !== null && todayBrief.created_at < todayMeetingsMeta.latestAt))
+
+  const headerBtnLabel = generating ? 'Generating…'
+    : briefOutdated   ? '⟳ Regenerate with new meeting'
+    : todayBrief      ? '⟳ Regenerate today\'s brief'
+    : 'Generate today\'s brief'
+  const emptyBtnLabel = generating ? 'Generating…'
+    : todayMeetingsMeta.count > 0  ? 'Generate today\'s brief'
+    : 'Generate first brief'
 
   async function generateBrief() {
     if (!workspaceId || profileGated) return
@@ -381,6 +415,15 @@ export default function MorningBriefPage() {
   return (
     <div className="max-w-2xl mx-auto">
       {profileLoaded && <ProfileQualityBadge profile={profile} className="mb-4" />}
+      {profileLoaded && briefOutdated && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-4">
+          <span className="text-sm text-blue-800">📅 You have meetings today that aren't in your brief yet.</span>
+          <button onClick={generateBrief} disabled={generating || profileGated}
+            className="whitespace-nowrap text-xs font-semibold text-blue-700 hover:underline disabled:opacity-40">
+            Regenerate brief →
+          </button>
+        </div>
+      )}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>
@@ -388,8 +431,8 @@ export default function MorningBriefPage() {
         </div>
         {briefs.length > 0 && (
           <button onClick={generateBrief} disabled={generating || profileGated}
-            className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-            {generating ? 'Generating...' : "Today's brief"}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 ${briefOutdated ? 'bg-blue-600' : 'bg-[#3b6bef]'}`}>
+            {headerBtnLabel}
           </button>
         )}
       </div>
@@ -452,7 +495,7 @@ export default function MorningBriefPage() {
           <p className="text-sm text-[#8a7e6e] mb-5">Generate your first morning brief to get AI-powered market insights and campaign ideas tailored to your ICP.</p>
           <button onClick={generateBrief} disabled={generating || profileGated}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-            {generating ? 'Generating...' : 'Generate first brief'}
+            {emptyBtnLabel}
           </button>
           {generating && (
             <p className="text-xs text-[#8a7e6e] mt-3">This takes 5-15 seconds while Claude analyzes your ICP…</p>
