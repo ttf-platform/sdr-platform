@@ -11,19 +11,15 @@ export async function POST(request: Request) {
 
   const body = await request.json()
 
+  const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_industries','pain_points'] as const
+  const updates: Record<string, unknown> = {}
+  for (const key of FIELDS) {
+    if (key in body) updates[key] = body[key]
+  }
+
   const { error } = await admin
     .from('workspace_profiles')
-    .update({
-      company_name:        body.company_name,
-      sender_name:         body.sender_name         ?? null,
-      product_description: body.product_description,
-      icp_description:     body.icp_description     ?? null,
-      value_proposition:   body.value_proposition   ?? null,
-      tone:                body.tone,
-      icp_company_size:    body.icp_company_size     ?? null,
-      icp_industries:      body.icp_industries       ?? null,
-      pain_points:         body.pain_points          ?? null,
-    })
+    .update(updates)
     .eq('workspace_id', body.workspace_id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
