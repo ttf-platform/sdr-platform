@@ -8,6 +8,7 @@ const MONTHS      = ['January','February','March','April','May','June','July','A
 interface Window { start: string; end: string }
 interface PageData {
   owner_name: string
+  company_name: string
   timezone: string
   meeting_durations: number[]
   availability_windows: Record<string, Window[]>
@@ -16,9 +17,17 @@ interface PageData {
   welcome_message: string | null
 }
 
+// Use local date methods — avoids UTC boundary shift for UTC+ users
+function localDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function generateSlots(date: Date, windows: Window[], durationMin: number): string[] {
   const slots: string[] = []
-  const base = date.toISOString().slice(0, 10)
+  const base = localDateStr(date)
   for (const w of windows) {
     const [sh, sm] = w.start.split(':').map(Number)
     const [eh, em] = w.end.split(':').map(Number)
@@ -59,8 +68,34 @@ export default function BookPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     fetch(`/api/book/${params.slug}`)
       .then(r => r.json())
-      .then(d => { if (d.error) { setNotFound(true); return } ; setData(d); setDuration(d.meeting_durations?.[0] ?? 30) })
+      .then(d => {
+        if (d.error) { setNotFound(true); return }
+        setData(d)
+        const dur = d.meeting_durations?.[0] ?? 30
+        setDuration(dur)
+        // Skip duration step if there's only one option
+        if ((d.meeting_durations?.length ?? 0) <= 1) setStep('datetime')
+      })
       .catch(() => setNotFound(true))
+  }, [params.slug])
+
+  // Prefill form from ?prospect=uuid
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const prospectId = new URLSearchParams(window.location.search).get('prospect')
+    if (!prospectId) return
+    fetch(`/api/book/${params.slug}/prospect/${prospectId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) return
+        setForm(f => ({
+          ...f,
+          name:    d.name    || f.name,
+          email:   d.email   || f.email,
+          company: d.company || f.company,
+        }))
+      })
+      .catch(() => {/* silently ignore */})
   }, [params.slug])
 
   // 14 calendar days starting tomorrow
@@ -93,6 +128,9 @@ export default function BookPage({ params }: { params: { slug: string } }) {
 
   const initials = data?.owner_name?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || '?'
   const firstName = data?.owner_name?.split(' ')[0] || ''
+  const companyName = data?.company_name || ''
+  const subjectLine = data?.welcome_message
+    || (firstName && companyName ? `Discovery call with ${firstName} from ${companyName}` : `Book a meeting with ${firstName || 'me'}`)
 
   if (notFound) return (
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center px-4">
@@ -119,13 +157,16 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           <div className="w-16 h-16 rounded-full bg-[#3b6bef] flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3">
             {initials}
           </div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Book a meeting with {firstName || 'me'}</h1>
-          {data.welcome_message && <p className="text-sm text-[#8a7e6e] mt-2 max-w-md mx-auto">{data.welcome_message}</p>}
+          {companyName && <p className="text-xs font-semibold text-[#3b6bef] uppercase tracking-wide mb-1">{companyName}</p>}
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{subjectLine}</h1>
+          {data.meeting_durations.length <= 1 && (
+            <p className="text-sm text-[#8a7e6e] mt-1">{duration}-minute meeting</p>
+          )}
         </div>
 
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-6">
 
-          {/* ── Step 1: Duration ── */}
+          {/* ── Step 1: Duration (only shown when multiple durations) ── */}
           {step === 'duration' && (
             <div>
               <h2 className="font-semibold text-[#1a1a2e] mb-1">Select a duration</h2>
@@ -147,7 +188,9 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           {/* ── Step 2: Date + time ── */}
           {step === 'datetime' && (
             <div>
-              <button onClick={() => setStep('duration')} className="text-sm text-[#8a7e6e] mb-4 block">← Back</button>
+              {data.meeting_durations.length > 1 && (
+                <button onClick={() => setStep('duration')} className="text-sm text-[#8a7e6e] mb-4 block">← Back</button>
+              )}
               <h2 className="font-semibold text-[#1a1a2e] mb-4">Select a date and time <span className="text-xs font-normal text-[#8a7e6e]">({duration} min)</span></h2>
 
               {/* Mini calendar */}
