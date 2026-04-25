@@ -91,13 +91,24 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   })
   if (!slotInWindow) return NextResponse.json({ error: 'Selected slot is outside availability hours' }, { status: 400 })
 
-  // ── Conflict check using explicit UTC timestamps ───────────────────────────
+  // ── Conflict check using true UTC timestamps (owner timezone-aware) ─────────
   const hPad = String(slotH).padStart(2, '0')
   const mPad = String(slotM).padStart(2, '0')
-  const slotStartUTC = new Date(`${datePart}T${hPad}:${mPad}:00.000Z`)
+
+  // Derive the UTC offset for the owner's timezone on this specific date
+  // (accounts for DST). Use noon-UTC to avoid date boundary issues.
+  const tzParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: cfg.timezone ?? 'UTC',
+    timeZoneName: 'longOffset',
+  }).formatToParts(new Date(`${datePart}T12:00:00Z`))
+  const offsetRaw = tzParts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const tzMatch   = offsetRaw.match(/GMT([+-]\d{2}:\d{2})/)
+  const tzOffset  = tzMatch ? tzMatch[1] : '+00:00'
+
+  const slotStartUTC = new Date(`${datePart}T${hPad}:${mPad}:00${tzOffset}`)
   const slotEndUTC   = new Date(slotStartUTC.getTime() + duration_min * 60_000)
-  const dayStartUTC  = new Date(`${datePart}T00:00:00.000Z`)
-  const dayEndUTC    = new Date(`${datePart}T23:59:59.999Z`)
+  const dayStartUTC  = new Date(`${datePart}T00:00:00${tzOffset}`)
+  const dayEndUTC    = new Date(`${datePart}T23:59:59.999${tzOffset}`)
 
   const { data: dayMeetings } = await admin
     .from('meetings').select('meeting_at, duration_min')

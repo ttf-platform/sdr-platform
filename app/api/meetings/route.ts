@@ -46,13 +46,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'title, meeting_at and attendee_email are required' }, { status: 400 })
   }
 
+  // Convert naive local datetime ("YYYY-MM-DDTHH:MM") to true UTC using workspace timezone
+  const { data: wpProfile } = await supabase
+    .from('workspace_profiles').select('booking_config').eq('workspace_id', member.workspace_id).single()
+  const tz         = (wpProfile?.booking_config as any)?.timezone ?? 'UTC'
+  const datePart   = meeting_at.slice(0, 10)
+  const tzParts    = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' })
+                       .formatToParts(new Date(`${datePart}T12:00:00Z`))
+  const offsetRaw  = tzParts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const tzMatch    = offsetRaw.match(/GMT([+-]\d{2}:\d{2})/)
+  const tzOffset   = tzMatch ? tzMatch[1] : '+00:00'
+  const meeting_at_utc = new Date(`${meeting_at}:00${tzOffset}`).toISOString()
+
   const { data: meeting, error } = await supabase
     .from('meetings')
     .insert({
       workspace_id:  member.workspace_id,
       user_id:       user.id,
       title,
-      meeting_at,
+      meeting_at:    meeting_at_utc,
       duration_min:  duration_min  ?? 30,
       attendee_email,
       attendee_name: attendee_name ?? null,
