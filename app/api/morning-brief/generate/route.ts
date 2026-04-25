@@ -150,7 +150,7 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 
     let content: unknown
     try { content = JSON.parse(raw) }
-    catch { return NextResponse.json({ error: 'Failed to parse Claude response' }, { status: 500 }) }
+    catch { return NextResponse.json({ error: 'Failed to generate AI response' }, { status: 500 }) }
 
     const { data: brief, error } = await admin
       .from('morning_briefs')
@@ -225,7 +225,7 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 
   let content: unknown
   try { content = JSON.parse(raw) }
-  catch { return NextResponse.json({ error: 'Failed to parse Claude response' }, { status: 500 }) }
+  catch { return NextResponse.json({ error: 'Failed to generate AI response' }, { status: 500 }) }
 
   const { data: brief, error } = await admin
     .from('morning_briefs')

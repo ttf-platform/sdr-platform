@@ -183,7 +183,7 @@ export default function NewCampaignPage() {
 
           <button onClick={generateSequence} disabled={!campaign.name||!campaign.icp||generating}
             className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-2">
-            {generating ? 'Claude is writing your sequence...' : '✦ Generate 5-email sequence with AI'}
+            {generating ? 'Sentra AI is writing your sequence...' : '✦ Generate 5-email sequence with AI'}
           </button>
         </div>
       )}
@@ -191,7 +191,7 @@ export default function NewCampaignPage() {
       {step === 1 && (
         <div className="flex flex-col gap-4">
           <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-4 text-sm text-[#3b6bef]">
-            ✦ Claude wrote {sequence.length} emails for <strong>{campaign.name}</strong>. Review and edit before saving.
+            ✦ Sentra AI wrote {sequence.length} emails for <strong>{campaign.name}</strong>. Review and edit before saving.
           </div>
           {sequence.map((email, i) => (
             <div key={i} className="bg-white border border-[#e8e3dc] rounded-xl p-5">

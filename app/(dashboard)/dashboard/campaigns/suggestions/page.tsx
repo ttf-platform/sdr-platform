@@ -68,7 +68,7 @@ export default function SuggestionsPage() {
       <div className="mb-6">
         <a href="/dashboard/campaigns" className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] mb-3 inline-block">← Back to campaigns</a>
         <h1 className="text-xl font-bold text-[#1a1a2e]">AI Campaign Suggestions</h1>
-        <p className="text-sm text-[#8a7e6e]">Claude analyzes your ICP and suggests high-converting campaign strategies.</p>
+        <p className="text-sm text-[#8a7e6e]">Sentra AI analyzes your ICP and suggests high-converting campaign strategies.</p>
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-5">
@@ -92,7 +92,7 @@ export default function SuggestionsPage() {
       </div>
 
       {loading && (
-        <div className="text-center py-12 text-sm text-[#8a7e6e]">Claude is analyzing your ICP... up to 30 seconds</div>
+        <div className="text-center py-12 text-sm text-[#8a7e6e]">Sentra AI is analyzing your ICP... up to 30 seconds</div>
       )}
 
       {suggestions.length > 0 && (

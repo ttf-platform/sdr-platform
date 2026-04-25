@@ -486,7 +486,7 @@ export default function MorningBriefPage() {
             {emptyBtnLabel}
           </button>
           {generating && (
-            <p className="text-xs text-[#8a7e6e] mt-3">This takes 5-15 seconds while Claude analyzes your ICP…</p>
+            <p className="text-xs text-[#8a7e6e] mt-3">This takes 5-15 seconds while Sentra AI analyzes your ICP…</p>
           )}
         </div>
       ) : (
