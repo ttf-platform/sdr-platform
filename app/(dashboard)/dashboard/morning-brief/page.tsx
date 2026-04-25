@@ -415,25 +415,23 @@ export default function MorningBriefPage() {
   return (
     <div className="max-w-2xl mx-auto">
       {profileLoaded && <ProfileQualityBadge profile={profile} className="mb-4" />}
-      {profileLoaded && briefOutdated && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-4">
-          <span className="text-sm text-blue-800">📅 You have meetings today that aren't in your brief yet.</span>
-          <button onClick={generateBrief} disabled={generating || profileGated}
-            className="whitespace-nowrap text-xs font-semibold text-blue-700 hover:underline disabled:opacity-40">
-            Regenerate brief →
-          </button>
-        </div>
-      )}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>
           <p className="text-sm text-[#8a7e6e]">Your daily AI-powered outbound intelligence</p>
         </div>
         {briefs.length > 0 && (
-          <button onClick={generateBrief} disabled={generating || profileGated}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 ${briefOutdated ? 'bg-blue-600' : 'bg-[#3b6bef]'}`}>
-            {headerBtnLabel}
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button onClick={generateBrief} disabled={generating || profileGated}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 ${briefOutdated ? 'bg-blue-600' : 'bg-[#3b6bef]'}`}>
+              {headerBtnLabel}
+            </button>
+            {briefOutdated && !generating && (
+              <p className="text-xs text-blue-600">
+                ℹ️ {todayMeetingsMeta.count} meeting{todayMeetingsMeta.count !== 1 ? 's' : ''} today since your last brief
+              </p>
+            )}
+          </div>
         )}
       </div>
 
