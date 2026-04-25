@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 
 const supabase = createClient()
 
@@ -12,7 +13,7 @@ export default function SettingsPage() {
   const [emailCount, setEmailCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '1-10', product_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
+  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '1-10', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -27,13 +28,13 @@ export default function SettingsPage() {
       const { data: camps } = await supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id)
       setCampaignCount(cc || 0)
       setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
-      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '1-10', product_description: p.product_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
+      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '1-10', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
     })
   }, [])
 
   async function save() {
     setSaving(true)
-    await fetch('/api/workspace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: workspaceId, company_name: form.company_name, sender_name: form.sender_name, product_description: form.product_description, value_proposition: form.value_proposition, tone: form.tone, icp_company_size: form.company_size, icp_industries: [form.industry], pain_points: form.pain_points }) })
+    await fetch('/api/workspace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: workspaceId, company_name: form.company_name, sender_name: form.sender_name, product_description: form.product_description, icp_description: form.icp_description, value_proposition: form.value_proposition, tone: form.tone, icp_company_size: form.company_size, icp_industries: form.industry ? [form.industry] : [], pain_points: form.pain_points }) })
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
@@ -46,7 +47,8 @@ export default function SettingsPage() {
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1"><a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings</div>
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
-        <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
+        <p className="text-sm text-[#8a7e6e] mb-3">Account & company profile</p>
+        <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points }} />
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
@@ -120,6 +122,10 @@ export default function SettingsPage() {
           <div>
             <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Product description *</label>
             <textarea value={form.product_description} onChange={e => setForm({...form, product_description: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Describe your ideal customer <span className="text-[#b0a898] font-normal">ICP</span></label>
+            <textarea value={form.icp_description} onChange={e => setForm({...form, icp_description: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="e.g. VP Sales at B2B SaaS companies, 50-500 employees, Series A to C, struggling with outbound volume" />
           </div>
           <div>
             <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Value proposition <span className="text-[#b0a898] font-normal">OPTIONAL</span></label>
