@@ -73,7 +73,10 @@ export default function SignupPage() {
           {step === 2 && (<>
             <h2 className="text-lg font-bold text-[#1a1a2e]">What do you sell?</h2>
             <input type="text" value={data.companyName} onChange={e=>setData({...data,companyName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Company name" />
-            <textarea value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="We help SaaS companies automate outbound..." />
+            <div>
+              <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">What does your company do? *</label>
+              <textarea required value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="e.g. We help indie watch brands grow through curated marketplaces" />
+            </div>
             <div className="flex gap-2">
               <button onClick={()=>setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
               <button onClick={()=>setStep(3)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
