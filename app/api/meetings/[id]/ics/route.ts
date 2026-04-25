@@ -11,7 +11,12 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     .from('meetings').select('*').eq('id', params.id).single()
   if (error || !meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const ics = generateICS({ ...meeting, organizer_email: user.email ?? '' })
+  const ics = generateICS({
+    ...meeting,
+    organizer_email: user.email                    ?? '',
+    organizer_name:  user.user_metadata?.full_name ?? '',
+    perspective:     'organizer',
+  })
   return new NextResponse(ics, {
     headers: {
       'Content-Type':        'text/calendar; charset=utf-8',

@@ -152,6 +152,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     video_meeting_url: cfg.video_meeting_url ?? null,
     welcome_message:   cfg.welcome_message   ?? null,
     booking_page_url:  bookingPageUrl,
+    perspective:       'attendee' as const,
   }
 
   const ics = generateICS(icsData)

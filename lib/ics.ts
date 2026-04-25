@@ -6,13 +6,14 @@ export interface ICSMeeting {
   attendee_name?: string | null
   attendee_email: string
   notes?: string | null
-  organizer_name?: string
+  organizer_name?: string | null
   organizer_email?: string
   organizer_company?: string | null
   attendee_company?: string | null
   video_meeting_url?: string | null
   welcome_message?: string | null
   booking_page_url?: string | null
+  perspective?: 'organizer' | 'attendee'
 }
 
 function fmt(d: Date): string {
@@ -24,9 +25,16 @@ function esc(s: string): string {
 }
 
 function buildSummary(m: ICSMeeting): string {
-  if (m.organizer_company && m.attendee_company) {
-    return `${m.organizer_company} × ${m.attendee_company} — Discovery call`
+  if (m.perspective === 'attendee') {
+    // Prospect's view: who they're meeting with
+    if (m.organizer_name && m.organizer_company) return `Call with ${m.organizer_name} from ${m.organizer_company}`
+    if (m.organizer_name)                        return `Call with ${m.organizer_name}`
+    return m.title
   }
+  // Organizer's view (default): who is coming in
+  const attendeeName = m.attendee_name || m.attendee_email
+  if (attendeeName && m.attendee_company) return `Meeting with ${attendeeName} from ${m.attendee_company}`
+  if (attendeeName)                       return `Meeting with ${attendeeName}`
   return m.title
 }
 
@@ -56,12 +64,12 @@ export function generateICS(m: ICSMeeting): string {
     `DTEND:${fmt(end)}`,
     `SUMMARY:${esc(buildSummary(m))}`,
   ]
-  if (desc)              rows.push(`DESCRIPTION:${esc(desc)}`)
+  if (desc)                rows.push(`DESCRIPTION:${esc(desc)}`)
   if (m.video_meeting_url) rows.push(`LOCATION:${esc(m.video_meeting_url)}`)
-  if (m.attendee_email)  rows.push(
+  if (m.attendee_email)    rows.push(
     `ATTENDEE;CN="${esc(m.attendee_name || m.attendee_email)}";ROLE=REQ-PARTICIPANT:mailto:${m.attendee_email}`
   )
-  if (m.organizer_email) rows.push(
+  if (m.organizer_email)   rows.push(
     `ORGANIZER;CN="${esc(m.organizer_name || 'Host')}":mailto:${m.organizer_email}`
   )
   rows.push('END:VEVENT', 'END:VCALENDAR')

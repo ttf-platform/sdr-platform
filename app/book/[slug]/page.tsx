@@ -295,7 +295,8 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                 )}
               </div>
 
-              <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-3">Add to your calendar</p>
+              <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-1">Add to your calendar</p>
+              <p className="text-xs text-[#8a7e6e] mb-3">Apple Calendar users: download the .ics and double-click to add.</p>
               <div className="flex flex-col gap-2">
                 <a href={confirmed.calendar_links.google} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
@@ -315,7 +316,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                 </a>
                 <button onClick={downloadICS}
                   className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                  <span className="text-base">📥</span> Apple Calendar / Other (.ics)
+                  <span className="text-base">📥</span> Download .ics
                 </button>
               </div>
 
