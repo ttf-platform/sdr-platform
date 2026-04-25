@@ -256,15 +256,15 @@ export default function MorningBriefPage() {
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>
           <p className="text-sm text-[#8a7e6e]">Your daily AI-powered outbound intelligence</p>
         </div>
-        {briefs.length > 0 && (
-          <div className="flex flex-col items-end gap-1.5">
+        <div className="flex flex-col items-end gap-1.5">
+          {briefs.length > 0 && (
             <button onClick={generateBrief} disabled={generating || profileGated}
               className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
               {generating ? 'Generating...' : "Today's brief"}
             </button>
-            <ProfileQualityBadge profile={profile} />
-          </div>
-        )}
+          )}
+          {profileLoaded && <ProfileQualityBadge profile={profile} />}
+        </div>
       </div>
 
       {/* ── Delivery settings (Sprint 4 will wire persistence) ── */}
