@@ -63,7 +63,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
   const [form, setForm]         = useState({ name: '', email: '', company: '', notes: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr]   = useState('')
-  const [confirmed, setConfirmed]   = useState<{ meeting: any; ics: string } | null>(null)
+  const [confirmed, setConfirmed]   = useState<{ meeting: any; ics: string; calendar_links: { google: string; outlook365: string; outlookLive: string; yahoo: string } } | null>(null)
 
   useEffect(() => {
     fetch(`/api/book/${params.slug}`)
@@ -279,23 +279,47 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           {/* ── Step 4: Confirmed ── */}
           {step === 'done' && confirmed && (
             <div className="text-center">
-              <div className="text-4xl mb-3">✅</div>
-              <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">Meeting confirmed!</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">A calendar invite will be sent to {confirmed.meeting.attendee_email}.</p>
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-[#1a1a2e] mb-1">Meeting confirmed!</h2>
+              <p className="text-sm text-[#8a7e6e] mb-5">with {firstName || 'your host'}</p>
 
-              <div className="bg-[#f5f2ee] rounded-lg p-4 text-left mb-5 text-sm">
-                <p className="font-medium text-[#1a1a2e]">{confirmed.meeting.title}</p>
-                <p className="text-[#8a7e6e] mt-1">{fmtDate(new Date(confirmed.meeting.meeting_at))} at {fmtTime(confirmed.meeting.meeting_at)}</p>
-                <p className="text-[#8a7e6e]">{confirmed.meeting.duration_min} min</p>
+              <div className="bg-[#f5f2ee] rounded-lg p-4 text-left mb-6 text-sm">
+                <p className="font-semibold text-[#1a1a2e]">{fmtDate(new Date(confirmed.meeting.meeting_at))}</p>
+                <p className="text-[#8a7e6e] mt-0.5">{fmtTime(confirmed.meeting.meeting_at)} · {confirmed.meeting.duration_min} min</p>
                 {data.video_meeting_url && (
-                  <a href={data.video_meeting_url} target="_blank" rel="noopener noreferrer" className="text-[#3b6bef] mt-1 block truncate">{data.video_meeting_url}</a>
+                  <a href={data.video_meeting_url} target="_blank" rel="noopener noreferrer" className="text-[#3b6bef] mt-2 block truncate text-xs">{data.video_meeting_url}</a>
                 )}
               </div>
 
-              <button onClick={downloadICS}
-                className="w-full border border-[#3b6bef] text-[#3b6bef] bg-[#3b6bef]/5 rounded-lg py-2.5 text-sm font-medium flex items-center justify-center gap-2">
-                📅 Add to calendar (.ics)
-              </button>
+              <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-3">Add to your calendar</p>
+              <div className="flex flex-col gap-2">
+                <a href={confirmed.calendar_links.google} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
+                  <span className="text-base">📅</span> Google Calendar
+                </a>
+                <a href={confirmed.calendar_links.outlook365} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
+                  <span className="text-base">📅</span> Outlook (Office 365)
+                </a>
+                <a href={confirmed.calendar_links.outlookLive} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
+                  <span className="text-base">📅</span> Outlook.com
+                </a>
+                <a href={confirmed.calendar_links.yahoo} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
+                  <span className="text-base">📅</span> Yahoo Calendar
+                </a>
+                <button onClick={downloadICS}
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
+                  <span className="text-base">📥</span> Apple Calendar / Other (.ics)
+                </button>
+              </div>
+
+              <p className="text-xs text-[#b0a898] mt-5">We've also sent you a confirmation email.</p>
             </div>
           )}
         </div>

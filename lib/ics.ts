@@ -8,7 +8,11 @@ export interface ICSMeeting {
   notes?: string | null
   organizer_name?: string
   organizer_email?: string
+  organizer_company?: string | null
+  attendee_company?: string | null
   video_meeting_url?: string | null
+  welcome_message?: string | null
+  booking_page_url?: string | null
 }
 
 function fmt(d: Date): string {
@@ -19,9 +23,26 @@ function esc(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
 }
 
+function buildSummary(m: ICSMeeting): string {
+  if (m.organizer_company && m.attendee_company) {
+    return `${m.organizer_company} × ${m.attendee_company} — Discovery call`
+  }
+  return m.title
+}
+
+function buildDescription(m: ICSMeeting): string {
+  const lines: string[] = []
+  if (m.welcome_message)   lines.push(m.welcome_message)
+  if (m.video_meeting_url) lines.push(`Video meeting: ${m.video_meeting_url}`)
+  if (m.booking_page_url)  lines.push(`Need to reschedule? ${m.booking_page_url}`)
+  if (m.notes)             lines.push(m.notes)
+  return lines.join('\n')
+}
+
 export function generateICS(m: ICSMeeting): string {
   const start = new Date(m.meeting_at)
   const end   = new Date(start.getTime() + m.duration_min * 60_000)
+  const desc  = buildDescription(m)
   const rows  = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -33,16 +54,16 @@ export function generateICS(m: ICSMeeting): string {
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(start)}`,
     `DTEND:${fmt(end)}`,
-    `SUMMARY:${esc(m.title)}`,
+    `SUMMARY:${esc(buildSummary(m))}`,
   ]
-  if (m.attendee_email) rows.push(
+  if (desc)              rows.push(`DESCRIPTION:${esc(desc)}`)
+  if (m.video_meeting_url) rows.push(`LOCATION:${esc(m.video_meeting_url)}`)
+  if (m.attendee_email)  rows.push(
     `ATTENDEE;CN="${esc(m.attendee_name || m.attendee_email)}";ROLE=REQ-PARTICIPANT:mailto:${m.attendee_email}`
   )
   if (m.organizer_email) rows.push(
     `ORGANIZER;CN="${esc(m.organizer_name || 'Host')}":mailto:${m.organizer_email}`
   )
-  if (m.notes)              rows.push(`DESCRIPTION:${esc(m.notes)}`)
-  if (m.video_meeting_url)  rows.push(`LOCATION:${esc(m.video_meeting_url)}`)
   rows.push('END:VEVENT', 'END:VCALENDAR')
   return rows.join('\r\n')
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateICS } from '@/lib/ics'
+import { generateCalendarLinks } from '@/lib/calendar-links'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
@@ -139,12 +140,38 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   if (insErr || !meeting) return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 })
 
   const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
-  const ics = generateICS({
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+  const bookingPageUrl = `${appUrl}/book/${params.slug}`
+
+  const icsData = {
     ...meeting,
     organizer_email:   ownerData?.user?.email                    ?? '',
     organizer_name:    ownerData?.user?.user_metadata?.full_name ?? '',
+    organizer_company: (profile as any).company_name             ?? null,
+    attendee_company:  company_name                              ?? null,
     video_meeting_url: cfg.video_meeting_url ?? null,
+    welcome_message:   cfg.welcome_message   ?? null,
+    booking_page_url:  bookingPageUrl,
+  }
+
+  const ics = generateICS(icsData)
+
+  const eventTitle = icsData.organizer_company && icsData.attendee_company
+    ? `${icsData.organizer_company} × ${icsData.attendee_company} — Discovery call`
+    : meeting.title
+
+  const descLines: string[] = []
+  if (cfg.welcome_message)   descLines.push(cfg.welcome_message)
+  if (cfg.video_meeting_url) descLines.push(`Video meeting: ${cfg.video_meeting_url}`)
+  descLines.push(`Need to reschedule? ${bookingPageUrl}`)
+
+  const calendar_links = generateCalendarLinks({
+    title:       eventTitle,
+    description: descLines.join('\n'),
+    location:    cfg.video_meeting_url ?? '',
+    startISO:    slotStartUTC.toISOString(),
+    durationMin: duration_min,
   })
 
-  return NextResponse.json({ meeting, ics }, { status: 201 })
+  return NextResponse.json({ meeting, ics, calendar_links }, { status: 201 })
 }
