@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 
 const supabase = createClient()
 
@@ -97,6 +98,8 @@ export default function NewCampaignPage() {
           <a href="/dashboard/campaigns/suggestions" className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#f0ece6] flex items-center gap-1.5">✦ AI Suggestions</a>
         </div>
       </div>
+
+      {step === 0 && profile && <ProfileQualityBadge profile={profile} className="mb-4" />}
 
       <div className="flex gap-2 mb-6">
         {['Setup', 'Sequence'].map((s, i) => (

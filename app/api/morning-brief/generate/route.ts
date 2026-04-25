@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { calculateProfileScore } from '@/lib/profile-quality'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -17,9 +18,9 @@ export async function POST(request: Request) {
     admin.from('workspace_members').select('user_id').eq('workspace_id', workspace_id).eq('role', 'owner').single(),
   ])
 
-  if (!profile?.product_description || profile.product_description.length < 30) {
+  if (calculateProfileScore(profile ?? {}) < 30) {
     return NextResponse.json(
-      { error: 'Add a more detailed company description (30+ characters) before generating a brief.' },
+      { error: 'Complete your profile to generate a brief (AI quality score must reach 30+).' },
       { status: 400 }
     )
   }

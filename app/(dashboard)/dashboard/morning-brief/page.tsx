@@ -1,6 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ProfileQualityBadge from '@/components/ProfileQualityBadge'
+import { calculateProfileScore } from '@/lib/profile-quality'
+import type { ProfileForScore } from '@/lib/profile-quality'
 
 const supabase = createClient()
 
@@ -194,14 +197,14 @@ function LegacyBrief({ content }: { content: any }) {
 }
 
 const TIMEZONES = ['Eastern Time (ET)','Central Time (CT)','Mountain Time (MT)','Pacific Time (PT)','GMT','CET','IST']
-const MIN_PRODUCT_DESC = 30
+const MIN_PROFILE_SCORE = 30
 
 export default function MorningBriefPage() {
   const [briefs, setBriefs]           = useState<any[]>([])
   const [selected, setSelected]       = useState<any>(null)
   const [generating, setGenerating]   = useState(false)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
-  const [productDescription, setProductDescription] = useState<string>('')
+  const [profile, setProfile] = useState<ProfileForScore | null>(null)
 
   // Morning Brief delivery settings (UI-only until Sprint 4 persistence)
   const [briefEnabled, setBriefEnabled] = useState(true)
@@ -216,18 +219,18 @@ export default function MorningBriefPage() {
       if (!member) return
       setWorkspaceId(member.workspace_id)
 
-      const [{ data: profile }, { data: briefList }] = await Promise.all([
-        supabase.from('workspace_profiles').select('product_description').eq('workspace_id', member.workspace_id).single(),
+      const [{ data: wp }, { data: briefList }] = await Promise.all([
+        supabase.from('workspace_profiles').select('product_description, icp_description, sender_name, value_proposition, icp_industries, icp_company_size, pain_points').eq('workspace_id', member.workspace_id).single(),
         supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false }),
       ])
 
-      setProductDescription(profile?.product_description ?? '')
+      setProfile(wp ?? null)
       setBriefs(briefList || [])
       if (briefList && briefList.length > 0) setSelected(briefList[0])
     })
   }, [])
 
-  const profileGated = !productDescription || productDescription.length < MIN_PRODUCT_DESC
+  const profileGated = profile === null || calculateProfileScore(profile) < MIN_PROFILE_SCORE
 
   async function generateBrief() {
     if (!workspaceId || profileGated) return
@@ -252,10 +255,13 @@ export default function MorningBriefPage() {
           <p className="text-sm text-[#8a7e6e]">Your daily AI-powered outbound intelligence</p>
         </div>
         {briefs.length > 0 && (
-          <button onClick={generateBrief} disabled={generating || profileGated}
-            className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-            {generating ? 'Generating...' : "Today's brief"}
-          </button>
+          <div className="flex flex-col items-end gap-1.5">
+            <button onClick={generateBrief} disabled={generating || profileGated}
+              className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
+              {generating ? 'Generating...' : "Today's brief"}
+            </button>
+            <ProfileQualityBadge profile={profile} />
+          </div>
         )}
       </div>
 
