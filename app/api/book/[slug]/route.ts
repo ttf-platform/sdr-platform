@@ -124,7 +124,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     const me = ms + m.duration_min * 60_000
     return ns < me + bufMs && ne > ms - bufMs
   })
-  if (conflict) return NextResponse.json({ error: 'This slot is no longer available' }, { status: 409 })
+  if (conflict) return NextResponse.json({ error: 'This time slot is no longer available. Please choose another time.' }, { status: 409 })
 
   const { data: ownerMember } = await admin
     .from('workspace_members').select('user_id')
