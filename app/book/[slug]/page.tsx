@@ -98,12 +98,19 @@ export default function BookPage({ params }: { params: { slug: string } }) {
       .catch(() => {/* silently ignore */})
   }, [params.slug])
 
-  // 14 calendar days starting tomorrow
+  // 14 calendar days starting today
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const calDays: Date[] = Array.from({ length: 14 }, (_, i) => new Date(today.getTime() + (i + 1) * 86_400_000))
+  const calDays: Date[] = Array.from({ length: 14 }, (_, i) => new Date(today.getTime() + i * 86_400_000))
+
+  const nowMs  = Date.now()
+  const buffer = data?.buffer_minutes ?? 0
 
   const slots = selDate && data
     ? generateSlots(selDate, data.availability_windows[DAY_NAMES[selDate.getDay()]] ?? [], duration)
+        .filter(s => {
+          if (localDateStr(selDate) !== localDateStr(today)) return true
+          return new Date(s).getTime() > nowMs + buffer * 60000
+        })
     : []
 
   async function submit(e: React.FormEvent) {
