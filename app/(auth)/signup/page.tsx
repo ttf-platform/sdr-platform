@@ -1,9 +1,16 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
+const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
+const PLAN_PRICES: Record<string, number> = { starter: 149, pro: 299, power: 399 }
 
 export default function SignupPage() {
+  const searchParams = useSearchParams()
+  const planParam = searchParams.get('plan') ?? 'starter'
+  const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'starter'
+
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -18,7 +25,8 @@ export default function SignupPage() {
       body: JSON.stringify({
         email: data.email, password: data.password, name: data.name,
         workspaceName: data.workspaceName, companyName: data.companyName,
-        product: data.product, icp: data.icp, tone: data.tone
+        product: data.product, icp: data.icp, tone: data.tone,
+        plan_tier: plan,
       })
     }).then(r => r.json())
     if (!res.success) {
@@ -41,6 +49,11 @@ export default function SignupPage() {
             </div>
             <span className="text-lg font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
           </div>
+          {plan !== 'starter' && (
+            <div className="inline-flex items-center gap-1.5 bg-[#eef1fd] border border-[#dde6fd] text-[#3b6bef] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
+              ✦ {PLAN_LABELS[plan]} plan · ${PLAN_PRICES[plan]}/mo after trial
+            </div>
+          )}
           <div className="flex items-center justify-center gap-2 mb-2">
             {steps.map((s, i) => (
               <div key={s} className="flex items-center gap-2">
@@ -83,6 +96,9 @@ export default function SignupPage() {
             </div>
           </>)}
           {step === 3 && (<>
+            <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-lg px-3 py-2 text-xs text-[#3b6bef] font-medium">
+              🎉 14-day free trial · No credit card required
+            </div>
             <h2 className="text-lg font-bold text-[#1a1a2e]">Who do you target?</h2>
             <textarea value={data.icp} onChange={e=>setData({...data,icp:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="VP Sales at B2B SaaS, 50-500 employees..." />
             <div className="grid grid-cols-2 gap-2">
@@ -92,7 +108,7 @@ export default function SignupPage() {
             </div>
             <div className="flex gap-2">
               <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? 'Launching...' : 'Launch Sentra →'}</button>
+              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? 'Launching...' : `Start ${PLAN_LABELS[plan]} trial →`}</button>
             </div>
           </>)}
         </div>

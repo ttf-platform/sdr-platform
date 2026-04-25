@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr'
 
 export async function POST(request: Request) {
-  const { email, password, name, workspaceName, companyName, product, icp, tone } = await request.json()
+  const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier } = await request.json()
+  const tier = ['starter','pro','power'].includes(plan_tier) ? plan_tier : 'starter'
 
   const admin = createAdminClient()
   const cookieJar: Record<string, { name: string; value: string; options: any }> = {}
@@ -53,9 +54,20 @@ export async function POST(request: Request) {
   }
 
   const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).slice(2, 6)
+  const now       = new Date()
+  const trialEnd  = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+
   const { data: workspace, error: wsError } = await admin
     .from('workspaces')
-    .insert({ name: workspaceName, slug, plan: 'trial' })
+    .insert({
+      name:                workspaceName,
+      slug,
+      plan:                'trial',
+      plan_tier:           tier,
+      subscription_status: 'trialing',
+      trial_start_date:    now.toISOString(),
+      trial_end_date:      trialEnd.toISOString(),
+    })
     .select().single()
 
   if (wsError || !workspace) return respond({ error: 'Failed to create workspace. Please contact support.' }, 500)
