@@ -263,7 +263,7 @@ export default function MorningBriefPage() {
               {generating ? 'Generating...' : "Today's brief"}
             </button>
           )}
-          {profileLoaded && <ProfileQualityBadge profile={profile} />}
+          {profileLoaded && <ProfileQualityBadge profile={profile} className="items-end" />}
         </div>
       </div>
 
