@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [savingSection, setSavingSection] = useState<string | null>(null)
   const [savedSection, setSavedSection] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
-  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
+  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', timezone: 'America/Toronto', industry: '', company_size: '', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -29,7 +29,7 @@ export default function SettingsPage() {
       const { data: camps } = await supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id)
       setCampaignCount(cc || 0)
       setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
-      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
+      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', timezone: (p.booking_config as any)?.timezone || 'America/Toronto', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
       setProfileLoaded(true)
     })
   }, [])
@@ -42,7 +42,7 @@ export default function SettingsPage() {
 
   const ws = (workspace?.workspaces as any)
   const tones = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
-  const timezones = ['Eastern Time (ET)', 'Central Time (CT)', 'Mountain Time (MT)', 'Pacific Time (PT)', 'GMT', 'CET', 'IST']
+  const WORKSPACE_TIMEZONES = ['America/Toronto','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris','Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC']
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -106,8 +106,16 @@ export default function SettingsPage() {
             </div>
             <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
           </div>
+          <div>
+            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Workspace timezone</label>
+            <select value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
+              className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white">
+              {WORKSPACE_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            </select>
+            <p className="text-xs text-[#b0a898] mt-1">Used to display meetings and booking availability in your local time</p>
+          </div>
           <div className="flex justify-end pt-1">
-            <button onClick={() => saveSection('company', { company_name: form.company_name, sender_name: form.sender_name })}
+            <button onClick={() => saveSection('company', { company_name: form.company_name, sender_name: form.sender_name, workspace_timezone: form.timezone })}
               disabled={savingSection === 'company'}
               className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
               {savedSection === 'company' ? '✓ Saved' : savingSection === 'company' ? 'Saving...' : 'Save'}

@@ -17,6 +17,14 @@ export async function POST(request: Request) {
     if (key in body) updates[key] = body[key]
   }
 
+  // workspace_timezone merges into booking_config.timezone (JSONB partial update)
+  if ('workspace_timezone' in body) {
+    const { data: existing } = await admin
+      .from('workspace_profiles').select('booking_config')
+      .eq('workspace_id', body.workspace_id).single()
+    updates['booking_config'] = { ...(existing?.booking_config ?? {}), timezone: body.workspace_timezone }
+  }
+
   const { error } = await admin
     .from('workspace_profiles')
     .update(updates)

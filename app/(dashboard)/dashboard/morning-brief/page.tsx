@@ -325,7 +325,6 @@ function LegacyBrief({ content }: { content: any }) {
   )
 }
 
-const TIMEZONES = ['Eastern Time (ET)','Central Time (CT)','Mountain Time (MT)','Pacific Time (PT)','GMT','CET','IST']
 const MIN_PROFILE_SCORE = 30
 
 export default function MorningBriefPage() {
@@ -340,7 +339,6 @@ export default function MorningBriefPage() {
   // Morning Brief delivery settings (UI-only until Sprint 4 persistence)
   const [briefEnabled, setBriefEnabled] = useState(true)
   const [briefTime, setBriefTime]       = useState('07:30')
-  const [briefTz, setBriefTz]           = useState('Eastern Time (ET)')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -452,19 +450,11 @@ export default function MorningBriefPage() {
             <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${briefEnabled ? 'right-0.5' : 'left-0.5'}`} />
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Delivery Time</label>
-            <input type="time" value={briefTime} onChange={e => setBriefTime(e.target.value)}
-              className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Your Timezone</label>
-            <select value={briefTz} onChange={e => setBriefTz(e.target.value)}
-              className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
-              {TIMEZONES.map(tz => <option key={tz}>{tz}</option>)}
-            </select>
-          </div>
+        <div className="mb-4">
+          <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Delivery Time</label>
+          <input type="time" value={briefTime} onChange={e => setBriefTime(e.target.value)}
+            className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
+          <p className="text-xs text-[#b0a898] mt-1">Timezone set in <a href="/dashboard/settings" className="text-[#3b6bef] hover:underline">Settings → Company</a></p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-[#f7f4f0] rounded-xl p-3">
