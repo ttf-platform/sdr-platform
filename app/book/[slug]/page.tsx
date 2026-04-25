@@ -61,9 +61,10 @@ export default function BookPage({ params }: { params: { slug: string } }) {
   const [selDate, setSelDate]   = useState<Date | null>(null)
   const [selSlot, setSelSlot]   = useState('')
   const [form, setForm]         = useState({ name: '', email: '', company: '', notes: '' })
-  const [submitting, setSubmitting] = useState(false)
-  const [submitErr, setSubmitErr]   = useState('')
-  const [confirmed, setConfirmed]   = useState<{ meeting: any; ics: string; calendar_links: { google: string; outlook365: string; outlookLive: string; yahoo: string } } | null>(null)
+  const [busyRanges, setBusyRanges]   = useState<{ start_mins: number; end_mins: number }[]>([])
+  const [submitting, setSubmitting]   = useState(false)
+  const [submitErr, setSubmitErr]     = useState('')
+  const [confirmed, setConfirmed]     = useState<{ meeting: any; ics: string; calendar_links: { google: string; outlook365: string; outlookLive: string; yahoo: string } } | null>(null)
 
   useEffect(() => {
     fetch(`/api/book/${params.slug}`)
@@ -98,6 +99,16 @@ export default function BookPage({ params }: { params: { slug: string } }) {
       .catch(() => {/* silently ignore */})
   }, [params.slug])
 
+  // Fetch busy ranges when the selected date changes
+  useEffect(() => {
+    if (!selDate || !data) { setBusyRanges([]); return }
+    const dateStr = localDateStr(selDate)
+    fetch(`/api/book/${params.slug}/availability?date=${dateStr}`)
+      .then(r => r.json())
+      .then(d => setBusyRanges(d.busy ?? []))
+      .catch(() => setBusyRanges([]))
+  }, [selDate, params.slug, data])
+
   // 14 calendar days starting today
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const calDays: Date[] = Array.from({ length: 14 }, (_, i) => new Date(today.getTime() + i * 86_400_000))
@@ -108,8 +119,16 @@ export default function BookPage({ params }: { params: { slug: string } }) {
   const slots = selDate && data
     ? generateSlots(selDate, data.availability_windows[DAY_NAMES[selDate.getDay()]] ?? [], duration)
         .filter(s => {
-          if (localDateStr(selDate) !== localDateStr(today)) return true
-          return new Date(s).getTime() > nowMs + buffer * 60000
+          // Past-time filter for today
+          if (localDateStr(selDate) === localDateStr(today)) {
+            if (new Date(s).getTime() <= nowMs + buffer * 60000) return false
+          }
+          // Conflict filter: exclude slots that overlap with any busy range
+          const [, timePart] = s.split('T')
+          const [sh, sm] = timePart.split(':').map(Number)
+          const slotStart = sh * 60 + sm
+          const slotEnd   = slotStart + duration
+          return !busyRanges.some(b => slotStart < b.end_mins && slotEnd > b.start_mins)
         })
     : []
 
