@@ -30,7 +30,7 @@ const FAQS = [
   },
   {
     q: 'What if a prospect replies?',
-    a: 'Replies land in your Sentra inbox, automatically classified by intent (interested, not now, no thanks). Your real inbox stays clean.',
+    a: 'Replies land in your Sentra inbox, automatically sorted by intent so you can focus on the warm ones. Your real inbox stays clean.',
   },
   {
     q: 'Is my data safe?',
@@ -275,7 +275,7 @@ export default function HomePage() {
               <div className="text-4xl font-bold text-white mb-1">$199<span className="text-lg font-normal text-[#8a9ab8]">/mo</span></div>
               <p className="text-xs text-[#8a9ab8] mb-6">For SDRs who want the best AI</p>
               <ul className="flex flex-col gap-2.5 mb-8 text-sm text-[#c8d4e8]">
-                {['250 prospects/mo','2 inboxes','Advanced AI (Claude Sonnet)','Morning Brief Mode B','Priority support'].map(f => (
+                {['250 prospects/mo','2 inboxes','Advanced AI','Morning Brief Mode B','Priority support'].map(f => (
                   <li key={f} className="flex items-center gap-2"><span className="text-[#3b6bef] font-bold">✓</span>{f}</li>
                 ))}
               </ul>
