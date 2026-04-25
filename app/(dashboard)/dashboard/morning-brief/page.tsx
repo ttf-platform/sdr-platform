@@ -193,11 +193,20 @@ function LegacyBrief({ content }: { content: any }) {
   )
 }
 
+const TIMEZONES = ['Eastern Time (ET)','Central Time (CT)','Mountain Time (MT)','Pacific Time (PT)','GMT','CET','IST']
+const MIN_PRODUCT_DESC = 30
+
 export default function MorningBriefPage() {
-  const [briefs, setBriefs]         = useState<any[]>([])
-  const [selected, setSelected]     = useState<any>(null)
-  const [generating, setGenerating] = useState(false)
+  const [briefs, setBriefs]           = useState<any[]>([])
+  const [selected, setSelected]       = useState<any>(null)
+  const [generating, setGenerating]   = useState(false)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+  const [productDescription, setProductDescription] = useState<string>('')
+
+  // Morning Brief delivery settings (UI-only until Sprint 4 persistence)
+  const [briefEnabled, setBriefEnabled] = useState(true)
+  const [briefTime, setBriefTime]       = useState('07:30')
+  const [briefTz, setBriefTz]           = useState('Eastern Time (ET)')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -206,16 +215,22 @@ export default function MorningBriefPage() {
         .from('workspace_members').select('workspace_id').eq('user_id', session.user.id).single()
       if (!member) return
       setWorkspaceId(member.workspace_id)
-      const { data } = await supabase
-        .from('morning_briefs').select('*').eq('workspace_id', member.workspace_id)
-        .order('brief_date', { ascending: false })
-      setBriefs(data || [])
-      if (data && data.length > 0) setSelected(data[0])
+
+      const [{ data: profile }, { data: briefList }] = await Promise.all([
+        supabase.from('workspace_profiles').select('product_description').eq('workspace_id', member.workspace_id).single(),
+        supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false }),
+      ])
+
+      setProductDescription(profile?.product_description ?? '')
+      setBriefs(briefList || [])
+      if (briefList && briefList.length > 0) setSelected(briefList[0])
     })
   }, [])
 
+  const profileGated = !productDescription || productDescription.length < MIN_PRODUCT_DESC
+
   async function generateBrief() {
-    if (!workspaceId) return
+    if (!workspaceId || profileGated) return
     setGenerating(true)
     const res = await fetch('/api/morning-brief/generate', {
       method: 'POST',
@@ -237,19 +252,70 @@ export default function MorningBriefPage() {
           <p className="text-sm text-[#8a7e6e]">Your daily AI-powered outbound intelligence</p>
         </div>
         {briefs.length > 0 && (
-          <button onClick={generateBrief} disabled={generating}
+          <button onClick={generateBrief} disabled={generating || profileGated}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
             {generating ? 'Generating...' : "Today's brief"}
           </button>
         )}
       </div>
 
+      {/* ── Delivery settings (Sprint 4 will wire persistence) ── */}
+      <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-5">
+        <div className="flex items-center gap-2 mb-1">
+          <span>☕</span>
+          <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">Morning Coffee Brief</div>
+        </div>
+        <p className="text-xs text-[#8a7e6e] mb-4">Receive a daily AI-researched email with meeting prep or market intelligence.</p>
+        <div className="flex items-center justify-between mb-4 p-3 border border-[#e8e3dc] rounded-xl">
+          <div>
+            <div className="text-sm font-semibold text-[#1a1a2e]">Enable Morning Brief</div>
+            <div className="text-xs text-[#8a7e6e]">Daily AI brief delivered to your inbox each weekday</div>
+          </div>
+          <button onClick={() => setBriefEnabled(!briefEnabled)}
+            className={`w-11 h-6 rounded-full transition-colors relative ${briefEnabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
+            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${briefEnabled ? 'right-0.5' : 'left-0.5'}`} />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Delivery Time</label>
+            <input type="time" value={briefTime} onChange={e => setBriefTime(e.target.value)}
+              className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Your Timezone</label>
+            <select value={briefTz} onChange={e => setBriefTz(e.target.value)}
+              className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
+              {TIMEZONES.map(tz => <option key={tz}>{tz}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#f7f4f0] rounded-xl p-3">
+            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">📅 Meeting Days</div>
+            <div className="text-xs text-[#8a7e6e]">AI-researched prospect profiles, talking points & discovery questions</div>
+          </div>
+          <div className="bg-[#f7f4f0] rounded-xl p-3">
+            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">📊 No-Meeting Days</div>
+            <div className="text-xs text-[#8a7e6e]">Market trends, competitor intel & 3 new campaign suggestions</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Profile gating banner ── */}
+      {profileGated && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm text-amber-800">
+          Add a more detailed company description to unlock Morning Brief —{' '}
+          <a href="/dashboard/settings" className="font-semibold underline">Edit profile</a>
+        </div>
+      )}
+
       {briefs.length === 0 ? (
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
           <div className="text-4xl mb-3">☕</div>
           <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No briefs yet</h2>
           <p className="text-sm text-[#8a7e6e] mb-5">Generate your first morning brief to get AI-powered market insights and campaign ideas tailored to your ICP.</p>
-          <button onClick={generateBrief} disabled={generating}
+          <button onClick={generateBrief} disabled={generating || profileGated}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
             {generating ? 'Generating...' : 'Generate first brief'}
           </button>

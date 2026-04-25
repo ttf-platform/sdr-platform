@@ -12,9 +12,6 @@ export default function SettingsPage() {
   const [emailCount, setEmailCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [briefEnabled, setBriefEnabled] = useState(true)
-  const [briefTime, setBriefTime] = useState('07:30')
-  const [briefTz, setBriefTz] = useState('Eastern Time (ET)')
   const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '1-10', product_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
 
   useEffect(() => {
@@ -160,37 +157,6 @@ export default function SettingsPage() {
           <div className="w-full bg-[#f0ece6] rounded-full h-1.5 mb-1"><div className="bg-[#3b6bef] h-1.5 rounded-full" style={{ width: '0%' }}></div></div>
           <div className="text-xs text-[#8a7e6e]">Starter plan · 100 credits remaining</div>
         </div>
-      </div>
-
-      <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
-        <div className="flex items-center gap-2 mb-1"><span>☕</span><div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">MORNING COFFEE BRIEF</div></div>
-        <p className="text-xs text-[#8a7e6e] mb-4">Receive a daily AI-researched email with meeting prep or market intelligence.</p>
-        <div className="flex items-center justify-between mb-4 p-3 border border-[#e8e3dc] rounded-xl">
-          <div>
-            <div className="text-sm font-semibold text-[#1a1a2e]">Enable Morning Brief</div>
-            <div className="text-xs text-[#8a7e6e]">Daily AI brief delivered to your inbox each weekday</div>
-          </div>
-          <button onClick={() => setBriefEnabled(!briefEnabled)} className={"w-11 h-6 rounded-full transition-colors relative " + (briefEnabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]')}>
-            <div className={"w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all " + (briefEnabled ? 'right-0.5' : 'left-0.5')}></div>
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">DELIVERY TIME</label>
-            <input type="time" value={briefTime} onChange={e => setBriefTime(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">YOUR TIMEZONE</label>
-            <select value={briefTz} onChange={e => setBriefTz(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
-              {timezones.map(tz => <option key={tz}>{tz}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="bg-[#f7f4f0] rounded-xl p-3"><div className="text-sm font-semibold text-[#1a1a2e] mb-1">📅 Meeting Days</div><div className="text-xs text-[#8a7e6e]">AI-researched prospect profiles, talking points & discovery questions</div></div>
-          <div className="bg-[#f7f4f0] rounded-xl p-3"><div className="text-sm font-semibold text-[#1a1a2e] mb-1">📊 No-Meeting Days</div><div className="text-xs text-[#8a7e6e]">Market trends, competitor intel & 3 new campaign suggestions</div></div>
-        </div>
-        <a href="/dashboard/morning-brief" className="text-xs border border-[#e8e3dc] px-3 py-2 rounded-lg text-[#6b5e4e] inline-flex items-center gap-1">☕ Send me today's brief now</a>
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
