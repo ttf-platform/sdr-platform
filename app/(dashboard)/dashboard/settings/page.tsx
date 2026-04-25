@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [emailCount, setEmailCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function SettingsPage() {
       setCampaignCount(cc || 0)
       setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
       if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
+      setProfileLoaded(true)
     })
   }, [])
 
@@ -48,7 +50,7 @@ export default function SettingsPage() {
         <div className="text-xs text-[#8a7e6e] mb-1"><a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings</div>
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
         <p className="text-sm text-[#8a7e6e] mb-3">Account & company profile</p>
-        <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points }} />
+        {profileLoaded && <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points }} />}
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">

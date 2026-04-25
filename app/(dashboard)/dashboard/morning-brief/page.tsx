@@ -205,6 +205,7 @@ export default function MorningBriefPage() {
   const [generating, setGenerating]   = useState(false)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [profile, setProfile] = useState<ProfileForScore | null>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
 
   // Morning Brief delivery settings (UI-only until Sprint 4 persistence)
   const [briefEnabled, setBriefEnabled] = useState(true)
@@ -225,12 +226,13 @@ export default function MorningBriefPage() {
       ])
 
       setProfile(wp ?? null)
+      setProfileLoaded(true)
       setBriefs(briefList || [])
       if (briefList && briefList.length > 0) setSelected(briefList[0])
     })
   }, [])
 
-  const profileGated = profile === null || calculateProfileScore(profile) < MIN_PROFILE_SCORE
+  const profileGated = !profileLoaded || profile === null || calculateProfileScore(profile) < MIN_PROFILE_SCORE
 
   async function generateBrief() {
     if (!workspaceId || profileGated) return
@@ -309,7 +311,7 @@ export default function MorningBriefPage() {
       </div>
 
       {/* ── Profile gating banner ── */}
-      {profileGated && (
+      {profileLoaded && profileGated && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm text-amber-800">
           Add a more detailed company description to unlock Morning Brief —{' '}
           <a href="/dashboard/settings" className="font-semibold underline">Edit profile</a>
