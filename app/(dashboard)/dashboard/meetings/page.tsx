@@ -248,7 +248,12 @@ export default function MeetingsPage() {
                     {(m.attendee_name || m.attendee_email) && (
                       <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
                     )}
-                    {m.notes && <p className="text-xs text-[#8a7e6e] mt-1 line-clamp-1">{m.notes}</p>}
+                    {m.notes && (
+                      <div className="mt-2 pt-2 border-t border-[#f0ece6]">
+                        <p className="text-xs font-semibold text-[#8a7e6e] mb-0.5">📝 Prospect notes</p>
+                        <p className="text-xs text-[#6b5e4e] whitespace-pre-line">{m.notes}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <a href={`/api/meetings/${m.id}/ics`} className="text-xs border border-[#e8e3dc] px-2 py-1 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee]">📅</a>
