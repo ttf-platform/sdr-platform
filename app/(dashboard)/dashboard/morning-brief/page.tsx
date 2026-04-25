@@ -178,6 +178,135 @@ function RichBrief({ content }: { content: any }) {
   )
 }
 
+function MeetingsBrief({ content }: { content: any }) {
+  const meetings: any[]     = content.meetings           ?? []
+  const trendsBrief: any[]  = content.market_trends_brief ?? []
+
+  function fmtMeetingTime(iso: string, durationMin: number): string {
+    try {
+      const start = new Date(iso)
+      const end   = new Date(start.getTime() + durationMin * 60000)
+      const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      return `${fmt(start)} – ${fmt(end)}`
+    } catch { return iso }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl px-6 py-8 text-center text-white">
+        <div className="text-4xl mb-3">📋</div>
+        <h2 className="text-2xl font-bold mb-1">Morning Coffee Brief</h2>
+        <p className="text-blue-100 text-sm mb-4">{fmtBriefDate(content.date)}</p>
+        <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+          📋 Meetings Day
+        </span>
+      </div>
+
+      {/* ── Greeting ── */}
+      {(content.greeting || content.intro) && (
+        <div className="bg-white border border-[#e8e3dc] rounded-xl px-5 py-4">
+          <p className="text-[#1a1a2e] text-sm leading-relaxed">
+            {content.greeting && <span className="font-semibold">{content.greeting} </span>}
+            {content.intro}
+          </p>
+        </div>
+      )}
+
+      {/* ── Meeting dossiers ── */}
+      {meetings.map((m, i) => (
+        <div key={i} className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
+          {/* Card header */}
+          <div className="bg-blue-50 border-b border-blue-100 px-5 py-4 flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+                {fmtMeetingTime(m.meeting_at, m.duration_min)} · {m.duration_min} min
+              </div>
+              <div className="font-bold text-[#1a1a2e] text-base">
+                {m.attendee_name || 'Unknown'}
+              </div>
+              <div className="text-sm text-[#6b5e4e]">{m.company_name || m.attendee_email}</div>
+            </div>
+            <span className="text-xs text-[#8a7e6e] bg-white border border-[#e8e3dc] px-2.5 py-1 rounded-full whitespace-nowrap">
+              Meeting {i + 1}
+            </span>
+          </div>
+
+          <div className="flex flex-col divide-y divide-[#f0ece6]">
+            {/* Company overview */}
+            {m.company_overview && (
+              <div className="px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">🏢 Company Overview</p>
+                <p className="text-sm text-[#1a1a2e] leading-relaxed">{m.company_overview}</p>
+              </div>
+            )}
+
+            {/* Likely pain points */}
+            {m.likely_pain_points?.length > 0 && (
+              <div className="px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">🎯 Likely Pain Points</p>
+                <ul className="flex flex-col gap-1.5">
+                  {m.likely_pain_points.map((pt: string, j: number) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-[#1a1a2e]">
+                      <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Talking points */}
+            {m.talking_points?.length > 0 && (
+              <div className="px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">💬 Talking Points</p>
+                <ul className="flex flex-col gap-1.5">
+                  {m.talking_points.map((pt: string, j: number) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-[#1a1a2e]">
+                      <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Discovery questions */}
+            {m.discovery_questions?.length > 0 && (
+              <div className="px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">❓ Discovery Questions</p>
+                <ul className="flex flex-col gap-1.5">
+                  {m.discovery_questions.map((q: string, j: number) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-[#1a1a2e]">
+                      <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
+                      {q}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* ── Quick market signal ── */}
+      {trendsBrief.map((t, i) => (
+        <div key={i} className="bg-[#f8fafc] border border-[#e8e3dc] rounded-xl px-5 py-3 flex items-start gap-3">
+          <span className="text-base flex-shrink-0">💡</span>
+          <div>
+            <span className="text-xs font-semibold text-[#6b5e4e]">Quick market signal: </span>
+            <span className="text-sm text-[#4a4a5a]">{t.title} — {t.content}</span>
+          </div>
+        </div>
+      ))}
+
+      {/* ── Footer ── */}
+      <p className="text-center text-xs text-[#b0a898] pb-2">Generated by Sentra · Powered by AI</p>
+    </div>
+  )
+}
+
 function LegacyBrief({ content }: { content: any }) {
   return (
     <div className="flex flex-col gap-4">
@@ -333,9 +462,11 @@ export default function MorningBriefPage() {
         <div className="flex flex-col gap-6">
           {/* Selected brief */}
           {selected && (
-            selected.content?.mode === 'no_meetings'
-              ? <RichBrief content={selected.content} />
-              : <LegacyBrief content={selected.content} />
+            selected.content?.mode === 'meetings_today'
+              ? <MeetingsBrief content={selected.content} />
+              : selected.content?.mode === 'no_meetings'
+                ? <RichBrief content={selected.content} />
+                : <LegacyBrief content={selected.content} />
           )}
 
           {/* Archive */}
@@ -356,7 +487,7 @@ export default function MorningBriefPage() {
                     <div className="text-sm font-medium text-[#1a1a2e]">{fmtBriefDateShort(b.brief_date)}</div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-[#3b6bef] bg-[#eef1fd] px-1.5 py-0.5 rounded font-medium">
-                        {b.content?.mode === 'no_meetings' ? 'Market Intel' : 'Brief'}
+                        {b.content?.mode === 'meetings_today' ? 'Meetings Day' : b.content?.mode === 'no_meetings' ? 'Market Intel' : 'Brief'}
                       </span>
                     </div>
                   </div>
