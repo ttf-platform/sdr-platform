@@ -48,9 +48,9 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1"><a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings</div>
+        {profileLoaded && <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points }} hideEditLink={true} className="mb-3" />}
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
-        <p className="text-sm text-[#8a7e6e] mb-3">Account & company profile</p>
-        {profileLoaded && <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points }} />}
+        <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
       </div>
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">

@@ -90,16 +90,15 @@ export default function NewCampaignPage() {
   const tones = ['professional', 'friendly', 'direct', 'casual']
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <a href="/dashboard/campaigns" className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] mb-3 inline-block">← Back to campaigns</a>
+        {profile && <ProfileQualityBadge profile={profile} className="mb-3" />}
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-[#1a1a2e]">New Campaign</h1>
           <a href="/dashboard/campaigns/suggestions" className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#f0ece6] flex items-center gap-1.5">✦ AI Suggestions</a>
         </div>
       </div>
-
-      {step === 0 && profile && <ProfileQualityBadge profile={profile} className="mb-4" />}
 
       <div className="flex gap-2 mb-6">
         {['Setup', 'Sequence'].map((s, i) => (
