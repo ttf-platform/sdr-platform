@@ -22,7 +22,7 @@ const FAQS = [
   },
   {
     q: 'What happens to my email reputation?',
-    a: 'Sentra protects it. We send from a pre-warmed pool inbox during your first month while we warm up your real inbox in the background. After that, we switch — seamlessly.',
+    a: 'Sentra is built around inbox reputation. From day one, your emails land in inbox — not spam. We handle the technical complexity of email deliverability so your real inbox stays trusted, day one and forever.',
   },
   {
     q: 'Can I review emails before they go out?',
