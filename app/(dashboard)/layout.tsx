@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 
 const supabase = createClient()
@@ -52,6 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/pipeline', label: 'Pipeline', icon: TrendingUp },
     { href: '/dashboard/call-recording', label: 'Call Recording', icon: Phone },
     { href: '/dashboard/team', label: 'Team', icon: UserPlus },
+    { href: '/dashboard/billing',  label: 'Billing',  icon: CreditCard },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
   ]
 
