@@ -230,7 +230,7 @@ export default function MorningBriefPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>
