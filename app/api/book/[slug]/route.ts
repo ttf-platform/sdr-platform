@@ -15,6 +15,16 @@ async function getProfile(slug: string) {
     .single()
 }
 
+// IANA offset string for a TZ on a specific date (DST-safe, noon-UTC trick)
+function getTzOffset(tz: string, dateStr: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, timeZoneName: 'longOffset',
+  }).formatToParts(new Date(`${dateStr}T12:00:00Z`))
+  const raw = parts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const m   = raw.match(/GMT([+-]\d{2}:\d{2})/)
+  return m ? m[1] : '+00:00'
+}
+
 export async function GET(_: Request, { params }: { params: { slug: string } }) {
   const admin = createAdminClient()
   const { data: profile, error } = await getProfile(params.slug)
@@ -58,10 +68,14 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   if (cfg.enabled === false) return NextResponse.json({ error: 'Booking page is disabled' }, { status: 404 })
 
   const body = await request.json()
-  const { meeting_at, duration_min, attendee_email, attendee_name, company_name, notes } = body
+  // New payload: { date, time, prospect_timezone, duration_min, attendee_email, ... }
+  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = body
 
-  if (!meeting_at || !attendee_email || !duration_min) {
-    return NextResponse.json({ error: 'meeting_at, attendee_email and duration_min are required' }, { status: 400 })
+  if (!date || !time || !prospect_timezone || !attendee_email || !duration_min) {
+    return NextResponse.json(
+      { error: 'date, time, prospect_timezone, attendee_email and duration_min are required' },
+      { status: 400 },
+    )
   }
   if (!EMAIL_RE.test(attendee_email)) {
     return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
@@ -70,45 +84,35 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     return NextResponse.json({ error: 'Invalid meeting duration' }, { status: 400 })
   }
 
-  // ── Timezone-safe parsing: extract date/time directly from the string ──────
-  // meeting_at format: "YYYY-MM-DDTHH:MM:SS" (naive local, no timezone suffix)
-  const naive       = meeting_at.slice(0, 16)          // "YYYY-MM-DDTHH:MM"
-  const datePart    = naive.slice(0, 10)                // "YYYY-MM-DD"
-  const [slotH, slotM] = naive.slice(11).split(':').map(Number)
-  const slotStartMins  = slotH * 60 + slotM
-  const slotEndMins    = slotStartMins + duration_min
+  // ── Convert prospect local time → true UTC ────────────────────────────────
+  const prospectOffset = getTzOffset(prospect_timezone, date)
+  const slotStartUTC   = new Date(`${date}T${time}:00${prospectOffset}`)
+  const slotEndUTC     = new Date(slotStartUTC.getTime() + duration_min * 60_000)
 
-  // getUTCDay() on noon-UTC avoids any date boundary issue regardless of server tz
-  const dayName = DAY_NAMES[new Date(`${datePart}T12:00:00.000Z`).getUTCDay()]
-  const windows = (cfg.availability_windows?.[dayName] ?? []) as { start: string; end: string }[]
+  if (isNaN(slotStartUTC.getTime())) {
+    return NextResponse.json({ error: 'Invalid date or time' }, { status: 400 })
+  }
+
+  // ── Find owner's calendar date for this UTC slot ──────────────────────────
+  const ownerTz      = cfg.timezone ?? 'UTC'
+  const ownerDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: ownerTz }).format(slotStartUTC)
+  const dayName      = DAY_NAMES[new Date(`${ownerDateStr}T12:00:00Z`).getUTCDay()]
+  const windows      = (cfg.availability_windows?.[dayName] ?? []) as { start: string; end: string }[]
 
   if (!windows.length) return NextResponse.json({ error: 'No availability on this day' }, { status: 400 })
 
-  const slotInWindow = windows.some(w => {
-    const [wsh, wsm] = w.start.split(':').map(Number)
-    const [weh, wem] = w.end.split(':').map(Number)
-    return slotStartMins >= wsh * 60 + wsm && slotEndMins <= weh * 60 + wem
+  // ── Validate slot falls within an owner availability window (UTC space) ───
+  const ownerOffset   = getTzOffset(ownerTz, ownerDateStr)
+  const slotInWindow  = windows.some(w => {
+    const winStart = new Date(`${ownerDateStr}T${w.start}:00${ownerOffset}`)
+    const winEnd   = new Date(`${ownerDateStr}T${w.end}:00${ownerOffset}`)
+    return slotStartUTC >= winStart && slotEndUTC <= winEnd
   })
   if (!slotInWindow) return NextResponse.json({ error: 'Selected slot is outside availability hours' }, { status: 400 })
 
-  // ── Conflict check using true UTC timestamps (owner timezone-aware) ─────────
-  const hPad = String(slotH).padStart(2, '0')
-  const mPad = String(slotM).padStart(2, '0')
-
-  // Derive the UTC offset for the owner's timezone on this specific date
-  // (accounts for DST). Use noon-UTC to avoid date boundary issues.
-  const tzParts = new Intl.DateTimeFormat('en-US', {
-    timeZone: cfg.timezone ?? 'UTC',
-    timeZoneName: 'longOffset',
-  }).formatToParts(new Date(`${datePart}T12:00:00Z`))
-  const offsetRaw = tzParts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
-  const tzMatch   = offsetRaw.match(/GMT([+-]\d{2}:\d{2})/)
-  const tzOffset  = tzMatch ? tzMatch[1] : '+00:00'
-
-  const slotStartUTC = new Date(`${datePart}T${hPad}:${mPad}:00${tzOffset}`)
-  const slotEndUTC   = new Date(slotStartUTC.getTime() + duration_min * 60_000)
-  const dayStartUTC  = new Date(`${datePart}T00:00:00${tzOffset}`)
-  const dayEndUTC    = new Date(`${datePart}T23:59:59.999${tzOffset}`)
+  // ── Conflict check: query meetings on the owner's day ────────────────────
+  const dayStartUTC = new Date(`${ownerDateStr}T00:00:00${ownerOffset}`)
+  const dayEndUTC   = new Date(`${ownerDateStr}T23:59:59.999${ownerOffset}`)
 
   const { data: dayMeetings } = await admin
     .from('meetings').select('meeting_at, duration_min')
@@ -124,7 +128,10 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     const me = ms + m.duration_min * 60_000
     return ns < me + bufMs && ne > ms - bufMs
   })
-  if (conflict) return NextResponse.json({ error: 'This time slot is no longer available. Please choose another time.' }, { status: 409 })
+  if (conflict) return NextResponse.json(
+    { error: 'This time slot is no longer available. Please choose another time.' },
+    { status: 409 },
+  )
 
   const { data: ownerMember } = await admin
     .from('workspace_members').select('user_id')
@@ -137,7 +144,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       workspace_id:  profile.workspace_id,
       user_id:       ownerMember.user_id,
       title:         `Meeting with ${attendee_name || attendee_email}`,
-      meeting_at:    slotStartUTC.toISOString(),   // explicit UTC for consistent storage
+      meeting_at:    slotStartUTC.toISOString(),
       duration_min,
       attendee_email,
       attendee_name:  attendee_name ?? null,
@@ -151,7 +158,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   if (insErr || !meeting) return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 })
 
   const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
   const bookingPageUrl = `${appUrl}/book/${params.slug}`
 
   const icsData = {
@@ -166,8 +173,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     perspective:       'attendee' as const,
   }
 
-  const ics = generateICS(icsData)
-
+  const ics        = generateICS(icsData)
   const eventTitle = icsData.organizer_company && icsData.attendee_company
     ? `${icsData.organizer_company} × ${icsData.attendee_company} — Discovery call`
     : meeting.title
