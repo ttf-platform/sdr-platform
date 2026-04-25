@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [emailCount, setEmailCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '1-10', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
+  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', industry: '', company_size: '', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -28,7 +28,7 @@ export default function SettingsPage() {
       const { data: camps } = await supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id)
       setCampaignCount(cc || 0)
       setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
-      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '1-10', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
+      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
     })
   }, [])
 

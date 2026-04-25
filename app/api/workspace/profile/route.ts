@@ -23,7 +23,6 @@ export async function POST(request: Request) {
       icp_company_size:    body.icp_company_size     ?? null,
       icp_industries:      body.icp_industries       ?? null,
       pain_points:         body.pain_points          ?? null,
-      onboarding_completed: body.onboarding_completed,
     })
     .eq('workspace_id', body.workspace_id)
 
