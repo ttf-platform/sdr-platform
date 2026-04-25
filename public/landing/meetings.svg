@@ -1,0 +1,63 @@
+<svg width="1200" height="750" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="750" fill="#f5f2ee"/>
+  <!-- Top bar -->
+  <rect width="1200" height="56" fill="white"/>
+  <circle cx="28" cy="28" r="10" fill="#3b6bef"/>
+  <text x="46" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#1a1a2e">Sen</text>
+  <text x="76" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#3b6bef">tra</text>
+  <!-- Header -->
+  <text x="160" y="100" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#1a1a2e">Meetings</text>
+  <rect x="940" y="76" width="100" height="32" rx="8" fill="#3b6bef"/>
+  <text x="990" y="97" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">+ Create</text>
+  <rect x="1050" y="76" width="110" height="32" rx="8" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="1105" y="97" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e" text-anchor="middle">🔗 Copy link</text>
+  <!-- Booking link banner -->
+  <rect x="160" y="116" width="880" height="52" rx="10" fill="#eef1fd" stroke="#dde6fd" stroke-width="1"/>
+  <text x="185" y="136" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#3b6bef">🔗 Your booking link</text>
+  <text x="185" y="154" font-family="system-ui,sans-serif" font-size="11" fill="#6b5e4e">sentra.app/book/alex-chen</text>
+  <rect x="980" y="126" width="48" height="28" rx="6" fill="#3b6bef"/>
+  <text x="1004" y="145" font-family="system-ui,sans-serif" font-size="11" fill="white" text-anchor="middle">Copy</text>
+  <!-- Meetings list -->
+  <rect x="160" y="184" width="880" height="90" rx="10" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="212" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a2e">Meeting with Sarah Johnson</text>
+  <rect x="380" y="198" width="60" height="18" rx="9" fill="#eff6ff"/>
+  <text x="410" y="211" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="#1d4ed8" text-anchor="middle">scheduled</text>
+  <text x="185" y="230" font-family="system-ui,sans-serif" font-size="11" fill="#8a7e6e">Apr 26, 2026 · 9:00 AM (America/Toronto) · 30 min</text>
+  <text x="185" y="247" font-family="system-ui,sans-serif" font-size="11" fill="#6b5e4e">Sarah Johnson · Acme Software</text>
+  <rect x="185" y="256" width="840" height="1" fill="#f0ece6"/>
+  <text x="185" y="272" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="#8a7e6e">📝 Wants to reduce manual outreach by 80%. Evaluating 3 vendors.</text>
+  <rect x="160" y="284" width="880" height="90" rx="10" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="312" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a2e">Meeting with David Park</text>
+  <rect x="340" y="298" width="60" height="18" rx="9" fill="#eff6ff"/>
+  <text x="370" y="311" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="#1d4ed8" text-anchor="middle">scheduled</text>
+  <text x="185" y="330" font-family="system-ui,sans-serif" font-size="11" fill="#8a7e6e">Apr 28, 2026 · 2:00 PM (America/Toronto) · 45 min</text>
+  <text x="185" y="347" font-family="system-ui,sans-serif" font-size="11" fill="#6b5e4e">David Park · GrowthStack Inc.</text>
+  <!-- Booking page preview -->
+  <rect x="160" y="390" width="880" height="330" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <rect x="160" y="390" width="880" height="44" rx="12" fill="#1a1a2e"/>
+  <rect x="160" y="412" width="880" height="22" fill="#1a1a2e"/>
+  <text x="600" y="418" font-family="system-ui,sans-serif" font-size="12" fill="#9ca3af" text-anchor="middle">sentra.app/book/alex-chen</text>
+  <text x="600" y="470" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="#1a1a2e" text-anchor="middle">Book a meeting with Alex</text>
+  <text x="600" y="492" font-family="system-ui,sans-serif" font-size="12" fill="#6b5e4e" text-anchor="middle">30 min · 45 min · Google Meet</text>
+  <!-- Calendar mini -->
+  <rect x="220" y="508" width="340" height="190" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="390" y="534" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a2e" text-anchor="middle">April 2026</text>
+  <rect x="235" y="544" width="40" height="28" rx="6" fill="#3b6bef"/>
+  <text x="255" y="563" font-family="system-ui,sans-serif" font-size="12" fill="white" text-anchor="middle">26</text>
+  <rect x="283" y="544" width="40" height="28" rx="6" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="303" y="563" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e" text-anchor="middle">27</text>
+  <rect x="331" y="544" width="40" height="28" rx="6" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="351" y="563" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e" text-anchor="middle">28</text>
+  <!-- Time slots -->
+  <rect x="580" y="508" width="420" height="190" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="790" y="534" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a2e" text-anchor="middle">Available times — April 26</text>
+  <rect x="600" y="542" width="180" height="32" rx="8" fill="#3b6bef"/>
+  <text x="690" y="563" font-family="system-ui,sans-serif" font-size="12" fill="white" text-anchor="middle">9:00 AM</text>
+  <rect x="790" y="542" width="180" height="32" rx="8" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="880" y="563" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e" text-anchor="middle">10:00 AM</text>
+  <rect x="600" y="582" width="180" height="32" rx="8" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="690" y="603" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e" text-anchor="middle">11:00 AM</text>
+  <rect x="790" y="582" width="180" height="32" rx="8" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="880" y="603" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e" text-anchor="middle">2:00 PM</text>
+  <text x="600" y="726" font-family="system-ui,sans-serif" font-size="11" fill="#b0a898" text-anchor="middle">[ Meetings screenshot — replace with real WebP ]</text>
+</svg>

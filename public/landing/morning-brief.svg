@@ -1,0 +1,58 @@
+<svg width="1200" height="750" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#047857;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f9f6f1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="#f5f2ee"/>
+  <!-- Top bar -->
+  <rect width="1200" height="56" fill="white"/>
+  <circle cx="28" cy="28" r="10" fill="#3b6bef"/>
+  <text x="46" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#1a1a2e">Sen</text>
+  <text x="76" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#3b6bef">tra</text>
+  <!-- Hero card -->
+  <rect x="160" y="72" width="880" height="220" rx="16" fill="url(#bg)"/>
+  <text x="600" y="150" font-family="system-ui,sans-serif" font-size="48" text-anchor="middle">☕</text>
+  <text x="600" y="200" font-family="system-ui,sans-serif" font-size="24" font-weight="700" fill="white" text-anchor="middle">Morning Coffee Brief</text>
+  <text x="600" y="228" font-family="system-ui,sans-serif" font-size="14" fill="#a7f3d0" text-anchor="middle">Saturday, April 26, 2026</text>
+  <rect x="510" y="244" width="180" height="30" rx="15" fill="rgba(255,255,255,0.2)"/>
+  <text x="600" y="264" font-family="system-ui,sans-serif" font-size="12" fill="white" text-anchor="middle">📊 Market Intelligence Day</text>
+  <!-- Section cards -->
+  <rect x="160" y="308" width="425" height="130" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="335" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#8a7e6e">📈 MARKET TRENDS</text>
+  <rect x="185" y="346" width="180" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="185" y="360" width="340" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="372" width="300" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="384" width="320" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="402" width="200" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="185" y="416" width="340" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="615" y="308" width="425" height="130" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="640" y="335" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#8a7e6e">🎯 CAMPAIGN IDEAS</text>
+  <rect x="640" y="346" width="160" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="640" y="360" width="370" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="640" y="372" width="310" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="640" y="384" width="350" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="640" y="402" width="200" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="640" y="416" width="370" height="6" rx="3" fill="#f0ece6"/>
+  <!-- Prospect card -->
+  <rect x="160" y="454" width="880" height="250" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="482" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#8a7e6e">👤 PROSPECT DOSSIER — Today's Meeting</text>
+  <rect x="185" y="494" width="220" height="10" rx="5" fill="#1a1a2e" opacity="0.8"/>
+  <rect x="185" y="512" width="140" height="6" rx="3" fill="#3b6bef" opacity="0.4"/>
+  <rect x="185" y="530" width="840" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="542" width="780" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="554" width="810" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="576" width="140" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="185" y="592" width="840" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="604" width="760" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="626" width="140" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="185" y="642" width="840" height="6" rx="3" fill="#f0ece6"/>
+  <rect x="185" y="654" width="680" height="6" rx="3" fill="#f0ece6"/>
+  <!-- placeholder label -->
+  <text x="600" y="726" font-family="system-ui,sans-serif" font-size="11" fill="#b0a898" text-anchor="middle">[ Morning Brief screenshot — replace with real WebP ]</text>
+</svg>

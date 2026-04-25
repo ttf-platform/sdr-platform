@@ -1,0 +1,51 @@
+<svg width="1200" height="750" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="750" fill="#f5f2ee"/>
+  <!-- Top bar -->
+  <rect width="1200" height="56" fill="white"/>
+  <circle cx="28" cy="28" r="10" fill="#3b6bef"/>
+  <text x="46" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#1a1a2e">Sen</text>
+  <text x="76" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#3b6bef">tra</text>
+  <!-- AI Quality Banner -->
+  <rect x="160" y="72" width="880" height="70" rx="12" fill="#eef1fd" stroke="#dde6fd" stroke-width="1"/>
+  <text x="185" y="100" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="#3b6bef">✦ Profile Quality Score</text>
+  <rect x="185" y="108" width="600" height="8" rx="4" fill="#dde6fd"/>
+  <rect x="185" y="108" width="420" height="8" rx="4" fill="#3b6bef"/>
+  <text x="795" y="117" font-family="system-ui,sans-serif" font-size="12" font-weight="700" fill="#3b6bef">70%</text>
+  <text x="820" y="117" font-family="system-ui,sans-serif" font-size="11" fill="#6b5e4e">— Good · Add value proposition to reach 90%</text>
+  <!-- COMPANY section -->
+  <rect x="160" y="156" width="880" height="140" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="182" font-family="system-ui,sans-serif" font-size="10" font-weight="700" fill="#8a7e6e" letter-spacing="1">COMPANY</text>
+  <text x="185" y="206" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#6b5e4e">Company name *</text>
+  <rect x="185" y="214" width="840" height="32" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="200" y="235" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e">Acme Corp</text>
+  <text x="185" y="264" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#6b5e4e">Sender name</text>
+  <rect x="185" y="272" width="400" height="14" rx="4" fill="#f0ece6"/>
+  <!-- PRODUCT section -->
+  <rect x="160" y="310" width="880" height="180" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="336" font-family="system-ui,sans-serif" font-size="10" font-weight="700" fill="#8a7e6e" letter-spacing="1">PRODUCT</text>
+  <text x="185" y="360" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#6b5e4e">Product description *</text>
+  <rect x="900" y="346" width="120" height="18" rx="9" fill="#f0ece6"/>
+  <text x="960" y="359" font-family="system-ui,sans-serif" font-size="10" fill="#8a7e6e" text-anchor="middle">Adds 20% to AI quality</text>
+  <rect x="185" y="368" width="840" height="60" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <rect x="200" y="381" width="600" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="200" y="395" width="450" height="8" rx="4" fill="#e8e3dc"/>
+  <text x="185" y="448" font-family="system-ui,sans-serif" font-size="11" fill="#3b6bef">120/30 chars ✓</text>
+  <text x="185" y="466" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#6b5e4e">Value proposition</text>
+  <rect x="900" y="452" width="120" height="18" rx="9" fill="#f0ece6"/>
+  <text x="960" y="465" font-family="system-ui,sans-serif" font-size="10" fill="#8a7e6e" text-anchor="middle">Adds 20% to AI quality</text>
+  <rect x="185" y="474" width="840" height="6" rx="3" fill="#f0ece6"/>
+  <!-- AUDIENCE section -->
+  <rect x="160" y="504" width="880" height="130" rx="12" fill="white" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="185" y="530" font-family="system-ui,sans-serif" font-size="10" font-weight="700" fill="#8a7e6e" letter-spacing="1">AUDIENCE</text>
+  <text x="185" y="554" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#6b5e4e">Describe your ideal customer</text>
+  <rect x="900" y="540" width="120" height="18" rx="9" fill="#f0ece6"/>
+  <text x="960" y="553" font-family="system-ui,sans-serif" font-size="10" fill="#8a7e6e" text-anchor="middle">Adds 25% to AI quality</text>
+  <rect x="185" y="562" width="840" height="52" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <rect x="200" y="575" width="580" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="200" y="589" width="420" height="8" rx="4" fill="#e8e3dc"/>
+  <rect x="185" y="624" width="415" height="32" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="200" y="645" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e">SaaS, Fintech</text>
+  <rect x="615" y="624" width="415" height="32" rx="8" fill="#f5f2ee" stroke="#e8e3dc" stroke-width="1"/>
+  <text x="630" y="645" font-family="system-ui,sans-serif" font-size="12" fill="#1a1a2e">51–200 employees</text>
+  <text x="600" y="726" font-family="system-ui,sans-serif" font-size="11" fill="#b0a898" text-anchor="middle">[ Settings screenshot — replace with real WebP ]</text>
+</svg>
