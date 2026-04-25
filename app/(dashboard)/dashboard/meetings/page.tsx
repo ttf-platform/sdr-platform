@@ -35,10 +35,15 @@ const TIMEZONES  = ['America/Toronto','America/New_York','America/Chicago','Amer
 const STATUS_COLORS: Record<string,string> = { scheduled:'bg-blue-50 text-blue-700', completed:'bg-green-50 text-green-700', cancelled:'bg-red-50 text-red-600', no_show:'bg-orange-50 text-orange-600' }
 
 function fmtDatetime(iso: string, tz?: string): string {
-  const d    = new Date(iso)
-  const opts = tz ? { timeZone: tz } : {}
-  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', ...opts }) + ' · ' +
-    d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', ...opts })
+  const d       = new Date(iso)
+  const tzOpts  = tz ? { timeZone: tz } : {}
+  const datePart = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', ...tzOpts })
+  const timePart = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', ...tzOpts })
+  const tzLabel  = tz
+    ? new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+        .formatToParts(d).find(p => p.type === 'timeZoneName')?.value ?? ''
+    : ''
+  return `${datePart} · ${timePart}${tzLabel ? ` ${tzLabel}` : ''}`
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
