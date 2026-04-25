@@ -97,7 +97,11 @@ export default function MeetingsPage() {
     fetch('/api/workspace-profile').then(r => r.json()).then(({ profile }) => {
       if (!profile) return
       if (profile.booking_slug) setBookingSlug(profile.booking_slug)
-      if (profile.booking_config) setSCfg({ ...DEFAULT_CONFIG, ...profile.booking_config })
+      if (profile.booking_config) {
+        const merged = { ...DEFAULT_CONFIG, ...profile.booking_config }
+        if (!merged.timezone) merged.timezone = DEFAULT_CONFIG.timezone
+        setSCfg(merged)
+      }
     })
   }, [])
 
