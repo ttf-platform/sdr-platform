@@ -34,10 +34,11 @@ const DAY_LABELS: Record<string,string> = { monday:'Monday', tuesday:'Tuesday', 
 const TIMEZONES  = ['America/Toronto','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris','Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC']
 const STATUS_COLORS: Record<string,string> = { scheduled:'bg-blue-50 text-blue-700', completed:'bg-green-50 text-green-700', cancelled:'bg-red-50 text-red-600', no_show:'bg-orange-50 text-orange-600' }
 
-function fmtDatetime(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' · ' +
-    d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+function fmtDatetime(iso: string, tz?: string): string {
+  const d    = new Date(iso)
+  const opts = tz ? { timeZone: tz } : {}
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', ...opts }) + ' · ' +
+    d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', ...opts })
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -258,7 +259,7 @@ export default function MeetingsPage() {
                       <span className="font-semibold text-[#1a1a2e] text-sm">{m.title}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{m.status}</span>
                     </div>
-                    <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at)} · {m.duration_min} min</p>
+                    <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at, sCfg.timezone)} · {m.duration_min} min</p>
                     {(m.attendee_name || m.attendee_email) && (
                       <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
                     )}
