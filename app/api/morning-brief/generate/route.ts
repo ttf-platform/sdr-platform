@@ -17,6 +17,13 @@ export async function POST(request: Request) {
     admin.from('workspace_members').select('user_id').eq('workspace_id', workspace_id).eq('role', 'owner').single(),
   ])
 
+  if (!profile?.product_description || profile.product_description.length < 30) {
+    return NextResponse.json(
+      { error: 'Add a more detailed company description (30+ characters) before generating a brief.' },
+      { status: 400 }
+    )
+  }
+
   let firstName = 'there'
   if (ownerMember) {
     const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
