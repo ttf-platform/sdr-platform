@@ -70,9 +70,11 @@ export default function BillingPage() {
 
   async function startCheckout(plan: string) {
     setLoadingCheckout(plan)
+    const body: Record<string, string> = { plan, interval }
+    if (promoCode.trim()) body.promo_code = promoCode.trim()
     const res = await fetch('/api/stripe/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan, interval }),
+      body: JSON.stringify(body),
     }).then(r => r.json())
     if (res.url) window.location.href = res.url
     else { setToast(res.error ?? 'Checkout failed'); setLoadingCheckout(null) }
