@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: ws } = await admin
     .from('workspaces')
-    .select('plan_tier, subscription_status, trial_end_date, overage_enabled')
+    .select('plan_tier, subscription_status, trial_end_date, overage_enabled, overage_charges_made')
     .eq('id', member.workspace_id).single()
 
   const tier = ((ws?.plan_tier ?? 'starter') as PlanTier)
@@ -59,6 +59,7 @@ export async function GET() {
     inboxes_used,
     inboxes_cap:          caps.inboxes,
     overage_enabled:      ws?.overage_enabled ?? false,
+    overage_charges_made: ws?.overage_charges_made ?? 0,
     trial_end:            ws?.trial_end_date ?? null,
     subscription_status:  ws?.subscription_status ?? 'trialing',
     days_remaining:       trialStatus.daysRemaining,

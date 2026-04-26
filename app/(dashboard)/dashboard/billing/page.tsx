@@ -7,6 +7,7 @@ interface UsageData {
   plan_tier: string; prospects_added: number; prospects_cap: number
   enrichments_used: number; enrichments_cap: number; emails_sent: number
   inboxes_used: number; inboxes_cap: number; overage_enabled: boolean
+  overage_charges_made: number
   trial_end: string | null; subscription_status: string
   days_remaining: number; blocked: boolean
 }
@@ -284,6 +285,12 @@ export default function BillingPage() {
             {usage?.overage_enabled && (
               <p className="text-xs text-amber-600 font-medium mt-1">
                 ⚠ Overage is active — additional charges may apply.
+              </p>
+            )}
+            {usage && usage.enrichments_used > usage.enrichments_cap && (
+              <p className="text-xs text-[#6b5e4e] mt-1">
+                {usage.enrichments_used - usage.enrichments_cap} enrichments over cap
+                {usage.overage_charges_made > 0 && ` · auto-charged $${usage.overage_charges_made * 10}`}
               </p>
             )}
           </div>

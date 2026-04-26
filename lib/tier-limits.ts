@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { PlanTier } from '@/lib/stripe-prices'
+import { triggerOverageChargeIfNeeded } from '@/lib/overage-charge'
 
 export const TIER_CAPS: Record<PlanTier, { prospects_per_month: number; enrichments_per_month: number; inboxes: number }> = {
   starter: { prospects_per_month: 100,  enrichments_per_month: 500,  inboxes: 1 },
@@ -53,6 +54,8 @@ export async function checkTierLimit(
 
   if (current + amount > cap) {
     if (metric === 'enrichments_used' && ws?.overage_enabled) {
+      // Fire-and-forget — charge happens async, doesn't block the enrichment
+      triggerOverageChargeIfNeeded(workspaceId).catch(e => console.error('[overage]', e))
       return { allowed: true, currentUsage: current, cap }
     }
     return {
