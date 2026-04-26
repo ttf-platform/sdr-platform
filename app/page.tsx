@@ -72,7 +72,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1 sm:gap-3">
             <Link href="/pricing" className="hidden sm:block text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 py-2 transition-colors">Pricing</Link>
             <Link href="/login" className="text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 py-2 transition-colors">Login</Link>
-            <Link href="/signup" className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+            <Link href="/pricing" className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
               Start free trial
             </Link>
           </div>
@@ -106,7 +106,7 @@ export default function HomePage() {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4"
           >
-            <Link href="/signup"
+            <Link href="/pricing"
               className="w-full sm:w-auto bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-8 py-3.5 rounded-xl text-base font-semibold transition-colors shadow-md shadow-blue-200">
               Start 14-day free trial
             </Link>
