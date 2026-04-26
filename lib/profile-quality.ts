@@ -7,6 +7,7 @@ export interface ProfileForScore {
   value_proposition?: string | null
   icp_industries?: string[] | null
   icp_company_size?: string | null
+  icp_company_sizes?: string[] | null
   pain_points?: string | null
 }
 
@@ -23,7 +24,7 @@ export const CRITERIA: Criterion[] = [
   { key: 'icp_description',     label: 'ideal customer description',   points: 25, passes: p => (p.icp_description?.length     ?? 0) >= 30 },
   { key: 'value_proposition',   label: 'value proposition',            points: 20, passes: p => (p.value_proposition?.length   ?? 0) >= 20 },
   { key: 'icp_industries',      label: 'target industry',              points: 15, passes: p => (p.icp_industries?.filter(Boolean).length ?? 0) > 0 },
-  { key: 'icp_company_size',    label: 'target company size',          points: 10, passes: p => !!p.icp_company_size?.trim() },
+  { key: 'icp_company_size',    label: 'target company size',          points: 10, passes: p => (p.icp_company_sizes?.filter(Boolean).length ?? 0) > 0 || !!p.icp_company_size?.trim() },
   { key: 'pain_points',         label: 'pain points / buying signals', points: 10, passes: p => (p.pain_points?.length          ?? 0) >= 20 },
 ]
 

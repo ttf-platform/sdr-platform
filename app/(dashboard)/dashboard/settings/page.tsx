@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [savingSection, setSavingSection] = useState<string | null>(null)
   const [savedSection, setSavedSection] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
-  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', timezone: 'America/Toronto', industry: '', company_size: '', product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
+  const [form, setForm] = useState({ name: '', company_name: '', sender_name: '', timezone: 'America/Toronto', industry: '', company_sizes: [] as string[], product_description: '', icp_description: '', value_proposition: '', tone: 'professional', pain_points: '' })
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -29,7 +29,7 @@ export default function SettingsPage() {
       const { data: camps } = await supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id)
       setCampaignCount(cc || 0)
       setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
-      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', timezone: (p.booking_config as any)?.timezone || 'America/Toronto', industry: p.icp_industries?.[0] || '', company_size: p.icp_company_size || '', product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
+      if (p) setForm({ name: session.user.user_metadata?.full_name || '', company_name: p.company_name || '', sender_name: p.sender_name || '', timezone: (p.booking_config as any)?.timezone || 'America/Toronto', industry: p.icp_industries?.[0] || '', company_sizes: p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []), product_description: p.product_description || '', icp_description: p.icp_description || '', value_proposition: p.value_proposition || '', tone: p.tone || 'professional', pain_points: p.pain_points || '' })
       setProfileLoaded(true)
     })
   }, [])
@@ -48,7 +48,7 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1"><a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings</div>
-        {profileLoaded && <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points }} hideEditLink={true} className="mb-3" />}
+        {profileLoaded && <ProfileQualityBadge profile={{ product_description: form.product_description, icp_description: form.icp_description, sender_name: form.sender_name, value_proposition: form.value_proposition, icp_industries: form.industry ? [form.industry] : [], icp_company_sizes: form.company_sizes, icp_company_size: form.company_sizes[0] ?? '', pain_points: form.pain_points }} hideEditLink={true} className="mb-3" />}
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
         <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
       </div>
@@ -194,16 +194,24 @@ export default function SettingsPage() {
               </p>
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-2">
                 <label className="text-xs font-semibold text-[#6b5e4e]">Target company size</label>
                 <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full">Adds 10% to AI quality</span>
               </div>
-              <select value={form.company_size} onChange={e => setForm({...form, company_size: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
-                <option value="">Select...</option>
-                {['1-10','11-50','51-200','201-1000','1000+'].map(s => <option key={s} value={s}>{s} employees</option>)}
-              </select>
-              <p className={`text-xs mt-1 ${form.company_size ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.company_size ? 'Selected ✓' : 'Not selected'}
+              <div className="flex flex-wrap gap-1.5">
+                {['1-10','10-50','50-200','200-500','500-1000','1000+'].map(s => {
+                  const active = form.company_sizes.includes(s)
+                  return (
+                    <button key={s} type="button"
+                      onClick={() => setForm({ ...form, company_sizes: active ? form.company_sizes.filter(x => x !== s) : [...form.company_sizes, s] })}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
+                      {s}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className={`text-xs mt-1.5 ${form.company_sizes.length > 0 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                {form.company_sizes.length > 0 ? `${form.company_sizes.length} selected ✓` : 'None selected'}
               </p>
             </div>
           </div>
@@ -218,7 +226,7 @@ export default function SettingsPage() {
             </p>
           </div>
           <div className="flex justify-end pt-1">
-            <button onClick={() => saveSection('audience', { icp_description: form.icp_description, icp_industries: form.industry ? [form.industry] : [], icp_company_size: form.company_size, pain_points: form.pain_points })}
+            <button onClick={() => saveSection('audience', { icp_description: form.icp_description, icp_industries: form.industry ? [form.industry] : [], icp_company_sizes: form.company_sizes, pain_points: form.pain_points })}
               disabled={savingSection === 'audience'}
               className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
               {savedSection === 'audience' ? '✓ Saved' : savingSection === 'audience' ? 'Saving...' : 'Save'}

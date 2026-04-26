@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
   const body = await request.json()
 
-  const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_industries','pain_points'] as const
+  const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points'] as const
   const updates: Record<string, unknown> = {}
   for (const key of FIELDS) {
     if (key in body) updates[key] = body[key]
