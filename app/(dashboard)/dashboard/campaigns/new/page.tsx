@@ -236,6 +236,8 @@ export default function NewCampaignPage() {
 
   const meetingDuration: number = (profile?.booking_config as any)?.meeting_durations?.[0] ?? 30
   const CTA_OPTIONS = ctaOptions(meetingDuration)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+  const bookingUrl: string | null = profile?.booking_slug ? `${appUrl}/book/${profile.booking_slug}` : null
 
   // ── Profile gate ───────────────────────────────────────────────────────────
   if (profileScore < 30) {
@@ -493,6 +495,7 @@ export default function NewCampaignPage() {
           {steps.map((step, idx) => (
             <StepCard key={step.id} step={step} index={idx} isOnly={steps.length <= 1}
               saving={generatingStep === step.id}
+              bookingUrl={bookingUrl}
               onUpdate={patch => updateStep(step.id, patch)}
               onAiWrite={() => aiWriteStep(step.id)}
               onRemove={() => removeStep(step.id)}
@@ -530,8 +533,8 @@ export default function NewCampaignPage() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StepCard({ step, index, isOnly, saving, onUpdate, onAiWrite, onRemove }: {
-  step: Step; index: number; isOnly: boolean; saving: boolean
+function StepCard({ step, index, isOnly, saving, bookingUrl, onUpdate, onAiWrite, onRemove }: {
+  step: Step; index: number; isOnly: boolean; saving: boolean; bookingUrl: string | null
   onUpdate: (p: Partial<Step>) => void; onAiWrite: () => void; onRemove: () => void
 }) {
   const isInitial = step.step_type === 'initial'
@@ -578,7 +581,13 @@ function StepCard({ step, index, isOnly, saving, onUpdate, onAiWrite, onRemove }
       </div>
       <label className="flex items-center gap-2 cursor-pointer">
         <input type="checkbox" checked={step.include_booking_link}
-          onChange={e => onUpdate({ include_booking_link: e.target.checked })}
+          onChange={e => {
+            const checked = e.target.checked
+            const bookingLine = bookingUrl ? `\n\nBook a time: ${bookingUrl}` : ''
+            let newBody = step.body.replace(/\n*Book a time: .+/, '')
+            if (checked && bookingUrl) newBody = newBody + bookingLine
+            onUpdate({ include_booking_link: checked, body: newBody })
+          }}
           className="rounded border-[#e8e3dc] text-[#3b6bef]" />
         <span className="text-xs text-[#6b5e4e]">Include calendar booking link in this email</span>
       </label>
