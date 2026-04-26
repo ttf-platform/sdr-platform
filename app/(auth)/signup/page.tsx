@@ -49,11 +49,9 @@ function SignupForm() {
             </div>
             <span className="text-lg font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
           </div>
-          {plan !== 'starter' && (
-            <div className="inline-flex items-center gap-1.5 bg-[#eef1fd] border border-[#dde6fd] text-[#3b6bef] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
-              ✦ {PLAN_LABELS[plan]} plan · ${PLAN_PRICES[plan]}/mo after trial
-            </div>
-          )}
+          <div className="inline-flex items-center gap-1.5 bg-[#eef1fd] border border-[#dde6fd] text-[#3b6bef] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
+            ✦ Starting your {PLAN_LABELS[plan]} free trial
+          </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             {steps.map((s, i) => (
               <div key={s} className="flex items-center gap-2">

@@ -70,7 +70,14 @@ export async function POST(request: Request) {
     })
     .select().single()
 
-  if (wsError || !workspace) return respond({ error: 'Failed to create workspace. Please contact support.' }, 500)
+  if (wsError || !workspace) {
+    if (wsError?.message?.includes('plan_tier') || wsError?.message?.includes('subscription_status') || wsError?.message?.includes('trial_end_date')) {
+      console.error('[signup] Migration 004 (stripe_subscriptions) may not have run — schema column missing:', wsError.message)
+    } else {
+      console.error('[signup] workspace insert error:', wsError?.message)
+    }
+    return respond({ error: 'Failed to create workspace. Please contact support.' }, 500)
+  }
 
   await admin.from('workspace_members').insert({
     workspace_id: workspace.id, user_id: signupData.user.id, role: 'owner', invite_accepted: true
