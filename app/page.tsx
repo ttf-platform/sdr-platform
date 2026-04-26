@@ -70,7 +70,7 @@ export default function HomePage() {
             Sen<span className="text-[#3b6bef]">tra</span>
           </span>
           <div className="flex items-center gap-1 sm:gap-3">
-            <a href="#pricing" className="hidden sm:block text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 py-2 transition-colors">Pricing</a>
+            <Link href="/pricing" className="hidden sm:block text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 py-2 transition-colors">Pricing</Link>
             <Link href="/login" className="text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 py-2 transition-colors">Login</Link>
             <Link href="/signup" className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
               Start free trial
@@ -236,12 +236,15 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <motion.div
             variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-6"
           >
             <h2 className="text-3xl font-bold text-[#1a1a2e] mb-3">Simple pricing. No surprises.</h2>
-            <p className="text-[#4a4a5a]">14-day free trial on every plan. No credit card required.</p>
+            <p className="text-[#4a4a5a] mb-4">14-day free trial on every plan. No credit card required.</p>
+            <Link href="/pricing" className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-800 text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-green-100 transition-colors">
+              🎉 Launch promo: −$50/mo on Pro &amp; Power · See pricing →
+            </Link>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start mb-8">
 
             {/* Starter */}
             <motion.div
@@ -257,7 +260,7 @@ export default function HomePage() {
                   <li key={f} className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span>{f}</li>
                 ))}
               </ul>
-              <Link href="/signup" className="block text-center w-full border border-[#3b6bef] text-[#3b6bef] hover:bg-[#3b6bef] hover:text-white rounded-xl py-2.5 text-sm font-semibold transition-colors">
+              <Link href="/signup?plan=starter" className="block text-center w-full border border-[#3b6bef] text-[#3b6bef] hover:bg-[#3b6bef] hover:text-white rounded-xl py-2.5 text-sm font-semibold transition-colors">
                 Start free trial
               </Link>
             </motion.div>
@@ -272,14 +275,15 @@ export default function HomePage() {
                 <span className="bg-[#3b6bef] text-white text-xs font-bold px-3 py-1 rounded-full">Most popular</span>
               </div>
               <div className="text-sm font-bold text-[#8a9ab8] uppercase tracking-wider mb-2">Pro</div>
-              <div className="text-4xl font-bold text-white mb-1">$199<span className="text-lg font-normal text-[#8a9ab8]">/mo</span></div>
-              <p className="text-xs text-[#8a9ab8] mb-6">For SDRs who want the best AI</p>
+              <div className="text-4xl font-bold text-white mb-1">$299<span className="text-lg font-normal text-[#8a9ab8]">/mo</span></div>
+              <p className="text-xs text-[#8a9ab8] mb-4">For SDRs who want the best AI</p>
               <ul className="flex flex-col gap-2.5 mb-8 text-sm text-[#c8d4e8]">
+                <li className="text-xs font-semibold text-[#8a9ab8] mb-0.5">Everything in Starter, plus:</li>
                 {['250 prospects/mo','2 inboxes','Advanced AI','Morning Brief Mode B','Priority support'].map(f => (
                   <li key={f} className="flex items-center gap-2"><span className="text-[#3b6bef] font-bold">✓</span>{f}</li>
                 ))}
               </ul>
-              <Link href="/signup" className="block text-center w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-xl py-2.5 text-sm font-semibold transition-colors">
+              <Link href="/signup?plan=pro" className="block text-center w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-xl py-2.5 text-sm font-semibold transition-colors">
                 Start free trial
               </Link>
             </motion.div>
@@ -291,22 +295,23 @@ export default function HomePage() {
               className="bg-white border border-[#e8e3dc] rounded-2xl p-6"
             >
               <div className="text-sm font-bold text-[#8a7e6e] uppercase tracking-wider mb-2">Power</div>
-              <div className="text-4xl font-bold text-[#1a1a2e] mb-1">$249<span className="text-lg font-normal text-[#8a7e6e]">/mo</span></div>
-              <p className="text-xs text-[#8a7e6e] mb-6">For high-volume outbound teams</p>
+              <div className="text-4xl font-bold text-[#1a1a2e] mb-1">$399<span className="text-lg font-normal text-[#8a7e6e]">/mo</span></div>
+              <p className="text-xs text-[#8a7e6e] mb-4">For high-volume outbound teams</p>
               <ul className="flex flex-col gap-2.5 mb-8 text-sm text-[#4a4a5a]">
-                {['500 prospects/mo','3 inboxes','Premium AI + caching','All features'].map(f => (
+                <li className="text-xs font-semibold text-[#8a7e6e] mb-0.5">Everything in Pro, plus:</li>
+                {['500 prospects/mo','3 inboxes','Premium AI + caching','Full pipeline + analytics'].map(f => (
                   <li key={f} className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span>{f}</li>
                 ))}
               </ul>
-              <Link href="/signup" className="block text-center w-full border border-[#3b6bef] text-[#3b6bef] hover:bg-[#3b6bef] hover:text-white rounded-xl py-2.5 text-sm font-semibold transition-colors">
+              <Link href="/signup?plan=power" className="block text-center w-full border border-[#3b6bef] text-[#3b6bef] hover:bg-[#3b6bef] hover:text-white rounded-xl py-2.5 text-sm font-semibold transition-colors">
                 Start free trial
               </Link>
             </motion.div>
 
           </div>
-          <p className="text-center text-sm text-[#8a7e6e] mt-8">
+          <p className="text-center text-sm text-[#8a7e6e]">
             Need more?{' '}
-            <span className="text-[#4a4a5a] font-medium">See Team &amp; Corporate plans →</span>
+            <Link href="/pricing" className="text-[#3b6bef] font-medium hover:underline">See full pricing + Team &amp; Corporate →</Link>
           </p>
         </div>
       </section>
@@ -374,7 +379,7 @@ export default function HomePage() {
           <div>
             <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-3">Product</div>
             <ul className="flex flex-col gap-2 text-sm text-[#6b5e4e]">
-              <li><a href="#pricing" className="hover:text-[#1a1a2e] transition-colors">Pricing</a></li>
+              <li><Link href="/pricing" className="hover:text-[#1a1a2e] transition-colors">Pricing</Link></li>
               <li><a href="#" className="hover:text-[#1a1a2e] transition-colors">How it works</a></li>
               <li><Link href="/login" className="hover:text-[#1a1a2e] transition-colors">Login</Link></li>
             </ul>
