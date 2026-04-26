@@ -172,9 +172,8 @@ export default function MeetingsPage() {
     const wins = sCfg.availability_windows[day].map((w, i) => i === idx ? {...w, [field]: val} : w)
     setSCfg({ ...sCfg, availability_windows: { ...sCfg.availability_windows, [day]: wins } })
   }
-  function toggleDuration(d: number) {
-    const cur = sCfg.meeting_durations
-    setSCfg({ ...sCfg, meeting_durations: cur.includes(d) ? cur.filter(x => x !== d) : [...cur, d].sort((a,b)=>a-b) })
+  function setDuration(d: number) {
+    setSCfg({ ...sCfg, meeting_durations: [d] })
   }
 
   const bookingLink = `${appUrl}/book/${bookingSlug || user?.email?.split('@')[0] || ''}`
@@ -428,16 +427,31 @@ export default function MeetingsPage() {
                 </div>
               </div>
 
-              {/* Meeting durations */}
+              {/* Meeting duration */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Meeting durations</label>
-                <div className="flex gap-2 flex-wrap">
-                  {[15,30,45,60].map(d => (
-                    <button key={d} onClick={() => toggleDuration(d)}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${sCfg.meeting_durations.includes(d) ? 'border-[#3b6bef] text-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] text-[#8a7e6e]'}`}>
-                      {d} min
-                    </button>
-                  ))}
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Meeting duration</label>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { d: 15, label: 'Quick discovery' },
+                    { d: 30, label: 'Standard call', recommended: true },
+                    { d: 45, label: 'Deep dive' },
+                    { d: 60, label: 'Strategy session' },
+                  ] as const).map(({ d, label, recommended }) => {
+                    const selected = sCfg.meeting_durations[0] === d
+                    return (
+                      <button key={d} onClick={() => setDuration(d)}
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors text-left ${selected ? 'border-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] hover:border-[#c8d4e8]'}`}>
+                        <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${selected ? 'border-[#3b6bef]' : 'border-[#c8d4e8]'}`}>
+                          {selected && <span className="w-2 h-2 rounded-full bg-[#3b6bef]" />}
+                        </span>
+                        <span className={`font-medium ${selected ? 'text-[#3b6bef]' : 'text-[#1a1a2e]'}`}>{d} min</span>
+                        <span className={`${selected ? 'text-[#6b8ef5]' : 'text-[#8a7e6e]'}`}>— {label}</span>
+                        {recommended && !selected && (
+                          <span className="ml-auto text-xs text-[#8a7e6e] border border-[#e8e3dc] rounded px-1.5 py-0.5">recommended</span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
