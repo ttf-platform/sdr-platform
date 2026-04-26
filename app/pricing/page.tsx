@@ -4,14 +4,17 @@ const PLANS = [
   {
     id: 'starter', name: 'Starter', monthly: 149, yearly: 1430,
     features: ['100 prospects/mo','500 enrichments/mo','1 inbox','Booking page','Morning Brief','Basic AI emails'],
+    inherits: null,
   },
   {
     id: 'pro', name: 'Pro', monthly: 299, yearly: 2870, popular: true,
     features: ['250 prospects/mo','1,000 enrichments/mo','2 inboxes','Advanced AI','Morning Brief Mode B','Priority support'],
+    inherits: 'Starter',
   },
   {
     id: 'power', name: 'Power', monthly: 399, yearly: 3830,
-    features: ['500 prospects/mo','2,000 enrichments/mo','3 inboxes','Premium AI + caching','All features'],
+    features: ['500 prospects/mo','2,000 enrichments/mo','3 inboxes','Premium AI + caching','Full pipeline + analytics'],
+    inherits: 'Pro',
   },
 ]
 
@@ -47,8 +50,10 @@ export default function PricingPage() {
       <section className="pt-16 pb-10 px-6 text-center">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold text-[#1a1a2e] mb-3">Simple, honest pricing.</h1>
-          <p className="text-lg text-[#4a4a5a] mb-2">14-day free trial on every plan. No credit card required.</p>
-          <p className="text-sm text-green-600 font-semibold">🎉 Launch promo: use code LAUNCH50 at checkout</p>
+          <p className="text-lg text-[#4a4a5a] mb-4">14-day free trial on every plan. No credit card required.</p>
+          <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 text-sm font-semibold px-4 py-2 rounded-full">
+            🎉 Launch promo active — code <span className="font-mono bg-green-100 px-1.5 py-0.5 rounded">LAUNCH50</span> saves $50/month for 6 months on Pro &amp; Power
+          </div>
         </div>
       </section>
 
@@ -72,6 +77,11 @@ export default function PricingPage() {
                   or ${p.yearly}/yr <span className="text-green-400 font-semibold">(save 20%)</span>
                 </div>
                 <ul className={`flex flex-col gap-2.5 mb-8 text-sm ${p.popular ? 'text-[#c8d4e8]' : 'text-[#4a4a5a]'}`}>
+                  {p.inherits && (
+                    <li className={`text-xs font-semibold mb-1 ${p.popular ? 'text-[#8a9ab8]' : 'text-[#8a7e6e]'}`}>
+                      Everything in {p.inherits}, plus:
+                    </li>
+                  )}
                   {p.features.map(f => (
                     <li key={f} className="flex items-center gap-2">
                       <span className={p.popular ? 'text-[#3b6bef]' : 'text-green-500'}>✓</span>{f}

@@ -38,9 +38,9 @@ function UsageBar({ label, used, cap }: { label: string; used: number; cap: numb
 }
 
 const PLANS = [
-  { id: 'starter', name: 'Starter', monthly: 149, yearly: 1430, prospects: 100, enrichments: 500, inboxes: 1, features: ['100 prospects/mo','500 enrichments/mo','1 inbox','Booking page','Morning Brief'] },
-  { id: 'pro',     name: 'Pro',     monthly: 299, yearly: 2870, prospects: 250, enrichments: 1000, inboxes: 2, features: ['250 prospects/mo','1,000 enrichments/mo','2 inboxes','Advanced AI','Morning Brief Mode B','Priority support'] },
-  { id: 'power',   name: 'Power',   monthly: 399, yearly: 3830, prospects: 500, enrichments: 2000, inboxes: 3, features: ['500 prospects/mo','2,000 enrichments/mo','3 inboxes','Premium AI + caching','All features'] },
+  { id: 'starter', name: 'Starter', monthly: 149, yearly: 1430, prospects: 100, enrichments: 500,  inboxes: 1, inherits: null,      features: ['100 prospects/mo','500 enrichments/mo','1 inbox','Booking page','Morning Brief'] },
+  { id: 'pro',     name: 'Pro',     monthly: 299, yearly: 2870, prospects: 250, enrichments: 1000, inboxes: 2, inherits: 'Starter', features: ['250 prospects/mo','1,000 enrichments/mo','2 inboxes','Advanced AI','Morning Brief Mode B','Priority support'] },
+  { id: 'power',   name: 'Power',   monthly: 399, yearly: 3830, prospects: 500, enrichments: 2000, inboxes: 3, inherits: 'Pro',     features: ['500 prospects/mo','2,000 enrichments/mo','3 inboxes','Premium AI + caching','Full pipeline + analytics'] },
 ]
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -247,6 +247,9 @@ export default function BillingPage() {
                 </div>
                 <div className="text-xl font-bold text-[#1a1a2e] mb-3">{price}</div>
                 <ul className="flex flex-col gap-1.5 mb-4 text-xs text-[#4a4a5a]">
+                  {p.inherits && (
+                    <li className="text-[10px] font-semibold text-[#8a7e6e] mb-0.5">Everything in {p.inherits}, plus:</li>
+                  )}
                   {p.features.map(f => (
                     <li key={f} className="flex items-center gap-1.5"><span className="text-green-500">✓</span>{f}</li>
                   ))}
