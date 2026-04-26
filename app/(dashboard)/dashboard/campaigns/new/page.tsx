@@ -7,13 +7,15 @@ import { calculateProfileScore } from '@/lib/profile-quality'
 
 const supabase = createClient()
 
-const CTA_OPTIONS = [
-  'Book a 15-min discovery call',
-  'Quick 5-min reply if relevant?',
-  'Reply with YES if interested',
-  'Schedule a demo',
-  "Let me know your thoughts",
-]
+function ctaOptions(meetingDuration: number) {
+  return [
+    `Book a ${meetingDuration}-min discovery call`,
+    'Quick 5-min reply if relevant?',
+    'Reply with YES if interested',
+    'Schedule a demo',
+    'Let me know your thoughts',
+  ]
+}
 
 const LOADING_MESSAGES = [
   'Analyzing your value prop…',
@@ -156,6 +158,13 @@ export default function NewCampaignPage() {
     setLoadingMsg(0)
     const finalCta = showCustomCta ? customCta : cta
 
+    // If user goes back from Step 6 and regenerates, delete the previous draft first
+    if (campaignId) {
+      await fetch(`/api/campaigns/${campaignId}`, { method: 'DELETE' })
+      setCampaignId(null)
+      setSteps([])
+    }
+
     const createRes = await fetch('/api/campaigns', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, target_persona: targetPersona, angle, value_prop: valueProp, cta: finalCta, smart_stop_on_reply: smartStopReply, smart_stop_on_bounce: smartStopBounce }),
@@ -224,6 +233,9 @@ export default function NewCampaignPage() {
   if (profileScore === null) {
     return <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading…</div>
   }
+
+  const meetingDuration: number = (profile?.booking_config as any)?.meeting_durations?.[0] ?? 30
+  const CTA_OPTIONS = ctaOptions(meetingDuration)
 
   // ── Profile gate ───────────────────────────────────────────────────────────
   if (profileScore < 30) {
@@ -533,8 +545,9 @@ function StepCard({ step, index, isOnly, saving, onUpdate, onAiWrite, onRemove }
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onAiWrite} disabled={saving}
-            className="text-xs text-[#3b6bef] font-medium border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1">
-            {saving ? <span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" /> : '✦'} AI Write
+            title="Regenerate this email with AI"
+            className="text-xs text-[#3b6bef] font-semibold border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1.5">
+            {saving ? <span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" /> : '✨'} Regenerate
           </button>
           {!isInitial && !isOnly && (
             <button onClick={onRemove} className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
@@ -563,14 +576,12 @@ function StepCard({ step, index, isOnly, saving, onUpdate, onAiWrite, onRemove }
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none font-mono text-xs leading-relaxed"
           rows={7} />
       </div>
-      {!isInitial && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={step.include_booking_link}
-            onChange={e => onUpdate({ include_booking_link: e.target.checked })}
-            className="rounded border-[#e8e3dc] text-[#3b6bef]" />
-          <span className="text-xs text-[#6b5e4e]">Include calendar booking link in this email</span>
-        </label>
-      )}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={step.include_booking_link}
+          onChange={e => onUpdate({ include_booking_link: e.target.checked })}
+          className="rounded border-[#e8e3dc] text-[#3b6bef]" />
+        <span className="text-xs text-[#6b5e4e]">Include calendar booking link in this email</span>
+      </label>
     </div>
   )
 }
