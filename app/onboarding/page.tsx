@@ -1,27 +1,31 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 const steps = ['Workspace', 'Company', 'ICP']
 const tones = ['professional', 'friendly', 'direct', 'casual']
 
 export default function OnboardingPage() {
+  const supabase = createClient()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState({ workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
 
   async function handleFinish() {
     setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { window.location.href = '/login'; return }
     const wsRes = await fetch('/api/workspace/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify({ workspaceName: data.workspaceName })
     }).then(r => r.json())
     if (wsRes.workspace) {
       await fetch('/api/workspace/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone, onboarding_completed: true })
+        body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone })
       })
     }
     window.location.href = '/dashboard'
