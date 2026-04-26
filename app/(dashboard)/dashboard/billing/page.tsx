@@ -112,6 +112,8 @@ export default function BillingPage() {
   const currentPlan = usage?.plan_tier ?? 'starter'
   const status      = usage?.subscription_status ?? 'trialing'
   const isActive    = status === 'active'
+  const isExpired   = status === 'canceled' || status === 'expired'
+  const tierIndex: Record<string, number> = { starter: 0, pro: 1, power: 2 }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -220,10 +222,23 @@ export default function BillingPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLANS.map(p => {
-            const isCurrent = p.id === currentPlan
-            const price = interval === 'yearly'
-              ? `$${p.yearly}/yr`
-              : `$${p.monthly}/mo`
+            const isCurrent  = p.id === currentPlan
+            const price      = interval === 'yearly' ? `$${p.yearly}/yr` : `$${p.monthly}/mo`
+            const tIdx       = tierIndex[p.id] ?? 0
+            const cIdx       = tierIndex[currentPlan] ?? 0
+            const isCurrentActive = isCurrent && isActive
+            let btnLabel: string
+            if (isExpired) {
+              btnLabel = `Activate ${p.name}`
+            } else if (isCurrent && !isActive) {
+              btnLabel = `Reactivate ${p.name}`
+            } else if (tIdx > cIdx) {
+              btnLabel = `Upgrade to ${p.name}`
+            } else if (tIdx < cIdx) {
+              btnLabel = `Downgrade to ${p.name}`
+            } else {
+              btnLabel = 'Current plan'
+            }
             return (
               <div key={p.id} className={`rounded-xl border p-4 ${isCurrent ? 'border-[#3b6bef] bg-[#eef1fd]' : 'border-[#e8e3dc] bg-white'}`}>
                 <div className="flex items-center justify-between mb-1">
@@ -236,14 +251,14 @@ export default function BillingPage() {
                     <li key={f} className="flex items-center gap-1.5"><span className="text-green-500">✓</span>{f}</li>
                   ))}
                 </ul>
-                {isCurrent && isActive ? (
+                {isCurrentActive ? (
                   <button disabled className="w-full border border-[#3b6bef] text-[#3b6bef] rounded-lg py-2 text-xs font-semibold opacity-50">
                     Current plan
                   </button>
                 ) : (
                   <button onClick={() => startCheckout(p.id)} disabled={!!loadingCheckout}
                     className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-40 transition-colors">
-                    {loadingCheckout === p.id ? 'Redirecting...' : isCurrent ? 'Reactivate' : 'Upgrade'}
+                    {loadingCheckout === p.id ? 'Redirecting...' : btnLabel}
                   </button>
                 )}
               </div>
