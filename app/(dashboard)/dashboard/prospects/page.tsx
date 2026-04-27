@@ -1,6 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { ImportCSVModal, ManualAddModal, PasteModal, type ImportResult } from '@/components/ProspectModals'
+import {
+  ImportCSVModal, ManualAddModal, PasteModal,
+  LifecyclePill, statusBadgeClass,
+  type ImportResult,
+} from '@/components/ProspectModals'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Prospect = {
@@ -16,10 +20,9 @@ type Prospect = {
 type Campaign = { id: string; name: string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const LIFECYCLE = ['Found', 'Emailed', 'Opened', 'Replied', 'Meeting'] as const
-const STATUS_IDX: Record<string, number> = { found: 0, emailed: 1, opened: 2, replied: 3, meeting: 4 }
 const SOURCE_LABEL: Record<string, string> = {
-  manual: 'Manual', paste: 'Paste', csv_import: 'CSV', ai_discover: 'AI',
+  manual: 'Manual', paste: 'Paste', csv_import: 'CSV',
+  // ai_discover + ai_enrich hidden — Sprint 9 Clay integration
 }
 
 function fmt(n: number) { return n.toLocaleString() }
@@ -28,33 +31,8 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// ─── LifecyclePill ────────────────────────────────────────────────────────────
-function LifecyclePill({ status }: { status: string }) {
-  const current = STATUS_IDX[status] ?? 0
-  return (
-    <div className="flex items-center">
-      {LIFECYCLE.map((s, i) => (
-        <div key={s} className="flex items-center">
-          {i > 0 && (
-            <div className={`w-3 h-px mx-0.5 ${i <= current ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`} />
-          )}
-          <div
-            title={s}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              i < current   ? 'bg-[#3b6bef]' :
-              i === current ? 'bg-[#3b6bef] ring-2 ring-[#eef1fd]' :
-                              'bg-[#e8e3dc]'
-            }`}
-          />
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ─── SidePanel ────────────────────────────────────────────────────────────────
 function SidePanel({ prospect, onClose }: { prospect: Prospect; onClose: () => void }) {
-  const current = STATUS_IDX[prospect.status] ?? 0
   const name = [prospect.first_name, prospect.last_name].filter(Boolean).join(' ')
 
   return (
@@ -71,25 +49,10 @@ function SidePanel({ prospect, onClose }: { prospect: Prospect; onClose: () => v
         </div>
 
         <div className="p-5 flex flex-col gap-5">
-          {/* Lifecycle */}
+          {/* Lifecycle — shared component, panel variant */}
           <div>
             <div className="text-xs font-semibold text-[#6b5e4e] mb-3">Lifecycle</div>
-            <div className="flex items-start justify-between relative">
-              <div className="absolute top-2.5 left-[10%] right-[10%] h-px bg-[#e8e3dc]" />
-              {LIFECYCLE.map((s, i) => (
-                <div key={s} className="flex flex-col items-center gap-1.5 z-10">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center bg-white ${
-                    i < current   ? 'border-[#3b6bef] bg-[#3b6bef]' :
-                    i === current ? 'border-[#3b6bef]' :
-                                    'border-[#e8e3dc]'
-                  }`}>
-                    {i < current   && <div className="w-2 h-2 bg-white rounded-full" />}
-                    {i === current && <div className="w-2 h-2 bg-[#3b6bef] rounded-full" />}
-                  </div>
-                  <span className={`text-[9px] font-semibold ${i <= current ? 'text-[#3b6bef]' : 'text-[#b0a898]'}`}>{s}</span>
-                </div>
-              ))}
-            </div>
+            <LifecyclePill status={prospect.status} variant="panel" />
           </div>
 
           {/* Contact info */}
@@ -264,10 +227,19 @@ export default function ProspectsPage() {
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
           placeholder="Search by name, email, company…" />
         <div className="flex gap-2 flex-wrap items-center">
+          {/* Positive lifecycle status pills */}
           {(['all','found','emailed','opened','replied','meeting'] as const).map(s => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
               className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors ${statusFilter === s ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
               {s === 'all' ? 'All' : s}
+            </button>
+          ))}
+          {/* Negative outcome pills — visually separated */}
+          <div className="w-px h-4 bg-[#e8e3dc] mx-1" />
+          {(['bounced','unsubscribed'] as const).map(s => (
+            <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
+              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors ${statusFilter === s ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
+              {s}
             </button>
           ))}
           <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
@@ -281,12 +253,14 @@ export default function ProspectsPage() {
             <option value="manual">Manual</option>
             <option value="paste">Paste</option>
             <option value="csv_import">CSV</option>
+            {/* ai_discover / ai_enrich hidden — Sprint 9 Clay integration */}
           </select>
           <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
             <option value="name">Name A–Z</option>
+            <option value="name_z">Name Z–A</option>
           </select>
         </div>
       </div>

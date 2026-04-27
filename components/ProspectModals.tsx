@@ -9,6 +9,78 @@ export interface ImportResult {
   skipped_invalid: number
 }
 
+// ─── Lifecycle shared constants ───────────────────────────────────────────────
+export const LIFECYCLE = ['Found', 'Emailed', 'Opened', 'Replied', 'Meeting'] as const
+export const STATUS_IDX: Record<string, number> = {
+  found: 0, emailed: 1, opened: 2, replied: 3, meeting: 4,
+}
+
+// Status badge Tailwind classes — aligned with Sprint 16b brief
+// bounced + unsubscribed → red (negative outcomes)
+export function statusBadgeClass(status: string): string {
+  const map: Record<string, string> = {
+    found:        'bg-[#f0ece6] text-[#6b5e4e]',
+    emailed:      'bg-blue-50 text-blue-600',
+    opened:       'bg-indigo-50 text-indigo-600',
+    replied:      'bg-purple-50 text-purple-600',
+    meeting:      'bg-green-50 text-green-700',
+    bounced:      'bg-red-50 text-red-600',
+    unsubscribed: 'bg-red-50 text-red-600',
+  }
+  return map[status] ?? 'bg-[#f0ece6] text-[#6b5e4e]'
+}
+
+// ─── LifecyclePill ────────────────────────────────────────────────────────────
+// variant="row"   — compact inline dots used in table rows
+// variant="panel" — larger labelled steps used in side panel
+export function LifecyclePill({ status, variant = 'row' }: {
+  status: string
+  variant?: 'row' | 'panel'
+}) {
+  const current = STATUS_IDX[status] ?? 0
+
+  if (variant === 'panel') {
+    return (
+      <div className="flex items-start justify-between relative">
+        <div className="absolute top-2.5 left-[10%] right-[10%] h-px bg-[#e8e3dc]" />
+        {LIFECYCLE.map((s, i) => (
+          <div key={s} className="flex flex-col items-center gap-1.5 z-10">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center bg-white ${
+              i < current   ? 'border-[#3b6bef] bg-[#3b6bef]' :
+              i === current ? 'border-[#3b6bef]' :
+                              'border-[#e8e3dc]'
+            }`}>
+              {i < current   && <div className="w-2 h-2 bg-white rounded-full" />}
+              {i === current && <div className="w-2 h-2 bg-[#3b6bef] rounded-full" />}
+            </div>
+            <span className={`text-[9px] font-semibold ${i <= current ? 'text-[#3b6bef]' : 'text-[#b0a898]'}`}>{s}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center">
+      {LIFECYCLE.map((s, i) => (
+        <div key={s} className="flex items-center">
+          {i > 0 && (
+            <div className={`w-3 h-px mx-0.5 ${i <= current ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`} />
+          )}
+          <div
+            title={s}
+            className={`w-2.5 h-2.5 rounded-full transition-colors ${
+              i < current   ? 'bg-[#3b6bef]' :
+              i === current ? 'bg-[#3b6bef] ring-2 ring-[#eef1fd]' :
+                              'bg-[#e8e3dc]'
+            }`}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 const CSV_ALIASES: Record<string, string[]> = {
   email:        ['email', 'e-mail', 'email address', 'mail'],
@@ -106,23 +178,45 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
-  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'done'>('upload')
-  const [headers, setHeaders] = useState<string[]>([])
-  const [rows, setRows]       = useState<Record<string, string>[]>([])
-  const [mapping, setMapping] = useState<Record<string, string>>({})
-  const [warnings, setWarnings] = useState<{ email: string; campaign: string }[]>([])
-  const [result, setResult]   = useState<ImportResult | null>(null)
-  const [error, setError]     = useState('')
+  const [step, setStep]             = useState<'upload' | 'preview' | 'importing' | 'done'>('upload')
+  const [headers, setHeaders]       = useState<string[]>([])
+  const [rows, setRows]             = useState<Record<string, string>[]>([])
+  const [mapping, setMapping]       = useState<Record<string, string>>({})
+  const [warnings, setWarnings]     = useState<{ email: string; campaign: string }[]>([])
+  const [checkingWarnings, setCheckingWarnings] = useState(false)
+  const [result, setResult]         = useState<ImportResult | null>(null)
+  const [error, setError]           = useState('')
 
   function handleFile(file: File) {
     Papa.parse<Record<string, string>>(file, {
       header: true, skipEmptyLines: true,
       complete(parsed) {
-        const hdrs = parsed.meta.fields ?? []
+        const hdrs     = parsed.meta.fields ?? []
+        const parsedRows = parsed.data
+        const detected = detectColumns(hdrs)
         setHeaders(hdrs)
-        setRows(parsed.data)
-        setMapping(detectColumns(hdrs))
+        setRows(parsedRows)
+        setMapping(detected)
         setStep('preview')
+
+        // Cross-campaign warning — fires immediately on parse, shown in preview step BEFORE import
+        if (campaignId && parsedRows.length > 0) {
+          setCheckingWarnings(true)
+          const emails = parsedRows.map(r => buildCsvRow(r, detected).email).filter(Boolean).join(',')
+          if (emails) {
+            fetch(`/api/prospects?emails=${encodeURIComponent(emails)}&exclude_campaign=${campaignId}`)
+              .then(r => r.json())
+              .then(data => {
+                setWarnings((data.matches ?? []).map((m: any) => ({
+                  email: m.email, campaign: m.campaigns?.name ?? 'another campaign',
+                })))
+                setCheckingWarnings(false)
+              })
+              .catch(() => setCheckingWarnings(false))
+          } else {
+            setCheckingWarnings(false)
+          }
+        }
       },
     })
   }
@@ -130,28 +224,12 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
   async function doImport() {
     setStep('importing')
     setError('')
-
-    // Cross-campaign warning (only when importing into a specific campaign)
-    let warns: { email: string; campaign: string }[] = []
-    if (campaignId && rows.length > 0) {
-      const emails = rows.map(r => buildCsvRow(r, mapping).email).filter(Boolean).join(',')
-      if (emails) {
-        const res = await fetch(`/api/prospects?emails=${encodeURIComponent(emails)}&exclude_campaign=${campaignId}`)
-        const data = await res.json()
-        warns = (data.matches ?? []).map((m: any) => ({
-          email: m.email, campaign: m.campaigns?.name ?? 'another campaign',
-        }))
-      }
-    }
-    setWarnings(warns)
-
     const csvRows = rows.map(r => buildCsvRow(r, mapping)).filter(r => r.email)
     const res = await fetch('/api/prospects/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ campaign_id: campaignId ?? null, mode: 'csv', data: { rows: csvRows } }),
     }).then(r => r.json())
-
     if (res.error) { setError(res.error); setStep('preview'); return }
     setResult(res)
     setStep('done')
@@ -212,15 +290,32 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
             {rows.length > 5 && <p className="text-xs text-[#b0a898] mt-1">+{rows.length - 5} more rows</p>}
           </div>
 
+          {/* Cross-campaign warning — shown in preview, before import */}
+          {checkingWarnings && (
+            <p className="text-xs text-[#8a7e6e] flex items-center gap-1.5">
+              <span className="w-3 h-3 border border-[#8a7e6e]/40 border-t-[#8a7e6e] rounded-full animate-spin inline-block" />
+              Checking for cross-campaign overlap…
+            </p>
+          )}
+          {!checkingWarnings && warnings.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs font-semibold text-amber-700 mb-1">⚠ {warnings.length} email{warnings.length !== 1 ? 's' : ''} already in another campaign</p>
+              <div className="max-h-16 overflow-y-auto text-xs text-amber-600 space-y-0.5">
+                {warnings.map((w, i) => <div key={i}>{w.email} → {w.campaign}</div>)}
+              </div>
+              <p className="text-xs text-amber-600 mt-1">They will be imported as new rows (re-targeting allowed).</p>
+            </div>
+          )}
+
           {!mapping['email'] && (
             <p className="text-xs text-amber-600">⚠ No email column mapped — import will fail.</p>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
 
           <div className="flex gap-2">
-            <button onClick={() => { setStep('upload'); setRows([]); setHeaders([]) }}
+            <button onClick={() => { setStep('upload'); setRows([]); setHeaders([]); setWarnings([]) }}
               className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Back</button>
-            <button onClick={doImport} disabled={!mapping['email']}
+            <button onClick={doImport} disabled={!mapping['email'] || checkingWarnings}
               className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
               Import {rows.length} rows
             </button>
@@ -237,21 +332,12 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
 
       {step === 'done' && result && (
         <div className="flex flex-col gap-3">
-          {warnings.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-amber-700 mb-1">⚠ Cross-campaign overlap ({warnings.length})</p>
-              <p className="text-xs text-amber-600 mb-2">These emails are already in other campaigns:</p>
-              <div className="max-h-20 overflow-y-auto text-xs text-amber-700 space-y-0.5">
-                {warnings.map((w, i) => <div key={i}>{w.email} → {w.campaign}</div>)}
-              </div>
-            </div>
-          )}
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
             <div className="font-semibold mb-1">Import complete</div>
             <div className="text-xs space-y-0.5">
               <div>✓ {result.imported} imported</div>
-              {result.skipped_dedup    > 0 && <div>↩ {result.skipped_dedup} duplicates skipped</div>}
-              {result.skipped_invalid  > 0 && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+              {result.skipped_dedup   > 0 && <div>↩ {result.skipped_dedup} duplicates skipped</div>}
+              {result.skipped_invalid > 0 && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
             </div>
           </div>
           <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">Done</button>

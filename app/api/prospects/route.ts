@@ -67,9 +67,7 @@ export async function GET(request: Request) {
     )
   }
 
-  const orderCol = sort === 'oldest' ? 'added_at'
-                 : sort === 'name'   ? 'first_name'
-                 : 'added_at'
+  const orderCol  = (sort === 'name' || sort === 'name_z') ? 'first_name' : 'added_at'
   const ascending = sort === 'oldest' || sort === 'name'
 
   const { data: prospects, count, error } = await query

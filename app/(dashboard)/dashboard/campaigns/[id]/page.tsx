@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { ImportCSVModal, ManualAddModal, type ImportResult } from '@/components/ProspectModals'
+import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -48,18 +48,21 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [showRemoveAll, setShowRemoveAll]         = useState(false)
   const [removingAll, setRemovingAll]             = useState(false)
   const [tabRefreshKey, setTabRefreshKey]         = useState(0)
+  const [tabPage, setTabPage]                     = useState(1)
+  const [tabPages, setTabPages]                   = useState(1)
 
   useEffect(() => {
     if (tab !== 'prospects') return
     setTabProspectsLoading(true)
-    fetch(`/api/prospects?campaign_id=${params.id}&limit=100&sort=newest`)
+    fetch(`/api/prospects?campaign_id=${params.id}&limit=50&page=${tabPage}&sort=newest`)
       .then(r => r.json())
       .then(d => {
         setTabProspects(d.prospects ?? [])
         setTabProspectsTotal(d.total ?? 0)
+        setTabPages(d.pages ?? 1)
         setTabProspectsLoading(false)
       })
-  }, [tab, params.id, tabRefreshKey])
+  }, [tab, params.id, tabRefreshKey, tabPage])
 
   function onProspectImported(_res: ImportResult) {
     setTabRefreshKey(k => k + 1)
@@ -326,13 +329,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     </td>
                     <td className="px-4 py-3 text-sm text-[#8a7e6e]">{p.email}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${
-                        p.status === 'replied'  ? 'bg-green-50 text-green-600' :
-                        p.status === 'opened'   ? 'bg-blue-50 text-blue-600'  :
-                        p.status === 'emailed'  ? 'bg-purple-50 text-purple-600' :
-                        p.status === 'meeting'  ? 'bg-green-100 text-green-700' :
-                        'bg-[#f0ece6] text-[#6b5e4e]'
-                      }`}>{p.status}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${statusBadgeClass(p.status)}`}>
+                        {p.status}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
@@ -347,6 +346,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {tabPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button onClick={() => setTabPage(p => Math.max(1, p - 1))} disabled={tabPage === 1}
+                className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">← Prev</button>
+              <span className="text-sm text-[#8a7e6e]">{tabPage} / {tabPages}</span>
+              <button onClick={() => setTabPage(p => Math.min(tabPages, p + 1))} disabled={tabPage === tabPages}
+                className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">Next →</button>
+            </div>
+          )}
 
           {/* Remove All confirmation */}
           {showRemoveAll && (
