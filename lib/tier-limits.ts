@@ -3,15 +3,14 @@ import type { PlanTier } from '@/lib/stripe-prices'
 import { triggerOverageChargeIfNeeded } from '@/lib/overage-charge'
 
 export const TIER_CAPS: Record<PlanTier, {
-  total_prospects: number        // lifetime safety cap (enforced Sprint 16b)
-  prospects_per_month: number    // legacy key, kept for backward compat (billing display)
-  enrichments_per_month: number  // Sprint 9 enforcement
+  total_prospects: number             // lifetime safety cap (enforced Sprint 16b)
+  enrichments_per_month: number       // Sprint 9 enforcement
   prospect_credits_per_month: number  // Sprint 9 Clay enforcement
   inboxes: number
 }> = {
-  starter: { total_prospects: 10000, prospects_per_month: 100, enrichments_per_month: 500,  prospect_credits_per_month: 200, inboxes: 1 },
-  pro:     { total_prospects: 25000, prospects_per_month: 250, enrichments_per_month: 1000, prospect_credits_per_month: 500, inboxes: 2 },
-  power:   { total_prospects: 50000, prospects_per_month: 500, enrichments_per_month: 2000, prospect_credits_per_month: 750, inboxes: 3 },
+  starter: { total_prospects: 10000, enrichments_per_month: 500,  prospect_credits_per_month: 200, inboxes: 1 },
+  pro:     { total_prospects: 25000, enrichments_per_month: 1000, prospect_credits_per_month: 500, inboxes: 2 },
+  power:   { total_prospects: 50000, enrichments_per_month: 2000, prospect_credits_per_month: 750, inboxes: 3 },
 }
 
 type UsageMetric = 'enrichments_used' | 'inboxes'

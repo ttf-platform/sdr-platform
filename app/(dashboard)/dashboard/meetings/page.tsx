@@ -432,10 +432,10 @@ export default function MeetingsPage() {
                 <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Meeting duration</label>
                 <div className="flex flex-col gap-2">
                   {([
-                    { d: 15, label: 'Quick discovery' },
-                    { d: 30, label: 'Standard call', recommended: true },
-                    { d: 45, label: 'Deep dive' },
-                    { d: 60, label: 'Strategy session' },
+                    { d: 15, label: 'Quick discovery',  recommended: false },
+                    { d: 30, label: 'Standard call',    recommended: true  },
+                    { d: 45, label: 'Deep dive',        recommended: false },
+                    { d: 60, label: 'Strategy session', recommended: false },
                   ] as const).map(({ d, label, recommended }) => {
                     const selected = sCfg.meeting_durations[0] === d
                     return (
