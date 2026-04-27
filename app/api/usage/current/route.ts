@@ -27,42 +27,55 @@ export async function GET() {
   const periodStart = new Date()
   periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
 
-  const { data: rows } = await admin
-    .from('usage_tracking')
-    .select('metric, value')
-    .eq('workspace_id', member.workspace_id)
-    .gte('period_start', periodStart.toISOString().split('T')[0])
+  const [usageRows, prospectsCount] = await Promise.all([
+    admin
+      .from('usage_tracking')
+      .select('metric, value')
+      .eq('workspace_id', member.workspace_id)
+      .gte('period_start', periodStart.toISOString().split('T')[0]),
+    admin
+      .from('prospects')
+      .select('*', { count: 'exact', head: true })
+      .eq('workspace_id', member.workspace_id),
+  ])
 
-  const usage: Record<string, number> = { prospects_added: 0, enrichments_used: 0, emails_sent: 0, meetings_booked: 0 }
-  for (const row of rows ?? []) {
-    usage[row.metric] = (usage[row.metric] ?? 0) + row.value
-  }
-
-  // Inboxes: count directly from inboxes table if it exists, else 0
-  let inboxes_used = 0
+  let inboxes_count = 0
   try {
     const { count } = await admin
       .from('inboxes').select('*', { count: 'exact', head: true })
       .eq('workspace_id', member.workspace_id)
-    inboxes_used = count ?? 0
+    inboxes_count = count ?? 0
   } catch { /* inboxes table may not exist yet (Sprint 8) */ }
+
+  const usage: Record<string, number> = { enrichments_used: 0, emails_sent: 0, meetings_booked: 0 }
+  for (const row of usageRows.data ?? []) {
+    usage[row.metric] = (usage[row.metric] ?? 0) + row.value
+  }
 
   const trialStatus = getTrialStatus(ws ?? {})
 
   return NextResponse.json({
-    plan_tier:            tier,
-    prospects_added:      usage.prospects_added,
-    prospects_cap:        caps.prospects_per_month,
-    enrichments_used:     usage.enrichments_used,
-    enrichments_cap:      caps.enrichments_per_month,
-    emails_sent:          usage.emails_sent,
-    inboxes_used,
-    inboxes_cap:          caps.inboxes,
-    overage_enabled:      ws?.overage_enabled ?? false,
-    overage_charges_made: ws?.overage_charges_made ?? 0,
-    trial_end:            ws?.trial_end_date ?? null,
-    subscription_status:  ws?.subscription_status ?? 'trialing',
-    days_remaining:       trialStatus.daysRemaining,
-    blocked:              trialStatus.blockedActions,
+    plan_tier:               tier,
+    // Total prospects — lifetime cap (Sprint 16b enforcement)
+    total_prospects_count:   prospectsCount.count ?? 0,
+    total_prospects_cap:     caps.total_prospects,
+    // Legacy fields kept for billing page backward compat (removed Sprint 16b commit #8)
+    prospects_added:         prospectsCount.count ?? 0,
+    prospects_cap:           caps.total_prospects,
+    // Enrichments — monthly (Sprint 9 enforcement)
+    enrichments_used:        usage.enrichments_used,
+    enrichments_cap:         caps.enrichments_per_month,
+    prospect_credits_cap:    caps.prospect_credits_per_month,
+    // Emails — monthly (Sprint 8 enforcement)
+    emails_sent:             usage.emails_sent,
+    // Inboxes
+    inboxes_used:            inboxes_count,
+    inboxes_cap:             caps.inboxes,
+    overage_enabled:         ws?.overage_enabled ?? false,
+    overage_charges_made:    ws?.overage_charges_made ?? 0,
+    trial_end:               ws?.trial_end_date ?? null,
+    subscription_status:     ws?.subscription_status ?? 'trialing',
+    days_remaining:          trialStatus.daysRemaining,
+    blocked:                 trialStatus.blockedActions,
   })
 }
