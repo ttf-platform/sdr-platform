@@ -104,12 +104,13 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  // ON CONFLICT (campaign_id, email) WHERE campaign_id IS NOT NULL DO NOTHING
-  // Dedup intra-campaign via partial unique index from migration 012.
-  // Rows with campaign_id IS NULL have no dedup constraint (by design — re-targeting allowed).
+  // ON CONFLICT DO NOTHING — no explicit target, Postgres matches against any unique index
+  // including the partial index (campaign_id, email) WHERE campaign_id IS NOT NULL (migration 012).
+  // Using ignoreDuplicates without onConflict avoids PostgREST failing to resolve partial indexes.
+  // Rows with campaign_id IS NULL have no dedup constraint by design (re-targeting allowed).
   const { data: inserted, error } = await admin
     .from('prospects')
-    .upsert(inserts, { onConflict: 'campaign_id,email', ignoreDuplicates: true })
+    .upsert(inserts, { ignoreDuplicates: true })
     .select('id')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

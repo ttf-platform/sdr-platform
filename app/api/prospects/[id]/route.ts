@@ -35,7 +35,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (!Object.keys(updates).length) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
-  updates.last_activity_at = new Date().toISOString()
+  // last_activity_at is NOT updated on admin PATCH — it tracks prospect activity
+  // (email sent, reply, meeting booked) and will be updated by Sprint 16c routes.
 
   const admin = createAdminClient()
   const { data: prospect, error } = await admin
