@@ -6,11 +6,12 @@ export const TIER_CAPS: Record<PlanTier, {
   total_prospects: number             // lifetime safety cap (enforced Sprint 16b)
   enrichments_per_month: number       // Sprint 9 enforcement
   prospect_credits_per_month: number  // Sprint 9 Clay enforcement
+  emails_per_month: number            // monthly email send cap
   inboxes: number
 }> = {
-  starter: { total_prospects: 10000, enrichments_per_month: 500,  prospect_credits_per_month: 200, inboxes: 1 },
-  pro:     { total_prospects: 25000, enrichments_per_month: 1000, prospect_credits_per_month: 500, inboxes: 2 },
-  power:   { total_prospects: 50000, enrichments_per_month: 2000, prospect_credits_per_month: 750, inboxes: 3 },
+  starter: { total_prospects: 10000, enrichments_per_month: 500,  prospect_credits_per_month: 200, emails_per_month: 500,  inboxes: 1 },
+  pro:     { total_prospects: 25000, enrichments_per_month: 1000, prospect_credits_per_month: 500, emails_per_month: 1500, inboxes: 2 },
+  power:   { total_prospects: 50000, enrichments_per_month: 2000, prospect_credits_per_month: 750, emails_per_month: 3000, inboxes: 3 },
 }
 
 type UsageMetric = 'enrichments_used' | 'inboxes'

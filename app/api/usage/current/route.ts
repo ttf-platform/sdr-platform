@@ -68,6 +68,7 @@ export async function GET() {
     prospect_credits_cap:    caps.prospect_credits_per_month,
     // Emails — monthly (Sprint 8 enforcement)
     emails_sent:             usage.emails_sent,
+    emails_cap:              caps.emails_per_month,
     // Inboxes
     inboxes_used:            inboxes_count,
     inboxes_cap:             caps.inboxes,

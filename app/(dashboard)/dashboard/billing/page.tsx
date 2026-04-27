@@ -1,11 +1,17 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import CreditUsageIndicator from '@/components/CreditUsageIndicator'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UsageData {
-  plan_tier: string; prospects_added: number; prospects_cap: number
-  enrichments_used: number; enrichments_cap: number; emails_sent: number
+  plan_tier: string
+  total_prospects_count: number; total_prospects_cap: number
+  // legacy compat aliases (kept for billing page backward compat)
+  prospects_added: number; prospects_cap: number
+  enrichments_used: number; enrichments_cap: number
+  emails_sent: number; emails_cap: number
+  prospect_credits_cap: number
   inboxes_used: number; inboxes_cap: number; overage_enabled: boolean
   overage_charges_made: number
   trial_end: string | null; subscription_status: string
@@ -19,23 +25,11 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Canceled', expired: 'Expired',
 }
 
-function UsageBar({ label, used, cap }: { label: string; used: number; cap: number }) {
-  const pct = cap > 0 ? Math.min(100, Math.round((used / cap) * 100)) : 0
-  const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-500'
-  return (
-    <div>
-      <div className="flex justify-between text-xs text-[#6b5e4e] mb-1">
-        <span className="font-medium">{label}</span>
-        <span>{used} / {cap} <span className="text-[#b0a898]">({pct}%)</span></span>
-      </div>
-      <div className="w-full bg-[#f0ece6] rounded-full h-2">
-        <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      {pct >= 100 && (
-        <p className="text-xs text-red-600 mt-1 font-medium">Cap reached. Upgrade or enable overage.</p>
-      )}
-    </div>
-  )
+function nextMonthReset(): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() + 1, 1)
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
 }
 
 const PLANS = [
@@ -196,14 +190,28 @@ export default function BillingPage() {
 
       {/* ── Section 2: Usage ──────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
-        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">USAGE THIS MONTH</div>
+        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">USAGE</div>
         {!usage ? (
           <p className="text-sm text-[#8a7e6e]">Loading...</p>
         ) : (
-          <div className="flex flex-col gap-4">
-            <UsageBar label="Prospects added"  used={usage.prospects_added}  cap={usage.prospects_cap} />
-            <UsageBar label="Enrichments used" used={usage.enrichments_used} cap={usage.enrichments_cap} />
-            <UsageBar label="Inboxes"          used={usage.inboxes_used}     cap={usage.inboxes_cap} />
+          <div className="flex flex-col gap-5">
+            <CreditUsageIndicator
+              metric="total_prospects"
+              current={usage.total_prospects_count}
+              cap={usage.total_prospects_cap}
+            />
+            <CreditUsageIndicator
+              metric="emails_per_month"
+              current={usage.emails_sent}
+              cap={usage.emails_cap}
+              resetDate={nextMonthReset()}
+            />
+            <CreditUsageIndicator
+              metric="prospect_credits_per_month"
+              current={0}
+              cap={usage.prospect_credits_cap}
+              resetDate={nextMonthReset()}
+            />
           </div>
         )}
       </div>
