@@ -63,20 +63,27 @@ export async function GET() {
     prospects_added:         prospectsCount.count ?? 0,
     prospects_cap:           caps.total_prospects,
     // Enrichments — monthly (Sprint 9 enforcement)
-    enrichments_used:        usage.enrichments_used,
-    enrichments_cap:         caps.enrichments_per_month,
-    prospect_credits_cap:    caps.prospect_credits_per_month,
+    enrichments_used:           usage.enrichments_used,
+    enrichments_cap:            caps.enrichments_per_month,
+    // Prospect credits — monthly (Sprint 9 Clay enforcement; 0 until Clay integration)
+    prospect_credits_used:      0, // TODO Sprint 9: populate from Clay usage_tracking
+    prospect_credits_cap:       caps.prospect_credits_per_month,
     // Emails — monthly (Sprint 8 enforcement)
-    emails_sent:             usage.emails_sent,
-    emails_cap:              caps.emails_per_month,
+    emails_sent:                usage.emails_sent,
+    emails_cap:                 caps.emails_per_month,
+    // Reset date — 1st of next month (TODO Sprint 8+: replace with Stripe current_period_end)
+    reset_date:                 (() => {
+      const d = new Date(); d.setMonth(d.getMonth() + 1, 1); d.setHours(0, 0, 0, 0)
+      return d.toISOString()
+    })(),
     // Inboxes
-    inboxes_used:            inboxes_count,
-    inboxes_cap:             caps.inboxes,
-    overage_enabled:         ws?.overage_enabled ?? false,
-    overage_charges_made:    ws?.overage_charges_made ?? 0,
-    trial_end:               ws?.trial_end_date ?? null,
-    subscription_status:     ws?.subscription_status ?? 'trialing',
-    days_remaining:          trialStatus.daysRemaining,
-    blocked:                 trialStatus.blockedActions,
+    inboxes_used:               inboxes_count,
+    inboxes_cap:                caps.inboxes,
+    overage_enabled:            ws?.overage_enabled ?? false,
+    overage_charges_made:       ws?.overage_charges_made ?? 0,
+    trial_end:                  ws?.trial_end_date ?? null,
+    subscription_status:        ws?.subscription_status ?? 'trialing',
+    days_remaining:             trialStatus.daysRemaining,
+    blocked:                    trialStatus.blockedActions,
   })
 }

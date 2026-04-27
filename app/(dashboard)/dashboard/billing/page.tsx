@@ -11,7 +11,8 @@ interface UsageData {
   prospects_added: number; prospects_cap: number
   enrichments_used: number; enrichments_cap: number
   emails_sent: number; emails_cap: number
-  prospect_credits_cap: number
+  prospect_credits_used: number; prospect_credits_cap: number
+  reset_date: string
   inboxes_used: number; inboxes_cap: number; overage_enabled: boolean
   overage_charges_made: number
   trial_end: string | null; subscription_status: string
@@ -25,12 +26,6 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Canceled', expired: 'Expired',
 }
 
-function nextMonthReset(): string {
-  const d = new Date()
-  d.setMonth(d.getMonth() + 1, 1)
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString()
-}
 
 const PLANS = [
   { id: 'starter', name: 'Starter', monthly: 149, yearly: 1430, prospects: 100, enrichments: 500,  inboxes: 1, inherits: null,      features: ['100 prospects/mo','500 enrichments/mo','1 inbox','Booking page','Morning Brief'] },
@@ -204,13 +199,13 @@ export default function BillingPage() {
               metric="emails_per_month"
               current={usage.emails_sent}
               cap={usage.emails_cap}
-              resetDate={nextMonthReset()}
+              resetDate={usage.reset_date}
             />
             <CreditUsageIndicator
               metric="prospect_credits_per_month"
-              current={0}
+              current={usage.prospect_credits_used}
               cap={usage.prospect_credits_cap}
-              resetDate={nextMonthReset()}
+              resetDate={usage.reset_date}
             />
           </div>
         )}
