@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { ImportCSVModal, ManualAddModal, type ImportResult } from '@/components/ProspectModals'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -37,6 +38,50 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [editForm, setEditForm] = useState<Partial<Campaign>>({})
   const [error, setError] = useState('')
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // ── Prospects tab state ────────────────────────────────────────────────────
+  type TabProspect = { id: string; email: string; first_name: string|null; last_name: string|null; company: string|null; status: string; source: string; added_at: string }
+  const [tabProspects, setTabProspects]           = useState<TabProspect[]>([])
+  const [tabProspectsTotal, setTabProspectsTotal] = useState(0)
+  const [tabProspectsLoading, setTabProspectsLoading] = useState(false)
+  const [prospectModal, setProspectModal]         = useState<null | 'csv' | 'manual'>(null)
+  const [showRemoveAll, setShowRemoveAll]         = useState(false)
+  const [removingAll, setRemovingAll]             = useState(false)
+  const [tabRefreshKey, setTabRefreshKey]         = useState(0)
+
+  useEffect(() => {
+    if (tab !== 'prospects') return
+    setTabProspectsLoading(true)
+    fetch(`/api/prospects?campaign_id=${params.id}&limit=100&sort=newest`)
+      .then(r => r.json())
+      .then(d => {
+        setTabProspects(d.prospects ?? [])
+        setTabProspectsTotal(d.total ?? 0)
+        setTabProspectsLoading(false)
+      })
+  }, [tab, params.id, tabRefreshKey])
+
+  function onProspectImported(_res: ImportResult) {
+    setTabRefreshKey(k => k + 1)
+    setCampaign(prev => prev ? { ...prev, prospects_count: prev.prospects_count + _res.imported } : prev)
+  }
+
+  async function removeAllProspects() {
+    setRemovingAll(true)
+    const ids = tabProspects.map(p => p.id)
+    if (ids.length > 0) {
+      await fetch('/api/prospects/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+    }
+    setTabProspects([])
+    setTabProspectsTotal(0)
+    setRemovingAll(false)
+    setShowRemoveAll(false)
+    setCampaign(prev => prev ? { ...prev, prospects_count: 0 } : prev)
+  }
 
   useEffect(() => {
     fetch(`/api/campaigns/${params.id}`)
@@ -228,10 +273,104 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
       {/* ── Tab: Prospects ───────────────────────────────────────────────────── */}
       {tab === 'prospects' && (
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
-          <div className="text-3xl mb-3">📋</div>
-          <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Prospect import coming in Sprint 16b</h2>
-          <p className="text-sm text-[#8a7e6e]">You'll be able to import via CSV, paste a list, or add manually.</p>
+        <div className="flex flex-col gap-4">
+          {/* Action bar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-sm text-[#8a7e6e]">
+              {tabProspectsLoading ? 'Loading…' : `${tabProspectsTotal.toLocaleString()} prospect${tabProspectsTotal !== 1 ? 's' : ''}`}
+            </span>
+            <div className="flex gap-2">
+              {tabProspects.length > 0 && (
+                <button onClick={() => setShowRemoveAll(true)}
+                  className="border border-red-200 text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-medium">
+                  Remove All
+                </button>
+              )}
+              <button onClick={() => setProspectModal('manual')}
+                className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">
+                Add manually
+              </button>
+              <button onClick={() => setProspectModal('csv')}
+                className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5">
+                ⬆ Import CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#f0ece6]">
+                  {['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED'].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tabProspectsLoading ? (
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
+                ) : tabProspects.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center">
+                    <div className="text-2xl mb-2">📋</div>
+                    <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
+                    <div className="text-xs text-[#8a7e6e]">Add prospects to start your campaign.</div>
+                  </td></tr>
+                ) : tabProspects.map(p => (
+                  <tr key={p.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5]">
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-[#1a1a2e]">
+                        {[p.first_name, p.last_name].filter(Boolean).join(' ') || <span className="text-[#b0a898]">—</span>}
+                      </div>
+                      {p.company && <div className="text-xs text-[#8a7e6e]">{p.company}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[#8a7e6e]">{p.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${
+                        p.status === 'replied'  ? 'bg-green-50 text-green-600' :
+                        p.status === 'opened'   ? 'bg-blue-50 text-blue-600'  :
+                        p.status === 'emailed'  ? 'bg-purple-50 text-purple-600' :
+                        p.status === 'meeting'  ? 'bg-green-100 text-green-700' :
+                        'bg-[#f0ece6] text-[#6b5e4e]'
+                      }`}>{p.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
+                        {{ manual: 'Manual', paste: 'Paste', csv_import: 'CSV', ai_discover: 'AI' }[p.source] ?? p.source}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#8a7e6e]">
+                      {p.added_at ? new Date(p.added_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Remove All confirmation */}
+          {showRemoveAll && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+                <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Remove all prospects?</h2>
+                <p className="text-sm text-[#6b5e4e] mb-5">
+                  This will permanently delete all {tabProspectsTotal.toLocaleString()} prospects from this campaign. This cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowRemoveAll(false)}
+                    className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
+                  <button onClick={removeAllProspects} disabled={removingAll}
+                    className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
+                    {removingAll ? 'Removing…' : 'Remove All'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modals */}
+          {prospectModal === 'csv'    && <ImportCSVModal campaignId={params.id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
+          {prospectModal === 'manual' && <ManualAddModal campaignId={params.id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
         </div>
       )}
 
