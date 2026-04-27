@@ -36,9 +36,10 @@ function SidePanel({ prospect, onClose }: { prospect: Prospect; onClose: () => v
   const name = [prospect.first_name, prospect.last_name].filter(Boolean).join(' ')
 
   return (
-    <div className="fixed inset-0 z-40 flex">
+    <div className="fixed inset-0 z-[60] flex">
       <div className="flex-1 bg-black/20" onClick={onClose} />
-      <div className="w-full max-w-sm bg-white shadow-xl flex flex-col h-full overflow-y-auto">
+      {/* z-[60] > sticky header z-50 so the panel is never clipped at the top */}
+      <div className="w-full max-w-sm bg-white shadow-xl flex flex-col overflow-y-auto" style={{ height: '100vh' }}>
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[#f0ece6]">
           <div>
@@ -337,9 +338,9 @@ export default function ProspectsPage() {
       {selected && <SidePanel prospect={selected} onClose={() => setSelected(null)} />}
 
       {/* Modals */}
-      {modal === 'csv'    && <ImportCSVModal onClose={() => setModal(null)} onImported={onImported} />}
-      {modal === 'manual' && <ManualAddModal onClose={() => setModal(null)} onImported={onImported} />}
-      {modal === 'paste'  && <PasteModal     onClose={() => setModal(null)} onImported={onImported} />}
+      {modal === 'csv'    && <ImportCSVModal campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
+      {modal === 'manual' && <ManualAddModal campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
+      {modal === 'paste'  && <PasteModal     campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
     </div>
   )
 }

@@ -9,6 +9,11 @@ export interface ImportResult {
   skipped_invalid: number
 }
 
+export interface CampaignOption {
+  id: string
+  name: string
+}
+
 // ─── Lifecycle shared constants ───────────────────────────────────────────────
 export const LIFECYCLE = ['Found', 'Emailed', 'Opened', 'Replied', 'Meeting'] as const
 export const STATUS_IDX: Record<string, number> = {
@@ -60,21 +65,19 @@ export function LifecyclePill({ status, variant = 'row' }: {
     )
   }
 
+  const label = status.charAt(0).toUpperCase() + status.slice(1)
   return (
-    <div className="flex items-center">
+    <div className="flex items-center" title={label}>
       {LIFECYCLE.map((s, i) => (
         <div key={s} className="flex items-center">
           {i > 0 && (
             <div className={`w-3 h-px mx-0.5 ${i <= current ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`} />
           )}
-          <div
-            title={s}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              i < current   ? 'bg-[#3b6bef]' :
-              i === current ? 'bg-[#3b6bef] ring-2 ring-[#eef1fd]' :
-                              'bg-[#e8e3dc]'
-            }`}
-          />
+          <div className={`w-2.5 h-2.5 rounded-full transition-colors ${
+            i < current   ? 'bg-[#3b6bef]' :
+            i === current ? 'bg-[#3b6bef] ring-2 ring-[#eef1fd]' :
+                            'bg-[#e8e3dc]'
+          }`} />
         </div>
       ))}
     </div>
@@ -172,12 +175,45 @@ export function DropZone({ onFile }: { onFile: (f: File) => void }) {
   )
 }
 
+// ─── CampaignSelector — optional campaign dropdown (rendered only when campaignId not pre-set)
+function CampaignSelector({ campaigns, value, onChange, preSet }: {
+  campaigns?: CampaignOption[]
+  value: string
+  onChange: (id: string) => void
+  preSet: boolean
+}) {
+  if (preSet) {
+    return (
+      <p className="text-xs text-[#8a7e6e] bg-[#f7f4f0] rounded-lg px-3 py-2">
+        Prospects will be added to this campaign and also visible in your global Prospects list.
+      </p>
+    )
+  }
+  return (
+    <div>
+      <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Campaign (optional)</label>
+      <select value={value} onChange={e => onChange(e.target.value)}
+        className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
+        <option value="">No campaign — global list</option>
+        {(campaigns ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      <p className="text-xs text-[#8a7e6e] mt-1">
+        Leave empty to add to your global list, or select a campaign to attach them now. Either way they appear in /dashboard/prospects.
+      </p>
+    </div>
+  )
+}
+
 // ─── ImportCSVModal ────────────────────────────────────────────────────────────
-export function ImportCSVModal({ campaignId, onClose, onImported }: {
+export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
   campaignId?: string
+  campaigns?: CampaignOption[]
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
+  const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
+
   const [step, setStep]             = useState<'upload' | 'preview' | 'importing' | 'done'>('upload')
   const [headers, setHeaders]       = useState<string[]>([])
   const [rows, setRows]             = useState<Record<string, string>[]>([])
@@ -200,11 +236,11 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
         setStep('preview')
 
         // Cross-campaign warning — fires immediately on parse, shown in preview step BEFORE import
-        if (campaignId && parsedRows.length > 0) {
+        if (effectiveCampaignId && parsedRows.length > 0) {
           setCheckingWarnings(true)
           const emails = parsedRows.map(r => buildCsvRow(r, detected).email).filter(Boolean).join(',')
           if (emails) {
-            fetch(`/api/prospects?emails=${encodeURIComponent(emails)}&exclude_campaign=${campaignId}`)
+            fetch(`/api/prospects?emails=${encodeURIComponent(emails)}&exclude_campaign=${effectiveCampaignId}`)
               .then(r => r.json())
               .then(data => {
                 setWarnings((data.matches ?? []).map((m: any) => ({
@@ -228,7 +264,7 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
     const res = await fetch('/api/prospects/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaign_id: campaignId ?? null, mode: 'csv', data: { rows: csvRows } }),
+      body: JSON.stringify({ campaign_id: effectiveCampaignId ?? null, mode: 'csv', data: { rows: csvRows } }),
     }).then(r => r.json())
     if (res.error) { setError(res.error); setStep('preview'); return }
     setResult(res)
@@ -238,7 +274,17 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
 
   return (
     <ModalShell title="Import CSV" onClose={onClose}>
-      {step === 'upload' && <DropZone onFile={handleFile} />}
+      {step === 'upload' && (
+        <div className="flex flex-col gap-4">
+          <CampaignSelector
+            campaigns={campaigns}
+            value={selectedCampaignId}
+            onChange={setSelectedCampaignId}
+            preSet={!!campaignId}
+          />
+          <DropZone onFile={handleFile} />
+        </div>
+      )}
 
       {step === 'preview' && (
         <div className="flex flex-col gap-4">
@@ -348,11 +394,15 @@ export function ImportCSVModal({ campaignId, onClose, onImported }: {
 }
 
 // ─── ManualAddModal ────────────────────────────────────────────────────────────
-export function ManualAddModal({ campaignId, onClose, onImported }: {
+export function ManualAddModal({ campaignId, campaigns, onClose, onImported }: {
   campaignId?: string
+  campaigns?: CampaignOption[]
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
+  const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
+
   const [form, setForm] = useState({
     email: '', first_name: '', last_name: '', company: '', title: '', linkedin_url: '',
   })
@@ -364,7 +414,7 @@ export function ManualAddModal({ campaignId, onClose, onImported }: {
     const res = await fetch('/api/prospects/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaign_id: campaignId ?? null, mode: 'manual', data: form }),
+      body: JSON.stringify({ campaign_id: effectiveCampaignId ?? null, mode: 'manual', data: form }),
     }).then(r => r.json())
     setLoading(false)
     if (res.error) { setError(res.error); return }
@@ -375,6 +425,12 @@ export function ManualAddModal({ campaignId, onClose, onImported }: {
   return (
     <ModalShell title="Add Prospect" onClose={onClose}>
       <div className="flex flex-col gap-3">
+        <CampaignSelector
+          campaigns={campaigns}
+          value={selectedCampaignId}
+          onChange={setSelectedCampaignId}
+          preSet={!!campaignId}
+        />
         {[
           { key: 'email',        label: 'Email *',      type: 'email' },
           { key: 'first_name',   label: 'First name',   type: 'text'  },
@@ -405,11 +461,15 @@ export function ManualAddModal({ campaignId, onClose, onImported }: {
 }
 
 // ─── PasteModal ────────────────────────────────────────────────────────────────
-export function PasteModal({ campaignId, onClose, onImported }: {
+export function PasteModal({ campaignId, campaigns, onClose, onImported }: {
   campaignId?: string
+  campaigns?: CampaignOption[]
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
+  const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
+
   const [text, setText]     = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
@@ -421,7 +481,7 @@ export function PasteModal({ campaignId, onClose, onImported }: {
     const res = await fetch('/api/prospects/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaign_id: campaignId ?? null, mode: 'paste', data: { emails } }),
+      body: JSON.stringify({ campaign_id: effectiveCampaignId ?? null, mode: 'paste', data: { emails } }),
     }).then(r => r.json())
     setLoading(false)
     if (res.error) { setError(res.error); return }
@@ -432,6 +492,12 @@ export function PasteModal({ campaignId, onClose, onImported }: {
   return (
     <ModalShell title="Paste Email List" onClose={onClose}>
       <div className="flex flex-col gap-3">
+        <CampaignSelector
+          campaigns={campaigns}
+          value={selectedCampaignId}
+          onChange={setSelectedCampaignId}
+          preSet={!!campaignId}
+        />
         <p className="text-xs text-[#8a7e6e]">Paste email addresses — one per line, or comma/space-separated.</p>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none font-mono"

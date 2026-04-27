@@ -104,19 +104,42 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  // ON CONFLICT DO NOTHING — no explicit target, Postgres matches against any unique index
-  // including the partial index (campaign_id, email) WHERE campaign_id IS NOT NULL (migration 012).
-  // Using ignoreDuplicates without onConflict avoids PostgREST failing to resolve partial indexes.
-  // Rows with campaign_id IS NULL have no dedup constraint by design (re-targeting allowed).
-  const { data: inserted, error } = await admin
-    .from('prospects')
-    .upsert(inserts, { ignoreDuplicates: true })
-    .select('id')
+  let imported      = 0
+  let skipped_dedup = 0
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const imported      = inserted?.length ?? 0
-  const skipped_dedup = rows.length - imported
+  if (campaign_id) {
+    // campaign_id IS NOT NULL: partial index (campaign_id, email) handles dedup via ON CONFLICT DO NOTHING.
+    // ignoreDuplicates without explicit onConflict avoids PostgREST failing to resolve partial indexes.
+    const { data: inserted, error } = await admin
+      .from('prospects')
+      .upsert(inserts, { ignoreDuplicates: true })
+      .select('id')
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    imported      = inserted?.length ?? 0
+    skipped_dedup = rows.length - imported
+  } else {
+    // campaign_id IS NULL: no unique index covers this case (re-targeting across campaigns is allowed,
+    // but global-list imports should dedup by email within the same workspace+null campaign).
+    // App-level dedup — race condition documented as acceptable limitation (same as cap enforcement).
+    const emailList = rows.map(r => r.email)
+    const { data: existing } = await admin
+      .from('prospects')
+      .select('email')
+      .eq('workspace_id', guard.workspaceId)
+      .is('campaign_id', null)
+      .in('email', emailList)
+    const existingSet = new Set((existing ?? []).map(r => r.email))
+    const newInserts  = inserts.filter(r => !existingSet.has(r.email))
+    skipped_dedup     = inserts.length - newInserts.length
+    if (newInserts.length > 0) {
+      const { data: inserted, error } = await admin
+        .from('prospects')
+        .insert(newInserts)
+        .select('id')
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      imported = inserted?.length ?? 0
+    }
+  }
 
   const { count: total_now } = await admin
     .from('prospects')

@@ -54,11 +54,14 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   useEffect(() => {
     if (tab !== 'prospects') return
     setTabProspectsLoading(true)
+    setTabProspectsTotal(0) // reset so counter shows Loading… not stale 0
     fetch(`/api/prospects?campaign_id=${params.id}&limit=50&page=${tabPage}&sort=newest`)
       .then(r => r.json())
       .then(d => {
-        setTabProspects(d.prospects ?? [])
-        setTabProspectsTotal(d.total ?? 0)
+        const prox = d.prospects ?? []
+        setTabProspects(prox)
+        // fallback to row count if Supabase count returns null
+        setTabProspectsTotal(d.total > 0 ? d.total : prox.length)
         setTabPages(d.pages ?? 1)
         setTabProspectsLoading(false)
       })
