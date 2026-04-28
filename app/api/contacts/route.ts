@@ -69,7 +69,9 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Aggregate per-contact stats from embedded assignments
+  // Aggregate per-contact stats from embedded assignments in JS.
+  // TODO Sprint 17: move to SQL aggregation (GROUP BY contact_id, MAX CASE WHEN status...)
+  // if query latency becomes an issue at scale.
   const contacts = (rawContacts ?? []).map((c: any) => {
     const assignments: any[] = c.prospects ?? []
     const campaignIdSet = new Set(assignments.filter(a => a.campaign_id).map(a => a.campaign_id))

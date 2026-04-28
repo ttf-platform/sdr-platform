@@ -3,8 +3,10 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // Patchable fields on the prospect (assignment) row.
-// Identity fields (first_name, last_name, etc.) now live on contacts — patch via /api/contacts/[id].
-const PATCHABLE = ['status', 'campaign_id'] as const
+// Identity fields live on contacts — patch via /api/contacts/[id].
+// campaign_id excluded: moving a prospect to another campaign risks UNIQUE(contact_id, campaign_id)
+// violation with no clean 409 path. TODO Sprint 17: dedicated /api/prospects/[id]/move-to-campaign.
+const PATCHABLE = ['status'] as const
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
