@@ -54,7 +54,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [tabRefreshKey, setTabRefreshKey]         = useState(0)
   const [tabPage, setTabPage]                     = useState(1)
   const [tabPages, setTabPages]                   = useState(1)
-  const [deletingProspect, setDeletingProspect]   = useState<string | null>(null)
+  const [selectedProspectIds, setSelectedProspectIds] = useState<Set<string>>(new Set())
+  const [bulkDeletingProspects, setBulkDeletingProspects] = useState(false)
 
   // Eager count fetch at mount — keeps tab label correct before Prospects tab is clicked
   useEffect(() => {
@@ -85,12 +86,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     setCampaign(prev => prev ? { ...prev, prospects_count: prev.prospects_count + (_res.imported_assignments ?? 0) } : prev)
   }
 
-  async function deleteProspect(id: string) {
-    setDeletingProspect(id)
-    await fetch(`/api/prospects/${id}`, { method: 'DELETE' })
-    setDeletingProspect(null)
+  async function bulkDeleteProspects() {
+    if (selectedProspectIds.size === 0) return
+    setBulkDeletingProspects(true)
+    await fetch('/api/prospects/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selectedProspectIds] }),
+    })
+    setBulkDeletingProspects(false)
+    setSelectedProspectIds(new Set())
     setTabRefreshKey(k => k + 1)
-    setCampaign(prev => prev ? { ...prev, prospects_count: Math.max(0, prev.prospects_count - 1) } : prev)
   }
 
   async function removeAllProspects() {
@@ -329,23 +335,42 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#f0ece6]">
+                  <th className="px-4 py-3 w-8">
+                    <input type="checkbox"
+                      checked={tabProspects.length > 0 && tabProspects.every(p => selectedProspectIds.has(p.id))}
+                      onChange={() => {
+                        const allSel = tabProspects.every(p => selectedProspectIds.has(p.id))
+                        setSelectedProspectIds(prev => {
+                          const n = new Set(prev)
+                          tabProspects.forEach(p => allSel ? n.delete(p.id) : n.add(p.id))
+                          return n
+                        })
+                      }}
+                      className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
+                  </th>
                   {['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{h}</th>
                   ))}
-                  <th className="px-4 py-3 w-8" />
                 </tr>
               </thead>
               <tbody>
                 {tabProspectsLoading ? (
-                  <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
                 ) : tabProspects.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-12 text-center">
+                  <tr><td colSpan={6} className="px-4 py-12 text-center">
                     <div className="text-2xl mb-2">📋</div>
                     <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
                     <div className="text-xs text-[#8a7e6e]">Add prospects to start your campaign.</div>
                   </td></tr>
                 ) : tabProspects.map(p => (
-                  <tr key={p.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5]">
+                  <tr key={p.id} className={`border-b border-[#f7f4f0] hover:bg-[#faf8f5] ${selectedProspectIds.has(p.id) ? 'bg-[#f5f7ff]' : ''}`}>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedProspectIds.has(p.id)}
+                        onChange={() => setSelectedProspectIds(prev => {
+                          const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n
+                        })}
+                        className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-[#1a1a2e]">
                         {[p.contacts?.first_name, p.contacts?.last_name].filter(Boolean).join(' ') || <span className="text-[#b0a898]">—</span>}
@@ -366,12 +391,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     <td className="px-4 py-3 text-xs text-[#8a7e6e]">
                       {p.added_at ? new Date(p.added_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                     </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => deleteProspect(p.id)} disabled={deletingProspect === p.id}
-                        className="text-xs text-[#d0c8be] hover:text-red-500 transition-colors disabled:opacity-40">
-                        {deletingProspect === p.id ? '…' : '✕'}
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -386,6 +405,21 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               <span className="text-sm text-[#8a7e6e]">{tabPage} / {tabPages}</span>
               <button onClick={() => setTabPage(p => Math.min(tabPages, p + 1))} disabled={tabPage === tabPages}
                 className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">Next →</button>
+            </div>
+          )}
+
+          {/* Bulk select sticky bar */}
+          {selectedProspectIds.size > 0 && (
+            <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
+                <span className="text-sm font-medium">{selectedProspectIds.size} selected</span>
+                <button onClick={() => setSelectedProspectIds(new Set())}
+                  className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+                <button onClick={bulkDeleteProspects} disabled={bulkDeletingProspects}
+                  className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                  {bulkDeletingProspects ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
             </div>
           )}
 

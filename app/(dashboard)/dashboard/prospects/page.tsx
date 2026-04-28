@@ -218,7 +218,6 @@ export default function ProspectsPage() {
   const [selectedPanel, setSelectedPanel]   = useState<string | null>(null)
   const [modal, setModal]           = useState<null | 'csv' | 'manual' | 'paste'>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [deleting, setDeleting]     = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const searchTimeout               = useRef<ReturnType<typeof setTimeout>>()
@@ -255,15 +254,6 @@ export default function ProspectsPage() {
     setRefreshKey(k => k + 1)
     setPage(1)
     setSelectedIds(new Set())
-  }
-
-  async function deleteOne(id: string) {
-    setDeleting(id)
-    await fetch(`/api/contacts/${id}`, { method: 'DELETE' })
-    setDeleting(null)
-    if (selectedPanel === id) setSelectedPanel(null)
-    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
-    setRefreshKey(k => k + 1)
   }
 
   async function bulkDelete() {
@@ -384,14 +374,13 @@ export default function ProspectsPage() {
               {['NAME', 'COMPANY', 'EMAIL', 'CAMPAIGNS', 'LIFECYCLE', 'SOURCE', 'ADDED'].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}
-              <th className="px-4 py-3 w-8" />
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
             ) : contacts.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-12 text-center">
+              <tr><td colSpan={8} className="px-4 py-12 text-center">
                 <div className="text-2xl mb-2">📋</div>
                 <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
                 <div className="text-xs text-[#8a7e6e]">Import a CSV or add prospects manually to get started.</div>
@@ -433,12 +422,6 @@ export default function ProspectsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs text-[#8a7e6e] whitespace-nowrap">{fmtDate(c.added_at)}</td>
-                <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => deleteOne(c.id)} disabled={deleting === c.id}
-                    className="text-xs text-[#d0c8be] hover:text-red-500 transition-colors disabled:opacity-40">
-                    {deleting === c.id ? '…' : '✕'}
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
