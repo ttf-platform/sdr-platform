@@ -16,8 +16,8 @@ export const TIER_CAPS: Record<PlanTier, {
 
 type UsageMetric = 'enrichments_used' | 'inboxes'
 
-// Total prospects lifetime cap — counts directly from prospects table (not usage_tracking).
-// Race condition under concurrent imports is an acceptable limitation for Sprint 16b.
+// Total contacts lifetime cap — counts from contacts table (Sprint 16b.5).
+// Race condition under concurrent imports is an acceptable limitation.
 export async function checkTotalProspectsLimit(
   workspaceId: string,
   amountToAdd: number,
@@ -32,7 +32,7 @@ export async function checkTotalProspectsLimit(
   const cap = TIER_CAPS[tier].total_prospects
 
   const { count } = await admin
-    .from('prospects')
+    .from('contacts')
     .select('*', { count: 'exact', head: true })
     .eq('workspace_id', workspaceId)
 
@@ -41,7 +41,7 @@ export async function checkTotalProspectsLimit(
   if (current + amountToAdd > cap) {
     return {
       allowed: false,
-      reason: `You've reached your prospect limit (${cap.toLocaleString()} total contacts). Upgrade your plan to import more.`,
+      reason: `You've reached your contact limit (${cap.toLocaleString()} total). Upgrade your plan to import more.`,
       currentCount: current,
       cap,
     }
