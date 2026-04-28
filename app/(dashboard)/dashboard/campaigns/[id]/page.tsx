@@ -40,7 +40,11 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Prospects tab state ────────────────────────────────────────────────────
-  type TabProspect = { id: string; email: string; first_name: string|null; last_name: string|null; company: string|null; status: string; source: string; added_at: string }
+  // Identity fields (first_name, last_name, company, title) now via JOIN contacts
+  type TabProspect = {
+    id: string; email: string; status: string; source: string; added_at: string
+    contacts: { first_name: string|null; last_name: string|null; company: string|null; title: string|null } | null
+  }
   const [tabProspects, setTabProspects]           = useState<TabProspect[]>([])
   const [tabProspectsTotal, setTabProspectsTotal] = useState(0)
   const [tabProspectsLoading, setTabProspectsLoading] = useState(false)
@@ -50,6 +54,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [tabRefreshKey, setTabRefreshKey]         = useState(0)
   const [tabPage, setTabPage]                     = useState(1)
   const [tabPages, setTabPages]                   = useState(1)
+  const [deletingProspect, setDeletingProspect]   = useState<string | null>(null)
 
   useEffect(() => {
     if (tab !== 'prospects') return
@@ -69,7 +74,15 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   function onProspectImported(_res: ImportResult) {
     setTabRefreshKey(k => k + 1)
-    setCampaign(prev => prev ? { ...prev, prospects_count: prev.prospects_count + _res.imported } : prev)
+    setCampaign(prev => prev ? { ...prev, prospects_count: prev.prospects_count + (_res.imported_assignments ?? 0) } : prev)
+  }
+
+  async function deleteProspect(id: string) {
+    setDeletingProspect(id)
+    await fetch(`/api/prospects/${id}`, { method: 'DELETE' })
+    setDeletingProspect(null)
+    setTabRefreshKey(k => k + 1)
+    setCampaign(prev => prev ? { ...prev, prospects_count: Math.max(0, prev.prospects_count - 1) } : prev)
   }
 
   async function removeAllProspects() {
@@ -311,6 +324,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   {['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{h}</th>
                   ))}
+                  <th className="px-4 py-3 w-8" />
                 </tr>
               </thead>
               <tbody>
@@ -326,9 +340,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   <tr key={p.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5]">
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-[#1a1a2e]">
-                        {[p.first_name, p.last_name].filter(Boolean).join(' ') || <span className="text-[#b0a898]">—</span>}
+                        {[p.contacts?.first_name, p.contacts?.last_name].filter(Boolean).join(' ') || <span className="text-[#b0a898]">—</span>}
                       </div>
-                      {p.company && <div className="text-xs text-[#8a7e6e]">{p.company}</div>}
+                      {p.contacts?.company && <div className="text-xs text-[#8a7e6e]">{p.contacts.company}</div>}
                     </td>
                     <td className="px-4 py-3 text-sm text-[#8a7e6e]">{p.email}</td>
                     <td className="px-4 py-3">
@@ -343,6 +357,12 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     </td>
                     <td className="px-4 py-3 text-xs text-[#8a7e6e]">
                       {p.added_at ? new Date(p.added_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => deleteProspect(p.id)} disabled={deletingProspect === p.id}
+                        className="text-xs text-[#d0c8be] hover:text-red-500 transition-colors disabled:opacity-40">
+                        {deletingProspect === p.id ? '…' : '✕'}
+                      </button>
                     </td>
                   </tr>
                 ))}
