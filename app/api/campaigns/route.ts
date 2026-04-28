@@ -7,14 +7,28 @@ export async function GET() {
   if (guard.blocked) return guard.response
 
   const admin = createAdminClient()
-  const { data: campaigns, error } = await admin
-    .from('campaigns')
-    .select('id, name, status, target_persona, angle, value_prop, cta, prospects_count, sent_count, opened_count, replied_count, meeting_count, smart_stop_on_reply, smart_stop_on_bounce, created_at')
-    .eq('workspace_id', guard.workspaceId)
-    .order('created_at', { ascending: false })
+
+  const [{ data: rawCampaigns, error }, { data: prospectRows }] = await Promise.all([
+    admin.from('campaigns')
+      .select('id, name, status, target_persona, angle, value_prop, cta, prospects_count, sent_count, opened_count, replied_count, meeting_count, smart_stop_on_reply, smart_stop_on_bounce, created_at')
+      .eq('workspace_id', guard.workspaceId)
+      .order('created_at', { ascending: false }),
+    admin.from('prospects')
+      .select('campaign_id')
+      .eq('workspace_id', guard.workspaceId)
+      .not('campaign_id', 'is', null),
+  ])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ campaigns: campaigns ?? [] })
+
+  const countMap = new Map<string, number>()
+  for (const r of (prospectRows ?? [])) {
+    const id = r.campaign_id as string
+    countMap.set(id, (countMap.get(id) ?? 0) + 1)
+  }
+
+  const campaigns = (rawCampaigns ?? []).map(c => ({ ...c, prospects_count: countMap.get(c.id) ?? 0 }))
+  return NextResponse.json({ campaigns })
 }
 
 export async function POST(request: Request) {

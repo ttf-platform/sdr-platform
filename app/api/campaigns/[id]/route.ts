@@ -17,13 +17,21 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   if (error || !campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
 
-  const { data: steps } = await admin
-    .from('campaign_steps')
-    .select('*')
-    .eq('campaign_id', params.id)
-    .order('step_order', { ascending: true })
+  const [{ data: steps }, { count: prospectsCount }] = await Promise.all([
+    admin.from('campaign_steps')
+      .select('*')
+      .eq('campaign_id', params.id)
+      .order('step_order', { ascending: true }),
+    admin.from('prospects')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', params.id)
+      .eq('workspace_id', guard.workspaceId),
+  ])
 
-  return NextResponse.json({ campaign, steps: steps ?? [] })
+  return NextResponse.json({
+    campaign: { ...campaign, prospects_count: prospectsCount ?? 0 },
+    steps: steps ?? [],
+  })
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
