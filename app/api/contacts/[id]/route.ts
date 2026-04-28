@@ -2,24 +2,22 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-// Patchable fields on the prospect (assignment) row.
-// Identity fields (first_name, last_name, etc.) now live on contacts — patch via /api/contacts/[id].
-const PATCHABLE = ['status', 'campaign_id'] as const
+const PATCHABLE = ['first_name', 'last_name', 'company', 'title', 'linkedin_url', 'website'] as const
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
   const admin = createAdminClient()
-  const { data: prospect, error } = await admin
-    .from('prospects')
-    .select('*, contacts!contact_id(first_name, last_name, company, title, linkedin_url, website), campaigns(id, name)')
+  const { data: contact, error } = await admin
+    .from('contacts')
+    .select('*, prospects!contact_id(id, campaign_id, status, source, added_at, last_activity_at, campaigns(id, name))')
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
     .single()
 
-  if (error || !prospect) return NextResponse.json({ error: 'Prospect not found' }, { status: 404 })
-  return NextResponse.json({ prospect })
+  if (error || !contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+  return NextResponse.json({ contact })
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
@@ -36,8 +34,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const admin = createAdminClient()
-  const { data: prospect, error } = await admin
-    .from('prospects')
+  const { data: contact, error } = await admin
+    .from('contacts')
     .update(updates)
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
@@ -45,7 +43,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ prospect })
+  return NextResponse.json({ contact })
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
@@ -53,9 +51,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (guard.blocked) return guard.response
 
   const admin = createAdminClient()
-  // Deletes the campaign assignment only — the contact record is preserved.
+  // Deleting a contact cascades to all prospect assignments via ON DELETE CASCADE
   const { error } = await admin
-    .from('prospects')
+    .from('contacts')
     .delete()
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)

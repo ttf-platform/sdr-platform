@@ -4,17 +4,19 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 // GET /api/prospects
 //
-// Standard list mode (pagination + filters):
-//   ?campaign_id=X
-//   &status=found,emailed          (comma-separated, OR logic)
-//   &source=csv_import,manual      (comma-separated, OR logic)
-//   &search=text                   (matches email, first_name, last_name, company)
+// Campaign-assignment list (always scoped by campaign_id):
+//   ?campaign_id=X                    (required for meaningful use — returns all workspace prospects if omitted)
+//   &status=found,emailed             (comma-separated, OR logic)
+//   &source=csv_import,manual         (comma-separated, OR logic)
+//   &search=text                      (matches email on prospects + name/company via contacts subquery)
 //   &page=1&limit=50
+//
+// Identity fields (first_name, last_name, company, title, linkedin_url, website)
+// are joined from contacts via contact_id FK.
 //
 // Cross-campaign warning lookup mode (for CSV import modal):
 //   ?emails=a@b.com,c@d.com&exclude_campaign=X
 //   Returns { matches: [{ email, campaign_id, campaigns: { name } }] }
-//   Used to warn user if emails already exist in other active campaigns.
 
 export async function GET(request: Request) {
   const guard = await billingGuard()
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const admin = createAdminClient()
 
-  // ── Cross-campaign lookup mode ───────────────────────────────────────────────
+  // Cross-campaign lookup mode
   const emailsParam = searchParams.get('emails')
   if (emailsParam) {
     const emailList = emailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
@@ -42,10 +44,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ matches: data ?? [] })
   }
 
-  // ── Standard list mode ───────────────────────────────────────────────────────
+  // Standard list mode
   const campaign_id = searchParams.get('campaign_id')
-  const status      = searchParams.get('status')   // comma-separated
-  const source      = searchParams.get('source')   // comma-separated
+  const status      = searchParams.get('status')
+  const source      = searchParams.get('source')
   const search      = searchParams.get('search')
   const sort        = searchParams.get('sort') ?? 'newest'
   const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
@@ -54,24 +56,41 @@ export async function GET(request: Request) {
 
   let query = admin
     .from('prospects')
-    .select('*, campaigns(id, name)', { count: 'exact' })
+    .select(
+      '*, contacts!contact_id(first_name, last_name, company, title, linkedin_url, website), campaigns(id, name)',
+      { count: 'exact' },
+    )
     .eq('workspace_id', guard.workspaceId)
 
   if (campaign_id) query = query.eq('campaign_id', campaign_id)
   if (status)      query = query.in('status', status.split(',').map(s => s.trim()))
   if (source)      query = query.in('source', source.split(',').map(s => s.trim()))
+
   if (search) {
-    const q = search.replace(/'/g, "''") // basic sanitize for ilike
-    query = query.or(
-      `email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,company.ilike.%${q}%`,
-    )
+    const q = search.replace(/'/g, "''")
+    // email lives on prospects (denormalized) — search it directly.
+    // name/company live on contacts — resolve matching contact_ids first.
+    const { data: nameMatches } = await admin
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', guard.workspaceId)
+      .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,company.ilike.%${q}%`)
+
+    const matchedIds = (nameMatches ?? []).map(c => c.id)
+
+    if (matchedIds.length > 0) {
+      query = query.or(`email.ilike.%${q}%,contact_id.in.(${matchedIds.join(',')})`)
+    } else {
+      query = query.ilike('email', `%${q}%`)
+    }
   }
 
-  const orderCol  = (sort === 'name' || sort === 'name_z') ? 'first_name' : 'added_at'
-  const ascending = sort === 'oldest' || sort === 'name'
+  // Sort by prospects.added_at only — name sort requires joining contacts order,
+  // not supported in this endpoint (campaign tab does not use name sort).
+  const ascending = sort === 'oldest'
 
   const { data: prospects, count, error } = await query
-    .order(orderCol, { ascending })
+    .order('added_at', { ascending })
     .range(offset, offset + limit - 1)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
