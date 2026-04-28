@@ -158,16 +158,29 @@ export async function POST(request: Request) {
         status:       'found',
       }))
 
-    // ignoreDuplicates: true = ON CONFLICT DO NOTHING — works with partial unique index
-    const { data: insertedAssignments, error: assignError } = await admin
+    // JS dedup: PostgREST ignoreDuplicates does not reliably resolve partial unique indexes
+    // (WHERE campaign_id IS NOT NULL) without the WHERE clause in the ON CONFLICT clause.
+    // Same app-level dedup pattern as original Sprint 16b null-campaign logic.
+    const candidateContactIds = assignments.map(a => a.contact_id)
+    const { data: existingAssignments } = await admin
       .from('prospects')
-      .upsert(assignments, { ignoreDuplicates: true })
-      .select('id')
+      .select('contact_id')
+      .eq('campaign_id', campaign_id)
+      .eq('workspace_id', guard.workspaceId)
+      .in('contact_id', candidateContactIds)
 
-    if (assignError) return NextResponse.json({ error: assignError.message }, { status: 500 })
+    const existingContactIds = new Set((existingAssignments ?? []).map(r => r.contact_id as string))
+    const newAssignments     = assignments.filter(a => !existingContactIds.has(a.contact_id))
 
-    imported_assignments      = insertedAssignments?.length ?? 0
+    imported_assignments      = newAssignments.length
     skipped_assignments_dedup = assignments.length - imported_assignments
+
+    if (newAssignments.length > 0) {
+      const { error: assignError } = await admin
+        .from('prospects')
+        .insert(newAssignments)
+      if (assignError) return NextResponse.json({ error: assignError.message }, { status: 500 })
+    }
   }
 
   const { count: total_contacts_now } = await admin

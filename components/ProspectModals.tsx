@@ -346,15 +346,32 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
               Checking for cross-campaign overlap…
             </p>
           )}
-          {!checkingWarnings && warnings.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-amber-700 mb-1">⚠ {warnings.length} email{warnings.length !== 1 ? 's' : ''} already in another campaign</p>
-              <div className="max-h-16 overflow-y-auto text-xs text-amber-600 space-y-0.5">
-                {warnings.map((w, i) => <div key={i}>{w.email} → {w.campaign}</div>)}
+          {!checkingWarnings && warnings.length > 0 && (() => {
+            // Group by email so "alice in 3 campaigns" shows as 1 line, not 3
+            const byEmail = warnings.reduce<Record<string, string[]>>((acc, w) => {
+              ;(acc[w.email] ??= []).push(w.campaign)
+              return acc
+            }, {})
+            const uniqueContacts = Object.keys(byEmail).length
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-amber-700 mb-1.5">
+                  ⚠ {uniqueContacts} contact{uniqueContacts !== 1 ? 's' : ''} already in other campaigns
+                </p>
+                <div className="max-h-24 overflow-y-auto text-xs text-amber-600 space-y-1">
+                  {Object.entries(byEmail).map(([email, camps]) => (
+                    <div key={email}>
+                      <span className="font-medium">{email}</span>
+                      <span className="text-amber-500"> ({camps.join(', ')})</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-amber-600 mt-1.5">
+                  They'll be added to this campaign too. Make sure you're not sending 2 sequences to the same person simultaneously.
+                </p>
               </div>
-              <p className="text-xs text-amber-600 mt-1">They will be imported as new rows (re-targeting allowed).</p>
-            </div>
-          )}
+            )
+          })()}
 
           {!mapping['email'] && (
             <p className="text-xs text-amber-600">⚠ No email column mapped — import will fail.</p>
@@ -384,11 +401,11 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
             <div className="font-semibold mb-1">Import complete</div>
             <div className="text-xs space-y-0.5">
-              {result.imported_contacts > 0   && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} added</div>}
-              {result.updated_contacts  > 0   && <div>↻ {result.updated_contacts} existing contact{result.updated_contacts !== 1 ? 's' : ''} updated</div>}
-              {result.imported_assignments > 0 && <div>✓ {result.imported_assignments} assigned to campaign</div>}
-              {result.skipped_assignments_dedup > 0 && <div>↩ {result.skipped_assignments_dedup} already in campaign (skipped)</div>}
-              {result.skipped_invalid > 0     && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+              {result.imported_contacts > 0      && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created</div>}
+              {result.updated_contacts  > 0      && <div>↻ {result.updated_contacts} contact{result.updated_contacts !== 1 ? 's' : ''} already in your workspace</div>}
+              {result.imported_assignments > 0   && <div>✓ {result.imported_assignments} added to campaign</div>}
+              {result.skipped_assignments_dedup > 0 && <div>⏭ {result.skipped_assignments_dedup} already in this campaign — skipped</div>}
+              {result.skipped_invalid > 0        && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
             </div>
           </div>
           <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">Done</button>
