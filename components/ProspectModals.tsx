@@ -4,9 +4,12 @@ import Papa from 'papaparse'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ImportResult {
-  imported: number
-  skipped_dedup: number
+  imported_contacts: number
+  updated_contacts: number
+  imported_assignments: number
+  skipped_assignments_dedup: number
   skipped_invalid: number
+  total_contacts_now: number
 }
 
 export interface CampaignOption {
@@ -381,9 +384,11 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
             <div className="font-semibold mb-1">Import complete</div>
             <div className="text-xs space-y-0.5">
-              <div>✓ {result.imported} imported</div>
-              {result.skipped_dedup   > 0 && <div>↩ {result.skipped_dedup} duplicates skipped</div>}
-              {result.skipped_invalid > 0 && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+              {result.imported_contacts > 0   && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} added</div>}
+              {result.updated_contacts  > 0   && <div>↻ {result.updated_contacts} existing contact{result.updated_contacts !== 1 ? 's' : ''} updated</div>}
+              {result.imported_assignments > 0 && <div>✓ {result.imported_assignments} assigned to campaign</div>}
+              {result.skipped_assignments_dedup > 0 && <div>↩ {result.skipped_assignments_dedup} already in campaign (skipped)</div>}
+              {result.skipped_invalid > 0     && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
             </div>
           </div>
           <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">Done</button>
@@ -418,7 +423,7 @@ export function ManualAddModal({ campaignId, campaigns, onClose, onImported }: {
     }).then(r => r.json())
     setLoading(false)
     if (res.error) { setError(res.error); return }
-    onImported({ imported: 1, skipped_dedup: 0, skipped_invalid: 0 })
+    onImported(res)
     onClose()
   }
 
