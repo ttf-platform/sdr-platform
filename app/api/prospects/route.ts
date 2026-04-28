@@ -37,7 +37,10 @@ export async function GET(request: Request) {
       .eq('workspace_id', guard.workspaceId)
       .in('email', emailList)
 
+    const inCampaign = searchParams.get('campaign_id')
+
     if (excludeCampaign) query = query.neq('campaign_id', excludeCampaign)
+    if (inCampaign)      query = query.eq('campaign_id', inCampaign)
 
     const { data, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

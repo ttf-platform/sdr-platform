@@ -402,7 +402,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           )}
 
           {/* Modals */}
-          {prospectModal === 'csv'    && <ImportCSVModal campaignId={params.id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
+          {prospectModal === 'csv'    && <ImportCSVModal campaignId={params.id} campaignName={campaign?.name} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
           {prospectModal === 'manual' && <ManualAddModal campaignId={params.id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
         </div>
       )}

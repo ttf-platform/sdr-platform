@@ -208,8 +208,16 @@ function CampaignSelector({ campaigns, value, onChange, preSet }: {
 }
 
 // ─── ImportCSVModal ────────────────────────────────────────────────────────────
-export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
+interface PreviewChecks {
+  alreadyInCampaign: string[]
+  crossCampaign: { email: string; campaigns: string[] }[]
+  newEmails: string[]
+  validEmailCount: number
+}
+
+export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, onImported }: {
   campaignId?: string
+  campaignName?: string
   campaigns?: CampaignOption[]
   onClose: () => void
   onImported: (result: ImportResult) => void
@@ -217,45 +225,62 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
   const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
 
-  const [step, setStep]             = useState<'upload' | 'preview' | 'importing' | 'done'>('upload')
-  const [headers, setHeaders]       = useState<string[]>([])
-  const [rows, setRows]             = useState<Record<string, string>[]>([])
-  const [mapping, setMapping]       = useState<Record<string, string>>({})
-  const [warnings, setWarnings]     = useState<{ email: string; campaign: string }[]>([])
-  const [checkingWarnings, setCheckingWarnings] = useState(false)
-  const [result, setResult]         = useState<ImportResult | null>(null)
-  const [error, setError]           = useState('')
+  const [step, setStep]               = useState<'upload' | 'preview' | 'importing' | 'done'>('upload')
+  const [headers, setHeaders]         = useState<string[]>([])
+  const [rows, setRows]               = useState<Record<string, string>[]>([])
+  const [mapping, setMapping]         = useState<Record<string, string>>({})
+  const [previewChecks, setPreviewChecks] = useState<PreviewChecks | null>(null)
+  const [checkingPreview, setCheckingPreview] = useState(false)
+  const [importedForCampaign, setImportedForCampaign] = useState<string | undefined>(undefined)
+  const [result, setResult]           = useState<ImportResult | null>(null)
+  const [error, setError]             = useState('')
 
   function handleFile(file: File) {
     Papa.parse<Record<string, string>>(file, {
       header: true, skipEmptyLines: true,
       complete(parsed) {
-        const hdrs     = parsed.meta.fields ?? []
+        const hdrs       = parsed.meta.fields ?? []
         const parsedRows = parsed.data
-        const detected = detectColumns(hdrs)
+        const detected   = detectColumns(hdrs)
         setHeaders(hdrs)
         setRows(parsedRows)
         setMapping(detected)
+        setPreviewChecks(null)
         setStep('preview')
 
-        // Cross-campaign warning — fires immediately on parse, shown in preview step BEFORE import
-        if (effectiveCampaignId && parsedRows.length > 0) {
-          setCheckingWarnings(true)
-          const emails = parsedRows.map(r => buildCsvRow(r, detected).email).filter(Boolean).join(',')
-          if (emails) {
-            fetch(`/api/prospects?emails=${encodeURIComponent(emails)}&exclude_campaign=${effectiveCampaignId}`)
-              .then(r => r.json())
-              .then(data => {
-                setWarnings((data.matches ?? []).map((m: any) => ({
-                  email: m.email, campaign: m.campaigns?.name ?? 'another campaign',
-                })))
-                setCheckingWarnings(false)
-              })
-              .catch(() => setCheckingWarnings(false))
-          } else {
-            setCheckingWarnings(false)
+        if (!effectiveCampaignId || parsedRows.length === 0) return
+
+        const validEmails = parsedRows.map(r => buildCsvRow(r, detected).email).filter(Boolean)
+        if (validEmails.length === 0) return
+
+        setCheckingPreview(true)
+        const emailsParam = encodeURIComponent(validEmails.join(','))
+
+        // Two parallel lookups: already in this campaign + in other campaigns
+        Promise.all([
+          fetch(`/api/prospects?emails=${emailsParam}&campaign_id=${effectiveCampaignId}`).then(r => r.json()),
+          fetch(`/api/prospects?emails=${emailsParam}&exclude_campaign=${effectiveCampaignId}`).then(r => r.json()),
+        ]).then(([inCampaignData, crossData]) => {
+          const inCampaignEmails = new Set<string>(
+            (inCampaignData.matches ?? []).map((m: any) => m.email as string),
+          )
+
+          // Group cross-campaign matches by email
+          const crossByEmail: Record<string, string[]> = {}
+          for (const m of (crossData.matches ?? []) as any[]) {
+            ;(crossByEmail[m.email] ??= []).push(m.campaigns?.name ?? 'another campaign')
           }
-        }
+
+          const newEmails = validEmails.filter(e => !inCampaignEmails.has(e))
+
+          setPreviewChecks({
+            alreadyInCampaign: [...inCampaignEmails],
+            crossCampaign: Object.entries(crossByEmail).map(([email, camps]) => ({ email, campaigns: camps })),
+            newEmails,
+            validEmailCount: validEmails.length,
+          })
+          setCheckingPreview(false)
+        }).catch(() => setCheckingPreview(false))
       },
     })
   }
@@ -263,6 +288,7 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
   async function doImport() {
     setStep('importing')
     setError('')
+    setImportedForCampaign(effectiveCampaignId)
     const csvRows = rows.map(r => buildCsvRow(r, mapping)).filter(r => r.email)
     const res = await fetch('/api/prospects/import', {
       method: 'POST',
@@ -339,39 +365,55 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
             {rows.length > 5 && <p className="text-xs text-[#b0a898] mt-1">+{rows.length - 5} more rows</p>}
           </div>
 
-          {/* Cross-campaign warning — shown in preview, before import */}
-          {checkingWarnings && (
-            <p className="text-xs text-[#8a7e6e] flex items-center gap-1.5">
-              <span className="w-3 h-3 border border-[#8a7e6e]/40 border-t-[#8a7e6e] rounded-full animate-spin inline-block" />
-              Checking for cross-campaign overlap…
-            </p>
-          )}
-          {!checkingWarnings && warnings.length > 0 && (() => {
-            // Group by email so "alice in 3 campaigns" shows as 1 line, not 3
-            const byEmail = warnings.reduce<Record<string, string[]>>((acc, w) => {
-              ;(acc[w.email] ??= []).push(w.campaign)
-              return acc
-            }, {})
-            const uniqueContacts = Object.keys(byEmail).length
-            return (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-amber-700 mb-1.5">
-                  ⚠ {uniqueContacts} contact{uniqueContacts !== 1 ? 's' : ''} already in other campaigns
-                </p>
-                <div className="max-h-24 overflow-y-auto text-xs text-amber-600 space-y-1">
-                  {Object.entries(byEmail).map(([email, camps]) => (
-                    <div key={email}>
-                      <span className="font-medium">{email}</span>
-                      <span className="text-amber-500"> ({camps.join(', ')})</span>
-                    </div>
-                  ))}
+          {/* Overlap analysis — shown in preview step before import */}
+          {effectiveCampaignId && (
+            checkingPreview ? (
+              <p className="text-xs text-[#8a7e6e] flex items-center gap-1.5">
+                <span className="w-3 h-3 border border-[#8a7e6e]/40 border-t-[#8a7e6e] rounded-full animate-spin inline-block" />
+                Checking for overlap…
+              </p>
+            ) : previewChecks && (
+              <div className="flex flex-col gap-2">
+                {/* 🟢 New to this campaign */}
+                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700 flex items-center gap-2">
+                  <span className="font-semibold">🟢 {previewChecks.newEmails.length}</span>
+                  <span>new to this campaign — will be added</span>
                 </div>
-                <p className="text-xs text-amber-600 mt-1.5">
-                  They'll be added to this campaign too. Make sure you're not sending 2 sequences to the same person simultaneously.
-                </p>
+
+                {/* 🟠 Already in this campaign */}
+                {previewChecks.alreadyInCampaign.length > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-700">
+                    <p className="font-semibold mb-1">
+                      🟠 {previewChecks.alreadyInCampaign.length} already in this campaign — will be skipped
+                    </p>
+                    <div className="max-h-20 overflow-y-auto space-y-0.5 text-orange-600">
+                      {previewChecks.alreadyInCampaign.map(email => (
+                        <div key={email}>{email}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 🔵 In other campaigns */}
+                {previewChecks.crossCampaign.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+                    <p className="font-semibold mb-1">
+                      🔵 {previewChecks.crossCampaign.length} already in other campaigns — will still be added here
+                    </p>
+                    <div className="max-h-20 overflow-y-auto space-y-0.5 text-blue-600">
+                      {previewChecks.crossCampaign.map(({ email, campaigns: camps }) => (
+                        <div key={email}>
+                          <span className="font-medium">{email}</span>
+                          <span className="text-blue-500"> ({camps.join(', ')})</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-blue-500 mt-1.5">Make sure you're not sending 2 sequences to the same person.</p>
+                  </div>
+                )}
               </div>
             )
-          })()}
+          )}
 
           {!mapping['email'] && (
             <p className="text-xs text-amber-600">⚠ No email column mapped — import will fail.</p>
@@ -379,9 +421,9 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
           {error && <p className="text-xs text-red-600">{error}</p>}
 
           <div className="flex gap-2">
-            <button onClick={() => { setStep('upload'); setRows([]); setHeaders([]); setWarnings([]) }}
+            <button onClick={() => { setStep('upload'); setRows([]); setHeaders([]); setPreviewChecks(null) }}
               className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Back</button>
-            <button onClick={doImport} disabled={!mapping['email'] || checkingWarnings}
+            <button onClick={doImport} disabled={!mapping['email'] || checkingPreview}
               className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
               Import {rows.length} rows
             </button>
@@ -396,21 +438,81 @@ export function ImportCSVModal({ campaignId, campaigns, onClose, onImported }: {
         </div>
       )}
 
-      {step === 'done' && result && (
-        <div className="flex flex-col gap-3">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-            <div className="font-semibold mb-1">Import complete</div>
-            <div className="text-xs space-y-0.5">
-              {result.imported_contacts > 0      && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created</div>}
-              {result.updated_contacts  > 0      && <div>↻ {result.updated_contacts} contact{result.updated_contacts !== 1 ? 's' : ''} already in your workspace</div>}
-              {result.imported_assignments > 0   && <div>✓ {result.imported_assignments} added to campaign</div>}
-              {result.skipped_assignments_dedup > 0 && <div>⏭ {result.skipped_assignments_dedup} already in this campaign — skipped</div>}
-              {result.skipped_invalid > 0        && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
-            </div>
+      {step === 'done' && result && (() => {
+        const hasCampaign  = !!importedForCampaign
+        const nothingNew   = result.imported_contacts === 0 && result.imported_assignments === 0
+        const fullSuccess  = hasCampaign && result.imported_assignments > 0 && result.skipped_assignments_dedup === 0
+        const partial      = hasCampaign && result.imported_assignments > 0 && result.skipped_assignments_dedup > 0
+        const noAssignment = !hasCampaign && result.imported_contacts > 0
+
+        return (
+          <div className="flex flex-col gap-3">
+            {nothingNew && (
+              <div className="bg-[#f7f4f0] border border-[#e8e3dc] rounded-lg p-3 text-sm text-[#6b5e4e]">
+                <div className="font-semibold mb-1">Nothing new imported</div>
+                <div className="text-xs text-[#8a7e6e]">
+                  {result.skipped_assignments_dedup > 0
+                    ? `All ${result.skipped_assignments_dedup} contacts were already in this campaign.`
+                    : result.skipped_invalid > 0
+                    ? `All ${result.skipped_invalid} rows had invalid emails.`
+                    : 'No new contacts or assignments were created.'}
+                </div>
+              </div>
+            )}
+
+            {fullSuccess && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+                <div className="font-semibold mb-1">All set!</div>
+                <div className="text-xs space-y-0.5">
+                  <div>✓ {result.imported_assignments} prospect{result.imported_assignments !== 1 ? 's' : ''} added to campaign</div>
+                  {result.imported_contacts > 0 && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created in workspace</div>}
+                  {result.skipped_invalid > 0   && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                </div>
+              </div>
+            )}
+
+            {partial && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+                <div className="font-semibold mb-1">Import complete</div>
+                <div className="text-xs space-y-0.5">
+                  <div>✓ {result.imported_assignments} added to campaign</div>
+                  <div>⏭ {result.skipped_assignments_dedup} already in this campaign — skipped</div>
+                  {result.imported_contacts > 0 && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created</div>}
+                  {result.skipped_invalid > 0   && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                </div>
+              </div>
+            )}
+
+            {noAssignment && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                <div className="font-semibold mb-1">Contacts added to workspace</div>
+                <div className="text-xs space-y-0.5">
+                  <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created</div>
+                  {result.updated_contacts > 0 && <div>↻ {result.updated_contacts} contacts already in workspace</div>}
+                  {result.skipped_invalid > 0  && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                  <div className="text-blue-500 mt-1">No campaign assigned. Go to a campaign to add them.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Fallback for edge cases not covered above */}
+            {!nothingNew && !fullSuccess && !partial && !noAssignment && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+                <div className="font-semibold mb-1">Import complete</div>
+                <div className="text-xs space-y-0.5">
+                  {result.imported_contacts      > 0 && <div>✓ {result.imported_contacts} new contacts created</div>}
+                  {result.updated_contacts       > 0 && <div>↻ {result.updated_contacts} already in workspace</div>}
+                  {result.imported_assignments   > 0 && <div>✓ {result.imported_assignments} added to campaign</div>}
+                  {result.skipped_assignments_dedup > 0 && <div>⏭ {result.skipped_assignments_dedup} already in campaign — skipped</div>}
+                  {result.skipped_invalid        > 0 && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                </div>
+              </div>
+            )}
+
+            <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">Done</button>
           </div>
-          <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">Done</button>
-        </div>
-      )}
+        )
+      })()}
     </ModalShell>
   )
 }
