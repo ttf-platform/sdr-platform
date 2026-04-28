@@ -78,71 +78,73 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  // Cap check: pessimistic upper bound (all rows could be new).
-  // More precise check after insert would require a compensating DELETE — not worth the complexity.
-  // Acceptable limitation: same pattern as Sprint 16b cap enforcement.
-  const { data: ws } = await admin
-    .from('workspaces').select('plan_tier')
-    .eq('id', guard.workspaceId).single()
-  const tier = (ws?.plan_tier ?? 'starter') as PlanTier
-  const cap  = TIER_CAPS[tier].total_prospects
-
-  const { count: currentCount } = await admin
+  // Fetch existing contacts to compute COALESCE merge and precise new-contact count.
+  // TODO Sprint 17: replace with Postgres function for atomic COALESCE merge and eliminate
+  // the race condition (two concurrent imports could overwrite each other's merged values).
+  // Acceptable for now: solo-user workspaces make concurrent import races negligible.
+  const emailList = rows.map(r => r.email)
+  const { data: existing } = await admin
     .from('contacts')
-    .select('*', { count: 'exact', head: true })
+    .select('id, email, first_name, last_name, company, title, linkedin_url, website')
     .eq('workspace_id', guard.workspaceId)
+    .in('email', emailList)
 
-  if ((currentCount ?? 0) + rows.length > cap) {
-    return NextResponse.json(
-      { error: `You've reached your contact limit (${cap.toLocaleString()} total). Upgrade to import more.`, cap, current: currentCount },
-      { status: 429 },
-    )
+  const existingMap = new Map((existing ?? []).map(c => [c.email, c]))
+
+  const imported_contacts_count = rows.filter(r => !existingMap.has(r.email)).length
+  const updated_contacts_count  = rows.filter(r =>  existingMap.has(r.email)).length
+
+  // Precise cap check using the pre-fetched existing count
+  if (imported_contacts_count > 0) {
+    const { data: ws } = await admin
+      .from('workspaces').select('plan_tier')
+      .eq('id', guard.workspaceId).single()
+    const tier = (ws?.plan_tier ?? 'starter') as PlanTier
+    const cap  = TIER_CAPS[tier].total_prospects
+
+    const { count: currentTotal } = await admin
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('workspace_id', guard.workspaceId)
+
+    if ((currentTotal ?? 0) + imported_contacts_count > cap) {
+      return NextResponse.json(
+        { error: `You've reached your contact limit (${cap.toLocaleString()} total). Upgrade to import more.`, cap, current: currentTotal },
+        { status: 429 },
+      )
+    }
   }
 
-  // Step 1: Insert new contacts — ON CONFLICT DO NOTHING.
-  // RETURNING gives only the actually inserted rows → accurate imported_contacts count.
-  // Existing contacts are NOT updated: re-importing from CSV should not overwrite cleaned data.
-  // TODO Sprint 17: replace with Postgres function for atomic COALESCE merge on re-import.
-  const contactInserts = rows.map(r => ({
-    workspace_id: guard.workspaceId,
-    email:        r.email,
-    first_name:   r.first_name   ?? null,
-    last_name:    r.last_name    ?? null,
-    company:      r.company      ?? null,
-    title:        r.title        ?? null,
-    linkedin_url: r.linkedin_url ?? null,
-    website:      r.website      ?? null,
-  }))
+  // Build COALESCE-merged rows: incoming non-null value wins, fall back to existing value.
+  // Ensures a CSV import after a paste-list import enriches the contact rather than wiping fields.
+  const contactUpserts = rows.map(r => {
+    const ex = existingMap.get(r.email)
+    return {
+      workspace_id: guard.workspaceId,
+      email:        r.email,
+      first_name:   r.first_name   ?? ex?.first_name   ?? null,
+      last_name:    r.last_name    ?? ex?.last_name    ?? null,
+      company:      r.company      ?? ex?.company      ?? null,
+      title:        r.title        ?? ex?.title        ?? null,
+      linkedin_url: r.linkedin_url ?? ex?.linkedin_url ?? null,
+      website:      r.website      ?? ex?.website      ?? null,
+    }
+  })
 
-  const { data: inserted, error: contactError } = await admin
+  // Upsert contacts — values already COALESCE-merged in JS, so standard upsert is correct
+  const { data: upsertedContacts, error: contactError } = await admin
     .from('contacts')
-    .upsert(contactInserts, { ignoreDuplicates: true })
+    .upsert(contactUpserts, { onConflict: 'workspace_id,email' })
     .select('id, email')
 
   if (contactError) return NextResponse.json({ error: contactError.message }, { status: 500 })
-
-  const imported_contacts_count = (inserted ?? []).length
-  const updated_contacts_count  = rows.length - imported_contacts_count
 
   let imported_assignments      = 0
   let skipped_assignments_dedup = 0
 
   // Step 2: create prospect assignments if campaign_id given
-  if (campaign_id) {
-    // Build contact_id map from inserted rows
-    const contactIdMap = new Map((inserted ?? []).map(c => [c.email, c.id]))
-
-    // Fetch IDs for existing contacts (not returned by ON CONFLICT DO NOTHING)
-    const existingEmails = rows.filter(r => !contactIdMap.has(r.email)).map(r => r.email)
-    if (existingEmails.length > 0) {
-      const { data: existingContacts } = await admin
-        .from('contacts')
-        .select('id, email')
-        .eq('workspace_id', guard.workspaceId)
-        .in('email', existingEmails)
-      ;(existingContacts ?? []).forEach(c => contactIdMap.set(c.email, c.id))
-    }
-
+  if (campaign_id && upsertedContacts && upsertedContacts.length > 0) {
+    const contactIdMap = new Map(upsertedContacts.map(c => [c.email, c.id]))
     const source = mode === 'manual' ? 'manual' : mode === 'paste' ? 'paste' : 'csv_import'
 
     const assignments = rows
