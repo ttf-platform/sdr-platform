@@ -394,11 +394,11 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
                   </div>
                 )}
 
-                {/* 🔵 In other campaigns */}
+                {/* 🔵 In other campaigns — informational only */}
                 {previewChecks.crossCampaign.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
                     <p className="font-semibold mb-1">
-                      🔵 {previewChecks.crossCampaign.length} already in other campaigns — will still be added here
+                      🔵 {previewChecks.crossCampaign.length} also in other campaigns
                     </p>
                     <div className="max-h-20 overflow-y-auto space-y-0.5 text-blue-600">
                       {previewChecks.crossCampaign.map(({ email, campaigns: camps }) => (

@@ -211,7 +211,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       <div className="flex gap-1 my-5 p-1 bg-[#f0ece6] rounded-xl w-fit">
         {([
           { key: 'overview',  label: 'Overview' },
-          { key: 'prospects', label: `Prospects (${campaign.prospects_count})` },
+          { key: 'prospects', label: `Prospects (${tabProspectsTotal})` },
           { key: 'emails',    label: 'Emails (0)' },
           { key: 'sequence',  label: 'Follow-up Sequence' },
         ] as const).map(t => (
