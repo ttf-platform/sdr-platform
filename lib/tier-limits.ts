@@ -9,8 +9,8 @@ export const TIER_CAPS: Record<PlanTier, {
   emails_per_month: number            // monthly email send cap
   inboxes: number
 }> = {
-  starter: { total_prospects: 10000, enrichments_per_month: 500,  prospect_credits_per_month: 200, emails_per_month: 500,  inboxes: 1 },
-  pro:     { total_prospects: 25000, enrichments_per_month: 1000, prospect_credits_per_month: 500, emails_per_month: 1500, inboxes: 2 },
+  starter: { total_prospects: 10000, enrichments_per_month: 500,  prospect_credits_per_month: 200, emails_per_month: 1000, inboxes: 1 },
+  pro:     { total_prospects: 25000, enrichments_per_month: 1000, prospect_credits_per_month: 500, emails_per_month: 2000, inboxes: 2 },
   power:   { total_prospects: 50000, enrichments_per_month: 2000, prospect_credits_per_month: 750, emails_per_month: 3000, inboxes: 3 },
 }
 
