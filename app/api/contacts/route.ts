@@ -100,8 +100,9 @@ export async function GET(request: Request) {
       campaigns_count:       campaignIdSet.size,
       primary_status,
       last_activity_at,
-      primary_campaign_name: latest?.campaigns?.name  ?? null,
-      primary_campaign_id:   latest?.campaign_id      ?? null,
+      primary_campaign_name: latest?.campaigns?.name ?? null,
+      primary_campaign_id:   latest?.campaign_id     ?? null,
+      primary_source:        latest?.source          ?? null,
     }
   })
 
