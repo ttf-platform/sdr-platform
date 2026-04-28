@@ -56,6 +56,14 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [tabPages, setTabPages]                   = useState(1)
   const [deletingProspect, setDeletingProspect]   = useState<string | null>(null)
 
+  // Eager count fetch at mount — keeps tab label correct before Prospects tab is clicked
+  useEffect(() => {
+    fetch(`/api/prospects?campaign_id=${params.id}&limit=1`)
+      .then(r => r.json())
+      .then(d => { if (d.total > 0) setTabProspectsTotal(d.total) })
+      .catch(() => {})
+  }, [params.id])
+
   useEffect(() => {
     if (tab !== 'prospects') return
     setTabProspectsLoading(true)
