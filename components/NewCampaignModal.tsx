@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 
@@ -8,32 +8,6 @@ const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', 
 const TONES        = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
 const LANGUAGES    = ['English', 'French', 'German', 'Spanish', 'Italian']
 
-function extractNums(str: string): number[] {
-  return (str.match(/\d+(?:\.\d+)?/g) ?? []).map(Number)
-}
-
-function near(a: number, b: number) {
-  if (b === 0) return a === 0
-  return Math.abs(a - b) / b <= 0.05
-}
-
-function matchSizePills(str: string): string[] {
-  const ns = extractNums(str)
-  return SIZE_OPTIONS.filter(opt => {
-    const on = extractNums(opt)
-    return ns.some(n => on.some(o => near(n, o)))
-  })
-}
-
-function matchRevenuePills(str: string): string[] {
-  const stripM = (s: string) => s.replace(/\$?(\d+(?:\.\d+)?)M/gi, (_, n) => n)
-  const ns = extractNums(stripM(str))
-  return REV_OPTIONS.filter(opt => {
-    const on = extractNums(stripM(opt))
-    return ns.some(n => on.some(o => near(n, o)))
-  })
-}
-
 interface Props {
   preset: CampaignTemplate | null
   isFromAI: boolean
@@ -41,7 +15,7 @@ interface Props {
 }
 
 export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
-  const router    = useRouter()
+  const router     = useRouter()
   const isTemplate = !!preset && preset.id !== 'blank'
 
   const [name,           setName]           = useState(isTemplate ? preset!.label : '')
@@ -51,8 +25,8 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   const [targetRegions,  setTargetRegions]  = useState('')
   const [selectedSizes,  setSelectedSizes]  = useState<string[]>([])
   const [selectedRevs,   setSelectedRevs]   = useState<string[]>([])
-  const [valueProp,      setValueProp]      = useState(preset?.value_prop ?? '')
   const [angle,          setAngle]          = useState(preset?.angle ?? '')
+  const [valueProp,      setValueProp]      = useState(preset?.value_prop ?? '')
   const [cta,            setCta]            = useState(preset?.cta ?? '')
   const [targetPersona,  setTargetPersona]  = useState(preset?.target_persona ?? '')
   const [tone,           setTone]           = useState('Professional')
@@ -60,6 +34,18 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   const [parsing,        setParsing]        = useState(false)
   const [creating,       setCreating]       = useState(false)
   const [error,          setError]          = useState('')
+  const [nameError,      setNameError]      = useState('')
+
+  // Bug G — pre-fill ICP textarea with Master ICP on mount (only if empty)
+  useEffect(() => {
+    fetch('/api/workspace-profile')
+      .then(r => r.json())
+      .then(d => {
+        const desc = d.profile?.icp_description
+        if (desc && !icpText) setIcpText(desc)
+      })
+      .catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function togglePill(arr: string[], val: string, setter: (v: string[]) => void) {
     setter(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val])
@@ -76,21 +62,23 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
       }).then(r => r.json())
       const icp = res.icp
       if (!icp) return
-      if (icp.industries?.length)  setTargetIndustry(icp.industries.join(', '))
-      if (icp.titles?.length)      setTargetTitles(icp.titles.join(', '))
-      if (icp.regions?.length)     setTargetRegions(icp.regions.join(', '))
-      if (icp.summary)             setTargetPersona(icp.summary)
-      if (icp.company_size)        setSelectedSizes(matchSizePills(icp.company_size))
-      if (icp.revenue)             setSelectedRevs(matchRevenuePills(icp.revenue))
+      // Exact pill arrays from API — no fuzzy matching needed
+      if (icp.industries?.length)    setTargetIndustry(icp.industries.join(', '))
+      if (icp.titles?.length)        setTargetTitles(icp.titles.join(', '))
+      if (icp.regions?.length)       setTargetRegions(icp.regions.join(', '))
+      if (icp.summary)               setTargetPersona(icp.summary)
+      if (icp.company_sizes?.length) setSelectedSizes(icp.company_sizes)
+      if (icp.revenue?.length)       setSelectedRevs(icp.revenue)
     } finally {
       setParsing(false)
     }
   }
 
   async function handleCreate() {
-    if (!name.trim()) { setError('Campaign name is required.'); return }
+    if (!name.trim()) { setNameError('Campaign name is required.'); return }
     setCreating(true)
     setError('')
+    setNameError('')
 
     const res = await fetch('/api/campaigns', {
       method: 'POST',
@@ -111,13 +99,17 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
       }),
     }).then(r => r.json())
 
+    if (res.error === 'duplicate_name') {
+      setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
+      setCreating(false)
+      return
+    }
     if (res.error) { setError(res.error); setCreating(false); return }
     router.push(`/dashboard/campaigns/${res.campaign.id}`)
   }
 
   const inputCls = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]'
   const labelCls = 'block text-xs font-semibold text-[#4a4a5a] uppercase tracking-wider mb-1.5'
-  const secCls   = 'text-xs font-bold text-[#1a1a2e] uppercase tracking-wider mb-3 pb-1.5 border-b border-[#f0ece6]'
 
   return (
     <div
@@ -147,23 +139,33 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
             </div>
           )}
 
-          {/* Parse with AI */}
+          {/* Bug H — ICP section with clarified header */}
           <div>
-            <p className={secCls}>Parse with AI</p>
+            <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
+              <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">🎯 ICP — Ideal Customer Profile</h3>
+              <p className="text-xs text-[#8a7e6e] mt-0.5">
+                Pre-filled from your Master ICP. Edit and click Parse with AI to update the structured fields below for this campaign only.
+              </p>
+            </div>
             <textarea
               value={icpText}
               onChange={e => setIcpText(e.target.value)}
-              placeholder="Paste any description of your ideal customer — a job spec, LinkedIn search, sales brief… AI will extract the structured fields below."
+              placeholder="Founders of B2B SaaS companies in Europe, 11-50 employees, focused on outbound sales..."
               rows={3}
               className={`${inputCls} resize-none`}
             />
-            <button
-              onClick={handleParseWithAI}
-              disabled={parsing || !icpText.trim()}
-              className="mt-2 flex items-center gap-1.5 bg-[#6b4de6] hover:bg-[#5a3dd5] text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors disabled:opacity-40"
-            >
-              {parsing ? 'Parsing…' : '✨ Parse with AI'}
-            </button>
+            <div className="mt-2 flex items-start gap-3">
+              <button
+                onClick={handleParseWithAI}
+                disabled={parsing || !icpText.trim()}
+                className="shrink-0 flex items-center gap-1.5 bg-[#6b4de6] hover:bg-[#5a3dd5] text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors disabled:opacity-40"
+              >
+                {parsing ? 'Parsing…' : '✨ Parse with AI'}
+              </button>
+              <p className="text-xs text-[#8a7e6e] pt-1">
+                This will auto-fill Industry, Titles, Regions, Size and Revenue below.
+              </p>
+            </div>
           </div>
 
           {/* Campaign Name */}
@@ -172,15 +174,19 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
             <input
               type="text"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
               placeholder="e.g. SaaS VP Outreach Q3"
-              className={inputCls}
+              className={`${inputCls} ${nameError ? 'border-red-400' : ''}`}
             />
+            {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
           </div>
 
           {/* Define Your Ideal Customer */}
           <div>
-            <p className={secCls}>Define Your Ideal Customer</p>
+            <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
+              <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Define Your Ideal Customer</h3>
+              <p className="text-xs text-[#8a7e6e] mt-0.5">Auto-filled from Parse with AI, or fill manually.</p>
+            </div>
             <div className="flex flex-col gap-4">
               <div>
                 <label className={labelCls}>Target Industry</label>
@@ -201,15 +207,13 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
                 <label className={labelCls}>Company Size</label>
                 <div className="flex flex-wrap gap-2">
                   {SIZE_OPTIONS.map(opt => (
-                    <button
-                      key={opt}
+                    <button key={opt}
                       onClick={() => togglePill(selectedSizes, opt, setSelectedSizes)}
                       className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                         selectedSizes.includes(opt)
                           ? 'bg-[#3b6bef] border-[#3b6bef] text-white'
                           : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'
-                      }`}
-                    >
+                      }`}>
                       {opt}
                     </button>
                   ))}
@@ -219,15 +223,13 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
                 <label className={labelCls}>Company Revenue</label>
                 <div className="flex flex-wrap gap-2">
                   {REV_OPTIONS.map(opt => (
-                    <button
-                      key={opt}
+                    <button key={opt}
                       onClick={() => togglePill(selectedRevs, opt, setSelectedRevs)}
                       className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                         selectedRevs.includes(opt)
                           ? 'bg-[#3b6bef] border-[#3b6bef] text-white'
                           : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'
-                      }`}
-                    >
+                      }`}>
                       {opt}
                     </button>
                   ))}
@@ -238,7 +240,9 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
 
           {/* Your Pitch */}
           <div>
-            <p className={secCls}>Your Pitch</p>
+            <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
+              <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Your Pitch</h3>
+            </div>
             <div className="flex flex-col gap-4">
               <div>
                 <label className={labelCls}>

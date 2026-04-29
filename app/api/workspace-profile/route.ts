@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('workspace_profiles')
-    .select('booking_slug, booking_config')
+    .select('booking_slug, booking_config, icp_description')
     .eq('workspace_id', workspaceId)
     .maybeSingle()
 
