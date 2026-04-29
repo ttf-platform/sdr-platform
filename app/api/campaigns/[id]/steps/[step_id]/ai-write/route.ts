@@ -50,6 +50,11 @@ Angle: ${campaign.angle || campaign.icp_snapshot?.hook || ''}
 CTA: ${campaign.cta || 'book a quick call'}
 ${instructions ? `\nSpecific instructions: ${instructions}` : ''}
 
+CRITICAL — Meeting duration:
+When proposing a meeting/call/demo, ALWAYS use {{meeting_duration}} for the duration.
+Examples: "Worth a {{meeting_duration}}-minute call?" or "Happy to book a {{meeting_duration}}-min demo."
+DO NOT hardcode "30 min", "20 min", or any specific duration.
+
 Rules:
 - Plain text only. No HTML, no bullet points.
 - ${stepRow.step_type === 'initial' ? '80-120 words' : '40-80 words'}

@@ -23,7 +23,12 @@ export interface CampaignContext {
 // ─── Variable renderer ────────────────────────────────────────────────────────
 // Smart fallback: {{first_name}} NULL → "there"  (prevents "Hi ,")
 
-export function renderTemplate(template: string, vars: ContactVars): string {
+export interface RenderExtras {
+  bookingUrl?:      string | null
+  meetingDuration?: number | null
+}
+
+export function renderTemplate(template: string, vars: ContactVars, extras?: RenderExtras): string {
   const fn       = vars.first_name || 'there'
   const ln       = vars.last_name  || ''
   const fullName = vars.first_name
@@ -31,12 +36,14 @@ export function renderTemplate(template: string, vars: ContactVars): string {
     : 'there'
 
   return template
-    .replace(/\{\{first_name\}\}/g,  fn)
-    .replace(/\{\{last_name\}\}/g,   ln)
-    .replace(/\{\{full_name\}\}/g,   fullName)
-    .replace(/\{\{company\}\}/g,     vars.company      ?? '')
-    .replace(/\{\{title\}\}/g,       vars.title        ?? '')
-    .replace(/\{\{sender_name\}\}/g, vars.sender_name  ?? '')
+    .replace(/\{\{first_name\}\}/g,       fn)
+    .replace(/\{\{last_name\}\}/g,        ln)
+    .replace(/\{\{full_name\}\}/g,        fullName)
+    .replace(/\{\{company\}\}/g,          vars.company      ?? '')
+    .replace(/\{\{title\}\}/g,            vars.title        ?? '')
+    .replace(/\{\{sender_name\}\}/g,      vars.sender_name  ?? '')
+    .replace(/\{\{booking_link\}\}/g,     extras?.bookingUrl      ?? '{{booking_link}}')
+    .replace(/\{\{meeting_duration\}\}/g, String(extras?.meetingDuration ?? 30))
 }
 
 // ─── Smart opening line — Sonnet prompt builder ───────────────────────────────

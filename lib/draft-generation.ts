@@ -118,6 +118,11 @@ ${campaign.target_persona || ''}
 PITCH:
 ${pitchLines}
 
+CRITICAL — Meeting duration:
+When proposing a meeting/call/demo, ALWAYS use {{meeting_duration}} for the duration.
+Examples: "Worth a {{meeting_duration}}-minute call?" or "Happy to book a {{meeting_duration}}-min demo."
+DO NOT hardcode "30 min", "20 min", or any specific duration.
+
 Writing rules:
 - Use plain text only. No HTML, no bullet lists, no formatting tags.
 - Keep the email SHORT: 80-120 words.
@@ -185,14 +190,20 @@ export async function generateDraftsForCampaign(
 
   if (!campaign) return { error: 'Campaign not found', status: 404 }
 
-  // 2. Workspace profile (sender name + AI generation context)
+  // 2. Workspace profile (sender name + AI generation context + booking + meeting duration)
   const { data: profile } = await admin
     .from('workspace_profiles')
-    .select('sender_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size')
+    .select('sender_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size, booking_slug, booking_config')
     .eq('workspace_id', workspaceId)
     .single()
 
-  const senderName = (profile as any)?.sender_name ?? null
+  const senderName    = (profile as any)?.sender_name ?? null
+  const bookingSlug   = (profile as any)?.booking_slug as string | null | undefined
+  const bookingConfig = ((profile as any)?.booking_config ?? {}) as Record<string, unknown>
+  const bookingEnabled = bookingConfig.enabled !== false
+  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+  const bookingUrl     = bookingSlug && bookingEnabled ? `${appUrl}/book/${bookingSlug}` : null
+  const meetingDuration: number = ((bookingConfig.meeting_durations as number[] | undefined)?.[0]) ?? 30
 
   // 3. Initial step — auto-generate if campaign was created without a sequence
   const { data: existingSteps } = await admin
@@ -306,9 +317,10 @@ export async function generateDraftsForCampaign(
   }
 
   // 8. Render and assemble rows
+  const renderExtras = { bookingUrl, meetingDuration }
   const insertRows = workItems.map(item => {
-    const subject = renderTemplate(item.subject_template, item.vars)
-    let body      = renderTemplate(item.body_template,    item.vars)
+    const subject = renderTemplate(item.subject_template, item.vars, renderExtras)
+    let body      = renderTemplate(item.body_template,    item.vars, renderExtras)
 
     if (mode === 'smart' && item.step_order === 0) {
       const opening = openingLines.get(item.prospect_id)
