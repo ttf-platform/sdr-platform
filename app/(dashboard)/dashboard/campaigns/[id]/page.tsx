@@ -626,11 +626,14 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
                           {/* Prospect info */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                               <span className="text-sm font-semibold text-[#1a1a2e] truncate">{contactName}</span>
                               {email.prospect.company && (
                                 <span className="text-xs text-[#8a7e6e] truncate">· {email.prospect.company}</span>
                               )}
+                            </div>
+                            <div className="text-xs font-semibold text-[#1a1a2e] truncate">
+                              {email.subject || <span className="italic font-normal text-[#b0a898]">(no subject)</span>}
                             </div>
                             <div className="text-xs text-[#8a7e6e] truncate mt-0.5">{bodyPreview}…</div>
                           </div>
