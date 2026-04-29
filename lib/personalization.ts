@@ -119,14 +119,17 @@ export async function generateOpeningLine(
 // Replaces first paragraph of rendered body with AI opening line.
 
 export function assembleSmartBody(renderedBody: string, openingLine: string): string {
+  const opening = openingLine.trimEnd()
   const firstBlankLine = renderedBody.indexOf('\n\n')
   if (firstBlankLine >= 0) {
-    // Replace first paragraph (salutation) — keep the blank line separator
-    return openingLine + renderedBody.slice(firstBlankLine)
+    // \n\n is already at the start of the slice — guaranteed blank-line separator
+    return opening + renderedBody.slice(firstBlankLine)
   }
   const firstNewline = renderedBody.indexOf('\n')
   if (firstNewline >= 0) {
-    return openingLine + renderedBody.slice(firstNewline)
+    // Single-newline body: force \n\n separator, skip the original first line
+    return opening + '\n\n' + renderedBody.slice(firstNewline + 1).trimStart()
   }
-  return openingLine
+  // No structure in body — prepend opening, keep full body
+  return opening + '\n\n' + renderedBody
 }

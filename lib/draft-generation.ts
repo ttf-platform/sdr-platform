@@ -174,10 +174,13 @@ export async function generateDraftsForCampaign(
     }
   })
 
-  // 9. Batch insert
+  // 9. Upsert — ignoreDuplicates guards against concurrent double-call.
+  //    UNIQUE(prospect_id, campaign_step_id) is a non-partial constraint so
+  //    ignoreDuplicates resolves correctly (unlike the partial-index case in Sprint 16b.5).
+  //    skipped_existing was computed from the pre-fetch Set, not from the upsert result.
   const { error: insertError } = await admin
     .from('prospect_emails')
-    .insert(insertRows)
+    .upsert(insertRows, { onConflict: 'prospect_id,campaign_step_id', ignoreDuplicates: true })
 
   if (insertError) return { error: insertError.message, status: 500 }
 

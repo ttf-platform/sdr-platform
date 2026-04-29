@@ -12,12 +12,16 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from('prospect_emails')
     .update({ status: 'approved', approved_at: new Date().toISOString() })
     .eq('workspace_id', guard.workspaceId)
     .in('id', ids)
+    .select('id')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ approved_count: ids.length })
+
+  const approved_count = (updated ?? []).length
+  const skipped_count  = ids.length - approved_count
+  return NextResponse.json({ approved_count, skipped_count })
 }
