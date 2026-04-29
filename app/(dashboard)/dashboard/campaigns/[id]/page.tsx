@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
+import { EditFollowUpModal, type FollowUpStep } from '@/components/EditFollowUpModal'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -92,6 +93,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [showGenerateDraftsModal, setShowGenerateDraftsModal] = useState(false)
   const [generateDraftsIsRegen, setGenerateDraftsIsRegen]     = useState(false)
   const [editEmailId, setEditEmailId]               = useState<string | null>(null)
+  const [editFollowUpStep, setEditFollowUpStep]     = useState<Step | null>(null)
 
   // Eager counts at mount
   useEffect(() => {
@@ -745,6 +747,20 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               }}
             />
           )}
+
+          {/* Edit follow-up modal */}
+          {editFollowUpStep && (
+            <EditFollowUpModal
+              step={editFollowUpStep}
+              followUpNumber={followUpSteps.findIndex(s => s.id === editFollowUpStep.id) + 1}
+              campaignId={params.id}
+              onClose={() => setEditFollowUpStep(null)}
+              onSaved={updated => {
+                setSteps(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
+                setEditFollowUpStep(null)
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -775,8 +791,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   followUpNumber={idx + 1}
                   isOnly={followUpSteps.length <= 1}
                   saving={generatingStep === step.id}
-                  onUpdate={patch => updateStep(step.id, patch)}
+                  onBookingToggle={v => updateStep(step.id, { include_booking_link: v })}
                   onAiWrite={() => aiWriteStep(step.id)}
+                  onEdit={() => setEditFollowUpStep(step)}
                   onRemove={() => removeStep(step.id)}
                 />
               ))}
@@ -817,13 +834,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   )
 }
 
-function FollowUpCard({ step, followUpNumber, isOnly, saving, onUpdate, onAiWrite, onRemove }: {
+function FollowUpCard({ step, followUpNumber, isOnly, saving, onBookingToggle, onAiWrite, onEdit, onRemove }: {
   step: Step; followUpNumber: number; isOnly: boolean; saving: boolean
-  onUpdate: (p: Partial<Step>) => void; onAiWrite: () => void; onRemove: () => void
+  onBookingToggle: (v: boolean) => void; onAiWrite: () => void; onEdit: () => void; onRemove: () => void
 }) {
+  const subjectPreview = step.subject || null
+  const bodyPreview    = step.body.replace(/\n+/g, ' ').slice(0, 120)
+
   return (
     <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
+      {/* Card header */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-full bg-[#3b6bef] text-white text-xs flex items-center justify-center font-bold flex-shrink-0">
             {followUpNumber}
@@ -832,49 +853,49 @@ function FollowUpCard({ step, followUpNumber, isOnly, saving, onUpdate, onAiWrit
             Follow-up #{followUpNumber}
           </span>
         </div>
-        {!isOnly && (
-          <button onClick={onRemove} className="text-xs text-red-400 hover:text-red-600 font-medium">
-            Remove
-          </button>
-        )}
+        <span className="text-xs font-medium text-[#8a7e6e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
+          Day +{step.delay_days}
+        </span>
       </div>
 
-      <div className="mb-4 flex items-center gap-2">
-        <label className="text-xs font-medium text-[#6b5e4e] shrink-0">Send after</label>
-        <input type="number" min={1} max={30} value={step.delay_days}
-          onChange={e => onUpdate({ delay_days: parseInt(e.target.value) || 1 })}
-          className="w-20 border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]" />
-        <span className="text-xs text-[#6b5e4e]">days of no reply</span>
+      {/* Preview */}
+      <div className="mb-3 text-sm">
+        <div className="font-semibold text-[#1a1a2e] truncate mb-0.5">
+          {subjectPreview ?? <span className="italic font-normal text-[#b0a898]">(no subject — thread reply)</span>}
+        </div>
+        <div className="text-xs text-[#8a7e6e] truncate">
+          {bodyPreview ? `${bodyPreview}…` : <span className="italic">(empty body)</span>}
+        </div>
       </div>
 
-      <div className="mb-3">
-        <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Subject line</label>
-        <input value={step.subject ?? ''} onChange={e => onUpdate({ subject: e.target.value || null })}
-          placeholder="Subject line (leave blank to thread reply)"
-          className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-      </div>
+      {/* Booking link toggle */}
+      <label className="flex items-center gap-2 cursor-pointer mb-4">
+        <input type="checkbox" checked={step.include_booking_link}
+          onChange={e => onBookingToggle(e.target.checked)}
+          className="rounded border-[#e8e3dc] text-[#3b6bef]" />
+        <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link in this follow-up</span>
+      </label>
 
-      <div className="mb-4">
-        <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Body</label>
-        <textarea value={step.body} onChange={e => onUpdate({ body: e.target.value })}
-          placeholder="Follow-up email body…"
-          className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none font-mono text-xs leading-relaxed"
-          rows={6} />
-      </div>
-
+      {/* Footer actions */}
       <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={step.include_booking_link}
-            onChange={e => onUpdate({ include_booking_link: e.target.checked })}
-            className="rounded border-[#e8e3dc] text-[#3b6bef]" />
-          <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link in this follow-up</span>
-        </label>
         <button onClick={onAiWrite} disabled={saving}
-          className="text-xs text-[#3b6bef] font-medium border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1.5 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1 shrink-0">
+          className="text-xs text-[#3b6bef] font-medium border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1.5 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1 shrink-0 transition-colors">
           {saving
             ? <span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" />
             : '✨'} AI Write
         </button>
+        <div className="flex items-center gap-2">
+          <button onClick={onEdit}
+            className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2.5 py-1.5 rounded-lg font-medium transition-colors">
+            Edit
+          </button>
+          {!isOnly && (
+            <button onClick={onRemove}
+              className="text-xs text-red-400 hover:text-red-600 font-medium border border-red-100 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors">
+              Remove
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
