@@ -85,8 +85,10 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [emailsPage, setEmailsPage]                 = useState(1)
   const [emailsPages, setEmailsPages]               = useState(1)
   const [emailsRefreshKey, setEmailsRefreshKey]     = useState(0)
-  const [selectedEmailIds, setSelectedEmailIds]     = useState<Set<string>>(new Set())
+  const [selectedEmailIds, setSelectedEmailIds]       = useState<Set<string>>(new Set())
   const [bulkApprovingEmails, setBulkApprovingEmails] = useState(false)
+  const [bulkRejectingEmails, setBulkRejectingEmails] = useState(false)
+  const [bulkDeletingEmails,  setBulkDeletingEmails]  = useState(false)
   const [showGenerateDraftsModal, setShowGenerateDraftsModal] = useState(false)
   const [generateDraftsIsRegen, setGenerateDraftsIsRegen]     = useState(false)
   const [editEmailId, setEditEmailId]               = useState<string | null>(null)
@@ -190,6 +192,37 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   async function approveEmail(id: string) {
     await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
+    setEmailsRefreshKey(k => k + 1)
+  }
+
+  async function rejectEmail(id: string) {
+    await fetch(`/api/prospect-emails/${id}/reject`, { method: 'POST' })
+    setEmailsRefreshKey(k => k + 1)
+  }
+
+  async function bulkRejectEmails() {
+    if (selectedEmailIds.size === 0) return
+    setBulkRejectingEmails(true)
+    await fetch('/api/prospect-emails/bulk-reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selectedEmailIds] }),
+    })
+    setBulkRejectingEmails(false)
+    setSelectedEmailIds(new Set())
+    setEmailsRefreshKey(k => k + 1)
+  }
+
+  async function bulkDeleteEmails() {
+    if (selectedEmailIds.size === 0) return
+    setBulkDeletingEmails(true)
+    await fetch('/api/prospect-emails/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selectedEmailIds] }),
+    })
+    setBulkDeletingEmails(false)
+    setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
   }
 
@@ -573,48 +606,71 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   {emailDrafts.map(email => {
                     const contactName = [email.prospect.first_name, email.prospect.last_name]
                       .filter(Boolean).join(' ') || email.prospect.email || '—'
-                    const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 120)
+                    const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 100)
+                    const isApproved = email.status === 'approved' || email.status === 'sent'
+                    const isRejected = email.status === 'rejected'
 
                     return (
                       <div key={email.id}
-                        className={`bg-white border rounded-xl p-4 transition-colors ${
+                        className={`bg-white border rounded-xl px-4 py-3 transition-colors ${
                           selectedEmailIds.has(email.id) ? 'border-[#3b6bef] bg-[#f5f7ff]' : 'border-[#e8e3dc]'
                         }`}>
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-3">
+                          {/* Checkbox */}
                           <input type="checkbox"
                             checked={selectedEmailIds.has(email.id)}
                             onChange={() => setSelectedEmailIds(prev => {
                               const n = new Set(prev); n.has(email.id) ? n.delete(email.id) : n.add(email.id); return n
                             })}
-                            className="mt-0.5 rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer shrink-0" />
+                            className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer shrink-0" />
+
+                          {/* Prospect info */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-sm font-semibold text-[#1a1a2e] truncate">{contactName}</span>
                               {email.prospect.company && (
-                                <span className="text-xs text-[#8a7e6e]">· {email.prospect.company}</span>
+                                <span className="text-xs text-[#8a7e6e] truncate">· {email.prospect.company}</span>
                               )}
                             </div>
-                            <div className="text-xs text-[#6b5e4e] font-medium mb-1 truncate">
-                              {email.subject || <span className="italic text-[#b0a898]">(no subject)</span>}
-                            </div>
-                            <div className="text-xs text-[#8a7e6e] truncate">{bodyPreview}…</div>
+                            <div className="text-xs text-[#8a7e6e] truncate mt-0.5">{bodyPreview}…</div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${EMAIL_STATUS_BADGE[email.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                              {email.status}
-                            </span>
-                            {email.status !== 'approved' && email.status !== 'sent' && (
+
+                          {/* State badge — read-only */}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize shrink-0 ${EMAIL_STATUS_BADGE[email.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                            {email.status}
+                          </span>
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => setEditEmailId(email.id)}
+                              className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2 py-1 rounded-lg font-medium transition-colors">
+                              Edit
+                            </button>
+                            {isRejected ? (
+                              <button disabled
+                                className="text-xs text-red-400 border border-red-100 bg-red-50 px-2 py-1 rounded-lg font-medium cursor-not-allowed opacity-70">
+                                Rejected ✓
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => rejectEmail(email.id)}
+                                className="text-xs text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                Reject
+                              </button>
+                            )}
+                            {isApproved ? (
+                              <button disabled
+                                className="text-xs text-green-600 border border-green-200 bg-green-50 px-2 py-1 rounded-lg font-medium cursor-not-allowed opacity-70">
+                                Approved ✓
+                              </button>
+                            ) : (
                               <button
                                 onClick={() => approveEmail(email.id)}
-                                className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-0.5 rounded-lg font-medium transition-colors">
+                                className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 Approve
                               </button>
                             )}
-                            <button
-                              onClick={() => setEditEmailId(email.id)}
-                              className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2 py-0.5 rounded-lg font-medium transition-colors">
-                              Edit
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -638,13 +694,21 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           {/* Bulk sticky bar */}
           {selectedEmailIds.size > 0 && (
             <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
-              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3">
                 <span className="text-sm font-medium">{selectedEmailIds.size} selected</span>
                 <button onClick={() => setSelectedEmailIds(new Set())}
                   className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
                 <button onClick={bulkApproveEmails} disabled={bulkApprovingEmails}
-                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
-                  {bulkApprovingEmails ? 'Approving…' : 'Approve selected'}
+                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                  {bulkApprovingEmails ? 'Approving…' : 'Approve all'}
+                </button>
+                <button onClick={bulkRejectEmails} disabled={bulkRejectingEmails}
+                  className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                  {bulkRejectingEmails ? 'Rejecting…' : 'Reject all'}
+                </button>
+                <button onClick={bulkDeleteEmails} disabled={bulkDeletingEmails}
+                  className="border border-white/20 text-white/80 hover:text-white text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                  {bulkDeletingEmails ? 'Deleting…' : 'Delete'}
                 </button>
               </div>
             </div>
