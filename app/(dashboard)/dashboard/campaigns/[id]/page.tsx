@@ -271,13 +271,12 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     setSteps(prev => prev.filter(s => s.id !== id))
   }
 
-  async function saveSequence() {
-    setSaving(true)
+  async function patchStopSetting(patch: Partial<typeof stopSettings>) {
+    setStopSettings(s => ({ ...s, ...patch }))
     await fetch(`/api/campaigns/${params.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(stopSettings),
+      body: JSON.stringify(patch),
     })
-    setSaving(false)
   }
 
   async function saveCampaignEdit() {
@@ -330,6 +329,10 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {/* ── Tab: Overview ────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <div className="flex flex-col gap-4">
+          <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-3 text-sm text-[#3b6bef] flex items-center gap-2">
+            <span>🚀</span>
+            <span>Sending and scheduling will be available soon. For now, you can review and approve all your drafts.</span>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Prospects', value: campaign.prospects_count },
@@ -593,6 +596,16 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">
                     + Generate more
                   </button>
+                  <button disabled title="Coming soon"
+                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-1.5">
+                    📅 Schedule
+                    <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Soon</span>
+                  </button>
+                  <button disabled title="Coming soon"
+                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-1.5">
+                    Send All
+                    <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Soon</span>
+                  </button>
                 </div>
               </div>
 
@@ -793,9 +806,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-3">Smart Stop Conditions</div>
                 <div className="flex flex-col gap-2">
                   <Toggle label="Stop sequence when prospect replies" checked={stopSettings.smart_stop_on_reply}
-                    onChange={v => setStopSettings(s => ({ ...s, smart_stop_on_reply: v }))} />
+                    onChange={v => patchStopSetting({ smart_stop_on_reply: v })} />
                   <Toggle label="Stop sequence on hard bounce" checked={stopSettings.smart_stop_on_bounce}
-                    onChange={v => setStopSettings(s => ({ ...s, smart_stop_on_bounce: v }))} />
+                    onChange={v => patchStopSetting({ smart_stop_on_bounce: v })} />
                 </div>
               </div>
 
@@ -806,10 +819,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
                     Coming soon
                   </span>
-                </button>
-                <button onClick={saveSequence} disabled={saving}
-                  className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-semibold disabled:opacity-40">
-                  {saving ? 'Saving…' : 'Save Sequence'}
                 </button>
               </div>
             </>
