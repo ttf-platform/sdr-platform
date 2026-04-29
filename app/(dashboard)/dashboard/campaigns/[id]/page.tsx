@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
@@ -31,8 +31,6 @@ type EmailDraft = {
   }
 }
 
-const LOADING_MESSAGES = ['Analyzing your value prop…', 'Crafting subject line…', 'Writing follow-up template…', 'Applying your tone…']
-
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-[#f0ece6] text-[#6b5e4e]',
   active: 'bg-green-50 text-green-700',
@@ -54,15 +52,12 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [steps, setSteps] = useState<Step[]>([])
   const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence'>('overview')
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
   const [generatingStep, setGeneratingStep] = useState<string | null>(null)
-  const [loadingMsg, setLoadingMsg] = useState(0)
   const [saving, setSaving] = useState(false)
   const [stopSettings, setStopSettings] = useState({ smart_stop_on_reply: true, smart_stop_on_bounce: true })
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState<Partial<Campaign>>({})
   const [error, setError] = useState('')
-  const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Prospects tab state ────────────────────────────────────────────────────
   type TabProspect = {
@@ -213,29 +208,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       })
   }, [params.id])
 
-  useEffect(() => {
-    if (generating) {
-      loadingInterval.current = setInterval(() => setLoadingMsg(i => (i + 1) % LOADING_MESSAGES.length), 3000)
-    } else {
-      if (loadingInterval.current) clearInterval(loadingInterval.current)
-    }
-    return () => { if (loadingInterval.current) clearInterval(loadingInterval.current) }
-  }, [generating])
-
-  async function generateSequence() {
-    setError('')
-    setGenerating(true)
-    setLoadingMsg(0)
-    const res = await fetch('/api/campaigns/generate-sequence', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaign_id: params.id, overwrite: steps.length > 0 }),
-    }).then(r => r.json())
-    setGenerating(false)
-    if (res.steps) setSteps(res.steps)
-    else setError(res.error || 'Failed to generate sequence')
-  }
-
   async function updateStep(id: string, patch: Partial<Step>) {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
     await fetch(`/api/campaigns/${params.id}/steps/${id}`, {
@@ -287,8 +259,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   if (!campaign) return <div className="text-sm text-red-500 py-10 text-center">Campaign not found.</div>
 
   const statusLabel      = campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)
-  const followUpSteps    = steps.filter(s => s.step_order >= 1)
-  const hasInitialStep   = steps.some(s => s.step_order === 0)
+  const followUpSteps = steps.filter(s => s.step_order >= 1)
 
   return (
     <div>
@@ -544,32 +515,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* Empty: has prospects, no sequence */}
-          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && !hasInitialStep && (
-            <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
-              <div className="text-3xl mb-3">✦</div>
-              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Generate your email sequence first</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">Set up your follow-up sequence before generating drafts.</p>
-              <button onClick={() => setTab('sequence')}
-                className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
-                Go to Sequence
-              </button>
-            </div>
-          )}
-
-          {/* Empty: has prospects + sequence, no drafts yet */}
-          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && hasInitialStep && (
+          {/* Empty: has prospects, no drafts yet */}
+          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
               <div className="text-3xl mb-3">✉️</div>
-              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">
-                No drafts yet — Generate emails for {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''}
-              </h2>
+              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">No drafts yet</h2>
               <p className="text-sm text-[#8a7e6e] mb-4">
-                1 personalized email per prospect.
+                Generate personalized emails for the {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''} in this campaign.
               </p>
               <button onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
                 className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
-                Generate drafts
+                ✨ Generate Drafts
               </button>
             </div>
           )}
@@ -728,39 +684,24 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {/* ── Tab: Follow-up Sequence ──────────────────────────────────────────── */}
       {tab === 'sequence' && (
         <div className="flex flex-col gap-4">
-          {steps.length === 0 ? (
+          <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-2.5 text-sm text-[#3b6bef] font-medium flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full inline-block ${campaign.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
+            {campaign.status} · {followUpSteps.length} follow-up{followUpSteps.length !== 1 ? 's' : ''}
+          </div>
+
+          {followUpSteps.length === 0 ? (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
-              <div className="text-3xl mb-3">✦</div>
-              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">No sequence yet</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">Generate your initial email + a follow-up template with AI in seconds.</p>
-              <button onClick={generateSequence} disabled={generating}
-                className="bg-[#1a1a2e] text-white px-6 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 inline-flex items-center gap-2">
-                {generating
-                  ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{LOADING_MESSAGES[loadingMsg]}</>
-                  : '✦ Generate sequence with AI'}
+              <div className="text-3xl mb-3">↩️</div>
+              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">No follow-ups yet</h2>
+              <p className="text-sm text-[#8a7e6e] mb-4">Add follow-ups to re-engage prospects who didn't reply.</p>
+              <button onClick={addFollowUp}
+                className="bg-[#3b6bef] text-white px-5 py-2.5 rounded-lg text-sm font-semibold">
+                + Add first follow-up
               </button>
             </div>
           ) : (
             <>
-              <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-2.5 text-sm text-[#3b6bef] font-medium flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full inline-block ${campaign.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
-                  {campaign.status} · {followUpSteps.length} follow-up{followUpSteps.length !== 1 ? 's' : ''}
-                </span>
-                <button onClick={generateSequence} disabled={generating}
-                  className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-white px-2.5 py-1 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1">
-                  {generating
-                    ? <><span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" />{LOADING_MESSAGES[loadingMsg]}</>
-                    : '↺ Regenerate'}
-                </button>
-              </div>
-
-              {followUpSteps.length === 0 ? (
-                <div className="bg-white border border-[#e8e3dc] rounded-xl p-8 text-center">
-                  <div className="text-xl mb-2 text-[#8a7e6e]">No follow-ups yet</div>
-                  <p className="text-xs text-[#b0a898]">Add a follow-up below, or use AI Write to generate one.</p>
-                </div>
-              ) : followUpSteps.map((step, idx) => (
+              {followUpSteps.map((step, idx) => (
                 <FollowUpCard
                   key={step.id}
                   step={step}
