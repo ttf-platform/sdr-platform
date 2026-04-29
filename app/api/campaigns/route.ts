@@ -48,12 +48,16 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   // Reject duplicate names (case-insensitive) within the workspace
-  const { data: duplicate } = await admin
+  // Escape LIKE wildcards so names with % or _ are matched literally
+  const safeName = name.trim().replace(/%/g, '\\%').replace(/_/g, '\\_')
+  const { data: duplicate, error: dupError } = await admin
     .from('campaigns')
     .select('id')
     .eq('workspace_id', guard.workspaceId)
-    .ilike('name', name.trim())
+    .ilike('name', safeName)
     .maybeSingle()
+
+  console.log('[duplicate-check] workspace:', guard.workspaceId, 'name:', name.trim(), 'found:', duplicate?.id ?? null, 'err:', dupError?.message ?? null)
 
   if (duplicate) {
     return NextResponse.json(

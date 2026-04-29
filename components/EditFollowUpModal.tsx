@@ -159,10 +159,14 @@ export function EditFollowUpModal({ step, followUpNumber, campaignId, onClose, o
               />
               <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link in this follow-up</span>
             </label>
-            {includeBookingLink && bookingUrl && (
-              <p className="text-xs text-[#8a7e6e] pl-5">
-                The booking link will be replaced at send time: <span className="text-[#3b6bef]">{bookingUrl}</span>
-              </p>
+            {includeBookingLink && (
+              bookingUrl
+                ? <p className="text-xs text-[#8a7e6e] pl-5">
+                    The booking link will be replaced at send time: <span className="text-[#3b6bef]">{bookingUrl}</span>
+                  </p>
+                : <p className="text-xs text-amber-600 pl-5">
+                    No booking page configured. <a href="/dashboard/settings" className="underline">Set it up in Settings</a> to activate this link.
+                  </p>
             )}
           </div>
 

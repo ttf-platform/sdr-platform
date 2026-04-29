@@ -308,7 +308,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             {campaign.prospects_count} prospects · {campaign.sent_count} sent
           </p>
         </div>
-        <a href="/dashboard/campaigns" className="border border-[#e8e3dc] bg-white text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">← Back</a>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg mt-3 mb-2">{error}</div>}
@@ -748,19 +747,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             />
           )}
 
-          {/* Edit follow-up modal */}
-          {editFollowUpStep && (
-            <EditFollowUpModal
-              step={editFollowUpStep}
-              followUpNumber={followUpSteps.findIndex(s => s.id === editFollowUpStep.id) + 1}
-              campaignId={params.id}
-              onClose={() => setEditFollowUpStep(null)}
-              onSaved={updated => {
-                setSteps(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
-                setEditFollowUpStep(null)
-              }}
-            />
-          )}
         </div>
       )}
 
@@ -829,6 +815,20 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </>
           )}
         </div>
+      )}
+
+      {/* Edit follow-up modal — top-level so it works from any tab */}
+      {editFollowUpStep && (
+        <EditFollowUpModal
+          step={editFollowUpStep}
+          followUpNumber={followUpSteps.findIndex(s => s.id === editFollowUpStep.id) + 1}
+          campaignId={params.id}
+          onClose={() => setEditFollowUpStep(null)}
+          onSaved={updated => {
+            setSteps(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
+            setEditFollowUpStep(null)
+          }}
+        />
       )}
     </div>
   )

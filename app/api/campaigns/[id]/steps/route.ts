@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .order('step_order', { ascending: false })
 
   const maxOrder   = existingSteps?.[0]?.step_order ?? -1
-  const followUps  = (existingSteps ?? []).filter(s => s.step_type === 'follow_up')
+  const followUps  = (existingSteps ?? []).filter(s => s.step_order >= 1)
   const fuCount    = followUps.length
   const lastDelay  = followUps[0]?.delay_days ?? 0
 
