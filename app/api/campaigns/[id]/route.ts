@@ -71,7 +71,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (guard.blocked) return guard.response
 
   const body = await request.json()
-  const { name, angle, value_prop, cta, target_persona, status, smart_stop_on_reply, smart_stop_on_bounce, booking_link_in_followups } = body
+  const { name, angle, value_prop, cta, target_persona, status, smart_stop_on_reply, smart_stop_on_bounce, booking_link_in_followups, include_booking_link_initial } = body
 
   const updates: Record<string, unknown> = {}
   if (name !== undefined) updates.name = name
@@ -83,6 +83,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (smart_stop_on_reply !== undefined) updates.smart_stop_on_reply = smart_stop_on_reply
   if (smart_stop_on_bounce !== undefined) updates.smart_stop_on_bounce = smart_stop_on_bounce
   if (booking_link_in_followups !== undefined) updates.booking_link_in_followups = booking_link_in_followups
+  if (include_booking_link_initial !== undefined) updates.include_booking_link_initial = include_booking_link_initial
 
   const admin = createAdminClient()
   const { data: campaign, error } = await admin

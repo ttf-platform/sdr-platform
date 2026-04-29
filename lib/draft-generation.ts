@@ -31,7 +31,7 @@ export async function generateDraftsForCampaign(
   // 1. Campaign
   const { data: campaign } = await admin
     .from('campaigns')
-    .select('id, target_persona, angle, value_prop')
+    .select('id, target_persona, angle, value_prop, include_booking_link_initial')
     .eq('id', campaignId)
     .eq('workspace_id', workspaceId)
     .single()
@@ -162,6 +162,10 @@ export async function generateDraftsForCampaign(
     if (mode === 'smart' && item.step_order === 0) {
       const opening = openingLines.get(item.prospect_id)
       if (opening) body = assembleSmartBody(body, opening)
+    }
+
+    if ((campaign as any).include_booking_link_initial && item.step_order === 0) {
+      body = body.trimEnd() + '\n\n{{booking_link}}'
     }
 
     return {

@@ -15,6 +15,7 @@ interface Campaign {
   replied_count: number; meeting_count: number
   smart_stop_on_reply: boolean; smart_stop_on_bounce: boolean
   personalization_mode: 'fast' | 'smart' | null
+  include_booking_link_initial: boolean
   drafts_count: number
 }
 type EmailDraft = {
@@ -133,7 +134,10 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       .then(r => r.json())
       .then(d => {
         setEmailDrafts(d.emails ?? [])
-        setEmailsTotal(d.total ?? 0)
+        // by_status is always campaign-wide (unfiltered) — use it as the source of truth
+        // so the total never drops to 0 when a status filter returns empty results
+        const aggTotal = Object.values(d.by_status ?? {}).reduce((s, n) => s + (n as number), 0)
+        setEmailsTotal(aggTotal > 0 ? aggTotal : (d.total ?? 0))
         setEmailsByStatus(d.by_status ?? {})
         setEmailsPages(d.pages ?? 1)
         setEmailsLoading(false)
@@ -309,7 +313,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           { key: 'overview',  label: 'Overview' },
           { key: 'prospects', label: `Prospects (${tabProspectsTotal})` },
           { key: 'emails',    label: `Emails (${emailsTotal})` },
-          { key: 'sequence',  label: 'Follow-up Sequence' },
+          { key: 'sequence',  label: `Follow-up Sequence (${followUpSteps.length})` },
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
@@ -640,11 +644,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                             <div className="text-xs text-[#8a7e6e] truncate">{bodyPreview}…</div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0 ml-2">
-                            {email.mode === 'smart' && (
-                              <span className="text-[9px] bg-[#eef1fd] text-[#3b6bef] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
-                                AI
-                              </span>
-                            )}
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${EMAIL_STATUS_BADGE[email.status] ?? 'bg-gray-100 text-gray-500'}`}>
                               {email.status}
                             </span>
@@ -701,6 +700,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               campaignId={params.id}
               prospectCount={tabProspectsTotal}
               defaultMode={campaign.personalization_mode ?? undefined}
+              includeBookingLink={campaign.include_booking_link_initial ?? false}
               isRegenerate={generateDraftsIsRegen}
               onClose={() => setShowGenerateDraftsModal(false)}
               onGenerated={() => {

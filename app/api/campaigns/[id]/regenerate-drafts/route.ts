@@ -8,7 +8,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (guard.blocked) return guard.response
 
   const body = await request.json()
-  const { mode, confirm } = body
+  const { mode, confirm, include_booking_link_initial } = body
 
   if (!['fast', 'smart'].includes(mode)) {
     return NextResponse.json({ error: 'mode must be "fast" or "smart"' }, { status: 400 })
@@ -18,6 +18,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const admin = createAdminClient()
+
+  if (typeof include_booking_link_initial === 'boolean') {
+    await admin.from('campaigns')
+      .update({ include_booking_link_initial })
+      .eq('id', params.id)
+      .eq('workspace_id', guard.workspaceId)
+  }
 
   // Verify ownership
   const { data: campaign } = await admin

@@ -2,16 +2,18 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface Props {
-  campaignId:    string
-  prospectCount: number
-  defaultMode?:  'fast' | 'smart'
-  isRegenerate?: boolean
-  onClose:       () => void
-  onGenerated:   () => void
+  campaignId:          string
+  prospectCount:       number
+  defaultMode?:        'fast' | 'smart'
+  includeBookingLink?: boolean
+  isRegenerate?:       boolean
+  onClose:             () => void
+  onGenerated:         () => void
 }
 
-export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, isRegenerate, onClose, onGenerated }: Props) {
+export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, includeBookingLink, isRegenerate, onClose, onGenerated }: Props) {
   const [mode, setMode]               = useState<'fast' | 'smart'>(defaultMode ?? 'smart')
+  const [bookingLink, setBookingLink] = useState(includeBookingLink ?? false)
   const [generating, setGenerating]   = useState(false)
   const [progressCount, setProgressCount] = useState(0)
   const [error, setError]             = useState('')
@@ -44,8 +46,8 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, is
         : `/api/campaigns/${campaignId}/generate-drafts`
 
       const body = isRegenerate
-        ? { mode, confirm: true }
-        : { mode }
+        ? { mode, confirm: true, include_booking_link_initial: bookingLink }
+        : { mode, include_booking_link_initial: bookingLink }
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -120,6 +122,12 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, is
               <span>This will overwrite all existing drafts for this campaign.</span>
             </div>
           )}
+
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input type="checkbox" checked={bookingLink} onChange={e => setBookingLink(e.target.checked)}
+              className="rounded border-[#e8e3dc] text-[#3b6bef]" />
+            <span className="text-sm text-[#4a4a5a]">📅 Include calendar booking link in this email</span>
+          </label>
 
           <div className="grid grid-cols-2 gap-3">
             {/* Fast */}

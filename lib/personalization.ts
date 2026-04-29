@@ -79,6 +79,8 @@ Don't fake specificity.
 - The opening must connect naturally to the rest of the email below.
 - Plain text only. No emojis. No markdown.
 - Maximum 2 sentences. Keep it tight.
+- Each opening line must feel distinct — vary your angle, verb choice, and sentence structure. \
+Two prospects in the same industry must NOT receive openings that sound like variations of each other.
 
 OUTPUT: Just the 1-2 sentence opening line. No preamble, no quotes, no explanation.`
 }
@@ -96,9 +98,10 @@ export async function generateOpeningLine(
 
   async function attempt(): Promise<string | null> {
     const msg = await client.messages.create({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 100,
-      messages:   [{ role: 'user', content: prompt }],
+      model:       'claude-sonnet-4-6',
+      max_tokens:  100,
+      temperature: 0.7,
+      messages:    [{ role: 'user', content: prompt }],
     })
     const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
     return text || null
@@ -116,20 +119,33 @@ export async function generateOpeningLine(
 }
 
 // ─── Smart body assembly ──────────────────────────────────────────────────────
-// Replaces first paragraph of rendered body with AI opening line.
+// Inserts AI opening line after the greeting salutation (if present),
+// replacing the first content paragraph. Preserves "Hi {{first_name}}," greeting.
+// Format: [greeting]\n\n[AI opening]\n\n[body from 2nd paragraph onward]
 
 export function assembleSmartBody(renderedBody: string, openingLine: string): string {
   const opening = openingLine.trimEnd()
-  const firstBlankLine = renderedBody.indexOf('\n\n')
-  if (firstBlankLine >= 0) {
-    // \n\n is already at the start of the slice — guaranteed blank-line separator
-    return opening + renderedBody.slice(firstBlankLine)
+  const firstBlank = renderedBody.indexOf('\n\n')
+
+  if (firstBlank >= 0) {
+    const firstPara      = renderedBody.slice(0, firstBlank).trim()
+    const afterFirstBlank = renderedBody.slice(firstBlank + 2)
+
+    // Greeting detected (short line ending with comma, e.g. "Hi Bob,")
+    // Preserve greeting, skip original content paragraph, insert AI opening
+    if (firstPara.length <= 30 && firstPara.endsWith(',')) {
+      const secondBlank = afterFirstBlank.indexOf('\n\n')
+      const rest        = secondBlank >= 0 ? afterFirstBlank.slice(secondBlank) : ''
+      return firstPara + '\n\n' + opening + rest
+    }
+
+    // No greeting — replace first paragraph with AI opening, keep the rest
+    return opening + '\n\n' + afterFirstBlank
   }
+
   const firstNewline = renderedBody.indexOf('\n')
   if (firstNewline >= 0) {
-    // Single-newline body: force \n\n separator, skip the original first line
     return opening + '\n\n' + renderedBody.slice(firstNewline + 1).trimStart()
   }
-  // No structure in body — prepend opening, keep full body
   return opening + '\n\n' + renderedBody
 }
