@@ -121,11 +121,10 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
               <div className="text-2xl mb-2">⚡</div>
               <div className="font-semibold text-sm text-[#1a1a2e] mb-1">Fast</div>
               <div className="text-xs text-[#6b5e4e] mb-3">
-                Same email for everyone, with name and company auto-filled.
+                Same email for all prospects, with their name and company auto-filled.
               </div>
               <div className="text-xs text-[#8a7e6e] space-y-0.5">
                 <div>⏱ Ready in seconds</div>
-                <div>💸 No AI cost</div>
               </div>
             </button>
 
@@ -148,7 +147,6 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
               </div>
               <div className="text-xs text-[#8a7e6e] space-y-0.5">
                 {estimatedSeconds && <div>⏱ ~{estimatedSeconds}s for {prospectCount} prospects</div>}
-                <div>✨ AI personalization included</div>
               </div>
             </button>
           </div>

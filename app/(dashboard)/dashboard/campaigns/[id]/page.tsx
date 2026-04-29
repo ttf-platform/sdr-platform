@@ -21,11 +21,13 @@ type EmailDraft = {
   id: string; subject: string; body: string
   status: 'draft' | 'edited' | 'approved' | 'sent' | 'rejected'
   mode: 'fast' | 'smart'
+  step_order: number | null
+  step_type:  string | null
   prospect: {
-    id: string; email: string
-    contact: { first_name?: string; last_name?: string; company?: string; title?: string } | null
+    id: string; email: string | null
+    first_name: string | null; last_name: string | null
+    company: string | null; title: string | null
   }
-  step: { step_order: number; step_type: string }
 }
 
 const LOADING_MESSAGES = ['Analyzing your value prop…', 'Crafting subject lines…', 'Writing follow-ups…', 'Applying your tone…']
@@ -572,7 +574,11 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 Ready to generate {tabProspectsTotal * steps.length} emails
               </h2>
               <p className="text-sm text-[#8a7e6e] mb-4">
-                {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''} × {steps.length} step{steps.length !== 1 ? 's' : ''}
+                {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''} · {
+                  steps.length === 1
+                    ? '1 email'
+                    : `1 initial email + ${steps.length - 1} follow-up${steps.length - 1 !== 1 ? 's' : ''}`
+                }
               </p>
               <button onClick={() => setShowGenerateDraftsModal(true)}
                 className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
@@ -625,9 +631,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               ) : (
                 <div className="flex flex-col gap-2">
                   {emailDrafts.map(email => {
-                    const contactName = [email.prospect.contact?.first_name, email.prospect.contact?.last_name]
-                      .filter(Boolean).join(' ') || email.prospect.email
-                    const stepLabel = email.step.step_order === 0 ? 'Initial email' : `Follow-up ${email.step.step_order}`
+                    const contactName = [email.prospect.first_name, email.prospect.last_name]
+                      .filter(Boolean).join(' ') || email.prospect.email || '—'
+                    const stepLabel = email.step_order === 0 ? 'Initial email' : `Follow-up ${email.step_order}`
                     const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 120)
 
                     return (
@@ -645,8 +651,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-1">
                               <span className="text-sm font-semibold text-[#1a1a2e] truncate">{contactName}</span>
-                              {email.prospect.contact?.company && (
-                                <span className="text-xs text-[#8a7e6e]">· {email.prospect.contact.company}</span>
+                              {email.prospect.company && (
+                                <span className="text-xs text-[#8a7e6e]">· {email.prospect.company}</span>
                               )}
                               <span className="text-xs text-[#b0a898] ml-auto shrink-0">{stepLabel}</span>
                             </div>

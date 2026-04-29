@@ -7,8 +7,14 @@ interface EmailDetail {
   body:       string
   status:     string
   mode:       'fast' | 'smart'
-  prospect:   { email: string; contact: { first_name?: string; last_name?: string; company?: string } | null }
-  step:       { step_order: number; step_type: string }
+  step_order: number | null
+  step_type:  string | null
+  prospect:   {
+    email:      string | null
+    first_name: string | null
+    last_name:  string | null
+    company:    string | null
+  }
 }
 
 interface Props {
@@ -93,13 +99,12 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
 
   const isSmartStep0 =
     (email?.mode === 'smart' || campaignPersonalizationMode === 'smart') &&
-    email?.step.step_order === 0
+    email?.step_order === 0
 
   const prospectLabel = (() => {
     if (!email) return ''
-    const c = email.prospect.contact
-    const name = c ? [c.first_name, c.last_name].filter(Boolean).join(' ') : ''
-    return name || email.prospect.email
+    const name = [email.prospect.first_name, email.prospect.last_name].filter(Boolean).join(' ')
+    return name || email.prospect.email || ''
   })()
 
   return (
