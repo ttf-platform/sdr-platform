@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
+import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
+import { EditEmailModal } from '@/components/EditEmailModal'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -12,6 +14,18 @@ interface Campaign {
   prospects_count: number; sent_count: number; opened_count: number
   replied_count: number; meeting_count: number
   smart_stop_on_reply: boolean; smart_stop_on_bounce: boolean
+  personalization_mode: 'fast' | 'smart' | null
+  drafts_count: number
+}
+type EmailDraft = {
+  id: string; subject: string; body: string
+  status: 'draft' | 'edited' | 'approved' | 'sent' | 'rejected'
+  mode: 'fast' | 'smart'
+  prospect: {
+    id: string; email: string
+    contact: { first_name?: string; last_name?: string; company?: string; title?: string } | null
+  }
+  step: { step_order: number; step_type: string }
 }
 
 const LOADING_MESSAGES = ['Analyzing your value prop…', 'Crafting subject lines…', 'Writing follow-ups…', 'Applying your tone…']
@@ -22,6 +36,14 @@ const STATUS_COLORS: Record<string, string> = {
   paused: 'bg-amber-50 text-amber-700',
   completed: 'bg-blue-50 text-blue-700',
   archived: 'bg-gray-100 text-gray-500',
+}
+
+const EMAIL_STATUS_BADGE: Record<string, string> = {
+  draft:    'bg-[#f0ece6] text-[#6b5e4e]',
+  edited:   'bg-amber-50 text-amber-700',
+  approved: 'bg-green-50 text-green-700',
+  sent:     'bg-blue-50 text-blue-700',
+  rejected: 'bg-red-50 text-red-500',
 }
 
 export default function CampaignDetailPage({ params }: { params: { id: string } }) {
@@ -40,7 +62,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Prospects tab state ────────────────────────────────────────────────────
-  // Identity fields (first_name, last_name, company, title) now via JOIN contacts
   type TabProspect = {
     id: string; email: string; status: string; source: string; added_at: string
     contacts: { first_name: string|null; last_name: string|null; company: string|null; title: string|null } | null
@@ -57,7 +78,23 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [selectedProspectIds, setSelectedProspectIds] = useState<Set<string>>(new Set())
   const [bulkDeletingProspects, setBulkDeletingProspects] = useState(false)
 
-  // Eager count fetch at mount — keeps tab label correct before Prospects tab is clicked
+  // ── Emails tab state ──────────────────────────────────────────────────────
+  const [emailDrafts, setEmailDrafts]             = useState<EmailDraft[]>([])
+  const [emailsTotal, setEmailsTotal]             = useState(0)
+  const [emailsByStatus, setEmailsByStatus]       = useState<Record<string, number>>({})
+  const [emailsLoading, setEmailsLoading]         = useState(false)
+  const [emailsFilter, setEmailsFilter]           = useState<string>('all')
+  const [emailsPage, setEmailsPage]               = useState(1)
+  const [emailsPages, setEmailsPages]             = useState(1)
+  const [emailsRefreshKey, setEmailsRefreshKey]   = useState(0)
+  const [selectedEmailIds, setSelectedEmailIds]   = useState<Set<string>>(new Set())
+  const [bulkApprovingEmails, setBulkApprovingEmails] = useState(false)
+  const [showGenerateDraftsModal, setShowGenerateDraftsModal] = useState(false)
+  const [showRegenAllModal, setShowRegenAllModal] = useState(false)
+  const [regenningAll, setRegenningAll]           = useState(false)
+  const [editEmailId, setEditEmailId]             = useState<string | null>(null)
+
+  // Eager counts at mount
   useEffect(() => {
     fetch(`/api/prospects?campaign_id=${params.id}&limit=1`)
       .then(r => r.json())
@@ -66,20 +103,42 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   }, [params.id])
 
   useEffect(() => {
+    fetch(`/api/prospect-emails?campaign_id=${params.id}&limit=1`)
+      .then(r => r.json())
+      .then(d => { if (d.total > 0) setEmailsTotal(d.total) })
+      .catch(() => {})
+  }, [params.id])
+
+  useEffect(() => {
     if (tab !== 'prospects') return
     setTabProspectsLoading(true)
-    setTabProspectsTotal(0) // reset so counter shows Loading… not stale 0
+    setTabProspectsTotal(0)
     fetch(`/api/prospects?campaign_id=${params.id}&limit=50&page=${tabPage}&sort=newest`)
       .then(r => r.json())
       .then(d => {
         const prox = d.prospects ?? []
         setTabProspects(prox)
-        // fallback to row count if Supabase count returns null
         setTabProspectsTotal(d.total > 0 ? d.total : prox.length)
         setTabPages(d.pages ?? 1)
         setTabProspectsLoading(false)
       })
   }, [tab, params.id, tabRefreshKey, tabPage])
+
+  useEffect(() => {
+    if (tab !== 'emails') return
+    setEmailsLoading(true)
+    const statusParam = emailsFilter !== 'all' ? `&status=${emailsFilter}` : ''
+    fetch(`/api/prospect-emails?campaign_id=${params.id}&limit=50&page=${emailsPage}${statusParam}`)
+      .then(r => r.json())
+      .then(d => {
+        setEmailDrafts(d.emails ?? [])
+        setEmailsTotal(d.total ?? 0)
+        setEmailsByStatus(d.by_status ?? {})
+        setEmailsPages(d.pages ?? 1)
+        setEmailsLoading(false)
+      })
+      .catch(() => setEmailsLoading(false))
+  }, [tab, params.id, emailsFilter, emailsPage, emailsRefreshKey])
 
   function onProspectImported(_res: ImportResult) {
     setTabRefreshKey(k => k + 1)
@@ -116,6 +175,36 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     setCampaign(prev => prev ? { ...prev, prospects_count: 0 } : prev)
   }
 
+  async function bulkApproveEmails() {
+    if (selectedEmailIds.size === 0) return
+    setBulkApprovingEmails(true)
+    await fetch('/api/prospect-emails/bulk-approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selectedEmailIds] }),
+    })
+    setBulkApprovingEmails(false)
+    setSelectedEmailIds(new Set())
+    setEmailsRefreshKey(k => k + 1)
+  }
+
+  async function approveEmail(id: string) {
+    await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
+    setEmailsRefreshKey(k => k + 1)
+  }
+
+  async function regenAllDrafts() {
+    setShowRegenAllModal(false)
+    setRegenningAll(true)
+    await fetch(`/api/campaigns/${params.id}/regenerate-drafts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    })
+    setRegenningAll(false)
+    setEmailsRefreshKey(k => k + 1)
+  }
+
   useEffect(() => {
     fetch(`/api/campaigns/${params.id}`)
       .then(r => r.json())
@@ -123,6 +212,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         if (c) {
           setCampaign(c)
           setStopSettings({ smart_stop_on_reply: c.smart_stop_on_reply, smart_stop_on_bounce: c.smart_stop_on_bounce })
+          if (c.drafts_count > 0) setEmailsTotal(c.drafts_count)
         }
         setSteps(s ?? [])
         setLoading(false)
@@ -226,7 +316,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         {([
           { key: 'overview',  label: 'Overview' },
           { key: 'prospects', label: `Prospects (${tabProspectsTotal})` },
-          { key: 'emails',    label: 'Emails (0)' },
+          { key: 'emails',    label: `Emails (${emailsTotal})` },
           { key: 'sequence',  label: 'Follow-up Sequence' },
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
@@ -239,7 +329,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {/* ── Tab: Overview ────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <div className="flex flex-col gap-4">
-          {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Prospects', value: campaign.prospects_count },
@@ -255,7 +344,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             ))}
           </div>
 
-          {/* Campaign info */}
           {!editMode ? (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
@@ -307,7 +395,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {/* ── Tab: Prospects ───────────────────────────────────────────────────── */}
       {tab === 'prospects' && (
         <div className="flex flex-col gap-4">
-          {/* Action bar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-sm text-[#8a7e6e]">
               {tabProspectsLoading ? 'Loading…' : `${tabProspectsTotal.toLocaleString()} prospect${tabProspectsTotal !== 1 ? 's' : ''}`}
@@ -330,7 +417,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           </div>
 
-          {/* Table */}
           <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
             <table className="w-full">
               <thead>
@@ -397,7 +483,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </table>
           </div>
 
-          {/* Pagination */}
           {tabPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <button onClick={() => setTabPage(p => Math.max(1, p - 1))} disabled={tabPage === 1}
@@ -408,7 +493,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* Bulk select sticky bar */}
           {selectedProspectIds.size > 0 && (
             <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
               <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
@@ -423,7 +507,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* Remove All confirmation */}
           {showRemoveAll && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
               <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
@@ -443,7 +526,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* Modals */}
           {prospectModal === 'csv'    && <ImportCSVModal campaignId={params.id} campaignName={campaign?.name} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
           {prospectModal === 'manual' && <ManualAddModal campaignId={params.id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
         </div>
@@ -451,10 +533,231 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
       {/* ── Tab: Emails ──────────────────────────────────────────────────────── */}
       {tab === 'emails' && (
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
-          <div className="text-3xl mb-3">✉️</div>
-          <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Email approval queue coming in Sprint 16c</h2>
-          <p className="text-sm text-[#8a7e6e]">Review and approve AI-generated emails before they send.</p>
+        <div className="flex flex-col gap-4">
+
+          {/* Empty state 1: no prospects */}
+          {!emailsLoading && tabProspectsTotal === 0 && emailsTotal === 0 && (
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
+              <div className="text-3xl mb-3">👥</div>
+              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Add prospects first</h2>
+              <p className="text-sm text-[#8a7e6e] mb-4">
+                Import your prospect list before generating emails.
+              </p>
+              <button onClick={() => setTab('prospects')}
+                className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
+                Go to Prospects
+              </button>
+            </div>
+          )}
+
+          {/* Empty state 2: has prospects, no sequence or no drafts */}
+          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && steps.length === 0 && (
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
+              <div className="text-3xl mb-3">✦</div>
+              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Generate your email sequence first</h2>
+              <p className="text-sm text-[#8a7e6e] mb-4">
+                Set up your follow-up sequence before generating drafts.
+              </p>
+              <button onClick={() => setTab('sequence')}
+                className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
+                Go to Sequence
+              </button>
+            </div>
+          )}
+
+          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && steps.length > 0 && (
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
+              <div className="text-3xl mb-3">✉️</div>
+              <h2 className="text-base font-bold text-[#1a1a2e] mb-2">
+                Ready to generate {tabProspectsTotal * steps.length} emails
+              </h2>
+              <p className="text-sm text-[#8a7e6e] mb-4">
+                {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''} × {steps.length} step{steps.length !== 1 ? 's' : ''}
+              </p>
+              <button onClick={() => setShowGenerateDraftsModal(true)}
+                className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
+                Generate drafts
+              </button>
+            </div>
+          )}
+
+          {/* Populated state */}
+          {emailsTotal > 0 && (
+            <>
+              {/* Action bar */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(['all', 'draft', 'edited', 'approved'] as const).map(f => {
+                    const count = f === 'all' ? emailsTotal : (emailsByStatus[f] ?? 0)
+                    return (
+                      <button key={f} onClick={() => { setEmailsFilter(f); setEmailsPage(1) }}
+                        className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors capitalize ${
+                          emailsFilter === f
+                            ? 'bg-[#1a1a2e] text-white'
+                            : 'bg-[#f0ece6] text-[#6b5e4e] hover:bg-[#e8e3dc]'
+                        }`}>
+                        {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowRegenAllModal(true)}
+                    disabled={regenningAll}
+                    className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] disabled:opacity-40">
+                    {regenningAll ? 'Regenerating…' : '↺ Regenerate all'}
+                  </button>
+                  <button onClick={() => setShowGenerateDraftsModal(true)}
+                    className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                    + Generate more
+                  </button>
+                </div>
+              </div>
+
+              {/* Draft list */}
+              {emailsLoading ? (
+                <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading…</div>
+              ) : emailDrafts.length === 0 ? (
+                <div className="bg-white border border-[#e8e3dc] rounded-xl p-8 text-center text-sm text-[#8a7e6e]">
+                  No emails match this filter.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {emailDrafts.map(email => {
+                    const contactName = [email.prospect.contact?.first_name, email.prospect.contact?.last_name]
+                      .filter(Boolean).join(' ') || email.prospect.email
+                    const stepLabel = email.step.step_order === 0 ? 'Initial email' : `Follow-up ${email.step.step_order}`
+                    const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 120)
+
+                    return (
+                      <div key={email.id}
+                        className={`bg-white border rounded-xl p-4 transition-colors ${
+                          selectedEmailIds.has(email.id) ? 'border-[#3b6bef] bg-[#f5f7ff]' : 'border-[#e8e3dc]'
+                        }`}>
+                        <div className="flex items-start gap-3">
+                          <input type="checkbox"
+                            checked={selectedEmailIds.has(email.id)}
+                            onChange={() => setSelectedEmailIds(prev => {
+                              const n = new Set(prev); n.has(email.id) ? n.delete(email.id) : n.add(email.id); return n
+                            })}
+                            className="mt-0.5 rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-sm font-semibold text-[#1a1a2e] truncate">{contactName}</span>
+                              {email.prospect.contact?.company && (
+                                <span className="text-xs text-[#8a7e6e]">· {email.prospect.contact.company}</span>
+                              )}
+                              <span className="text-xs text-[#b0a898] ml-auto shrink-0">{stepLabel}</span>
+                            </div>
+                            <div className="text-xs text-[#6b5e4e] font-medium mb-1 truncate">
+                              {email.subject || <span className="italic text-[#b0a898]">(no subject)</span>}
+                            </div>
+                            <div className="text-xs text-[#8a7e6e] truncate">{bodyPreview}…</div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            {email.mode === 'smart' && (
+                              <span className="text-[9px] bg-[#eef1fd] text-[#3b6bef] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
+                                AI
+                              </span>
+                            )}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${EMAIL_STATUS_BADGE[email.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                              {email.status}
+                            </span>
+                            {email.status !== 'approved' && email.status !== 'sent' && (
+                              <button
+                                onClick={() => approveEmail(email.id)}
+                                className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-0.5 rounded-lg font-medium transition-colors">
+                                Approve
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setEditEmailId(email.id)}
+                              className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2 py-0.5 rounded-lg font-medium transition-colors">
+                              Edit
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {emailsPages > 1 && (
+                <div className="flex items-center justify-center gap-2">
+                  <button onClick={() => setEmailsPage(p => Math.max(1, p - 1))} disabled={emailsPage === 1}
+                    className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">← Prev</button>
+                  <span className="text-sm text-[#8a7e6e]">{emailsPage} / {emailsPages}</span>
+                  <button onClick={() => setEmailsPage(p => Math.min(emailsPages, p + 1))} disabled={emailsPage === emailsPages}
+                    className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">Next →</button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Bulk select sticky bar */}
+          {selectedEmailIds.size > 0 && (
+            <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
+                <span className="text-sm font-medium">{selectedEmailIds.size} selected</span>
+                <button onClick={() => setSelectedEmailIds(new Set())}
+                  className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+                <button onClick={bulkApproveEmails} disabled={bulkApprovingEmails}
+                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                  {bulkApprovingEmails ? 'Approving…' : 'Approve selected'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Regenerate all confirmation */}
+          {showRegenAllModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+                <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Regenerate all drafts?</h2>
+                <p className="text-sm text-[#6b5e4e] mb-5">
+                  This will delete all existing drafts and regenerate them. Approved emails will also be overwritten.
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowRegenAllModal(false)}
+                    className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
+                  <button onClick={regenAllDrafts}
+                    className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold">
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Generate drafts modal */}
+          {showGenerateDraftsModal && (
+            <GenerateDraftsModal
+              campaignId={params.id}
+              prospectCount={tabProspectsTotal}
+              stepCount={steps.length}
+              onClose={() => setShowGenerateDraftsModal(false)}
+              onGenerated={() => {
+                setShowGenerateDraftsModal(false)
+                setEmailsRefreshKey(k => k + 1)
+              }}
+            />
+          )}
+
+          {/* Edit email modal */}
+          {editEmailId && (
+            <EditEmailModal
+              emailId={editEmailId}
+              campaignPersonalizationMode={campaign.personalization_mode}
+              onClose={() => setEditEmailId(null)}
+              onSaved={() => {
+                setEditEmailId(null)
+                setEmailsRefreshKey(k => k + 1)
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -475,7 +778,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           ) : (
             <>
-              {/* Status line */}
               <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-2.5 text-sm text-[#3b6bef] font-medium flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full inline-block ${campaign.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
@@ -503,7 +805,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 + Add follow-up step
               </button>
 
-              {/* Smart Stop */}
               <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
                 <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-3">Smart Stop Conditions</div>
                 <div className="flex flex-col gap-2">

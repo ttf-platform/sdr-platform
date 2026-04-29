@@ -28,8 +28,25 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .eq('workspace_id', guard.workspaceId),
   ])
 
+  const stepIds = (steps ?? []).map(s => s.id)
+  let drafts_count = 0
+  const by_status: Record<string, number> = {}
+
+  if (stepIds.length > 0) {
+    const { data: emailRows } = await admin
+      .from('prospect_emails')
+      .select('status')
+      .eq('workspace_id', guard.workspaceId)
+      .in('campaign_step_id', stepIds)
+
+    for (const row of emailRows ?? []) {
+      by_status[row.status] = (by_status[row.status] ?? 0) + 1
+      drafts_count++
+    }
+  }
+
   return NextResponse.json({
-    campaign: { ...campaign, prospects_count: prospectsCount ?? 0 },
+    campaign: { ...campaign, prospects_count: prospectsCount ?? 0, drafts_count, by_status },
     steps: steps ?? [],
   })
 }
