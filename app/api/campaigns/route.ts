@@ -46,6 +46,22 @@ export async function POST(request: Request) {
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
   const admin = createAdminClient()
+
+  // Reject duplicate names (case-insensitive) within the workspace
+  const { data: duplicate } = await admin
+    .from('campaigns')
+    .select('id')
+    .eq('workspace_id', guard.workspaceId)
+    .ilike('name', name.trim())
+    .maybeSingle()
+
+  if (duplicate) {
+    return NextResponse.json(
+      { error: 'duplicate_name', message: 'A campaign with this name already exists.' },
+      { status: 409 },
+    )
+  }
+
   const { data: campaign, error } = await admin
     .from('campaigns')
     .insert({
