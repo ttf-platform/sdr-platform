@@ -28,16 +28,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .eq('workspace_id', guard.workspaceId),
   ])
 
-  const stepIds = (steps ?? []).map(s => s.id)
+  const initialStep = (steps ?? []).find(s => s.step_order === 0)
   let drafts_count = 0
   const by_status: Record<string, number> = {}
 
-  if (stepIds.length > 0) {
+  if (initialStep) {
     const { data: emailRows } = await admin
       .from('prospect_emails')
       .select('status')
       .eq('workspace_id', guard.workspaceId)
-      .in('campaign_step_id', stepIds)
+      .eq('campaign_step_id', initialStep.id)
 
     for (const row of emailRows ?? []) {
       by_status[row.status] = (by_status[row.status] ?? 0) + 1

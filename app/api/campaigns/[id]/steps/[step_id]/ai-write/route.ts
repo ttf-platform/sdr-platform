@@ -29,7 +29,13 @@ export async function POST(request: Request, { params }: { params: { id: string;
   const campaign = stepRow.campaigns as any
   const stepLabel = stepRow.step_type === 'initial' ? 'initial cold email' : `follow-up email #${stepRow.step_order} (sent ~${stepRow.delay_days} days after previous)`
 
-  const prompt = `You are an expert B2B sales copywriter. Rewrite a single ${stepLabel} for the following campaign.
+  const variableRules = stepRow.step_type === 'initial'
+    ? `CRITICAL — Template variables: The body MUST include {{first_name}} in the greeting (e.g., "Hi {{first_name}},") and {{company}} somewhere in the body. These are placeholders replaced with real prospect data at send time. DO NOT hardcode names or write "Hey there".`
+    : `Variables: If the follow-up opens with a greeting, use {{first_name}} (e.g., "Hi {{first_name}},"). For short follow-ups with no greeting, omit it. You may use {{company}} where it fits naturally.`
+
+  const prompt = `You are an expert B2B sales copywriter. Write a single ${stepLabel} for the following campaign.
+
+${variableRules}
 
 CRITICAL: Do NOT invent specific facts. Keep the email general enough to work for the persona — personalization happens later per-prospect.
 

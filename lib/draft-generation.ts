@@ -38,15 +38,16 @@ export async function generateDraftsForCampaign(
 
   if (!campaign) return { error: 'Campaign not found', status: 404 }
 
-  // 2. Steps (template source)
+  // 2. Initial step only — follow-ups are templates rendered at send time
   const { data: steps } = await admin
     .from('campaign_steps')
     .select('id, step_order, step_type, subject, body')
     .eq('campaign_id', campaignId)
+    .eq('step_order', 0)
     .order('step_order', { ascending: true })
 
   if (!steps || steps.length === 0) {
-    return { error: 'Campaign has no sequence. Generate the email sequence first.', status: 400 }
+    return { error: 'Campaign has no initial email step. Generate the email sequence first.', status: 400 }
   }
 
   // 3. Prospects + contacts

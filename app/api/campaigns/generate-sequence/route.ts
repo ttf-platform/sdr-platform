@@ -54,9 +54,19 @@ export async function POST(request: Request) {
 
   const icp_industries = Array.isArray(profile?.icp_industries) ? profile.icp_industries.join(', ') : (profile?.icp_industries ?? '')
 
-  const prompt = `You are an expert B2B sales copywriter for cold outbound campaigns. Generate a 4-email sequence (1 initial + 3 follow-ups).
+  const prompt = `You are an expert B2B sales copywriter for cold outbound campaigns. Write the initial cold outreach email for a sequence.
 
-CRITICAL: Do NOT invent specific facts about prospects. No fake fundraising amounts, no fake employee counts, no fake names. Emails will be personalized per-prospect later — keep them compelling but general enough to work for the persona. Any fabricated specific mentioned by the sender will destroy their credibility.
+CRITICAL — Template variables (mandatory):
+The body MUST include:
+- {{first_name}} in the greeting line (e.g., "Hi {{first_name}},")
+- {{company}} somewhere naturally in the body
+These are placeholders replaced with each prospect's real data at send time.
+DO NOT hardcode any name, company, or generic substitute like "Hey there", "Hi friend", or "Hi [Name]".
+DO NOT skip {{company}} — it must appear in the body.
+Optional: include {{title}} if referencing their role adds context.
+
+CRITICAL — Anti-fabrication:
+Do NOT invent specific facts about prospects. No fake fundraising, no fake employee counts, no named clients. Keep it compelling but general enough to work for the persona. Fabricated specifics destroy credibility.
 
 Company info:
 - Company: ${profile?.company_name || 'the company'}
@@ -79,25 +89,18 @@ Audience context:
 
 Writing rules:
 - Use plain text only. No HTML, no bullet lists, no formatting tags.
-- Keep emails SHORT: initial 80-120 words, follow-ups 40-80 words.
-- Subject lines: 4-8 words, curiosity or value-driven, no clickbait, no fake "RE:" markers.
-- Follow-up subject can be null to thread on previous email (recommended for FU2+).
+- Keep the initial email SHORT: 80-120 words.
+- Subject line: 4-8 words, curiosity or value-driven, no clickbait.
 - Sound like a real human SDR, not a marketing robot.
-- Each follow-up adds a new angle or insight — never just "checking in" or "bumping this".
-- Include the CTA in the initial email AND the last follow-up only. Middle follow-ups use soft CTAs or share insight.
+- Include the CTA clearly.
 - Paragraphs separated by \\n\\n.
 
-Return ONLY valid JSON matching this exact schema (no markdown, no preamble, no explanation):
+Return ONLY valid JSON (no markdown, no preamble, no explanation):
 {
   "initial": {
     "subject": "string",
     "body": "string"
-  },
-  "followups": [
-    { "delay_days": 3, "subject": "string or null", "body": "string" },
-    { "delay_days": 7, "subject": "string or null", "body": "string" },
-    { "delay_days": 14, "subject": "string or null", "body": "string" }
-  ]
+  }
 }`
 
   const msg = await client.messages.create({
@@ -111,7 +114,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no preamble, no 
   const end = text.lastIndexOf('}')
   const raw = start >= 0 && end >= 0 ? text.slice(start, end + 1) : '{}'
 
-  let parsed: { initial: { subject: string; body: string }; followups: { delay_days: number; subject: string | null; body: string }[] }
+  let parsed: { initial: { subject: string; body: string } }
   try {
     parsed = JSON.parse(raw)
   } catch {
@@ -128,15 +131,16 @@ Return ONLY valid JSON matching this exact schema (no markdown, no preamble, no 
       body: parsed.initial.body,
       include_booking_link: false,
     },
-    ...parsed.followups.map((fu, i) => ({
+    // One empty follow-up as a starter template — user fills via AI Write or manually
+    {
       campaign_id,
-      step_order: i + 1,
+      step_order: 1,
       step_type: 'follow_up',
-      delay_days: fu.delay_days,
-      subject: fu.subject ?? null,
-      body: fu.body,
+      delay_days: 3,
+      subject: null,
+      body: '',
       include_booking_link: false,
-    })),
+    },
   ]
 
   const { data: steps, error } = await admin

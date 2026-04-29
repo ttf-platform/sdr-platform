@@ -19,22 +19,26 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const admin = createAdminClient()
 
-  // Verify ownership + collect prospect IDs for this campaign
-  const [{ data: campaign }, { data: prospects }] = await Promise.all([
-    admin.from('campaigns').select('id').eq('id', params.id).eq('workspace_id', guard.workspaceId).single(),
-    admin.from('prospects').select('id').eq('campaign_id', params.id).eq('workspace_id', guard.workspaceId),
-  ])
+  // Verify ownership
+  const { data: campaign } = await admin
+    .from('campaigns').select('id').eq('id', params.id).eq('workspace_id', guard.workspaceId).single()
 
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
 
-  // Delete all existing drafts for this campaign's prospects
-  if (prospects && prospects.length > 0) {
-    const ids = prospects.map(p => p.id)
+  // Delete only step-0 (initial email) drafts — follow-ups are not pre-generated
+  const { data: initialStep } = await admin
+    .from('campaign_steps')
+    .select('id')
+    .eq('campaign_id', params.id)
+    .eq('step_order', 0)
+    .single()
+
+  if (initialStep) {
     await admin
       .from('prospect_emails')
       .delete()
       .eq('workspace_id', guard.workspaceId)
-      .in('prospect_id', ids)
+      .eq('campaign_step_id', initialStep.id)
   }
 
   const result = await generateDraftsForCampaign(params.id, guard.workspaceId, mode)

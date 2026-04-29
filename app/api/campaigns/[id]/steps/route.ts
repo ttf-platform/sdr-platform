@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       campaign_id: params.id,
       step_order: maxOrder + 1,
       step_type: 'follow_up',
-      delay_days: 7,
+      delay_days: 3,
       subject: null,
       body: '',
       include_booking_link: false,

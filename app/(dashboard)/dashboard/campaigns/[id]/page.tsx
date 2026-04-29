@@ -30,7 +30,7 @@ type EmailDraft = {
   }
 }
 
-const LOADING_MESSAGES = ['Analyzing your value prop…', 'Crafting subject lines…', 'Writing follow-ups…', 'Applying your tone…']
+const LOADING_MESSAGES = ['Analyzing your value prop…', 'Crafting subject line…', 'Writing follow-up template…', 'Applying your tone…']
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-[#f0ece6] text-[#6b5e4e]',
@@ -68,33 +68,32 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     id: string; email: string; status: string; source: string; added_at: string
     contacts: { first_name: string|null; last_name: string|null; company: string|null; title: string|null } | null
   }
-  const [tabProspects, setTabProspects]           = useState<TabProspect[]>([])
-  const [tabProspectsTotal, setTabProspectsTotal] = useState(0)
+  const [tabProspects, setTabProspects]               = useState<TabProspect[]>([])
+  const [tabProspectsTotal, setTabProspectsTotal]     = useState(0)
   const [tabProspectsLoading, setTabProspectsLoading] = useState(false)
-  const [prospectModal, setProspectModal]         = useState<null | 'csv' | 'manual'>(null)
-  const [showRemoveAll, setShowRemoveAll]         = useState(false)
-  const [removingAll, setRemovingAll]             = useState(false)
-  const [tabRefreshKey, setTabRefreshKey]         = useState(0)
-  const [tabPage, setTabPage]                     = useState(1)
-  const [tabPages, setTabPages]                   = useState(1)
+  const [prospectModal, setProspectModal]             = useState<null | 'csv' | 'manual'>(null)
+  const [showRemoveAll, setShowRemoveAll]             = useState(false)
+  const [removingAll, setRemovingAll]                 = useState(false)
+  const [tabRefreshKey, setTabRefreshKey]             = useState(0)
+  const [tabPage, setTabPage]                         = useState(1)
+  const [tabPages, setTabPages]                       = useState(1)
   const [selectedProspectIds, setSelectedProspectIds] = useState<Set<string>>(new Set())
   const [bulkDeletingProspects, setBulkDeletingProspects] = useState(false)
 
   // ── Emails tab state ──────────────────────────────────────────────────────
-  const [emailDrafts, setEmailDrafts]             = useState<EmailDraft[]>([])
-  const [emailsTotal, setEmailsTotal]             = useState(0)
-  const [emailsByStatus, setEmailsByStatus]       = useState<Record<string, number>>({})
-  const [emailsLoading, setEmailsLoading]         = useState(false)
-  const [emailsFilter, setEmailsFilter]           = useState<string>('all')
-  const [emailsPage, setEmailsPage]               = useState(1)
-  const [emailsPages, setEmailsPages]             = useState(1)
-  const [emailsRefreshKey, setEmailsRefreshKey]   = useState(0)
-  const [selectedEmailIds, setSelectedEmailIds]   = useState<Set<string>>(new Set())
+  const [emailDrafts, setEmailDrafts]               = useState<EmailDraft[]>([])
+  const [emailsTotal, setEmailsTotal]               = useState(0)
+  const [emailsByStatus, setEmailsByStatus]         = useState<Record<string, number>>({})
+  const [emailsLoading, setEmailsLoading]           = useState(false)
+  const [emailsFilter, setEmailsFilter]             = useState<string>('all')
+  const [emailsPage, setEmailsPage]                 = useState(1)
+  const [emailsPages, setEmailsPages]               = useState(1)
+  const [emailsRefreshKey, setEmailsRefreshKey]     = useState(0)
+  const [selectedEmailIds, setSelectedEmailIds]     = useState<Set<string>>(new Set())
   const [bulkApprovingEmails, setBulkApprovingEmails] = useState(false)
   const [showGenerateDraftsModal, setShowGenerateDraftsModal] = useState(false)
-  const [showRegenAllModal, setShowRegenAllModal] = useState(false)
-  const [regenningAll, setRegenningAll]           = useState(false)
-  const [editEmailId, setEditEmailId]             = useState<string | null>(null)
+  const [generateDraftsIsRegen, setGenerateDraftsIsRegen]     = useState(false)
+  const [editEmailId, setEditEmailId]               = useState<string | null>(null)
 
   // Eager counts at mount
   useEffect(() => {
@@ -105,7 +104,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   }, [params.id])
 
   useEffect(() => {
-    fetch(`/api/prospect-emails?campaign_id=${params.id}&limit=1`)
+    fetch(`/api/prospect-emails?campaign_id=${params.id}&step_order=0&limit=1`)
       .then(r => r.json())
       .then(d => { if (d.total > 0) setEmailsTotal(d.total) })
       .catch(() => {})
@@ -130,7 +129,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     if (tab !== 'emails') return
     setEmailsLoading(true)
     const statusParam = emailsFilter !== 'all' ? `&status=${emailsFilter}` : ''
-    fetch(`/api/prospect-emails?campaign_id=${params.id}&limit=50&page=${emailsPage}${statusParam}`)
+    fetch(`/api/prospect-emails?campaign_id=${params.id}&step_order=0&limit=50&page=${emailsPage}${statusParam}`)
       .then(r => r.json())
       .then(d => {
         setEmailDrafts(d.emails ?? [])
@@ -195,18 +194,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     setEmailsRefreshKey(k => k + 1)
   }
 
-  async function regenAllDrafts() {
-    setShowRegenAllModal(false)
-    setRegenningAll(true)
-    await fetch(`/api/campaigns/${params.id}/regenerate-drafts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: true }),
-    })
-    setRegenningAll(false)
-    setEmailsRefreshKey(k => k + 1)
-  }
-
   useEffect(() => {
     fetch(`/api/campaigns/${params.id}`)
       .then(r => r.json())
@@ -214,6 +201,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         if (c) {
           setCampaign(c)
           setStopSettings({ smart_stop_on_reply: c.smart_stop_on_reply, smart_stop_on_bounce: c.smart_stop_on_bounce })
+          // drafts_count is now scoped to step_order=0 in the API
           if (c.drafts_count > 0) setEmailsTotal(c.drafts_count)
         }
         setSteps(s ?? [])
@@ -294,7 +282,9 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   if (loading) return <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading…</div>
   if (!campaign) return <div className="text-sm text-red-500 py-10 text-center">Campaign not found.</div>
 
-  const statusLabel = campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)
+  const statusLabel      = campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)
+  const followUpSteps    = steps.filter(s => s.step_order >= 1)
+  const hasInitialStep   = steps.some(s => s.step_order === 0)
 
   return (
     <div>
@@ -537,14 +527,12 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {tab === 'emails' && (
         <div className="flex flex-col gap-4">
 
-          {/* Empty state 1: no prospects */}
+          {/* Empty: no prospects */}
           {!emailsLoading && tabProspectsTotal === 0 && emailsTotal === 0 && (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
               <div className="text-3xl mb-3">👥</div>
               <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Add prospects first</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">
-                Import your prospect list before generating emails.
-              </p>
+              <p className="text-sm text-[#8a7e6e] mb-4">Import your prospect list before generating emails.</p>
               <button onClick={() => setTab('prospects')}
                 className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
                 Go to Prospects
@@ -552,14 +540,12 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* Empty state 2: has prospects, no sequence or no drafts */}
-          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && steps.length === 0 && (
+          {/* Empty: has prospects, no sequence */}
+          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && !hasInitialStep && (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
               <div className="text-3xl mb-3">✦</div>
               <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Generate your email sequence first</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">
-                Set up your follow-up sequence before generating drafts.
-              </p>
+              <p className="text-sm text-[#8a7e6e] mb-4">Set up your follow-up sequence before generating drafts.</p>
               <button onClick={() => setTab('sequence')}
                 className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
                 Go to Sequence
@@ -567,33 +553,29 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && steps.length > 0 && (
+          {/* Empty: has prospects + sequence, no drafts yet */}
+          {!emailsLoading && tabProspectsTotal > 0 && emailsTotal === 0 && hasInitialStep && (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
               <div className="text-3xl mb-3">✉️</div>
               <h2 className="text-base font-bold text-[#1a1a2e] mb-2">
-                Ready to generate {tabProspectsTotal * steps.length} emails
+                No drafts yet — Generate emails for {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''}
               </h2>
               <p className="text-sm text-[#8a7e6e] mb-4">
-                {tabProspectsTotal} prospect{tabProspectsTotal !== 1 ? 's' : ''} · {
-                  steps.length === 1
-                    ? '1 email'
-                    : `1 initial email + ${steps.length - 1} follow-up${steps.length - 1 !== 1 ? 's' : ''}`
-                }
+                1 personalized email per prospect.
               </p>
-              <button onClick={() => setShowGenerateDraftsModal(true)}
+              <button onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
                 className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
                 Generate drafts
               </button>
             </div>
           )}
 
-          {/* Populated state */}
+          {/* Populated */}
           {emailsTotal > 0 && (
             <>
-              {/* Action bar */}
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {(['all', 'draft', 'edited', 'approved'] as const).map(f => {
+                  {(['all', 'draft', 'edited', 'approved', 'rejected'] as const).map(f => {
                     const count = f === 'all' ? emailsTotal : (emailsByStatus[f] ?? 0)
                     return (
                       <button key={f} onClick={() => { setEmailsFilter(f); setEmailsPage(1) }}
@@ -609,19 +591,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowRegenAllModal(true)}
-                    disabled={regenningAll}
-                    className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] disabled:opacity-40">
-                    {regenningAll ? 'Regenerating…' : '↺ Regenerate all'}
+                    onClick={() => { setGenerateDraftsIsRegen(true); setShowGenerateDraftsModal(true) }}
+                    className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee]">
+                    ↺ Regenerate all
                   </button>
-                  <button onClick={() => setShowGenerateDraftsModal(true)}
+                  <button onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
                     className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">
                     + Generate more
                   </button>
                 </div>
               </div>
 
-              {/* Draft list */}
               {emailsLoading ? (
                 <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading…</div>
               ) : emailDrafts.length === 0 ? (
@@ -633,7 +613,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   {emailDrafts.map(email => {
                     const contactName = [email.prospect.first_name, email.prospect.last_name]
                       .filter(Boolean).join(' ') || email.prospect.email || '—'
-                    const stepLabel = email.step_order === 0 ? 'Initial email' : `Follow-up ${email.step_order}`
                     const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 120)
 
                     return (
@@ -654,7 +633,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                               {email.prospect.company && (
                                 <span className="text-xs text-[#8a7e6e]">· {email.prospect.company}</span>
                               )}
-                              <span className="text-xs text-[#b0a898] ml-auto shrink-0">{stepLabel}</span>
                             </div>
                             <div className="text-xs text-[#6b5e4e] font-medium mb-1 truncate">
                               {email.subject || <span className="italic text-[#b0a898]">(no subject)</span>}
@@ -690,7 +668,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 </div>
               )}
 
-              {/* Pagination */}
               {emailsPages > 1 && (
                 <div className="flex items-center justify-center gap-2">
                   <button onClick={() => setEmailsPage(p => Math.max(1, p - 1))} disabled={emailsPage === 1}
@@ -703,7 +680,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </>
           )}
 
-          {/* Bulk select sticky bar */}
+          {/* Bulk sticky bar */}
           {selectedEmailIds.size > 0 && (
             <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
               <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
@@ -718,32 +695,13 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* Regenerate all confirmation */}
-          {showRegenAllModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
-                <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Regenerate all drafts?</h2>
-                <p className="text-sm text-[#6b5e4e] mb-5">
-                  This will delete all existing drafts and regenerate them. Approved emails will also be overwritten.
-                </p>
-                <div className="flex gap-3">
-                  <button onClick={() => setShowRegenAllModal(false)}
-                    className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
-                  <button onClick={regenAllDrafts}
-                    className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold">
-                    Regenerate
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Generate drafts modal */}
+          {/* Generate/Regenerate modal */}
           {showGenerateDraftsModal && (
             <GenerateDraftsModal
               campaignId={params.id}
               prospectCount={tabProspectsTotal}
-              stepCount={steps.length}
+              defaultMode={campaign.personalization_mode ?? undefined}
+              isRegenerate={generateDraftsIsRegen}
               onClose={() => setShowGenerateDraftsModal(false)}
               onGenerated={() => {
                 setShowGenerateDraftsModal(false)
@@ -752,7 +710,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             />
           )}
 
-          {/* Edit email modal */}
+          {/* Edit draft modal */}
           {editEmailId && (
             <EditEmailModal
               emailId={editEmailId}
@@ -774,7 +732,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
               <div className="text-3xl mb-3">✦</div>
               <h2 className="text-base font-bold text-[#1a1a2e] mb-2">No sequence yet</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">Generate a 4-email sequence with AI in seconds.</p>
+              <p className="text-sm text-[#8a7e6e] mb-4">Generate your initial email + a follow-up template with AI in seconds.</p>
               <button onClick={generateSequence} disabled={generating}
                 className="bg-[#1a1a2e] text-white px-6 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 inline-flex items-center gap-2">
                 {generating
@@ -787,7 +745,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-2.5 text-sm text-[#3b6bef] font-medium flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full inline-block ${campaign.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
-                  {campaign.status} · {steps.length} emails
+                  {campaign.status} · {followUpSteps.length} follow-up{followUpSteps.length !== 1 ? 's' : ''}
                 </span>
                 <button onClick={generateSequence} disabled={generating}
                   className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-white px-2.5 py-1 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1">
@@ -797,8 +755,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 </button>
               </div>
 
-              {steps.map((step, idx) => (
-                <StepCard key={step.id} step={step} index={idx} isOnly={steps.length <= 1}
+              {followUpSteps.length === 0 ? (
+                <div className="bg-white border border-[#e8e3dc] rounded-xl p-8 text-center">
+                  <div className="text-xl mb-2 text-[#8a7e6e]">No follow-ups yet</div>
+                  <p className="text-xs text-[#b0a898]">Add a follow-up below, or use AI Write to generate one.</p>
+                </div>
+              ) : followUpSteps.map((step, idx) => (
+                <FollowUpCard
+                  key={step.id}
+                  step={step}
+                  followUpNumber={idx + 1}
+                  isOnly={followUpSteps.length <= 1}
                   saving={generatingStep === step.id}
                   onUpdate={patch => updateStep(step.id, patch)}
                   onAiWrite={() => aiWriteStep(step.id)}
@@ -822,7 +789,13 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               </div>
 
               <div className="flex gap-3">
-                <button disabled className="border border-[#e8e3dc] text-[#b0a898] rounded-lg px-4 py-2.5 text-sm cursor-not-allowed" title="Sprint 17">Save as Template</button>
+                <button disabled
+                  className="border border-[#e8e3dc] text-[#b0a898] rounded-lg px-4 py-2.5 text-sm cursor-not-allowed flex items-center gap-2">
+                  Save as Template
+                  <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
+                    Coming soon
+                  </span>
+                </button>
                 <button onClick={saveSequence} disabled={saving}
                   className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-semibold disabled:opacity-40">
                   {saving ? 'Saving…' : 'Save Sequence'}
@@ -836,59 +809,65 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   )
 }
 
-function StepCard({ step, index, isOnly, saving, onUpdate, onAiWrite, onRemove }: {
-  step: Step; index: number; isOnly: boolean; saving: boolean
+function FollowUpCard({ step, followUpNumber, isOnly, saving, onUpdate, onAiWrite, onRemove }: {
+  step: Step; followUpNumber: number; isOnly: boolean; saving: boolean
   onUpdate: (p: Partial<Step>) => void; onAiWrite: () => void; onRemove: () => void
 }) {
-  const isInitial = step.step_type === 'initial'
   return (
     <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-[#1a1a2e] text-white text-xs flex items-center justify-center font-bold flex-shrink-0">{index + 1}</div>
-          <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{isInitial ? 'Initial email' : `Follow-up ${index}`}</span>
-          {!isInitial && <span className="text-xs text-[#b0a898]">· Day +{step.delay_days}</span>}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-[#3b6bef] text-white text-xs flex items-center justify-center font-bold flex-shrink-0">
+            {followUpNumber}
+          </div>
+          <span className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">
+            Follow-up #{followUpNumber}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={onAiWrite} disabled={saving}
-            className="text-xs text-[#3b6bef] font-medium border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1">
-            {saving ? <span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" /> : '✦'} AI Write
+        {!isOnly && (
+          <button onClick={onRemove} className="text-xs text-red-400 hover:text-red-600 font-medium">
+            Remove
           </button>
-          {!isInitial && !isOnly && (
-            <button onClick={onRemove} className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
-          )}
-        </div>
+        )}
       </div>
-      {!isInitial && (
-        <div className="mb-3">
-          <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Send after (days from previous step)</label>
-          <input type="number" min={1} max={60} value={step.delay_days}
-            onChange={e => onUpdate({ delay_days: parseInt(e.target.value) || 1 })}
-            className="w-24 border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]" />
-        </div>
-      )}
+
+      <div className="mb-4 flex items-center gap-2">
+        <label className="text-xs font-medium text-[#6b5e4e] shrink-0">Send after</label>
+        <input type="number" min={1} max={30} value={step.delay_days}
+          onChange={e => onUpdate({ delay_days: parseInt(e.target.value) || 1 })}
+          className="w-20 border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]" />
+        <span className="text-xs text-[#6b5e4e]">days of no reply</span>
+      </div>
+
       <div className="mb-3">
-        <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">
-          Subject line{!isInitial ? ' (leave blank to thread reply)' : ' *'}
-        </label>
+        <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Subject line</label>
         <input value={step.subject ?? ''} onChange={e => onUpdate({ subject: e.target.value || null })}
-          className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
-          placeholder={isInitial ? 'Subject line…' : 'Leave blank to thread on previous email'} />
+          placeholder="Subject line (leave blank to thread reply)"
+          className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
       </div>
-      <div className="mb-3">
-        <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Email body</label>
+
+      <div className="mb-4">
+        <label className="text-xs font-medium text-[#6b5e4e] mb-1 block">Body</label>
         <textarea value={step.body} onChange={e => onUpdate({ body: e.target.value })}
+          placeholder="Follow-up email body…"
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none font-mono text-xs leading-relaxed"
-          rows={7} />
+          rows={6} />
       </div>
-      {!isInitial && (
+
+      <div className="flex items-center justify-between gap-2">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={step.include_booking_link}
             onChange={e => onUpdate({ include_booking_link: e.target.checked })}
             className="rounded border-[#e8e3dc] text-[#3b6bef]" />
-          <span className="text-xs text-[#6b5e4e]">Include calendar booking link in this email</span>
+          <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link in this follow-up</span>
         </label>
-      )}
+        <button onClick={onAiWrite} disabled={saving}
+          className="text-xs text-[#3b6bef] font-medium border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1.5 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1 shrink-0">
+          {saving
+            ? <span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" />
+            : '✨'} AI Write
+        </button>
+      </div>
     </div>
   )
 }

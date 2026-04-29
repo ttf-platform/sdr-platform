@@ -4,20 +4,20 @@ import { useEffect, useRef, useState } from 'react'
 interface Props {
   campaignId:    string
   prospectCount: number
-  stepCount:     number
+  defaultMode?:  'fast' | 'smart'
+  isRegenerate?: boolean
   onClose:       () => void
   onGenerated:   () => void
 }
 
-export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onClose, onGenerated }: Props) {
-  const [mode, setMode]               = useState<'fast' | 'smart'>('smart')
+export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, isRegenerate, onClose, onGenerated }: Props) {
+  const [mode, setMode]               = useState<'fast' | 'smart'>(defaultMode ?? 'smart')
   const [generating, setGenerating]   = useState(false)
   const [progressCount, setProgressCount] = useState(0)
   const [error, setError]             = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const totalExpected = prospectCount * stepCount
-  const progress = totalExpected > 0 ? Math.min(100, Math.round((progressCount / totalExpected) * 100)) : 0
+  const progress = prospectCount > 0 ? Math.min(100, Math.round((progressCount / prospectCount) * 100)) : 0
   const estimatedSeconds = mode === 'smart' ? Math.max(5, Math.round(prospectCount * 0.6)) : null
 
   function stopPoll() {
@@ -31,19 +31,26 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
     setError('')
     setProgressCount(0)
 
-    // Poll for progress every 2s while generation runs
     pollRef.current = setInterval(async () => {
       try {
-        const d = await fetch(`/api/prospect-emails?campaign_id=${campaignId}&page=1&limit=1`).then(r => r.json())
+        const d = await fetch(`/api/prospect-emails?campaign_id=${campaignId}&step_order=0&page=1&limit=1`).then(r => r.json())
         if (d.total > 0) setProgressCount(d.total)
       } catch {}
     }, 2000)
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/generate-drafts`, {
+      const endpoint = isRegenerate
+        ? `/api/campaigns/${campaignId}/regenerate-drafts`
+        : `/api/campaigns/${campaignId}/generate-drafts`
+
+      const body = isRegenerate
+        ? { mode, confirm: true }
+        : { mode }
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode }),
+        body: JSON.stringify(body),
       }).then(r => r.json())
 
       stopPoll()
@@ -82,13 +89,12 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
 
           <p className="text-sm text-[#6b5e4e] mb-4">
             {progressCount > 0
-              ? `${progressCount} of ${totalExpected} emails done`
-              : `Preparing ${totalExpected} emails…`}
+              ? `${progressCount} of ${prospectCount} emails done`
+              : `Preparing ${prospectCount} emails…`}
           </p>
 
-          <div className="text-xs text-[#b0a898] space-y-0.5">
-            <div>Mode: {mode === 'smart' ? 'Smart' : 'Fast'}</div>
-            {mode === 'smart' && <div>Email 1: AI personalization · Follow-ups: Template</div>}
+          <div className="text-xs text-[#b0a898]">
+            Mode: {mode === 'smart' ? 'Smart' : 'Fast'}
           </div>
         </div>
       </div>
@@ -102,12 +108,19 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
         <div className="flex items-center justify-between p-5 border-b border-[#f0ece6]">
           <h2 className="text-base font-bold text-[#1a1a2e]">
-            Generate emails for {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
+            {isRegenerate ? 'Regenerate emails' : 'Generate emails'} for {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
           </h2>
           <button onClick={onClose} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none">✕</button>
         </div>
 
         <div className="p-5 flex flex-col gap-4">
+          {isRegenerate && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
+              <span className="shrink-0 mt-0.5">⚠️</span>
+              <span>This will overwrite all existing drafts for this campaign.</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             {/* Fast */}
             <button
@@ -123,7 +136,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
               <div className="text-xs text-[#6b5e4e] mb-3">
                 Same email for all prospects, with their name and company auto-filled.
               </div>
-              <div className="text-xs text-[#8a7e6e] space-y-0.5">
+              <div className="text-xs text-[#8a7e6e]">
                 <div>⏱ Ready in seconds</div>
               </div>
             </button>
@@ -145,14 +158,14 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
               <div className="text-xs text-[#6b5e4e] mb-3">
                 AI writes a unique opening line for each prospect based on their company and role.
               </div>
-              <div className="text-xs text-[#8a7e6e] space-y-0.5">
+              <div className="text-xs text-[#8a7e6e]">
                 {estimatedSeconds && <div>⏱ ~{estimatedSeconds}s for {prospectCount} prospects</div>}
               </div>
             </button>
           </div>
 
           <p className="text-xs text-[#8a7e6e]">
-            Follow-ups use your template with auto-filled variables. You can edit any draft after generation.
+            1 email per prospect. You can edit any draft after generation.
           </p>
 
           {error && <p className="text-xs text-red-600">{error}</p>}
@@ -164,7 +177,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, stepCount, onCl
             </button>
             <button onClick={handleGenerate}
               className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold">
-              Generate {totalExpected} draft{totalExpected !== 1 ? 's' : ''}
+              {isRegenerate ? 'Regenerate' : 'Generate'} {prospectCount} email{prospectCount !== 1 ? 's' : ''}
             </button>
           </div>
         </div>
