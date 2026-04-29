@@ -126,11 +126,6 @@ function RichBrief({ content }: { content: any }) {
           <p className="text-xs text-[#8a7e6e] mb-3">AI-generated based on your ICP and current market signals</p>
           <div className="flex flex-col gap-4">
             {campaigns.map((idea, i) => {
-              const launchUrl = `/dashboard/campaigns/new?${new URLSearchParams({
-                name: idea.name,
-                icp:  idea.target_persona ?? '',
-                tone: 'professional',
-              }).toString()}`
               return (
                 <div key={i} className="bg-white border border-[#e8e3dc] rounded-xl p-5">
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -161,7 +156,7 @@ function RichBrief({ content }: { content: any }) {
                     <p className="text-sm text-[#1a1a2e]">{idea.why_now}</p>
                   </div>
 
-                  <a href={launchUrl}
+                  <a href="/dashboard/campaigns"
                     className="block w-full text-center bg-[#3b6bef] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#2d57d4] transition-colors">
                     → Launch this campaign
                   </a>

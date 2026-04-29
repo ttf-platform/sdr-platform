@@ -60,7 +60,7 @@ export default function DashboardPage() {
       <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#f0ece6]">
           <h2 className="font-semibold text-[#1a1a2e]">Recent Campaigns</h2>
-          <a href="/dashboard/campaigns/new" className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-semibold">+ New Campaign</a>
+          <a href="/dashboard/campaigns" className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-semibold">+ New Campaign</a>
         </div>
         <table className="w-full">
           <thead>
@@ -77,7 +77,7 @@ export default function DashboardPage() {
             {campaigns.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#8a7e6e]">
-                  No campaigns yet — <a href="/dashboard/campaigns/new" className="text-[#3b6bef] font-medium">create your first</a>
+                  No campaigns yet — <a href="/dashboard/campaigns" className="text-[#3b6bef] font-medium">create your first</a>
                 </td>
               </tr>
             ) : campaigns.map((c: any) => (
