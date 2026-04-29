@@ -23,6 +23,17 @@ export function EditFollowUpModal({ step, followUpNumber, campaignId, onClose, o
   const [body,               setBody]               = useState(step.body)
   const [delayDays,          setDelayDays]          = useState(step.delay_days)
   const [includeBookingLink, setIncludeBookingLink] = useState(step.include_booking_link)
+
+  function toggleBookingLink(checked: boolean) {
+    setIncludeBookingLink(checked)
+    if (checked) {
+      if (!body.includes('{{booking_link}}')) {
+        setBody(b => b.trimEnd() + '\n\n{{booking_link}}')
+      }
+    } else {
+      setBody(b => b.replace(/\n*\{\{booking_link\}\}/g, '').trimEnd())
+    }
+  }
   const [bookingSlug,        setBookingSlug]        = useState<string | null>(null)
   const [saving,             setSaving]             = useState(false)
   const [aiWriting,          setAiWriting]          = useState(false)
@@ -153,7 +164,7 @@ export function EditFollowUpModal({ step, followUpNumber, campaignId, onClose, o
               <input
                 type="checkbox"
                 checked={includeBookingLink}
-                onChange={e => setIncludeBookingLink(e.target.checked)}
+                onChange={e => toggleBookingLink(e.target.checked)}
                 disabled={saving || aiWriting}
                 className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
               />
@@ -161,11 +172,16 @@ export function EditFollowUpModal({ step, followUpNumber, campaignId, onClose, o
             </label>
             {includeBookingLink && (
               bookingUrl
-                ? <p className="text-xs text-[#8a7e6e] pl-5">
-                    The booking link will be replaced at send time: <span className="text-[#3b6bef]">{bookingUrl}</span>
-                  </p>
+                ? <>
+                    <p className="text-xs text-[#4a4a5a] pl-5 font-medium">
+                      Calendar booking link will be added to this email when sent
+                    </p>
+                    <p className="text-xs text-[#a89e8e] pl-5">
+                      Preview: <span className="text-[#3b6bef]">{bookingUrl}</span>
+                    </p>
+                  </>
                 : <p className="text-xs text-amber-600 pl-5">
-                    No booking page configured. <a href="/dashboard/settings" className="underline">Set it up in Settings</a> to activate this link.
+                    ⚠️ <a href="/dashboard/settings" className="underline">Set up your booking page in Settings</a> to use this feature
                   </p>
             )}
           </div>
