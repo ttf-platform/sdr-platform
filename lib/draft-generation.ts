@@ -53,9 +53,10 @@ CRITICAL — Template variables (mandatory):
 The body MUST include:
 - {{first_name}} in the greeting line (e.g., "Hi {{first_name}},")
 - {{company}} somewhere naturally in the body
-These are placeholders replaced with each prospect's real data at send time.
+- {{sender_name}} as the sign-off (last line, no "Best," or "Regards," prefix — just {{sender_name}} on its own line)
+These are literal placeholders replaced at send time. DO NOT replace them with real values.
 DO NOT hardcode any name, company, or generic substitute like "Hey there", "Hi friend", or "Hi [Name]".
-DO NOT skip {{company}} — it must appear in the body.
+DO NOT skip {{company}} or {{sender_name}}.
 
 CRITICAL — Anti-fabrication:
 Do NOT invent specific facts about prospects. No fake fundraising, no fake employee counts, no named clients.
