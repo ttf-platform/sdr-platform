@@ -2,6 +2,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
+import { ChooseTemplateModal } from '@/components/ChooseTemplateModal'
+import { NewCampaignModal } from '@/components/NewCampaignModal'
+import type { CampaignTemplate } from '@/lib/campaign-templates'
 
 interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
@@ -92,11 +95,15 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
 }
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showPrefs, setShowPrefs] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [campaigns, setCampaigns]           = useState<Campaign[]>([])
+  const [loading, setLoading]               = useState(true)
+  const [showPrefs, setShowPrefs]           = useState(false)
+  const [deleteTarget, setDeleteTarget]     = useState<Campaign | null>(null)
+  const [deleting, setDeleting]             = useState(false)
+  const [chooseTemplate, setChooseTemplate] = useState(false)
+  const [newCampaignOpen, setNewCampaign]   = useState(false)
+  const [selectedPreset, setPreset]         = useState<CampaignTemplate | null>(null)
+  const [isFromAI, setIsFromAI]             = useState(false)
 
   useEffect(() => {
     fetch('/api/campaigns')
@@ -106,6 +113,23 @@ export default function CampaignsPage() {
         setLoading(false)
       })
   }, [])
+
+  function openChooseTemplate() {
+    setChooseTemplate(true)
+  }
+
+  function handleTemplateSelect(template: CampaignTemplate) {
+    setChooseTemplate(false)
+    setPreset(template)
+    setIsFromAI(false)
+    setNewCampaign(true)
+  }
+
+  function closeNewCampaign() {
+    setNewCampaign(false)
+    setPreset(null)
+    setIsFromAI(false)
+  }
 
   async function confirmDelete() {
     if (!deleteTarget) return
@@ -128,9 +152,12 @@ export default function CampaignsPage() {
             className={`flex items-center gap-1.5 border px-3 py-2 rounded-lg text-sm font-medium ${showPrefs ? 'border-[#3b6bef] text-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] bg-white text-[#1a1a2e]'}`}>
             🕐 Sending Preferences
           </button>
-          <Link href="/dashboard/campaigns/new" className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+          <button
+            onClick={openChooseTemplate}
+            className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
             + New Campaign
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -143,12 +170,14 @@ export default function CampaignsPage() {
           <div className="text-3xl mb-3">✨</div>
           <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No campaigns yet</h2>
           <p className="text-sm text-[#8a7e6e] mb-6 max-w-xs mx-auto">
-            Create your first campaign — Sentra AI will generate a 4-email sequence tailored to your ICP in seconds.
+            Create your first campaign — Sentra AI will write a personalized email sequence tailored to your ICP.
           </p>
-          <Link href="/dashboard/campaigns/new"
-            className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+          <button
+            onClick={openChooseTemplate}
+            className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+          >
             + New Campaign
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -184,6 +213,21 @@ export default function CampaignsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {chooseTemplate && (
+        <ChooseTemplateModal
+          onSelect={handleTemplateSelect}
+          onClose={() => setChooseTemplate(false)}
+        />
+      )}
+
+      {newCampaignOpen && (
+        <NewCampaignModal
+          preset={selectedPreset}
+          isFromAI={isFromAI}
+          onClose={closeNewCampaign}
+        />
       )}
     </div>
   )
