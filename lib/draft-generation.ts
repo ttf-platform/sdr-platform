@@ -29,15 +29,37 @@ type AdminClient = ReturnType<typeof createAdminClient>
 
 type StepRow = { id: string; step_order: number; step_type: string; subject: string; body: string }
 
+type CampaignForStep = {
+  angle:           string | null
+  value_prop:      string | null
+  cta:             string | null
+  target_persona:  string | null
+  target_industry: string | null
+  target_titles:   string | null
+  target_regions:  string | null
+  company_sizes:   string[] | null
+  company_revenue: string[] | null
+  tone:            string | null
+}
+
+function buildLines(pairs: Array<[string, string | null | undefined]>): string {
+  return pairs
+    .filter(([, v]) => v && String(v).trim())
+    .map(([k, v]) => `- ${k}: ${v}`)
+    .join('\n')
+}
+
 // Auto-generates step_order=0 when a campaign was created without a sequence.
 // Uses Claude if campaign has content, falls back to a blank template otherwise.
 async function ensureInitialStep(
   admin: AdminClient,
   campaignId: string,
-  campaign: { angle: string | null; value_prop: string | null; cta: string | null; target_persona: string | null },
+  campaign: CampaignForStep,
   profile: Record<string, unknown> | null,
 ): Promise<StepRow | null> {
   const hasContent = campaign.angle || campaign.value_prop || campaign.cta || campaign.target_persona
+    || campaign.target_industry || campaign.target_titles || campaign.target_regions
+    || (campaign.company_sizes && campaign.company_sizes.length > 0)
 
   let subject = BLANK_INITIAL_SUBJECT
   let body    = BLANK_INITIAL_BODY
@@ -46,6 +68,22 @@ async function ensureInitialStep(
     const icp_industries = Array.isArray(profile?.icp_industries)
       ? (profile.icp_industries as string[]).join(', ')
       : (profile?.icp_industries as string ?? '')
+
+    const targetProspectLines = buildLines([
+      ['Industry',       campaign.target_industry],
+      ['Titles',         campaign.target_titles],
+      ['Regions',        campaign.target_regions],
+      ['Company sizes',  campaign.company_sizes?.join(', ')],
+      ['Revenue ranges', campaign.company_revenue?.join(', ')],
+    ])
+
+    const pitchLines = buildLines([
+      ['Angle',            campaign.angle],
+      ['Value proposition', campaign.value_prop],
+      ['CTA',              campaign.cta || 'book a quick call'],
+    ])
+
+    const tone = campaign.tone || (profile?.tone as string) || 'professional'
 
     const prompt = `You are an expert B2B sales copywriter for cold outbound campaigns. Write the initial cold outreach email for a sequence.
 
@@ -61,24 +99,24 @@ DO NOT skip {{company}} or {{sender_name}}.
 CRITICAL — Anti-fabrication:
 Do NOT invent specific facts about prospects. No fake fundraising, no fake employee counts, no named clients.
 
-Company info:
+SENDER:
 - Company: ${(profile?.company_name as string) || 'the company'}
 - Description: ${(profile?.product_description as string) || ''}
 - Value proposition: ${(profile?.value_proposition as string) || ''}
 - Sender name: ${(profile?.sender_name as string) || 'the sender'}
-- Tone: ${(profile?.tone as string) || 'professional'}
-
-Campaign info:
-- Target persona: ${campaign.target_persona || ''}
-- Angle for this campaign: ${campaign.angle || ''}
-- Specific value prop: ${campaign.value_prop || ''}
-- Desired CTA: ${campaign.cta || 'book a quick call'}
-
-Audience context:
-- ICP: ${(profile?.icp_description as string) || ''}
-- Industries: ${icp_industries}
-- Company size: ${(profile?.icp_company_size as string) || ''}
+- Tone: ${tone}
+- ICP context: ${(profile?.icp_description as string) || ''}
+- ICP industries: ${icp_industries}
 - Pain points: ${(profile?.pain_points as string) || ''}
+
+TARGET PROSPECT:
+${targetProspectLines || '(no structured ICP data — write for a general B2B audience)'}
+
+PERSONA SUMMARY:
+${campaign.target_persona || ''}
+
+PITCH:
+${pitchLines}
 
 Writing rules:
 - Use plain text only. No HTML, no bullet lists, no formatting tags.
@@ -140,7 +178,7 @@ export async function generateDraftsForCampaign(
   // 1. Campaign
   const { data: campaign } = await admin
     .from('campaigns')
-    .select('id, target_persona, angle, value_prop, cta, include_booking_link_initial')
+    .select('id, target_persona, angle, value_prop, cta, include_booking_link_initial, target_industry, target_titles, target_regions, company_sizes, company_revenue, tone')
     .eq('id', campaignId)
     .eq('workspace_id', workspaceId)
     .single()

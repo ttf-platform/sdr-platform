@@ -36,7 +36,12 @@ export async function POST(request: Request) {
   if (guard.blocked) return guard.response
 
   const body = await request.json()
-  const { name, angle, value_prop, cta, target_persona, smart_stop_on_reply = true, smart_stop_on_bounce = true, booking_link_in_followups = false } = body
+  const {
+    name, angle, value_prop, cta, target_persona,
+    target_industry, target_titles, target_regions,
+    company_sizes, company_revenue, tone, language,
+    smart_stop_on_reply = true, smart_stop_on_bounce = true, booking_link_in_followups = false,
+  } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
@@ -47,10 +52,17 @@ export async function POST(request: Request) {
       workspace_id: guard.workspaceId,
       name: name.trim(),
       status: 'draft',
-      angle: angle ?? null,
-      value_prop: value_prop ?? null,
-      cta: cta ?? null,
-      target_persona: target_persona ?? null,
+      angle:           angle           ?? null,
+      value_prop:      value_prop      ?? null,
+      cta:             cta             ?? null,
+      target_persona:  target_persona  ?? null,
+      target_industry: target_industry ?? null,
+      target_titles:   target_titles   ?? null,
+      target_regions:  target_regions  ?? null,
+      company_sizes:   company_sizes   ?? null,
+      company_revenue: company_revenue ?? null,
+      tone:            tone            ?? null,
+      language:        language        ?? 'English',
       smart_stop_on_reply,
       smart_stop_on_bounce,
       booking_link_in_followups,

@@ -71,18 +71,31 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (guard.blocked) return guard.response
 
   const body = await request.json()
-  const { name, angle, value_prop, cta, target_persona, status, smart_stop_on_reply, smart_stop_on_bounce, booking_link_in_followups, include_booking_link_initial } = body
+  const {
+    name, angle, value_prop, cta, target_persona,
+    target_industry, target_titles, target_regions,
+    company_sizes, company_revenue, tone, language,
+    status, smart_stop_on_reply, smart_stop_on_bounce,
+    booking_link_in_followups, include_booking_link_initial,
+  } = body
 
   const updates: Record<string, unknown> = {}
-  if (name !== undefined) updates.name = name
-  if (angle !== undefined) updates.angle = angle
-  if (value_prop !== undefined) updates.value_prop = value_prop
-  if (cta !== undefined) updates.cta = cta
-  if (target_persona !== undefined) updates.target_persona = target_persona
-  if (status !== undefined) updates.status = status
-  if (smart_stop_on_reply !== undefined) updates.smart_stop_on_reply = smart_stop_on_reply
-  if (smart_stop_on_bounce !== undefined) updates.smart_stop_on_bounce = smart_stop_on_bounce
-  if (booking_link_in_followups !== undefined) updates.booking_link_in_followups = booking_link_in_followups
+  if (name             !== undefined) updates.name             = name
+  if (angle            !== undefined) updates.angle            = angle
+  if (value_prop       !== undefined) updates.value_prop       = value_prop
+  if (cta              !== undefined) updates.cta              = cta
+  if (target_persona   !== undefined) updates.target_persona   = target_persona
+  if (target_industry  !== undefined) updates.target_industry  = target_industry
+  if (target_titles    !== undefined) updates.target_titles    = target_titles
+  if (target_regions   !== undefined) updates.target_regions   = target_regions
+  if (company_sizes    !== undefined) updates.company_sizes    = company_sizes
+  if (company_revenue  !== undefined) updates.company_revenue  = company_revenue
+  if (tone             !== undefined) updates.tone             = tone
+  if (language         !== undefined) updates.language         = language
+  if (status           !== undefined) updates.status           = status
+  if (smart_stop_on_reply    !== undefined) updates.smart_stop_on_reply    = smart_stop_on_reply
+  if (smart_stop_on_bounce   !== undefined) updates.smart_stop_on_bounce   = smart_stop_on_bounce
+  if (booking_link_in_followups    !== undefined) updates.booking_link_in_followups    = booking_link_in_followups
   if (include_booking_link_initial !== undefined) updates.include_booking_link_initial = include_booking_link_initial
 
   const admin = createAdminClient()
