@@ -5,6 +5,7 @@ import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 import { ChooseTemplateModal } from '@/components/ChooseTemplateModal'
 import { NewCampaignModal } from '@/components/NewCampaignModal'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
+import type { AISuggestion } from '@/lib/ai-suggestions'
 
 interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
@@ -94,9 +95,53 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
   )
 }
 
+function AISuggestionCard({ s, onLaunch }: { s: AISuggestion; onLaunch: () => void }) {
+  return (
+    <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col gap-3 hover:border-[#c8d4e8] transition-colors">
+      <div>
+        <span className="text-[9px] bg-[#6b4de6] text-white px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
+          ✨ AI Suggestion
+        </span>
+      </div>
+
+      <div>
+        <h3 className="font-bold text-[#1a1a2e] text-sm leading-snug">{s.name}</h3>
+        {s.target_persona && (
+          <p className="text-xs text-[#8a7e6e] italic mt-1 leading-relaxed">{s.target_persona}</p>
+        )}
+      </div>
+
+      {s.angle && (
+        <div className="bg-[#eef1fd] border border-[#3b6bef]/20 rounded-lg px-3 py-2.5">
+          <p className="text-xs text-[#3b6bef] leading-relaxed">{s.angle}</p>
+        </div>
+      )}
+
+      {s.reasoning && (
+        <p className="text-xs text-[#6b5e4e] leading-relaxed">{s.reasoning}</p>
+      )}
+
+      <div className="mt-auto pt-1">
+        <button
+          onClick={onLaunch}
+          className="w-full bg-[#6b4de6] hover:bg-[#5a3ed4] text-white rounded-lg py-2 text-sm font-semibold transition-colors"
+        >
+          🚀 Launch Campaign
+        </button>
+      </div>
+    </div>
+  )
+}
+
+type Tab = 'campaigns' | 'suggestions'
+
 export default function CampaignsPage() {
+  const [activeTab, setActiveTab]           = useState<Tab>('campaigns')
   const [campaigns, setCampaigns]           = useState<Campaign[]>([])
-  const [loading, setLoading]               = useState(true)
+  const [campaignsLoading, setCLoading]     = useState(true)
+  const [suggestions, setSuggestions]       = useState<AISuggestion[]>([])
+  const [suggestionsLoading, setSLoading]   = useState(false)
+  const [suggestionsLoaded, setSLoaded]     = useState(false)
   const [showPrefs, setShowPrefs]           = useState(false)
   const [deleteTarget, setDeleteTarget]     = useState<Campaign | null>(null)
   const [deleting, setDeleting]             = useState(false)
@@ -110,18 +155,53 @@ export default function CampaignsPage() {
       .then(r => r.json())
       .then(({ campaigns: c }) => {
         setCampaigns(c ?? [])
-        setLoading(false)
+        setCLoading(false)
       })
   }, [])
 
-  function openChooseTemplate() {
-    setChooseTemplate(true)
+  function handleTabChange(tab: Tab) {
+    setActiveTab(tab)
+    if (tab === 'suggestions' && !suggestionsLoaded) {
+      loadSuggestions()
+    }
   }
+
+  async function loadSuggestions() {
+    setSLoading(true)
+    const res = await fetch('/api/campaigns/ai-suggestions').then(r => r.json())
+    setSuggestions(res.suggestions ?? [])
+    setSLoaded(true)
+    setSLoading(false)
+  }
+
+  async function handleRefreshSuggestions() {
+    setSLoading(true)
+    const res = await fetch('/api/campaigns/ai-suggestions/refresh', { method: 'POST' }).then(r => r.json())
+    if (res.suggestions) setSuggestions(res.suggestions)
+    setSLoading(false)
+  }
+
+  function openChooseTemplate() { setChooseTemplate(true) }
 
   function handleTemplateSelect(template: CampaignTemplate) {
     setChooseTemplate(false)
     setPreset(template)
     setIsFromAI(false)
+    setNewCampaign(true)
+  }
+
+  function handleLaunchFromAI(s: AISuggestion) {
+    setPreset({
+      id:             'ai-' + s.id,
+      emoji:          '✨',
+      label:          s.name,
+      description:    s.reasoning ?? '',
+      angle:          s.angle,
+      value_prop:     s.value_prop,
+      cta:            s.cta,
+      target_persona: s.target_persona,
+    })
+    setIsFromAI(true)
     setNewCampaign(true)
   }
 
@@ -142,6 +222,7 @@ export default function CampaignsPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Campaigns</h1>
@@ -163,27 +244,99 @@ export default function CampaignsPage() {
 
       <SendingPreferencesPanel open={showPrefs} onClose={() => setShowPrefs(false)} />
 
-      {loading ? (
-        <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading campaigns…</div>
-      ) : campaigns.length === 0 ? (
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
-          <div className="text-3xl mb-3">✨</div>
-          <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No campaigns yet</h2>
-          <p className="text-sm text-[#8a7e6e] mb-6 max-w-xs mx-auto">
-            Create your first campaign — Sentra AI will write a personalized email sequence tailored to your ICP.
-          </p>
+      {/* Sub-tabs */}
+      <div className="flex gap-1 border-b border-[#f0ece6] mb-6">
+        {([
+          { key: 'campaigns',   label: 'My Campaigns' },
+          { key: 'suggestions', label: '✨ AI Suggestions' },
+        ] as { key: Tab; label: string }[]).map(t => (
           <button
-            onClick={openChooseTemplate}
-            className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+            key={t.key}
+            onClick={() => handleTabChange(t.key)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === t.key
+                ? 'border-[#3b6bef] text-[#3b6bef]'
+                : 'border-transparent text-[#8a7e6e] hover:text-[#1a1a2e]'
+            }`}
           >
-            + New Campaign
+            {t.label}
           </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {campaigns.map(c => (
-            <CampaignCard key={c.id} c={c} onDelete={id => setDeleteTarget(campaigns.find(x => x.id === id) ?? null)} />
-          ))}
+        ))}
+      </div>
+
+      {/* Tab: My Campaigns */}
+      {activeTab === 'campaigns' && (
+        campaignsLoading ? (
+          <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading campaigns…</div>
+        ) : campaigns.length === 0 ? (
+          <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
+            <div className="text-3xl mb-3">✨</div>
+            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No campaigns yet</h2>
+            <p className="text-sm text-[#8a7e6e] mb-6 max-w-xs mx-auto">
+              Create your first campaign — Sentra AI will write a personalized email sequence tailored to your ICP.
+            </p>
+            <button
+              onClick={openChooseTemplate}
+              className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+            >
+              + New Campaign
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {campaigns.map(c => (
+              <CampaignCard key={c.id} c={c} onDelete={id => setDeleteTarget(campaigns.find(x => x.id === id) ?? null)} />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Tab: AI Suggestions */}
+      {activeTab === 'suggestions' && (
+        <div>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-base font-bold text-[#1a1a2e]">✨ AI-Suggested Campaigns</h2>
+              <p className="text-xs text-[#8a7e6e] mt-0.5">
+                Sentra analyzes your ICP and product to suggest high-converting campaign strategies.
+              </p>
+            </div>
+            <button
+              onClick={handleRefreshSuggestions}
+              disabled={suggestionsLoading}
+              className="flex items-center gap-1.5 border border-[#e8e3dc] bg-white text-[#4a4a5a] px-3 py-2 rounded-lg text-sm font-medium hover:border-[#3b6bef] hover:text-[#3b6bef] transition-colors disabled:opacity-40"
+            >
+              ↻ Refresh suggestions
+            </button>
+          </div>
+
+          {suggestionsLoading ? (
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
+              <div className="text-3xl mb-4">✨</div>
+              <p className="text-sm font-medium text-[#1a1a2e] mb-1">Analyzing your product and ICP…</p>
+              <p className="text-xs text-[#8a7e6e]">Generating strategic campaign ideas — up to 30 seconds</p>
+            </div>
+          ) : suggestions.length === 0 ? (
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
+              <div className="text-3xl mb-3">💡</div>
+              <h3 className="text-base font-bold text-[#1a1a2e] mb-2">No suggestions yet</h3>
+              <p className="text-sm text-[#8a7e6e] mb-5 max-w-xs mx-auto">
+                Complete your workspace profile (product, ICP) then generate AI campaign ideas.
+              </p>
+              <button
+                onClick={handleRefreshSuggestions}
+                className="bg-[#6b4de6] hover:bg-[#5a3ed4] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
+                ✨ Generate suggestions
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {suggestions.map(s => (
+                <AISuggestionCard key={s.id} s={s} onLaunch={() => handleLaunchFromAI(s)} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
