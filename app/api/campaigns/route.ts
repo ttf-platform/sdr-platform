@@ -48,18 +48,15 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   // Reject duplicate names (case-insensitive) within the workspace
-  // Escape LIKE wildcards so names with % or _ are matched literally
+  // Use count to avoid maybeSingle() errors when multiple rows already match
   const safeName = name.trim().replace(/%/g, '\\%').replace(/_/g, '\\_')
-  const { data: duplicate, error: dupError } = await admin
+  const { count: dupCount } = await admin
     .from('campaigns')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('workspace_id', guard.workspaceId)
     .ilike('name', safeName)
-    .maybeSingle()
 
-  console.log('[duplicate-check] workspace:', guard.workspaceId, 'name:', name.trim(), 'found:', duplicate?.id ?? null, 'err:', dupError?.message ?? null)
-
-  if (duplicate) {
+  if ((dupCount ?? 0) > 0) {
     return NextResponse.json(
       { error: 'duplicate_name', message: 'A campaign with this name already exists.' },
       { status: 409 },
