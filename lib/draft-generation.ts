@@ -21,6 +21,114 @@ export interface GenerateError {
   status: number
 }
 
+// Fallback body used when no campaign content is available (blank canvas)
+const BLANK_INITIAL_BODY = 'Hi {{first_name}},\n\nI wanted to reach out — I think there might be a good fit between what we do and what {{company}} is working on.\n\nWould you be open to a quick chat?\n\n{{sender_name}}'
+const BLANK_INITIAL_SUBJECT = 'Quick note for {{company}}'
+
+type AdminClient = ReturnType<typeof createAdminClient>
+
+type StepRow = { id: string; step_order: number; step_type: string; subject: string; body: string }
+
+// Auto-generates step_order=0 when a campaign was created without a sequence.
+// Uses Claude if campaign has content, falls back to a blank template otherwise.
+async function ensureInitialStep(
+  admin: AdminClient,
+  campaignId: string,
+  campaign: { angle: string | null; value_prop: string | null; cta: string | null; target_persona: string | null },
+  profile: Record<string, unknown> | null,
+): Promise<StepRow | null> {
+  const hasContent = campaign.angle || campaign.value_prop || campaign.cta || campaign.target_persona
+
+  let subject = BLANK_INITIAL_SUBJECT
+  let body    = BLANK_INITIAL_BODY
+
+  if (hasContent) {
+    const icp_industries = Array.isArray(profile?.icp_industries)
+      ? (profile.icp_industries as string[]).join(', ')
+      : (profile?.icp_industries as string ?? '')
+
+    const prompt = `You are an expert B2B sales copywriter for cold outbound campaigns. Write the initial cold outreach email for a sequence.
+
+CRITICAL — Template variables (mandatory):
+The body MUST include:
+- {{first_name}} in the greeting line (e.g., "Hi {{first_name}},")
+- {{company}} somewhere naturally in the body
+These are placeholders replaced with each prospect's real data at send time.
+DO NOT hardcode any name, company, or generic substitute like "Hey there", "Hi friend", or "Hi [Name]".
+DO NOT skip {{company}} — it must appear in the body.
+
+CRITICAL — Anti-fabrication:
+Do NOT invent specific facts about prospects. No fake fundraising, no fake employee counts, no named clients.
+
+Company info:
+- Company: ${(profile?.company_name as string) || 'the company'}
+- Description: ${(profile?.product_description as string) || ''}
+- Value proposition: ${(profile?.value_proposition as string) || ''}
+- Sender name: ${(profile?.sender_name as string) || 'the sender'}
+- Tone: ${(profile?.tone as string) || 'professional'}
+
+Campaign info:
+- Target persona: ${campaign.target_persona || ''}
+- Angle for this campaign: ${campaign.angle || ''}
+- Specific value prop: ${campaign.value_prop || ''}
+- Desired CTA: ${campaign.cta || 'book a quick call'}
+
+Audience context:
+- ICP: ${(profile?.icp_description as string) || ''}
+- Industries: ${icp_industries}
+- Company size: ${(profile?.icp_company_size as string) || ''}
+- Pain points: ${(profile?.pain_points as string) || ''}
+
+Writing rules:
+- Use plain text only. No HTML, no bullet lists, no formatting tags.
+- Keep the email SHORT: 80-120 words.
+- Subject line: 4-8 words, curiosity or value-driven.
+- Sound like a real human SDR.
+- Paragraphs separated by \\n\\n.
+
+Return ONLY valid JSON (no markdown):
+{
+  "initial": {
+    "subject": "string",
+    "body": "string"
+  }
+}`
+
+    try {
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
+      const start = text.indexOf('{')
+      const end   = text.lastIndexOf('}')
+      const raw   = start >= 0 && end >= 0 ? text.slice(start, end + 1) : '{}'
+      const parsed = JSON.parse(raw)
+      if (parsed.initial?.subject) subject = parsed.initial.subject
+      if (parsed.initial?.body)    body    = parsed.initial.body
+    } catch {
+      // fallback already set above
+    }
+  }
+
+  const { data: step } = await admin
+    .from('campaign_steps')
+    .insert({
+      campaign_id:          campaignId,
+      step_order:           0,
+      step_type:            'initial',
+      delay_days:           0,
+      subject,
+      body,
+      include_booking_link: false,
+    })
+    .select('id, step_order, step_type, subject, body')
+    .single()
+
+  return step ?? null
+}
+
 export async function generateDraftsForCampaign(
   campaignId: string,
   workspaceId: string,
@@ -31,26 +139,39 @@ export async function generateDraftsForCampaign(
   // 1. Campaign
   const { data: campaign } = await admin
     .from('campaigns')
-    .select('id, target_persona, angle, value_prop, include_booking_link_initial')
+    .select('id, target_persona, angle, value_prop, cta, include_booking_link_initial')
     .eq('id', campaignId)
     .eq('workspace_id', workspaceId)
     .single()
 
   if (!campaign) return { error: 'Campaign not found', status: 404 }
 
-  // 2. Initial step only — follow-ups are templates rendered at send time
-  const { data: steps } = await admin
+  // 2. Workspace profile (sender name + AI generation context)
+  const { data: profile } = await admin
+    .from('workspace_profiles')
+    .select('sender_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size')
+    .eq('workspace_id', workspaceId)
+    .single()
+
+  const senderName = (profile as any)?.sender_name ?? null
+
+  // 3. Initial step — auto-generate if campaign was created without a sequence
+  const { data: existingSteps } = await admin
     .from('campaign_steps')
     .select('id, step_order, step_type, subject, body')
     .eq('campaign_id', campaignId)
     .eq('step_order', 0)
     .order('step_order', { ascending: true })
 
+  let steps: StepRow[] | null = existingSteps as StepRow[] | null
+
   if (!steps || steps.length === 0) {
-    return { error: 'Campaign has no initial email step. Generate the email sequence first.', status: 400 }
+    const generated = await ensureInitialStep(admin, campaignId, campaign as any, profile as any)
+    if (!generated) return { error: 'Failed to auto-generate initial email step.', status: 500 }
+    steps = [generated]
   }
 
-  // 3. Prospects + contacts
+  // 4. Prospects + contacts
   const { data: prospects } = await admin
     .from('prospects')
     .select('id, email, contacts!contact_id(first_name, last_name, company, title, linkedin_url, industry, company_size, location)')
@@ -60,15 +181,6 @@ export async function generateDraftsForCampaign(
   if (!prospects || prospects.length === 0) {
     return { error: 'Campaign has no prospects.', status: 400 }
   }
-
-  // 4. sender_name — 1 query, no N+1
-  const { data: profile } = await admin
-    .from('workspace_profiles')
-    .select('sender_name')
-    .eq('workspace_id', workspaceId)
-    .single()
-
-  const senderName = profile?.sender_name ?? null
 
   // 5. Fetch existing drafts for dedup (UNIQUE constraint enforced in DB, but
   //    filtering here avoids a batch insert that partially fails on conflict)
@@ -137,9 +249,9 @@ export async function generateDraftsForCampaign(
   if (mode === 'smart') {
     const initialItems = workItems.filter(w => w.step_order === 0)
     const context: CampaignContext = {
-      persona:    campaign.target_persona,
-      angle:      campaign.angle,
-      value_prop: campaign.value_prop,
+      persona:    (campaign as any).target_persona,
+      angle:      (campaign as any).angle,
+      value_prop: (campaign as any).value_prop,
     }
 
     for (let i = 0; i < initialItems.length; i += 5) {
@@ -181,8 +293,7 @@ export async function generateDraftsForCampaign(
 
   // 9. Upsert — ignoreDuplicates guards against concurrent double-call.
   //    UNIQUE(prospect_id, campaign_step_id) is a non-partial constraint so
-  //    ignoreDuplicates resolves correctly (unlike the partial-index case in Sprint 16b.5).
-  //    skipped_existing was computed from the pre-fetch Set, not from the upsert result.
+  //    ignoreDuplicates resolves correctly.
   const { error: insertError } = await admin
     .from('prospect_emails')
     .upsert(insertRows, { onConflict: 'prospect_id,campaign_step_id', ignoreDuplicates: true })
