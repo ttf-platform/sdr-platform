@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
-import { EditFollowupModal } from '@/components/EditFollowupModal'
+import { EditFollowupModal } from '@/components/EditFollowUpModal'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
