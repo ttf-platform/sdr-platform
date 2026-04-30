@@ -492,100 +492,98 @@ export default function ProspectsPage() {
 
           {/* Structured ICP */}
           <h3 className="text-blue-600 font-semibold mb-4">Structured ICP</h3>
-          <div className="flex flex-col gap-4 mb-6">
 
-            {/* Industry + Titles */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className={labelCls}>Industry</label>
-                  <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
-                </div>
-                <input value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
-                  className={inputCls} placeholder="e.g. SaaS, Fintech" />
-                <FieldOk show={!!icpForm.industry} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className={labelCls}>Titles</label>
-                  <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
-                </div>
-                <input value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
-                  className={inputCls} placeholder="e.g. CEO, CTO, VP Sales" />
-                <FieldOk show={!!icpForm.target_titles} />
-              </div>
-            </div>
-
-            {/* Regions + Pain points */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className={labelCls}>Regions</label>
-                  <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
-                </div>
-                <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
-                  className={inputCls} placeholder="e.g. US, Europe, APAC" />
-                <FieldOk show={!!icpForm.target_regions} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className={labelCls}>Pain points</label>
-                  <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
-                  <Tooltip content={PAIN_POINTS_TOOLTIP}>
-                    <InfoIcon />
-                  </Tooltip>
-                </div>
-                <textarea
-                  value={icpForm.pain_points}
-                  onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
-                  rows={3}
-                  placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
-                />
-                <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                  {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
-                </p>
-              </div>
-            </div>
-
-            {/* Company size pills */}
+          {/* Ligne 1 — Industry + Titles */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <label className={labelCls}>Company size (select all that apply)</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Industry</label>
+                <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
+              </div>
+              <input value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
+                className={inputCls} placeholder="e.g. SaaS, Fintech" />
+              <FieldOk show={!!icpForm.industry} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Titles</label>
+                <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
+              </div>
+              <input value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
+                className={inputCls} placeholder="e.g. CEO, CTO, VP Sales" />
+              <FieldOk show={!!icpForm.target_titles} />
+            </div>
+          </div>
+
+          {/* Ligne 2 — Regions + Pain points */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Regions</label>
                 <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {COMPANY_SIZES.map(s => {
-                  const active = icpForm.company_sizes.includes(s)
-                  return (
-                    <button key={s} type="button"
-                      onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
-                      {s}
-                    </button>
-                  )
-                })}
-              </div>
-              <FieldOk show={icpForm.company_sizes.length > 0} />
+              <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
+                className={inputCls} placeholder="e.g. US, Europe, APAC" />
+              <FieldOk show={!!icpForm.target_regions} />
             </div>
-
-            {/* Company revenue pills — not scored, no badge, no FieldOk */}
             <div>
-              <label className={`${labelCls} mb-2 block`}>
-                Company Revenue <span className="text-[#b0a898] font-normal">(optional)</span>
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {REVENUE_RANGES.map(r => {
-                  const active = icpForm.company_revenue.includes(r)
-                  return (
-                    <button key={r} type="button"
-                      onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
-                      {r}
-                    </button>
-                  )
-                })}
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Pain points</label>
+                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+                <Tooltip content={PAIN_POINTS_TOOLTIP}>
+                  <InfoIcon />
+                </Tooltip>
               </div>
+              <textarea
+                value={icpForm.pain_points}
+                onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
+                rows={3}
+                placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
+              />
+              <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Ligne 3 — Company size pills — full width */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <label className={labelCls}>Company size (select all that apply)</label>
+              <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {COMPANY_SIZES.map(s => {
+                const active = icpForm.company_sizes.includes(s)
+                return (
+                  <button key={s} type="button"
+                    onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                    {s}
+                  </button>
+                )
+              })}
+            </div>
+            <FieldOk show={icpForm.company_sizes.length > 0} />
+          </div>
+
+          {/* Ligne 4 — Company revenue pills — full width, not scored */}
+          <div className="mb-6">
+            <label className={`${labelCls} mb-2 block`}>
+              Company Revenue <span className="text-[#b0a898] font-normal">(optional)</span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {REVENUE_RANGES.map(r => {
+                const active = icpForm.company_revenue.includes(r)
+                return (
+                  <button key={r} type="button"
+                    onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                    {r}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
