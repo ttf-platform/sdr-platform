@@ -11,6 +11,12 @@ export async function POST(request: Request) {
 
   const body = await request.json()
 
+  // Server-side required field validation
+  if ('company_name' in body && !String(body.company_name ?? '').trim())
+    return NextResponse.json({ error: 'Required field missing: Company name' }, { status: 400 })
+  if ('product_description' in body && !String(body.product_description ?? '').trim())
+    return NextResponse.json({ error: 'Required field missing: Product description' }, { status: 400 })
+
   const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size'] as const
   const updates: Record<string, unknown> = {}
   for (const key of FIELDS) {

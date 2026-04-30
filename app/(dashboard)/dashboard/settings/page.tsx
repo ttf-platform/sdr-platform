@@ -30,13 +30,31 @@ function FieldOk({ show }: { show: boolean }) {
   return <p className="text-xs mt-1 text-green-600">Ok ✓</p>
 }
 
-function SaveButton({ section, saving, saved, onSave }: { section: string; saving: string|null; saved: string|null; onSave: () => void }) {
+function SaveButton({ section, saving, saved, onSave, missing = [] }: {
+  section:  string
+  saving:   string | null
+  saved:    string | null
+  onSave:   () => void
+  missing?: string[]
+}) {
+  const isSaving    = saving === section
+  const hasMissing  = missing.length > 0
+
+  const btn = (
+    <button
+      onClick={!hasMissing && !isSaving ? onSave : undefined}
+      disabled={isSaving}
+      className={`bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity
+        ${hasMissing ? 'opacity-50 cursor-not-allowed' : 'disabled:opacity-40'}`}>
+      {saved === section ? '✓ Saved' : isSaving ? 'Saving...' : 'Save'}
+    </button>
+  )
+
   return (
     <div className="flex justify-end pt-3 mt-auto">
-      <button onClick={onSave} disabled={saving === section}
-        className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-        {saved === section ? '✓ Saved' : saving === section ? 'Saving...' : 'Save'}
-      </button>
+      {hasMissing
+        ? <Tooltip content={`Required: ${missing.join(', ')}`}>{btn}</Tooltip>
+        : btn}
     </div>
   )
 }
@@ -50,6 +68,8 @@ export default function SettingsPage() {
   const [savingSection, setSavingSection] = useState<string|null>(null)
   const [savedSection,  setSavedSection]  = useState<string|null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [touched,       setTouched]       = useState<Set<string>>(new Set())
+  const [toast,         setToast]         = useState<string|null>(null)
 
   const [form, setForm] = useState({
     // Account
@@ -73,6 +93,15 @@ export default function SettingsPage() {
     target_regions:      '',
     company_revenue:     [] as string[],
   })
+
+  function touch(field: string) {
+    setTouched(prev => { const n = new Set(prev); n.add(field); return n })
+  }
+
+  function inputBorder(field: string, value: string) {
+    if (touched.has(field) && !value.trim()) return `${inputCls} border-red-300 focus:border-red-400`
+    return inputCls
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -129,12 +158,18 @@ export default function SettingsPage() {
 
   async function saveSection(section: string, fields: Record<string, unknown>) {
     setSavingSection(section)
-    await fetch('/api/workspace/profile', {
+    const res = await fetch('/api/workspace/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workspace_id: workspaceId, ...fields }),
     })
     setSavingSection(null)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setToast(data.error || 'Failed to save. Please try again.')
+      setTimeout(() => setToast(null), 4000)
+      return
+    }
     setSavedSection(section)
     setTimeout(() => setSavedSection(null), 2000)
   }
@@ -161,6 +196,15 @@ export default function SettingsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
 
+      {/* Toast error */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-center gap-3 min-w-max">
+          <span>⚠</span>
+          <span>{toast}</span>
+          <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none">✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1">
@@ -185,12 +229,25 @@ export default function SettingsPage() {
               <span className="text-xs bg-[#f0ece6] text-[#8a7e6e] px-2 py-1 rounded ml-2">email</span>
             </div>
             <div>
-              <label className={`${labelCls} mb-1 block`}>Your name</label>
-              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                className={inputCls} placeholder="Your name" />
+              <label className={`${labelCls} mb-1 block`}>
+                Your name <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={form.name}
+                onChange={e => setForm({...form, name: e.target.value})}
+                onBlur={() => touch('name')}
+                className={inputBorder('name', form.name)}
+                placeholder="Your name"
+              />
             </div>
           </div>
-          <SaveButton section="account" saving={savingSection} saved={savedSection} onSave={saveAccount} />
+          <SaveButton
+            section="account"
+            saving={savingSection}
+            saved={savedSection}
+            onSave={saveAccount}
+            missing={form.name.trim() ? [] : ['Your name']}
+          />
         </div>
 
         {/* PLAN */}
@@ -230,8 +287,13 @@ export default function SettingsPage() {
           <div className={`${sectionHd} mb-4`}>COMPANY</div>
           <div className="flex flex-col gap-3 flex-1">
             <div>
-              <label className={`${labelCls} mb-1 block`}>Company name *</label>
-              <input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} className={inputCls} />
+              <label className={`${labelCls} mb-1 block`}>Company name <span className="text-red-500">*</span></label>
+              <input
+                value={form.company_name}
+                onChange={e => setForm({...form, company_name: e.target.value})}
+                onBlur={() => touch('company_name')}
+                className={inputBorder('company_name', form.company_name)}
+              />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -270,14 +332,19 @@ export default function SettingsPage() {
               <p className="text-xs text-[#b0a898] mt-1">Used to display meetings and booking availability in your local time</p>
             </div>
           </div>
-          <SaveButton section="company" saving={savingSection} saved={savedSection}
+          <SaveButton
+            section="company"
+            saving={savingSection}
+            saved={savedSection}
+            missing={form.company_name.trim() ? [] : ['Company name']}
             onSave={() => saveSection('company', {
               company_name:       form.company_name,
               sender_name:        form.sender_name,
               workspace_timezone: form.timezone,
               user_industry:      form.user_industry,
               user_company_size:  form.user_company_size,
-            })} />
+            })}
+          />
         </div>
 
         {/* PRODUCT */}
@@ -293,11 +360,18 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-3 flex-1">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Product description *</label>
+                <label className={labelCls}>Product description <span className="text-red-500">*</span></label>
                 <QualityBadge pct="Adds 15% to AI quality" />
               </div>
-              <textarea value={form.product_description} onChange={e => setForm({...form, product_description: e.target.value})}
-                className={`${inputCls} resize-none`} rows={3} />
+              <textarea
+                value={form.product_description}
+                onChange={e => setForm({...form, product_description: e.target.value})}
+                onBlur={() => touch('product_description')}
+                className={`${touched.has('product_description') && !form.product_description.trim()
+                  ? 'border-red-300 focus:border-red-400'
+                  : 'border-[#e8e3dc] focus:border-[#3b6bef]'} w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
+                rows={3}
+              />
               <p className={`text-xs mt-1 ${form.product_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
                 {form.product_description.length}/30 chars{form.product_description.length >= 30 ? ' ✓' : ''}
               </p>
@@ -314,8 +388,13 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-          <SaveButton section="product" saving={savingSection} saved={savedSection}
-            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition })} />
+          <SaveButton
+            section="product"
+            saving={savingSection}
+            saved={savedSection}
+            missing={form.product_description.trim() ? [] : ['Product description']}
+            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition })}
+          />
         </div>
       </div>
 

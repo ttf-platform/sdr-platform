@@ -516,15 +516,36 @@ export default function ProspectsPage() {
               </div>
             </div>
 
-            {/* Regions */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Regions</label>
-                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+            {/* Regions + Pain points */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className={labelCls}>Regions</label>
+                  <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+                </div>
+                <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
+                  className={inputCls} placeholder="e.g. US, Europe, APAC" />
+                <FieldOk show={!!icpForm.target_regions} />
               </div>
-              <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
-                className={inputCls} placeholder="e.g. US, Europe, APAC" />
-              <FieldOk show={!!icpForm.target_regions} />
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className={labelCls}>Pain points</label>
+                  <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+                  <Tooltip content={PAIN_POINTS_TOOLTIP}>
+                    <InfoIcon />
+                  </Tooltip>
+                </div>
+                <textarea
+                  value={icpForm.pain_points}
+                  onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
+                  rows={3}
+                  placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
+                />
+                <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                  {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
+                </p>
+              </div>
             </div>
 
             {/* Company size pills */}
@@ -568,52 +589,27 @@ export default function ProspectsPage() {
             </div>
           </div>
 
-          {/* Tone & Context */}
-          <h3 className="text-blue-600 font-semibold mb-4">Tone & Context</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-
-            {/* Email tone */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <label className={labelCls}>Email tone</label>
-                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {TONES.map(t => (
-                  <button key={t} type="button"
-                    onClick={() => setIcpForm(f => ({ ...f, tone: t.toLowerCase() }))}
-                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === t.toLowerCase() ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <FieldOk show={!!icpForm.tone} />
+          {/* Tone */}
+          <h3 className="text-blue-600 font-semibold mb-4">Tone</h3>
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <label className={labelCls}>Email tone</label>
+              <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
             </div>
-
-            {/* Pain points */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Pain points / Buying signals</label>
-                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
-                <Tooltip content={PAIN_POINTS_TOOLTIP}>
-                  <InfoIcon />
-                </Tooltip>
-              </div>
-              <textarea
-                value={icpForm.pain_points}
-                onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
-                rows={3}
-                placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
-              />
-              <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
-              </p>
+            <div className="flex flex-wrap gap-2">
+              {TONES.map(t => (
+                <button key={t} type="button"
+                  onClick={() => setIcpForm(f => ({ ...f, tone: t.toLowerCase() }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === t.toLowerCase() ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                  {t}
+                </button>
+              ))}
             </div>
+            <FieldOk show={!!icpForm.tone} />
           </div>
 
           {/* Footer */}
-          <div className="flex gap-2 mt-2">
+          <div className="flex justify-end gap-2 mt-4">
             <button onClick={() => setIcpForm(icpOriginal)}
               className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors">
               Reset
