@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 
@@ -35,6 +35,9 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   const [creating,       setCreating]       = useState(false)
   const [error,          setError]          = useState('')
   const [nameError,      setNameError]      = useState('')
+  const [nameFlashing,   setNameFlashing]   = useState(false)
+  const nameInputRef  = useRef<HTMLInputElement>(null)
+  const checkDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Bug G — pre-fill ICP textarea with Master ICP on mount (only if empty)
   useEffect(() => {
@@ -74,8 +77,28 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     }
   }
 
+  function handleNameBlur() {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (checkDebounce.current) clearTimeout(checkDebounce.current)
+    checkDebounce.current = setTimeout(async () => {
+      const res = await fetch(`/api/campaigns/check-name?name=${encodeURIComponent(trimmed)}`).then(r => r.json()).catch(() => null)
+      if (res && !res.available) {
+        setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
+      }
+    }, 300)
+  }
+
+  function flashNameField() {
+    setNameFlashing(true)
+    nameInputRef.current?.focus()
+    nameInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => setNameFlashing(false), 900)
+  }
+
   async function handleCreate() {
-    if (!name.trim()) { setNameError('Campaign name is required.'); return }
+    if (!name.trim()) { setNameError('Campaign name is required.'); flashNameField(); return }
+    if (nameError) { flashNameField(); return }
     setCreating(true)
     setError('')
     setNameError('')
@@ -172,11 +195,13 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
           <div>
             <label className={labelCls}>Campaign Name <span className="text-red-500">*</span></label>
             <input
+              ref={nameInputRef}
               type="text"
               value={name}
               onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
+              onBlur={handleNameBlur}
               placeholder="e.g. SaaS VP Outreach Q3"
-              className={`${inputCls} ${nameError ? 'border-red-400' : ''}`}
+              className={`${inputCls} ${nameError ? 'border-red-400' : ''} ${nameFlashing ? 'animate-pulse ring-2 ring-red-300' : ''}`}
             />
             {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
           </div>
