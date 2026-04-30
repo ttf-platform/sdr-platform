@@ -547,43 +547,43 @@ export default function ProspectsPage() {
             </div>
           </div>
 
-          {/* Ligne 3 — Company size pills — full width */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <label className={labelCls}>Company size (select all that apply)</label>
-              <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+          {/* Ligne 3 — Company size + Company Revenue (grid 2 cols) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <label className={labelCls}>Company size (select all that apply)</label>
+                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {COMPANY_SIZES.map(s => {
+                  const active = icpForm.company_sizes.includes(s)
+                  return (
+                    <button key={s} type="button"
+                      onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                      {s}
+                    </button>
+                  )
+                })}
+              </div>
+              <FieldOk show={icpForm.company_sizes.length > 0} />
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {COMPANY_SIZES.map(s => {
-                const active = icpForm.company_sizes.includes(s)
-                return (
-                  <button key={s} type="button"
-                    onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
-                    {s}
-                  </button>
-                )
-              })}
-            </div>
-            <FieldOk show={icpForm.company_sizes.length > 0} />
-          </div>
-
-          {/* Ligne 4 — Company revenue pills — full width, not scored */}
-          <div className="mb-6">
-            <label className={`${labelCls} mb-2 block`}>
-              Company Revenue <span className="text-[#b0a898] font-normal">(optional)</span>
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {REVENUE_RANGES.map(r => {
-                const active = icpForm.company_revenue.includes(r)
-                return (
-                  <button key={r} type="button"
-                    onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
-                    {r}
-                  </button>
-                )
-              })}
+            <div>
+              <label className={`${labelCls} mb-2 block`}>
+                Company Revenue <span className="text-[#b0a898] font-normal">(optional)</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {REVENUE_RANGES.map(r => {
+                  const active = icpForm.company_revenue.includes(r)
+                  return (
+                    <button key={r} type="button"
+                      onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                      {r}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
