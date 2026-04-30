@@ -96,6 +96,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [bulkDeletingEmails,  setBulkDeletingEmails]  = useState(false)
   const [showGenerateDraftsModal, setShowGenerateDraftsModal] = useState(false)
   const [generateDraftsIsRegen, setGenerateDraftsIsRegen]     = useState(false)
+  const [generatingMissing, setGeneratingMissing]             = useState(false)
   const [editEmailId, setEditEmailId]               = useState<string | null>(null)
   const [editFollowUpStep, setEditFollowUpStep]     = useState<Step | null>(null)
 
@@ -278,6 +279,18 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   async function removeStep(id: string) {
     await fetch(`/api/campaigns/${params.id}/steps/${id}`, { method: 'DELETE' })
     setSteps(prev => prev.filter(s => s.id !== id))
+  }
+
+  async function generateMissingDrafts() {
+    if (!campaign) return
+    setGeneratingMissing(true)
+    await fetch(`/api/campaigns/${params.id}/generate-drafts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: campaign.personalization_mode ?? 'fast' }),
+    })
+    setGeneratingMissing(false)
+    setEmailsRefreshKey(k => k + 1)
   }
 
   async function patchStopSetting(patch: Partial<typeof stopSettings>) {
@@ -601,10 +614,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee]">
                     ↺ Regenerate all
                   </button>
-                  <button onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
-                    className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">
-                    + Generate more
-                  </button>
                   <button disabled title="Coming soon"
                     className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-1.5">
                     📅 Schedule
@@ -617,6 +626,21 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   </button>
                 </div>
               </div>
+
+              {/* Missing drafts banner */}
+              {!emailsLoading && tabProspectsTotal > emailsTotal && (
+                <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                  <p className="text-xs text-amber-800 font-medium">
+                    {tabProspectsTotal - emailsTotal} prospect{tabProspectsTotal - emailsTotal !== 1 ? 's' : ''} don't have a draft yet
+                  </p>
+                  <button
+                    onClick={generateMissingDrafts}
+                    disabled={generatingMissing}
+                    className="shrink-0 text-xs bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg font-semibold disabled:opacity-50 transition-colors">
+                    {generatingMissing ? 'Generating…' : 'Generate missing drafts'}
+                  </button>
+                </div>
+              )}
 
               {emailsLoading ? (
                 <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading…</div>
