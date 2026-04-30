@@ -40,12 +40,16 @@ const STATUS_COLORS: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-500',
 }
 
-const EMAIL_STATUS_BADGE: Record<string, string> = {
-  draft:    'bg-[#f0ece6] text-[#6b5e4e]',
-  edited:   'bg-amber-50 text-amber-700',
-  approved: 'bg-green-50 text-green-700',
-  sent:     'bg-blue-50 text-blue-700',
-  rejected: 'bg-red-50 text-red-500',
+function EmailStatusBadge({ status }: { status: string }) {
+  const map: Record<string, { cls: string; label: string }> = {
+    draft:    { cls: 'bg-gray-100 text-gray-700',   label: 'Draft' },
+    edited:   { cls: 'bg-amber-100 text-amber-700', label: 'Edited' },
+    approved: { cls: 'bg-green-100 text-green-700', label: '✓ Approved' },
+    sent:     { cls: 'bg-blue-100 text-blue-700',   label: '↑ Sent' },
+    rejected: { cls: 'bg-red-100 text-red-700',     label: '✗ Rejected' },
+  }
+  const { cls, label } = map[status] ?? { cls: 'bg-gray-100 text-gray-500', label: status }
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cls}`}>{label}</span>
 }
 
 export default function CampaignDetailPage({ params }: { params: { id: string } }) {
@@ -199,6 +203,11 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   async function rejectEmail(id: string) {
     await fetch(`/api/prospect-emails/${id}/reject`, { method: 'POST' })
+    setEmailsRefreshKey(k => k + 1)
+  }
+
+  async function undoEmail(id: string) {
+    await fetch(`/api/prospect-emails/${id}/undo`, { method: 'POST' })
     setEmailsRefreshKey(k => k + 1)
   }
 
@@ -621,8 +630,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     const contactName = [email.prospect.first_name, email.prospect.last_name]
                       .filter(Boolean).join(' ') || email.prospect.email || '—'
                     const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 100)
-                    const isApproved = email.status === 'approved' || email.status === 'sent'
-                    const isRejected = email.status === 'rejected'
+                    const isFinal = email.status === 'approved' || email.status === 'sent' || email.status === 'rejected'
 
                     return (
                       <div key={email.id}
@@ -652,10 +660,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                             <div className="text-xs text-[#8a7e6e] truncate mt-0.5">{bodyPreview}…</div>
                           </div>
 
-                          {/* State badge — read-only */}
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize shrink-0 ${EMAIL_STATUS_BADGE[email.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                            {email.status}
-                          </span>
+                          {/* Status badge */}
+                          <EmailStatusBadge status={email.status} />
 
                           {/* Action buttons */}
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -664,29 +670,25 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                               className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2 py-1 rounded-lg font-medium transition-colors">
                               Edit
                             </button>
-                            {isRejected ? (
-                              <button disabled
-                                className="text-xs text-red-400 border border-red-100 bg-red-50 px-2 py-1 rounded-lg font-medium cursor-not-allowed opacity-70">
-                                Rejected ✓
+                            {isFinal ? (
+                              <button
+                                onClick={() => undoEmail(email.id)}
+                                className="text-xs text-[#6b5e4e] border border-[#e8e3dc] bg-white hover:bg-[#f5f2ee] px-2 py-1 rounded-lg font-medium transition-colors">
+                                Undo
                               </button>
                             ) : (
-                              <button
-                                onClick={() => rejectEmail(email.id)}
-                                className="text-xs text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
-                                Reject
-                              </button>
-                            )}
-                            {isApproved ? (
-                              <button disabled
-                                className="text-xs text-green-600 border border-green-200 bg-green-50 px-2 py-1 rounded-lg font-medium cursor-not-allowed opacity-70">
-                                Approved ✓
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => approveEmail(email.id)}
-                                className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
-                                Approve
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => rejectEmail(email.id)}
+                                  className="text-xs text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                  Reject
+                                </button>
+                                <button
+                                  onClick={() => approveEmail(email.id)}
+                                  className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                  Approve
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
