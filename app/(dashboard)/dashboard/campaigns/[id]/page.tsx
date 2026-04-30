@@ -97,6 +97,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [showGenerateDraftsModal, setShowGenerateDraftsModal] = useState(false)
   const [generateDraftsIsRegen, setGenerateDraftsIsRegen]     = useState(false)
   const [generatingMissing, setGeneratingMissing]             = useState(false)
+  const [emailActionError, setEmailActionError]               = useState('')
   const [editEmailId, setEditEmailId]               = useState<string | null>(null)
   const [editFollowUpStep, setEditFollowUpStep]     = useState<Step | null>(null)
 
@@ -197,19 +198,44 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     setEmailsRefreshKey(k => k + 1)
   }
 
+  function optimisticEmailStatus(id: string, newStatus: string) {
+    const prev = { drafts: emailDrafts, byStatus: { ...emailsByStatus } }
+    const email = emailDrafts.find(e => e.id === id)
+    if (!email) return prev
+    const oldStatus = email.status
+    setEmailDrafts(ds => ds.map(e => e.id === id ? { ...e, status: newStatus } : e))
+    setEmailsByStatus(bs => {
+      const next = { ...bs }
+      if (oldStatus && next[oldStatus]) next[oldStatus] = Math.max(0, (next[oldStatus] ?? 0) - 1)
+      next[newStatus] = (next[newStatus] ?? 0) + 1
+      return next
+    })
+    return prev
+  }
+
+  function rollbackEmailStatus(prev: { drafts: EmailDraft[]; byStatus: Record<string, number> }) {
+    setEmailDrafts(prev.drafts)
+    setEmailsByStatus(prev.byStatus)
+    setEmailActionError('Action failed — please try again.')
+    setTimeout(() => setEmailActionError(''), 3000)
+  }
+
   async function approveEmail(id: string) {
-    await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
-    setEmailsRefreshKey(k => k + 1)
+    const prev = optimisticEmailStatus(id, 'approved')
+    const res = await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
+    if (!res.ok) rollbackEmailStatus(prev)
   }
 
   async function rejectEmail(id: string) {
-    await fetch(`/api/prospect-emails/${id}/reject`, { method: 'POST' })
-    setEmailsRefreshKey(k => k + 1)
+    const prev = optimisticEmailStatus(id, 'rejected')
+    const res = await fetch(`/api/prospect-emails/${id}/reject`, { method: 'POST' })
+    if (!res.ok) rollbackEmailStatus(prev)
   }
 
   async function undoEmail(id: string) {
-    await fetch(`/api/prospect-emails/${id}/undo`, { method: 'POST' })
-    setEmailsRefreshKey(k => k + 1)
+    const prev = optimisticEmailStatus(id, 'draft')
+    const res = await fetch(`/api/prospect-emails/${id}/undo`, { method: 'POST' })
+    if (!res.ok) rollbackEmailStatus(prev)
   }
 
   async function bulkRejectEmails() {
@@ -587,6 +613,10 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 ✨ Generate Drafts
               </button>
             </div>
+          )}
+
+          {emailActionError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-2.5 rounded-xl">{emailActionError}</div>
           )}
 
           {/* Populated */}
