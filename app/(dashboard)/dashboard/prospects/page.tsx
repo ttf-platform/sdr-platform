@@ -491,10 +491,10 @@ export default function ProspectsPage() {
           </div>
 
           {/* Structured ICP */}
-          <h3 className="text-blue-600 font-semibold mb-4">Structured ICP</h3>
+          <h3 className="text-blue-600 font-semibold mb-6">Structured ICP</h3>
 
           {/* Ligne 1 — Industry + Titles */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Industry</label>
@@ -516,7 +516,7 @@ export default function ProspectsPage() {
           </div>
 
           {/* Ligne 2 — Regions + Pain points */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Regions</label>
