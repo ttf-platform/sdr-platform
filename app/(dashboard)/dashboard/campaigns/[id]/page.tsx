@@ -792,11 +792,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {/* ── Tab: Follow-up Sequence ──────────────────────────────────────────── */}
       {tab === 'sequence' && (
         <div className="flex flex-col gap-4">
-          <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-2.5 text-sm text-[#3b6bef] font-medium flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full inline-block ${campaign.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
-            {campaign.status} · {followUpSteps.length} follow-up{followUpSteps.length !== 1 ? 's' : ''}
-          </div>
-
           {followUpSteps.length === 0 ? (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
               <div className="text-3xl mb-3">↩️</div>
