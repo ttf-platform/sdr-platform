@@ -9,13 +9,12 @@ const STATUS_PRIORITY: Record<string, number> = {
 const ALL_STATUSES = ['found', 'emailed', 'opened', 'replied', 'meeting', 'bounced', 'unsubscribed'] as const
 
 function computeFilterCounts(rows: { contact_id: string; status: string }[]) {
-  const byStatus: Record<string, Set<string>> = {}
-  for (const row of rows) {
-    if (!byStatus[row.status]) byStatus[row.status] = new Set()
-    byStatus[row.status].add(row.contact_id)
-  }
+  // Count total assignments per status (not distinct contacts)
   const counts: Record<string, number> = {}
-  for (const s of ALL_STATUSES) counts[s] = byStatus[s]?.size ?? 0
+  for (const s of ALL_STATUSES) counts[s] = 0
+  for (const row of rows) {
+    if (row.status in counts) counts[row.status]++
+  }
   return counts
 }
 

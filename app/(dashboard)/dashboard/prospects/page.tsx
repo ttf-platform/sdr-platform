@@ -95,8 +95,8 @@ function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total
             {i > 0 && <div className="w-2 h-px bg-[#e8e3dc] mx-0.5 mt-[10px]" />}
             <Tooltip content={`${n} of ${total} campaign${total !== 1 ? 's' : ''} reached ${label}`}>
               <div className="flex flex-col items-center gap-[2px]">
-                <span className={`text-[9px] font-semibold leading-none ${on ? 'text-[#3b6bef]' : 'text-[#d0cbc5]'}`}>{n}</span>
-                <div className={`w-2 h-2 rounded-full ${on ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`} />
+                <span className={`text-[9px] font-semibold leading-none ${on ? 'text-green-600' : 'text-[#d0cbc5]'}`}>{n}</span>
+                <div className={`w-2 h-2 rounded-full ${on ? 'bg-green-500' : 'bg-[#e8e3dc]'}`} />
               </div>
             </Tooltip>
           </div>
