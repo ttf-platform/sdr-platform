@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 interface EmailDetail {
   id:         string
@@ -31,8 +31,20 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
   const [body,    setBody]    = useState('')
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState('')
-  const [confirmRegen, setConfirmRegen] = useState(false)
-  const [regenning,    setRegenning]   = useState(false)
+  const [confirmRegen,       setConfirmRegen]       = useState(false)
+  const [regenning,          setRegenning]          = useState(false)
+  const [bookingSlug,        setBookingSlug]        = useState<string | null>(null)
+  const [includeBookingLink, setIncludeBookingLink] = useState(false)
+  const bookingUrlRef = useRef<string | null>(null)
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+
+  useEffect(() => {
+    fetch('/api/workspace-profile')
+      .then(r => r.json())
+      .then(d => { if (d.profile?.booking_slug) setBookingSlug(d.profile.booking_slug) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch(`/api/prospect-emails/${emailId}`)
@@ -49,6 +61,25 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
       .catch(() => setError('Failed to load email.'))
       .finally(() => setLoading(false))
   }, [emailId])
+
+  // Once both email body and booking slug are known, detect initial toggle state
+  useEffect(() => {
+    if (!email || !bookingSlug) return
+    const url = `${appUrl}/book/${bookingSlug}`
+    bookingUrlRef.current = url
+    setIncludeBookingLink(email.body.includes(url))
+  }, [email, bookingSlug, appUrl])
+
+  function toggleBookingLink(checked: boolean) {
+    const url = bookingUrlRef.current
+    setIncludeBookingLink(checked)
+    if (!url) return
+    if (checked) {
+      if (!body.includes(url)) setBody(b => b.trimEnd() + `\n\n${url}`)
+    } else {
+      setBody(b => b.replace(new RegExp(`\\n*${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), '').trimEnd())
+    }
+  }
 
   async function handleSave(approve = false) {
     setSaving(true)
@@ -161,6 +192,27 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] focus:outline-none focus:border-[#3b6bef] resize-none disabled:opacity-60 font-mono"
                 />
               </div>
+
+              {/* Booking link toggle */}
+              {bookingSlug && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeBookingLink}
+                      onChange={e => toggleBookingLink(e.target.checked)}
+                      disabled={saving || regenning}
+                      className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
+                    />
+                    <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link</span>
+                  </label>
+                  {includeBookingLink && (
+                    <p className="text-xs text-[#a89e8e] pl-5">
+                      Preview: <span className="text-[#3b6bef]">{`${appUrl}/book/${bookingSlug}`}</span>
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-start">
                 <button
