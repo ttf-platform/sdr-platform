@@ -63,13 +63,14 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     .eq('workspace_id', guard.workspaceId)
 
   if (error) {
-    console.error('[DELETE campaign]', {
-      message: error.message,
-      code:    (error as any).code,
-      details: (error as any).details,
-      hint:    (error as any).hint,
-    })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[DELETE campaign]', error)
+    return NextResponse.json({
+      error:         'delete_failed',
+      debug_message: error.message,
+      debug_code:    (error as any).code,
+      debug_details: (error as any).details,
+      debug_hint:    (error as any).hint,
+    }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }
