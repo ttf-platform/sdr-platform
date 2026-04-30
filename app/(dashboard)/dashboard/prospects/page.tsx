@@ -10,6 +10,11 @@ import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type LifecycleCounts = {
+  found: number; emailed: number; opened: number; replied: number; meeting: number
+  bounced: number; unsubscribed: number
+}
+
 type Contact = {
   id: string; email: string
   first_name: string | null; last_name: string | null
@@ -17,6 +22,7 @@ type Contact = {
   linkedin_url: string | null; website: string | null
   added_at: string
   campaigns_count: number
+  lifecycle_counts: LifecycleCounts
   primary_status: string
   last_activity_at: string | null
   primary_campaign_name: string | null
@@ -68,6 +74,54 @@ function InfoIcon() {
     <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
+  )
+}
+
+// ─── Lifecycle multi-campaign dots ─────────────────────────────────────────────
+const LC_POSITIVE = ['found', 'emailed', 'opened', 'replied', 'meeting'] as const
+const LC_NEGATIVE = ['bounced', 'unsubscribed'] as const
+
+function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total: number }) {
+  const hasNeg = LC_NEGATIVE.some(s => (counts[s] ?? 0) > 0)
+  return (
+    <div className="flex items-center gap-1">
+      {/* Positive dots */}
+      {LC_POSITIVE.map((s, i) => {
+        const n = counts[s] ?? 0
+        const on = n > 0
+        const label = s.charAt(0).toUpperCase() + s.slice(1)
+        return (
+          <div key={s} className="flex items-center">
+            {i > 0 && <div className="w-2 h-px bg-[#e8e3dc] mx-0.5 mt-[10px]" />}
+            <Tooltip content={`${n} of ${total} campaign${total !== 1 ? 's' : ''} reached ${label}`}>
+              <div className="flex flex-col items-center gap-[2px]">
+                <span className={`text-[9px] font-semibold leading-none ${on ? 'text-[#3b6bef]' : 'text-[#d0cbc5]'}`}>{n}</span>
+                <div className={`w-2 h-2 rounded-full ${on ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`} />
+              </div>
+            </Tooltip>
+          </div>
+        )
+      })}
+      {/* Separator + negative */}
+      {hasNeg && (
+        <>
+          <div className="w-px h-5 bg-[#e8e3dc] mx-0.5" />
+          {LC_NEGATIVE.map(s => {
+            const n = counts[s] ?? 0
+            if (!n) return null
+            const label = s.charAt(0).toUpperCase() + s.slice(1)
+            return (
+              <Tooltip key={s} content={`${n} campaign${n !== 1 ? 's' : ''} ${label}`}>
+                <div className="flex flex-col items-center gap-[2px]">
+                  <span className="text-[9px] font-semibold leading-none text-red-400">{n}</span>
+                  <div className="w-2 h-2 rounded-full bg-red-400" />
+                </div>
+              </Tooltip>
+            )
+          })}
+        </>
+      )}
+    </div>
   )
 }
 
@@ -218,6 +272,8 @@ function SidePanel({ contactId, onClose, onDeleted }: {
 export default function ProspectsPage() {
   const [contacts, setContacts]         = useState<Contact[]>([])
   const [total, setTotal]               = useState(0)
+  const [totalAll, setTotalAll]         = useState(0)
+  const [filterCounts, setFilterCounts] = useState<Record<string, number>>({})
   const [pages, setPages]               = useState(1)
   const [campaigns, setCampaigns]       = useState<Campaign[]>([])
   const [loading, setLoading]           = useState(true)
@@ -270,6 +326,8 @@ export default function ProspectsPage() {
         setContacts(d.contacts ?? [])
         setTotal(d.total ?? 0)
         setPages(d.pages ?? 1)
+        if (d.filter_counts) setFilterCounts(d.filter_counts)
+        if (d.total_all !== undefined) setTotalAll(d.total_all)
         setLoading(false)
       })
   }, [page, statusFilter, campaignFilter, sourceFilter, sort, refreshKey])
@@ -628,15 +686,21 @@ export default function ProspectsPage() {
         <div className="flex gap-2 flex-wrap items-center">
           {(['all','found','emailed','opened','replied','meeting'] as const).map(s => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
-              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors ${statusFilter === s ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
+              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilter === s ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
               {s === 'all' ? 'All' : s}
+              <span className={`text-[10px] ${statusFilter === s ? 'text-white/70' : 'text-[#b0a898]'}`}>
+                {s === 'all' ? totalAll : (filterCounts[s] ?? 0)}
+              </span>
             </button>
           ))}
           <div className="w-px h-4 bg-[#e8e3dc] mx-1" />
           {(['bounced','unsubscribed'] as const).map(s => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
-              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors ${statusFilter === s ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
+              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilter === s ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
               {s}
+              <span className={`text-[10px] ${statusFilter === s ? 'text-white/70' : 'text-red-300'}`}>
+                {filterCounts[s] ?? 0}
+              </span>
             </button>
           ))}
           <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
@@ -714,7 +778,12 @@ export default function ProspectsPage() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3"><LifecyclePill status={c.primary_status} /></td>
+                <td className="px-4 py-3">
+                  {c.campaigns_count === 0
+                    ? <span className="text-xs text-[#b0a898]">—</span>
+                    : <LifecycleCountsCell counts={c.lifecycle_counts} total={c.campaigns_count} />
+                  }
+                </td>
                 <td className="px-4 py-3">
                   <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
                     {SOURCE_LABEL[c.primary_source ?? ''] ?? c.primary_source ?? '—'}

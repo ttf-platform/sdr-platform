@@ -6,6 +6,19 @@ const STATUS_PRIORITY: Record<string, number> = {
   meeting: 4, replied: 3, opened: 2, emailed: 1, found: 0,
 }
 
+const ALL_STATUSES = ['found', 'emailed', 'opened', 'replied', 'meeting', 'bounced', 'unsubscribed'] as const
+
+function computeFilterCounts(rows: { contact_id: string; status: string }[]) {
+  const byStatus: Record<string, Set<string>> = {}
+  for (const row of rows) {
+    if (!byStatus[row.status]) byStatus[row.status] = new Set()
+    byStatus[row.status].add(row.contact_id)
+  }
+  const counts: Record<string, number> = {}
+  for (const s of ALL_STATUSES) counts[s] = byStatus[s]?.size ?? 0
+  return counts
+}
+
 export async function GET(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
@@ -22,8 +35,15 @@ export async function GET(request: Request) {
   const limit       = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50')))
   const offset      = (page - 1) * limit
 
-  // If assignment filters are set, resolve matching contact IDs from prospects table first
+  // Resolve contactIds (if assignment filters active) and filter_counts in parallel
+  let filterCountsRows: { contact_id: string; status: string }[] = []
   let contactIds: string[] | null = null
+
+  const countsQuery = admin
+    .from('prospects')
+    .select('contact_id, status')
+    .eq('workspace_id', guard.workspaceId)
+
   if (campaign_id || status || source) {
     let q = admin
       .from('prospects')
@@ -34,15 +54,25 @@ export async function GET(request: Request) {
     if (status)      q = q.in('status', status.split(',').map(s => s.trim()))
     if (source)      q = q.in('source', source.split(',').map(s => s.trim()))
 
-    const { data: rows } = await q
-    contactIds = [...new Set((rows ?? []).map(r => r.contact_id as string))]
+    const [{ data: filterRows }, { data: countsRows }] = await Promise.all([q, countsQuery])
+
+    filterCountsRows = countsRows ?? []
+    contactIds = [...new Set((filterRows ?? []).map(r => r.contact_id as string))]
 
     if (contactIds.length === 0) {
-      return NextResponse.json({ contacts: [], total: 0, page, limit, pages: 0 })
+      const filter_counts = computeFilterCounts(filterCountsRows)
+      const total_all = new Set(filterCountsRows.map(r => r.contact_id)).size
+      return NextResponse.json({ contacts: [], total: 0, page, limit, pages: 0, filter_counts, total_all })
     }
+  } else {
+    const { data: countsRows } = await countsQuery
+    filterCountsRows = countsRows ?? []
   }
 
-  // Fetch contacts with embedded assignments (LEFT JOIN — includes contacts with no assignments)
+  const filter_counts = computeFilterCounts(filterCountsRows)
+  const total_all = new Set(filterCountsRows.map(r => r.contact_id)).size
+
+  // Fetch contacts with embedded assignments (LEFT JOIN)
   let contactQuery = admin
     .from('contacts')
     .select(
@@ -73,12 +103,16 @@ export async function GET(request: Request) {
   // TODO Sprint 17: move to SQL aggregation (GROUP BY contact_id, MAX CASE WHEN status...)
   // if query latency becomes an issue at scale.
   const contacts = (rawContacts ?? []).map((c: any) => {
-    const assignments: any[] = c.prospects ?? []
-    const campaignIdSet = new Set(assignments.filter(a => a.campaign_id).map(a => a.campaign_id))
+    const assignments: any[] = (c.prospects ?? []).filter((a: any) => a.campaign_id)
+    const campaignIdSet = new Set(assignments.map(a => a.campaign_id))
 
     let primary_status   = 'found'
     let bestPriority     = -1
     let last_activity_at: string | null = null
+
+    const lifecycle_counts: Record<string, number> = {
+      found: 0, emailed: 0, opened: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0,
+    }
 
     for (const a of assignments) {
       const p = STATUS_PRIORITY[a.status] ?? 0
@@ -86,18 +120,17 @@ export async function GET(request: Request) {
       if (a.last_activity_at && (!last_activity_at || a.last_activity_at > last_activity_at)) {
         last_activity_at = a.last_activity_at
       }
+      if (a.status in lifecycle_counts) lifecycle_counts[a.status]++
     }
 
-    // Primary campaign: most recently added assignment
-    const sorted = [...assignments]
-      .filter(a => a.campaign_id)
-      .sort((a, b) => ((b.added_at ?? '') > (a.added_at ?? '') ? 1 : -1))
+    const sorted = [...assignments].sort((a, b) => ((b.added_at ?? '') > (a.added_at ?? '') ? 1 : -1))
     const latest = sorted[0]
 
     const { prospects: _p, ...contactFields } = c
     return {
       ...contactFields,
       campaigns_count:       campaignIdSet.size,
+      lifecycle_counts,
       primary_status,
       last_activity_at,
       primary_campaign_name: latest?.campaigns?.name ?? null,
@@ -109,6 +142,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     contacts,
     total: count ?? 0,
+    total_all,
+    filter_counts,
     page,
     limit,
     pages: Math.ceil((count ?? 0) / limit),
