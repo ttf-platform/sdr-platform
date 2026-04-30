@@ -74,11 +74,14 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
     const url = bookingUrlRef.current
     setIncludeBookingLink(checked)
     if (!url) return
-    if (checked) {
-      if (!body.includes(url)) setBody(b => b.trimEnd() + `\n\n${url}`)
-    } else {
-      setBody(b => b.replace(new RegExp(`\\n*${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), '').trimEnd())
-    }
+    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    setBody(b => {
+      const cleaned = b
+        .replace(/\n*\{\{booking_link\}\}/g, '')
+        .replace(new RegExp(`\\n*${escaped}`, 'g'), '')
+        .trimEnd()
+      return checked ? `${cleaned}\n\n${url}` : cleaned
+    })
   }
 
   async function handleSave(approve = false) {
