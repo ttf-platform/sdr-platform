@@ -39,6 +39,11 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   const nameInputRef  = useRef<HTMLInputElement>(null)
   const checkDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Mount check: if name is pre-filled (template / AI suggestion), verify availability
+  useEffect(() => {
+    if (name.trim()) scheduleNameCheck(name, 600)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Bug G — pre-fill ICP textarea with Master ICP on mount (only if empty)
   useEffect(() => {
     fetch('/api/workspace-profile')
@@ -77,16 +82,23 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     }
   }
 
-  function handleNameBlur() {
-    const trimmed = name.trim()
+  async function checkNameAvailable(value: string) {
+    const trimmed = value.trim()
     if (!trimmed) return
+    const res = await fetch(`/api/campaigns/check-name?name=${encodeURIComponent(trimmed)}`).then(r => r.json()).catch(() => null)
+    if (res && !res.available) {
+      setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
+    }
+  }
+
+  function scheduleNameCheck(value: string, delayMs = 500) {
     if (checkDebounce.current) clearTimeout(checkDebounce.current)
-    checkDebounce.current = setTimeout(async () => {
-      const res = await fetch(`/api/campaigns/check-name?name=${encodeURIComponent(trimmed)}`).then(r => r.json()).catch(() => null)
-      if (res && !res.available) {
-        setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
-      }
-    }, 300)
+    checkDebounce.current = setTimeout(() => checkNameAvailable(value), delayMs)
+  }
+
+  function handleNameBlur() {
+    if (nameError) return // already showing error, don't re-check
+    scheduleNameCheck(name, 0) // immediate on blur
   }
 
   function flashNameField() {
@@ -125,6 +137,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     if (res.error === 'duplicate_name') {
       setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
       setCreating(false)
+      flashNameField()
       return
     }
     if (res.error) { setError(res.error); setCreating(false); return }
@@ -198,7 +211,12 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
               ref={nameInputRef}
               type="text"
               value={name}
-              onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
+              onChange={e => {
+                const v = e.target.value
+                setName(v)
+                setNameError('')
+                if (v.trim()) scheduleNameCheck(v, 500)
+              }}
               onBlur={handleNameBlur}
               placeholder="e.g. SaaS VP Outreach Q3"
               className={`${inputCls} ${nameError ? 'border-red-400' : ''} ${nameFlashing ? 'animate-pulse ring-2 ring-red-300' : ''}`}
