@@ -72,15 +72,17 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
 
   function toggleBookingLink(checked: boolean) {
     const url = bookingUrlRef.current
+    console.log('[toggleBookingLink]', { checked, url, bodyTail: body.slice(-300) })
     setIncludeBookingLink(checked)
     if (!url) return
     const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     setBody(b => {
-      const cleaned = b
+      const after = b
         .replace(/\n*\{\{booking_link\}\}/g, '')
         .replace(new RegExp(`\\n*${escaped}`, 'g'), '')
         .trimEnd()
-      return checked ? `${cleaned}\n\n${url}` : cleaned
+      console.log('[toggleBookingLink] cleaned body tail:', after.slice(-200))
+      return checked ? `${after}\n\n${url}` : after
     })
   }
 
