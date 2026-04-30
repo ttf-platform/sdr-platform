@@ -44,7 +44,10 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const COMPANY_SIZES  = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REVENUE_RANGES = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
-const ICP_TOOLTIP    = 'Your Master ICP auto-fills every new campaign you create. Override any field per campaign at launch.'
+const TONES          = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
+
+const ICP_TOOLTIP         = 'These are your master defaults. They auto-fill every new campaign you create — and you can override any field per campaign at launch.'
+const PAIN_POINTS_TOOLTIP = 'Describe the problems your prospects face that your product solves. Examples: struggling with low email deliverability, spending 3+ hours/day on manual prospecting, missing quota due to lack of qualified leads.'
 
 const inputCls = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#7c3aed]'
 const labelCls = 'text-xs font-semibold text-[#6b5e4e]'
@@ -60,13 +63,21 @@ function FieldOk({ show }: { show: boolean }) {
   return <p className="text-xs mt-1 text-green-600">Ok ✓</p>
 }
 
+function InfoIcon() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
 // ─── SidePanel ────────────────────────────────────────────────────────────────
 function SidePanel({ contactId, onClose, onDeleted }: {
   contactId: string
   onClose: () => void
   onDeleted: () => void
 }) {
-  const [detail, setDetail]   = useState<ContactDetail | null>(null)
+  const [detail, setDetail]     = useState<ContactDetail | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -89,7 +100,6 @@ function SidePanel({ contactId, onClose, onDeleted }: {
   return (
     <div className="fixed inset-0 z-[60] flex">
       <div className="flex-1 bg-black/20" onClick={onClose} />
-      {/* z-[60] > sticky header z-50 */}
       <div className="w-full max-w-sm bg-white shadow-xl flex flex-col overflow-y-auto" style={{ height: '100vh' }}>
         <div className="flex items-center justify-between p-5 border-b border-[#f0ece6]">
           <div>
@@ -111,7 +121,6 @@ function SidePanel({ contactId, onClose, onDeleted }: {
           </div>
         ) : (
           <div className="p-5 flex flex-col gap-5">
-            {/* Campaign assignments — one card per campaign */}
             {(() => {
               const campaignAssignments = (detail.prospects ?? []).filter(a => a.campaign_id)
               if (campaignAssignments.length === 0) return (
@@ -122,24 +131,16 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               )
               return (
                 <div>
-                  <div className="text-xs font-semibold text-[#6b5e4e] mb-2">
-                    Campaigns ({campaignAssignments.length})
-                  </div>
+                  <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Campaigns ({campaignAssignments.length})</div>
                   <div className="flex flex-col gap-2">
                     {campaignAssignments.map(a => (
                       <div key={a.id} className="border border-[#f0ece6] rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2.5">
-                          <span className="text-xs font-medium text-[#3b6bef] truncate flex-1 mr-2">
-                            {a.campaigns?.name ?? '—'}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium flex-shrink-0 ${statusBadgeClass(a.status)}`}>
-                            {a.status}
-                          </span>
+                          <span className="text-xs font-medium text-[#3b6bef] truncate flex-1 mr-2">{a.campaigns?.name ?? '—'}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium flex-shrink-0 ${statusBadgeClass(a.status)}`}>{a.status}</span>
                         </div>
                         <LifecyclePill status={a.status} variant="panel" />
-                        {a.added_at && (
-                          <div className="text-[10px] text-[#b0a898] mt-2">Added {fmtDate(a.added_at)}</div>
-                        )}
+                        {a.added_at && <div className="text-[10px] text-[#b0a898] mt-2">Added {fmtDate(a.added_at)}</div>}
                       </div>
                     ))}
                   </div>
@@ -147,7 +148,6 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               )
             })()}
 
-            {/* Contact info */}
             <div>
               <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Contact</div>
               <div className="flex flex-col gap-2">
@@ -180,7 +180,6 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               </div>
             </div>
 
-            {/* Meta */}
             <div className="flex flex-col gap-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-[#8a7e6e]">Added</span>
@@ -194,7 +193,6 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               )}
             </div>
 
-            {/* Notes placeholder */}
             <div>
               <div className="text-xs font-semibold text-[#6b5e4e] mb-2 flex items-center gap-2">
                 Notes
@@ -205,7 +203,6 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               </div>
             </div>
 
-            {/* Delete */}
             <button onClick={deleteContact} disabled={deleting}
               className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40 text-center py-1 transition-colors">
               {deleting ? 'Deleting…' : 'Delete contact & all assignments'}
@@ -219,30 +216,31 @@ function SidePanel({ contactId, onClose, onDeleted }: {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProspectsPage() {
-  const [contacts, setContacts]     = useState<Contact[]>([])
-  const [total, setTotal]           = useState(0)
-  const [pages, setPages]           = useState(1)
-  const [campaigns, setCampaigns]   = useState<Campaign[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [page, setPage]             = useState(1)
-  const [search, setSearch]         = useState('')
-  const [statusFilter, setStatusFilter]     = useState('all')
+  const [contacts, setContacts]         = useState<Contact[]>([])
+  const [total, setTotal]               = useState(0)
+  const [pages, setPages]               = useState(1)
+  const [campaigns, setCampaigns]       = useState<Campaign[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [page, setPage]                 = useState(1)
+  const [search, setSearch]             = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [campaignFilter, setCampaignFilter] = useState('all')
-  const [sourceFilter, setSourceFilter]     = useState('all')
-  const [sort, setSort]             = useState('newest')
-  const [selectedPanel, setSelectedPanel]   = useState<string | null>(null)
-  const [modal, setModal]           = useState<null | 'csv' | 'manual' | 'paste'>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [sourceFilter, setSourceFilter] = useState('all')
+  const [sort, setSort]                 = useState('newest')
+  const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
+  const [modal, setModal]               = useState<null | 'csv' | 'manual' | 'paste'>(null)
+  const [refreshKey, setRefreshKey]     = useState(0)
+  const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const searchTimeout               = useRef<ReturnType<typeof setTimeout>>()
+  const searchTimeout                   = useRef<ReturnType<typeof setTimeout>>()
 
-  // ── ICP panel state ──────────────────────────────────────────────────────────
+  // ── ICP panel ───────────────────────────────────────────────────────────────
   const [icpOpen,     setIcpOpen]     = useState(false)
   const [icpSaving,   setIcpSaving]   = useState(false)
   const [icpSaved,    setIcpSaved]    = useState(false)
   const [wid,         setWid]         = useState<string|null>(null)
   const [fullProfile, setFullProfile] = useState<any>(null)
+  const [aiParsing,   setAiParsing]   = useState(false)
   const [icpForm,     setIcpForm]     = useState({
     icp_description:  '',
     industry:         '',
@@ -251,10 +249,9 @@ export default function ProspectsPage() {
     company_sizes:    [] as string[],
     company_revenue:  [] as string[],
     pain_points:      '',
+    tone:             'professional',
   })
   const [icpOriginal, setIcpOriginal] = useState(icpForm)
-  const [aiParseText, setAiParseText] = useState('')
-  const [aiParsing,   setAiParsing]   = useState(false)
 
   useEffect(() => {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
@@ -267,7 +264,6 @@ export default function ProspectsPage() {
     if (campaignFilter !== 'all') params.set('campaign_id', campaignFilter)
     if (sourceFilter !== 'all') params.set('source', sourceFilter)
     if (search) params.set('search', search)
-
     fetch(`/api/contacts?${params}`)
       .then(r => r.json())
       .then(d => {
@@ -300,6 +296,7 @@ export default function ProspectsPage() {
           company_sizes:    p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []),
           company_revenue:  p.target_company_revenue ?? [],
           pain_points:      p.pain_points       || '',
+          tone:             p.tone              || 'professional',
         }
         setIcpForm(loaded)
         setIcpOriginal(loaded)
@@ -307,10 +304,12 @@ export default function ProspectsPage() {
   }, [])
 
   const profileForScore = fullProfile ? {
+    user_industry:          fullProfile.user_industry,
+    user_company_size:      fullProfile.user_company_size,
     product_description:    fullProfile.product_description,
+    value_proposition:      fullProfile.value_proposition,
     icp_description:        icpForm.icp_description,
     sender_name:            fullProfile.sender_name,
-    value_proposition:      fullProfile.value_proposition,
     icp_industries:         icpForm.industry ? [icpForm.industry] : [],
     icp_company_sizes:      icpForm.company_sizes,
     icp_company_size:       icpForm.company_sizes[0] ?? '',
@@ -318,6 +317,7 @@ export default function ProspectsPage() {
     target_titles:          icpForm.target_titles,
     target_regions:         icpForm.target_regions,
     target_company_revenue: icpForm.company_revenue,
+    tone:                   icpForm.tone,
   } : null
 
   async function saveIcp() {
@@ -335,6 +335,7 @@ export default function ProspectsPage() {
         icp_company_sizes:      icpForm.company_sizes,
         target_company_revenue: icpForm.company_revenue,
         pain_points:            icpForm.pain_points,
+        tone:                   icpForm.tone,
       }),
     })
     setIcpOriginal(icpForm)
@@ -344,10 +345,28 @@ export default function ProspectsPage() {
   }
 
   async function handleAiParse() {
-    if (!aiParseText.trim()) return
+    if (!icpForm.icp_description.trim()) return
     setAiParsing(true)
-    setIcpForm(f => ({ ...f, icp_description: aiParseText.trim() }))
-    setAiParseText('')
+    try {
+      const res = await fetch('/api/icp/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: icpForm.icp_description }),
+      })
+      const data = await res.json()
+      if (data.icp) {
+        const { icp } = data
+        setIcpForm(f => ({
+          ...f,
+          industry:       icp.industries?.[0]  || f.industry,
+          target_titles:  icp.titles?.join(', ') || f.target_titles,
+          target_regions: icp.regions?.join(', ') || f.target_regions,
+          company_sizes:  icp.company_sizes?.length ? icp.company_sizes.filter((s: string) => COMPANY_SIZES.includes(s)) : f.company_sizes,
+          company_revenue: icp.revenue?.length ? icp.revenue.filter((r: string) => REVENUE_RANGES.includes(r)) : f.company_revenue,
+          pain_points:    icp.pain_points || f.pain_points,
+        }))
+      }
+    } catch { /* silent fail */ }
     setAiParsing(false)
   }
 
@@ -382,11 +401,7 @@ export default function ProspectsPage() {
   }
 
   function toggleOne(id: string) {
-    setSelectedIds(prev => {
-      const n = new Set(prev)
-      if (n.has(id)) n.delete(id); else n.add(id)
-      return n
-    })
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
   return (
@@ -409,8 +424,7 @@ export default function ProspectsPage() {
             className={`border px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${icpOpen ? 'bg-purple-600 text-white border-purple-600' : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'}`}>
             🎯 ICP Settings
           </button>
-          <button disabled
-            title="AI prospect discovery — Sprint 9"
+          <button disabled title="AI prospect discovery — Sprint 9"
             className="border border-[#e8e3dc] bg-[#f7f4f0] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 cursor-not-allowed">
             🔍 Find Prospects
             <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Soon</span>
@@ -430,86 +444,95 @@ export default function ProspectsPage() {
         </div>
       </div>
 
-      {/* Master ICP panel */}
+      {/* ── Master ICP Panel ─────────────────────────────────────────────────── */}
       {icpOpen && (
         <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-6 mb-4">
 
           {/* Panel header */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-[#1a1a2e]">Master ICP</span>
+              <span>🎯</span>
+              <span className="font-semibold text-[#1a1a2e]">Master ICP</span>
               <StatusBadge variant="purple">Source of truth</StatusBadge>
               <Tooltip content={ICP_TOOLTIP}>
-                <svg className="w-4 h-4 text-purple-400 hover:text-purple-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <InfoIcon />
               </Tooltip>
             </div>
             <button onClick={() => setIcpOpen(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-lg leading-none">✕</button>
           </div>
+          <p className="text-sm text-[#6b5e4e] mb-5">
+            Define your ideal customer once. All new campaigns auto-fill from this.
+          </p>
 
-          {/* AI Parse */}
-          <div className="bg-white border border-purple-100 rounded-xl p-4 mb-5">
-            <label className={`${labelCls} mb-2 block`}>Paste an ICP description and let AI structure it</label>
+          {/* ICP description — single textarea, scored + AI parse */}
+          <div className="bg-white border border-purple-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-purple-600 font-medium text-sm">✨ Describe your target ICP in plain English and let AI structure it</span>
+            </div>
             <textarea
-              value={aiParseText}
-              onChange={e => setAiParseText(e.target.value)}
-              rows={3}
-              placeholder="e.g. We target VP Sales at B2B SaaS companies, 50-500 employees, Series A-C, in North America..."
-              className={`${inputCls} resize-none mb-2`}
+              value={icpForm.icp_description}
+              onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
+              rows={4}
+              placeholder="e.g. I want to target B2B SaaS founders in Europe who are struggling with outbound sales and have 10-200 employees..."
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
             />
-            <button onClick={handleAiParse} disabled={aiParsing || !aiParseText.trim()}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
-              {aiParsing ? 'Parsing…' : '✨ Parse with AI'}
-            </button>
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-2">
+                <span className={`text-xs ${icpForm.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                  {icpForm.icp_description.length}/30 chars{icpForm.icp_description.length >= 30 ? ' ✓' : ''}
+                </span>
+                <StatusBadge variant="gray">Adds 15% to AI quality</StatusBadge>
+              </div>
+              <button onClick={handleAiParse} disabled={aiParsing || !icpForm.icp_description.trim()}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors">
+                {aiParsing ? 'Parsing…' : '✨ Parse with AI'}
+              </button>
+            </div>
           </div>
 
           {/* Structured ICP */}
-          <div className="text-xs font-bold text-[#6b5e4e] uppercase tracking-wider mb-4">Structured ICP</div>
-          <div className="flex flex-col gap-4">
-
-            {/* Ideal customer description */}
-            <div>
-              <label className={`${labelCls} mb-1 block`}>Describe your ideal customer</label>
-              <textarea
-                value={icpForm.icp_description}
-                onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
-                rows={3}
-                placeholder="e.g. VP Sales at B2B SaaS companies, 50-500 employees, Series A to C, struggling with outbound volume"
-                className={`${inputCls} resize-none`}
-              />
-              <p className={`text-xs mt-1 ${icpForm.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {icpForm.icp_description.length}/30 chars{icpForm.icp_description.length >= 30 ? ' ✓' : ''}
-              </p>
-            </div>
+          <h3 className="text-blue-600 font-semibold mb-4">Structured ICP</h3>
+          <div className="flex flex-col gap-4 mb-6">
 
             {/* Industry + Titles */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={`${labelCls} mb-1 block`}>Industry</label>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className={labelCls}>Industry</label>
+                  <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
+                </div>
                 <input value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
                   className={inputCls} placeholder="e.g. SaaS, Fintech" />
                 <FieldOk show={!!icpForm.industry} />
               </div>
               <div>
-                <label className={`${labelCls} mb-1 block`}>Titles</label>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className={labelCls}>Titles</label>
+                  <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
+                </div>
                 <input value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
-                  className={inputCls} placeholder="e.g. CTO, Head of Engineering" />
+                  className={inputCls} placeholder="e.g. CEO, CTO, VP Sales" />
                 <FieldOk show={!!icpForm.target_titles} />
               </div>
             </div>
 
             {/* Regions */}
             <div>
-              <label className={`${labelCls} mb-1 block`}>Regions</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Regions</label>
+                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+              </div>
               <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
-                className={inputCls} placeholder="e.g. North America, EU, DACH" />
+                className={inputCls} placeholder="e.g. US, Europe, APAC" />
               <FieldOk show={!!icpForm.target_regions} />
             </div>
 
             {/* Company size pills */}
             <div>
-              <label className={`${labelCls} mb-2 block`}>Company size</label>
+              <div className="flex items-center gap-2 mb-2">
+                <label className={labelCls}>Company size (select all that apply)</label>
+                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {COMPANY_SIZES.map(s => {
                   const active = icpForm.company_sizes.includes(s)
@@ -525,9 +548,11 @@ export default function ProspectsPage() {
               <FieldOk show={icpForm.company_sizes.length > 0} />
             </div>
 
-            {/* Revenue pills */}
+            {/* Company revenue pills — not scored, no badge, no FieldOk */}
             <div>
-              <label className={`${labelCls} mb-2 block`}>Company Revenue</label>
+              <label className={`${labelCls} mb-2 block`}>
+                Company Revenue <span className="text-[#b0a898] font-normal">(optional)</span>
+              </label>
               <div className="flex flex-wrap gap-1.5">
                 {REVENUE_RANGES.map(r => {
                   const active = icpForm.company_revenue.includes(r)
@@ -540,18 +565,46 @@ export default function ProspectsPage() {
                   )
                 })}
               </div>
-              <FieldOk show={icpForm.company_revenue.length > 0} />
+            </div>
+          </div>
+
+          {/* Tone & Context */}
+          <h3 className="text-blue-600 font-semibold mb-4">Tone & Context</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+
+            {/* Email tone */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <label className={labelCls}>Email tone</label>
+                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {TONES.map(t => (
+                  <button key={t} type="button"
+                    onClick={() => setIcpForm(f => ({ ...f, tone: t.toLowerCase() }))}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === t.toLowerCase() ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <FieldOk show={!!icpForm.tone} />
             </div>
 
             {/* Pain points */}
             <div>
-              <label className={`${labelCls} mb-1 block`}>Pain points</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Pain points / Buying signals</label>
+                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+                <Tooltip content={PAIN_POINTS_TOOLTIP}>
+                  <InfoIcon />
+                </Tooltip>
+              </div>
               <textarea
                 value={icpForm.pain_points}
                 onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
-                rows={2}
-                placeholder="Top 2-3 problems your customers hire you to solve"
-                className={`${inputCls} resize-none`}
+                rows={3}
+                placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
               />
               <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
                 {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
@@ -560,7 +613,7 @@ export default function ProspectsPage() {
           </div>
 
           {/* Footer */}
-          <div className="flex gap-2 mt-5">
+          <div className="flex gap-2 mt-2">
             <button onClick={() => setIcpForm(icpOriginal)}
               className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors">
               Reset
@@ -603,7 +656,6 @@ export default function ProspectsPage() {
             <option value="manual">Manual</option>
             <option value="paste">Paste</option>
             <option value="csv_import">CSV</option>
-            {/* ai_discover / ai_enrich hidden — Sprint 9 Clay integration */}
           </select>
           <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
@@ -692,7 +744,7 @@ export default function ProspectsPage() {
         </div>
       )}
 
-      {/* Bulk select sticky bar — appears when items are selected */}
+      {/* Bulk select sticky bar */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
           <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">

@@ -7,7 +7,6 @@ import { StatusBadge } from '@/components/StatusBadge'
 
 const supabase = createClient()
 
-const TONES              = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
 const COMPANY_SIZES      = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const WORKSPACE_TIMEZONES = [
   'America/Toronto','America/New_York','America/Chicago','America/Denver',
@@ -64,8 +63,8 @@ export default function SettingsPage() {
     // Product
     product_description: '',
     value_proposition:   '',
+    // ICP + Tone — loaded from DB for badge scoring; managed from Prospects page
     tone:                'professional',
-    // ICP fields — loaded from DB for badge scoring; managed from Prospects page
     icp_description:     '',
     icp_industries:      [] as string[],
     icp_company_sizes:   [] as string[],
@@ -143,6 +142,8 @@ export default function SettingsPage() {
   const ws = (workspace?.workspaces as any)
 
   const profileForScore = {
+    user_industry:          form.user_industry,
+    user_company_size:      form.user_company_size,
     product_description:    form.product_description,
     icp_description:        form.icp_description,
     sender_name:            form.sender_name,
@@ -154,6 +155,7 @@ export default function SettingsPage() {
     target_titles:          form.target_titles,
     target_regions:         form.target_regions,
     target_company_revenue: form.company_revenue,
+    tone:                   form.tone,
   }
 
   return (
@@ -186,7 +188,6 @@ export default function SettingsPage() {
               <label className={`${labelCls} mb-1 block`}>Your name</label>
               <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
                 className={inputCls} placeholder="Your name" />
-              <FieldOk show={!!form.name} />
             </div>
           </div>
           <SaveButton section="account" saving={savingSection} saved={savedSection} onSave={saveAccount} />
@@ -231,7 +232,6 @@ export default function SettingsPage() {
             <div>
               <label className={`${labelCls} mb-1 block`}>Company name *</label>
               <input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} className={inputCls} />
-              <FieldOk show={!!form.company_name} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -239,16 +239,21 @@ export default function SettingsPage() {
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
               </div>
               <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})} className={inputCls} />
-              <FieldOk show={!!form.sender_name} />
             </div>
             <div>
-              <label className={`${labelCls} mb-1 block`}>Industry</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Industry</label>
+                <QualityBadge pct="Adds 10% to AI quality" />
+              </div>
               <input value={form.user_industry} onChange={e => setForm({...form, user_industry: e.target.value})}
                 className={inputCls} placeholder="e.g. SaaS, Fintech, Healthcare" />
               <FieldOk show={!!form.user_industry} />
             </div>
             <div>
-              <label className={`${labelCls} mb-1 block`}>Company size</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Company size</label>
+                <QualityBadge pct="Adds 5% to AI quality" />
+              </div>
               <select value={form.user_company_size} onChange={e => setForm({...form, user_company_size: e.target.value})}
                 className={`${inputCls} bg-white`}>
                 <option value="">Select size</option>
@@ -289,7 +294,7 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Product description *</label>
-                <QualityBadge pct="Adds 20% to AI quality" />
+                <QualityBadge pct="Adds 15% to AI quality" />
               </div>
               <textarea value={form.product_description} onChange={e => setForm({...form, product_description: e.target.value})}
                 className={`${inputCls} resize-none`} rows={3} />
@@ -300,7 +305,7 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Value proposition</label>
-                <QualityBadge pct="Adds 20% to AI quality" />
+                <QualityBadge pct="Adds 15% to AI quality" />
               </div>
               <textarea value={form.value_proposition} onChange={e => setForm({...form, value_proposition: e.target.value})}
                 className={`${inputCls} resize-none`} rows={2} />
@@ -308,21 +313,9 @@ export default function SettingsPage() {
                 {form.value_proposition.length}/20 chars{form.value_proposition.length >= 20 ? ' ✓' : ''}
               </p>
             </div>
-            <div>
-              <label className={`${labelCls} mb-2 block`}>Email tone</label>
-              <div className="flex flex-wrap gap-2">
-                {TONES.map(t => (
-                  <button key={t} onClick={() => setForm({...form, tone: t.toLowerCase()})}
-                    className={'px-3 py-1.5 rounded-lg text-sm border transition-colors ' + (form.tone === t.toLowerCase() ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <FieldOk show={!!form.tone} />
-            </div>
           </div>
           <SaveButton section="product" saving={savingSection} saved={savedSection}
-            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition, tone: form.tone })} />
+            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition })} />
         </div>
       </div>
 

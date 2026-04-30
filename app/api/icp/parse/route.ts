@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { description } = await request.json()
 
   const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 600,
     messages: [{
       role: 'user',
@@ -17,28 +17,30 @@ Description: ${description}
 
 Return ONLY a JSON object, no markdown, no explanation:
 {
-  "industries": ["industry1", "industry2"],
+  "industries": ["industry1"],
   "titles": ["title1", "title2"],
   "regions": ["region1"],
-  "company_sizes": ["11-50" | "51-200" | ...],
-  "revenue": ["$1M-$5M" | "$5M-$10M" | ...],
-  "summary": "One sentence summary of the ideal customer"
+  "company_sizes": ["10-50" | "50-200" | ...],
+  "revenue": ["$1M-$5M" | ...],
+  "pain_points": "brief pain points description"
 }
 
-EXACT RULES for company_sizes — pick from ONLY these values:
-"1-10", "11-50", "51-200", "201-1000", "1000+"
+EXACT VALUES for company_sizes — pick from ONLY these:
+"1-10", "10-50", "50-200", "200-500", "500-1000", "1000+"
 
-- If the description fits ONE pill (e.g. "20-40 employees") → ["11-50"]
-- If the description spans MULTIPLE pills (e.g. "10 to 200", "50-500") → return ALL matching pills: ["11-50","51-200"] or ["51-200","201-1000"]
-- If vague or unspecified → []
+- Single range (e.g. "20-40 employees") → ["10-50"]
+- Spanning ranges (e.g. "10 to 200") → ["10-50", "50-200"]
+- Vague or unspecified → []
 
-EXACT RULES for revenue — pick from ONLY these values:
+EXACT VALUES for revenue — pick from ONLY these:
 "<$1M", "$1M-$5M", "$5M-$10M", "$10M-$50M", "$50M-$200M", "$200M+"
 
-- Same logic: single range → one pill, overlapping range → multiple pills
-- If vague or unspecified → []
+- Same logic: single → one value, spanning → multiple values
+- Vague or unspecified → []
 
-Do NOT invent values. Do NOT use values outside the lists above.`
+pain_points: 1-2 sentence description of the main problems this ICP faces. Empty string if not mentioned.
+
+Do NOT invent values. Do NOT use values outside the exact lists above.`
     }]
   })
 
