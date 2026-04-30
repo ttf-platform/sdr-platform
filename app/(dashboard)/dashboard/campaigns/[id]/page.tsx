@@ -917,18 +917,20 @@ function StepCard({ step, idx, totalSteps, saving, onEdit, onAiWrite, onRemove }
           </span>
         </div>
 
-        <div className="text-[0.82rem] text-gray-500 mb-3">
-          Send after <span className="font-semibold text-gray-900">{step.delay_days}</span> days of no reply
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 mb-3">
+          <span className="text-[0.82rem] text-gray-700">
+            Send after <span className="font-semibold text-gray-900">{step.delay_days}</span> days of no reply
+          </span>
         </div>
 
-        <div className="mb-2">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 mb-2">
           <div className="text-[0.7rem] uppercase tracking-wider text-gray-400 mb-1">Subject</div>
           <div className="text-[0.88rem] text-gray-900">
             {step.subject || <span className="text-gray-400 italic">(thread reply — no subject)</span>}
           </div>
         </div>
 
-        <div className="mb-3">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 mb-3">
           <div className="text-[0.7rem] uppercase tracking-wider text-gray-400 mb-1">Body</div>
           <div className="text-[0.85rem] text-gray-700 leading-[1.55] line-clamp-3 whitespace-pre-wrap">
             {step.body || <span className="text-gray-400 italic">(empty — click Edit or AI Write)</span>}
