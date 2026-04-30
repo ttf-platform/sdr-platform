@@ -834,32 +834,39 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           ) : (
             <>
-              {followUpSteps.map((step, idx) => (
-                <FollowUpCard
-                  key={step.id}
-                  step={step}
-                  followUpNumber={idx + 1}
-                  isOnly={followUpSteps.length <= 1}
-                  saving={generatingStep === step.id}
-                  onBookingToggle={v => updateStep(step.id, { include_booking_link: v })}
-                  onAiWrite={() => aiWriteStep(step.id)}
-                  onEdit={() => setEditFollowUpStep(step)}
-                  onRemove={() => removeStep(step.id)}
-                />
-              ))}
+              {/* Unified white container — Firstsend pattern */}
+              <div className="bg-white border border-[#e8e3dc] rounded-2xl overflow-hidden divide-y divide-[#f0ece6]">
+                {followUpSteps.map((step, idx) => (
+                  <FollowUpCard
+                    key={step.id}
+                    step={step}
+                    followUpNumber={idx + 1}
+                    isOnly={followUpSteps.length <= 1}
+                    saving={generatingStep === step.id}
+                    onBookingToggle={v => updateStep(step.id, { include_booking_link: v })}
+                    onAiWrite={() => aiWriteStep(step.id)}
+                    onEdit={() => setEditFollowUpStep(step)}
+                    onRemove={() => removeStep(step.id)}
+                  />
+                ))}
 
-              <button onClick={addFollowUp}
-                className="w-full border border-dashed border-[#c8d4e8] text-[#3b6bef] text-sm py-3 rounded-xl hover:bg-[#f7f8ff] transition-colors font-medium">
-                + Add follow-up step
-              </button>
+                {/* Add step */}
+                <div className="px-6 py-4">
+                  <button onClick={addFollowUp}
+                    className="w-full border border-dashed border-[#c8d4e8] text-[#3b6bef] text-sm py-2.5 rounded-xl hover:bg-[#f7f8ff] transition-colors font-medium">
+                    + Add follow-up step
+                  </button>
+                </div>
 
-              <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-                <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-3">Smart Stop Conditions</div>
-                <div className="flex flex-col gap-2">
-                  <Toggle label="Stop sequence when prospect replies" checked={stopSettings.smart_stop_on_reply}
-                    onChange={v => patchStopSetting({ smart_stop_on_reply: v })} />
-                  <Toggle label="Stop sequence on hard bounce" checked={stopSettings.smart_stop_on_bounce}
-                    onChange={v => patchStopSetting({ smart_stop_on_bounce: v })} />
+                {/* Smart Stop Conditions */}
+                <div className="px-6 py-4">
+                  <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-3">Smart Stop Conditions</div>
+                  <div className="flex flex-col gap-2">
+                    <Toggle label="Stop sequence when prospect replies" checked={stopSettings.smart_stop_on_reply}
+                      onChange={v => patchStopSetting({ smart_stop_on_reply: v })} />
+                    <Toggle label="Stop sequence on hard bounce" checked={stopSettings.smart_stop_on_bounce}
+                      onChange={v => patchStopSetting({ smart_stop_on_bounce: v })} />
+                  </div>
                 </div>
               </div>
 
@@ -902,7 +909,7 @@ function FollowUpCard({ step, followUpNumber, isOnly, saving, onBookingToggle, o
   const bodyPreview    = step.body.replace(/\n+/g, ' ').slice(0, 120)
 
   return (
-    <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
+    <div className="px-6 py-5">
       {/* Card header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
