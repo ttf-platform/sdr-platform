@@ -24,6 +24,16 @@ interface Props {
   onSaved:                    () => void
 }
 
+function normalizeBody(body: string, toggleOn: boolean, url: string): string {
+  const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const cleaned = body
+    .replace(/\s*\{\{\s*booking_link\s*\}\}\s*/g, '')
+    .replace(new RegExp(`\\s*${escaped}\\s*`, 'g'), '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd()
+  return toggleOn ? `${cleaned}\n\n${url}` : cleaned
+}
+
 export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, onSaved }: Props) {
   const [email,   setEmail]   = useState<EmailDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,28 +72,21 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
       .finally(() => setLoading(false))
   }, [emailId])
 
-  // Once both email body and booking slug are known, detect initial toggle state
+  // Once both email body and booking slug are known, detect toggle state and normalize body
   useEffect(() => {
     if (!email || !bookingSlug) return
     const url = `${appUrl}/book/${bookingSlug}`
     bookingUrlRef.current = url
-    setIncludeBookingLink(email.body.includes(url))
+    const on = email.body.includes(url)
+    setIncludeBookingLink(on)
+    setBody(normalizeBody(email.body, on, url))
   }, [email, bookingSlug, appUrl])
 
   function toggleBookingLink(checked: boolean) {
     const url = bookingUrlRef.current
-    console.log('[toggleBookingLink]', { checked, url, bodyTail: body.slice(-300) })
     setIncludeBookingLink(checked)
     if (!url) return
-    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    setBody(b => {
-      const after = b
-        .replace(/\n*\{\{booking_link\}\}/g, '')
-        .replace(new RegExp(`\\n*${escaped}`, 'g'), '')
-        .trimEnd()
-      console.log('[toggleBookingLink] cleaned body tail:', after.slice(-200))
-      return checked ? `${after}\n\n${url}` : after
-    })
+    setBody(b => normalizeBody(b, checked, url))
   }
 
   async function handleSave(approve = false) {
