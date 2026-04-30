@@ -936,8 +936,8 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     <div className="flex items-center justify-between">
       <span className="text-sm text-[#4a4a5a]">{label}</span>
       <button onClick={() => onChange(!checked)}
-        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
-        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#3b6bef]' : 'bg-[#d1cec9]'}`}>
+        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md ring-1 ring-black/10 transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0'}`} />
       </button>
     </div>
   )
