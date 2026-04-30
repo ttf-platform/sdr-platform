@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
-import { EditFollowUpModal, type FollowUpStep } from '@/components/EditFollowUpModal'
+import { EditFollowupModal } from '@/components/EditFollowupModal'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -98,8 +98,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [generateDraftsIsRegen, setGenerateDraftsIsRegen]     = useState(false)
   const [generatingMissing, setGeneratingMissing]             = useState(false)
   const [emailActionError, setEmailActionError]               = useState('')
-  const [editEmailId, setEditEmailId]               = useState<string | null>(null)
-  const [editFollowUpStep, setEditFollowUpStep]     = useState<Step | null>(null)
+  const [editEmailId,    setEditEmailId]    = useState<string | null>(null)
+  const [editingStep,    setEditingStep]    = useState<Step | null>(null)
 
   // Eager counts at mount
   useEffect(() => {
@@ -821,25 +821,30 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
       {/* ── Tab: Follow-up Sequence ──────────────────────────────────────────── */}
       {tab === 'sequence' && (
-        <div className="flex flex-col max-w-[700px]">
-          {/* Timeline */}
+        <div className="flex flex-col max-w-3xl mx-auto w-full">
+          {/* Timeline — follow-ups only */}
           <div className="flex flex-col">
-            {steps.slice().sort((a, b) => a.step_order - b.step_order).map((step, idx, arr) => (
+            {followUpSteps.map((step, idx) => (
               <StepCard
                 key={step.id}
                 step={step}
                 idx={idx}
-                totalSteps={arr.length}
+                totalSteps={followUpSteps.length}
                 saving={generatingStep === step.id}
-                onDelayChange={delay => updateStep(step.id, { delay_days: delay })}
-                onSubjectChange={subject => updateStep(step.id, { subject: subject || null })}
-                onBodyChange={body => updateStep(step.id, { body })}
-                onBookingToggle={v => updateStep(step.id, { include_booking_link: v })}
+                onEdit={() => setEditingStep(step)}
                 onAiWrite={() => aiWriteStep(step.id)}
                 onRemove={() => removeStep(step.id)}
               />
             ))}
           </div>
+
+          {followUpSteps.length === 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl p-10 text-center mb-4">
+              <div className="text-3xl mb-3">↩️</div>
+              <p className="text-sm font-semibold text-[#1a1a2e] mb-1">No follow-ups yet</p>
+              <p className="text-xs text-[#8a7e6e] mb-4">Add follow-ups to re-engage prospects who didn't reply.</p>
+            </div>
+          )}
 
           {/* Add follow-up step */}
           <button onClick={addFollowUp}
@@ -870,16 +875,17 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         </div>
       )}
 
-      {/* Edit follow-up modal — top-level so it works from any tab */}
-      {editFollowUpStep && (
-        <EditFollowUpModal
-          step={editFollowUpStep}
-          followUpNumber={followUpSteps.findIndex(s => s.id === editFollowUpStep.id) + 1}
-          campaignId={params.id}
-          onClose={() => setEditFollowUpStep(null)}
-          onSaved={updated => {
-            setSteps(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
-            setEditFollowUpStep(null)
+      {/* EditFollowupModal — top-level so it works from any tab */}
+      {editingStep && (
+        <EditFollowupModal
+          step={editingStep}
+          onClose={() => setEditingStep(null)}
+          onSave={async updated => {
+            await fetch(`/api/campaigns/${params.id}/steps/${editingStep.id}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated),
+            })
+            setSteps(prev => prev.map(s => s.id === editingStep.id ? { ...s, ...updated } : s))
+            setEditingStep(null)
           }}
         />
       )}
@@ -887,28 +893,15 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   )
 }
 
-function StepCard({ step, idx, totalSteps, saving,
-  onDelayChange, onSubjectChange, onBodyChange,
-  onBookingToggle, onAiWrite, onRemove,
-}: {
+function StepCard({ step, idx, totalSteps, saving, onEdit, onAiWrite, onRemove }: {
   step: Step; idx: number; totalSteps: number; saving: boolean
-  onDelayChange: (v: number) => void; onSubjectChange: (v: string) => void; onBodyChange: (v: string) => void
-  onBookingToggle: (v: boolean) => void; onAiWrite: () => void; onRemove: () => void
+  onEdit: () => void; onAiWrite: () => void; onRemove: () => void
 }) {
-  const isInitial = step.step_order === 0
-  const [delay,   setDelay]   = useState(step.delay_days)
-  const [subject, setSubject] = useState(step.subject ?? '')
-  const [body,    setBody]    = useState(step.body)
-
-  useEffect(() => { setDelay(step.delay_days)     }, [step.delay_days])
-  useEffect(() => { setSubject(step.subject ?? '') }, [step.subject])
-  useEffect(() => { setBody(step.body)              }, [step.body])
-
   return (
     <div className="flex gap-4 items-start mb-2">
       {/* Left column: pill + vertical connector */}
       <div className="flex flex-col items-center flex-shrink-0 w-8">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.78rem] font-semibold text-white flex-shrink-0 ${isInitial ? 'bg-green-600' : 'bg-blue-600'}`}>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[0.78rem] font-semibold text-white flex-shrink-0 bg-blue-600">
           {idx + 1}
         </div>
         {idx < totalSteps - 1 && (
@@ -916,69 +909,54 @@ function StepCard({ step, idx, totalSteps, saving,
         )}
       </div>
 
-      {/* Card */}
+      {/* Card — read-only */}
       <div className="flex-1 bg-white border border-gray-200 rounded-xl p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[0.82rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">
-            {isInitial ? 'INITIAL EMAIL' : `FOLLOW-UP #${idx}`}
+            FOLLOW-UP #{idx + 1}
           </span>
         </div>
 
-        {!isInitial && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-[0.82rem] text-gray-500 whitespace-nowrap">Send after</span>
-            <input
-              type="number" min={1} max={60}
-              value={delay}
-              onChange={e => setDelay(parseInt(e.target.value) || 1)}
-              onBlur={() => onDelayChange(delay)}
-              disabled={saving}
-              className="w-[60px] px-2.5 py-1 border border-gray-200 rounded-lg text-[0.9rem] text-center focus:outline-none focus:border-blue-600 disabled:opacity-60"
-            />
-            <span className="text-[0.82rem] text-gray-500">days of no reply</span>
+        <div className="text-[0.82rem] text-gray-500 mb-3">
+          Send after <span className="font-semibold text-gray-900">{step.delay_days}</span> days of no reply
+        </div>
+
+        <div className="mb-2">
+          <div className="text-[0.7rem] uppercase tracking-wider text-gray-400 mb-1">Subject</div>
+          <div className="text-[0.88rem] text-gray-900">
+            {step.subject || <span className="text-gray-400 italic">(thread reply — no subject)</span>}
           </div>
-        )}
+        </div>
 
-        <input
-          type="text"
-          placeholder={isInitial ? 'Subject line' : 'Subject line (leave blank to thread reply)'}
-          value={subject}
-          onChange={e => setSubject(e.target.value)}
-          onBlur={() => onSubjectChange(subject)}
-          disabled={saving}
-          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[0.88rem] mb-2 focus:outline-none focus:border-blue-600 focus:bg-white disabled:opacity-60"
-        />
+        <div className="mb-3">
+          <div className="text-[0.7rem] uppercase tracking-wider text-gray-400 mb-1">Body</div>
+          <div className="text-[0.85rem] text-gray-700 leading-[1.55] line-clamp-3 whitespace-pre-wrap">
+            {step.body || <span className="text-gray-400 italic">(empty — click Edit or AI Write)</span>}
+          </div>
+        </div>
 
-        <textarea
-          placeholder={isInitial ? 'Email body...' : 'Follow-up email body...'}
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          onBlur={() => onBodyChange(body)}
-          disabled={saving}
-          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[0.85rem] leading-[1.55] min-h-[120px] resize-y focus:outline-none focus:border-blue-600 focus:bg-white disabled:opacity-60"
-        />
-
-        <label className="inline-flex items-center gap-1.5 text-[0.8rem] text-gray-500 cursor-pointer mt-2">
-          <input type="checkbox" checked={step.include_booking_link}
-            onChange={e => onBookingToggle(e.target.checked)}
-            disabled={saving}
-            className="cursor-pointer" />
-          📅 Include calendar booking link in this {isInitial ? 'email' : 'follow-up'}
-        </label>
+        <div className="text-[0.78rem] text-gray-500 mb-3 flex items-center gap-1.5">
+          📅 Booking link:{' '}
+          <span className={step.include_booking_link ? 'text-green-600 font-medium' : 'text-gray-400'}>
+            {step.include_booking_link ? 'included' : 'not included'}
+          </span>
+        </div>
 
         <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+          <button onClick={onEdit}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-[0.8rem] font-medium cursor-pointer hover:bg-gray-200 transition">
+            Edit
+          </button>
           <button onClick={onAiWrite} disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-600 border border-violet-600/20 rounded-lg text-[0.8rem] font-medium cursor-pointer hover:bg-violet-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
             {saving
               ? <span className="w-3 h-3 border border-violet-300 border-t-violet-600 rounded-full animate-spin" />
               : '✦'} AI Write
           </button>
-          {!isInitial && (
-            <button onClick={onRemove} disabled={saving}
-              className="ml-auto px-3 py-1.5 bg-red-50 text-red-500 border border-red-500/20 rounded-lg text-[0.8rem] font-medium cursor-pointer hover:bg-red-100 transition disabled:opacity-50">
-              Remove
-            </button>
-          )}
+          <button onClick={onRemove} disabled={saving}
+            className="ml-auto px-3 py-1.5 bg-red-50 text-red-500 border border-red-500/20 rounded-lg text-[0.8rem] font-medium cursor-pointer hover:bg-red-100 transition disabled:opacity-50">
+            Remove
+          </button>
         </div>
       </div>
     </div>
