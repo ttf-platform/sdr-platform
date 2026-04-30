@@ -834,39 +834,45 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           ) : (
             <>
-              {/* Unified white container — Firstsend pattern */}
-              <div className="bg-white border border-[#e8e3dc] rounded-2xl overflow-hidden divide-y divide-[#f0ece6]">
-                {followUpSteps.map((step, idx) => (
-                  <FollowUpCard
-                    key={step.id}
-                    step={step}
-                    followUpNumber={idx + 1}
-                    isOnly={followUpSteps.length <= 1}
-                    saving={generatingStep === step.id}
-                    onBookingToggle={v => updateStep(step.id, { include_booking_link: v })}
-                    onAiWrite={() => aiWriteStep(step.id)}
-                    onEdit={() => setEditFollowUpStep(step)}
-                    onRemove={() => removeStep(step.id)}
+              {/* Autonomous cards — Firstsend pattern */}
+              {followUpSteps.map((step, idx) => (
+                <FollowUpCard
+                  key={step.id}
+                  step={step}
+                  followUpNumber={idx + 1}
+                  isOnly={followUpSteps.length <= 1}
+                  saving={generatingStep === step.id}
+                  onDelayChange={delay => updateStep(step.id, { delay_days: delay })}
+                  onSubjectChange={subject => updateStep(step.id, { subject: subject || null })}
+                  onBodyChange={body => updateStep(step.id, { body })}
+                  onBookingToggle={v => updateStep(step.id, { include_booking_link: v })}
+                  onAiWrite={() => aiWriteStep(step.id)}
+                  onRemove={() => removeStep(step.id)}
+                />
+              ))}
+
+              {/* Add follow-up step */}
+              <button onClick={addFollowUp}
+                className="w-full border-2 border-dashed border-gray-300 bg-transparent text-gray-500 px-4 py-3 rounded-xl text-sm font-medium hover:border-gray-400 hover:text-gray-600 transition-colors">
+                + Add follow-up step
+              </button>
+
+              {/* Smart Stop Conditions — autonomous card */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <p className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-4">Smart Stop Conditions</p>
+                <div className="flex flex-col gap-4">
+                  <Toggle
+                    label="Stop sequence when prospect replies"
+                    description="The sequence stops automatically when a prospect replies to any email."
+                    checked={stopSettings.smart_stop_on_reply}
+                    onChange={v => patchStopSetting({ smart_stop_on_reply: v })}
                   />
-                ))}
-
-                {/* Add step */}
-                <div className="px-6 py-4">
-                  <button onClick={addFollowUp}
-                    className="w-full border border-dashed border-[#c8d4e8] text-[#3b6bef] text-sm py-2.5 rounded-xl hover:bg-[#f7f8ff] transition-colors font-medium">
-                    + Add follow-up step
-                  </button>
-                </div>
-
-                {/* Smart Stop Conditions */}
-                <div className="px-6 py-4">
-                  <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-3">Smart Stop Conditions</div>
-                  <div className="flex flex-col gap-2">
-                    <Toggle label="Stop sequence when prospect replies" checked={stopSettings.smart_stop_on_reply}
-                      onChange={v => patchStopSetting({ smart_stop_on_reply: v })} />
-                    <Toggle label="Stop sequence on hard bounce" checked={stopSettings.smart_stop_on_bounce}
-                      onChange={v => patchStopSetting({ smart_stop_on_bounce: v })} />
-                  </div>
+                  <Toggle
+                    label="Stop sequence on hard bounce"
+                    description="Remove prospects from the sequence if their email hard bounces."
+                    checked={stopSettings.smart_stop_on_bounce}
+                    onChange={v => patchStopSetting({ smart_stop_on_bounce: v })}
+                  />
                 </div>
               </div>
 
@@ -901,64 +907,95 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   )
 }
 
-function FollowUpCard({ step, followUpNumber, isOnly, saving, onBookingToggle, onAiWrite, onEdit, onRemove }: {
+function FollowUpCard({ step, followUpNumber, isOnly, saving,
+  onDelayChange, onSubjectChange, onBodyChange,
+  onBookingToggle, onAiWrite, onRemove,
+}: {
   step: Step; followUpNumber: number; isOnly: boolean; saving: boolean
-  onBookingToggle: (v: boolean) => void; onAiWrite: () => void; onEdit: () => void; onRemove: () => void
+  onDelayChange: (v: number) => void; onSubjectChange: (v: string) => void; onBodyChange: (v: string) => void
+  onBookingToggle: (v: boolean) => void; onAiWrite: () => void; onRemove: () => void
 }) {
-  const subjectPreview = step.subject || null
-  const bodyPreview    = step.body.replace(/\n+/g, ' ').slice(0, 120)
+  const [delay,   setDelay]   = useState(step.delay_days)
+  const [subject, setSubject] = useState(step.subject ?? '')
+  const [body,    setBody]    = useState(step.body)
+
+  // Sync from parent when AI write updates the step
+  useEffect(() => { setDelay(step.delay_days)    }, [step.delay_days])
+  useEffect(() => { setSubject(step.subject ?? '') }, [step.subject])
+  useEffect(() => { setBody(step.body)             }, [step.body])
+
+  const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] disabled:opacity-60'
 
   return (
-    <div className="px-6 py-5">
-      {/* Card header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-[#3b6bef] text-white text-xs flex items-center justify-center font-bold flex-shrink-0">
-            {followUpNumber}
-          </div>
-          <span className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">
-            Follow-up #{followUpNumber}
-          </span>
-        </div>
-        <span className="text-xs font-medium text-[#8a7e6e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
-          Day +{step.delay_days}
-        </span>
+    <div className="flex items-start gap-0">
+      {/* Blue number pill — outside card on left, overlaps card edge */}
+      <div className="shrink-0 w-10 h-10 rounded-full bg-[#3b6bef] text-white flex items-center justify-center font-bold text-base mt-4 -mr-5 z-10 shadow">
+        {followUpNumber}
       </div>
 
-      {/* Preview */}
-      <div className="mb-3 text-sm">
-        <div className="font-semibold text-[#1a1a2e] truncate mb-0.5">
-          {subjectPreview ?? <span className="italic font-normal text-[#b0a898]">(no subject — thread reply)</span>}
-        </div>
-        <div className="text-xs text-[#8a7e6e] truncate">
-          {bodyPreview ? `${bodyPreview}…` : <span className="italic">(empty body)</span>}
-        </div>
-      </div>
+      {/* Autonomous card */}
+      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-6 pl-10">
+        {/* Header */}
+        <p className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-4">
+          Follow-up #{followUpNumber}
+        </p>
 
-      {/* Booking link toggle */}
-      <label className="flex items-center gap-2 cursor-pointer mb-4">
-        <input type="checkbox" checked={step.include_booking_link}
-          onChange={e => onBookingToggle(e.target.checked)}
-          className="rounded border-[#e8e3dc] text-[#3b6bef]" />
-        <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link in this follow-up</span>
-      </label>
+        {/* Delay */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm text-gray-600 shrink-0">Send after</span>
+          <input
+            type="number" min={1} max={60}
+            value={delay}
+            onChange={e => setDelay(parseInt(e.target.value) || 1)}
+            onBlur={() => onDelayChange(delay)}
+            disabled={saving}
+            className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:border-[#3b6bef] disabled:opacity-60"
+          />
+          <span className="text-sm text-gray-600 shrink-0">days of no reply</span>
+        </div>
 
-      {/* Footer actions */}
-      <div className="flex items-center justify-between gap-2">
-        <button onClick={onAiWrite} disabled={saving}
-          className="text-xs text-[#3b6bef] font-medium border border-[#dde6fd] bg-[#f7f8ff] px-2.5 py-1.5 rounded-lg hover:bg-[#eef1fd] disabled:opacity-40 flex items-center gap-1 shrink-0 transition-colors">
-          {saving
-            ? <span className="w-3 h-3 border border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" />
-            : '✨'} AI Write
-        </button>
-        <div className="flex items-center gap-2">
-          <button onClick={onEdit}
-            className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2.5 py-1.5 rounded-lg font-medium transition-colors">
-            Edit
+        {/* Subject */}
+        <input
+          type="text"
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+          onBlur={() => onSubjectChange(subject)}
+          placeholder="Subject line (leave blank to thread reply)"
+          disabled={saving}
+          className={`${inputCls} mb-3`}
+        />
+
+        {/* Body */}
+        <textarea
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          onBlur={() => onBodyChange(body)}
+          placeholder="Follow-up email body..."
+          rows={6}
+          disabled={saving}
+          className={`${inputCls} resize-none font-mono text-xs leading-relaxed mb-3`}
+        />
+
+        {/* Booking link */}
+        <label className="flex items-center gap-2 cursor-pointer mb-4">
+          <input type="checkbox" checked={step.include_booking_link}
+            onChange={e => onBookingToggle(e.target.checked)}
+            disabled={saving}
+            className="rounded border-gray-300 text-[#3b6bef] disabled:opacity-60" />
+          <span className="text-xs text-gray-600">📅 Include calendar booking link in this follow-up</span>
+        </label>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <button onClick={onAiWrite} disabled={saving}
+            className="flex items-center gap-2 bg-purple-50 text-purple-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-100 disabled:opacity-40 transition-colors">
+            {saving
+              ? <span className="w-3 h-3 border border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+              : '✨'} AI Write
           </button>
           {!isOnly && (
-            <button onClick={onRemove}
-              className="text-xs text-red-400 hover:text-red-600 font-medium border border-red-100 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors">
+            <button onClick={onRemove} disabled={saving}
+              className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 disabled:opacity-40 transition-colors">
               Remove
             </button>
           )}
@@ -968,12 +1005,15 @@ function FollowUpCard({ step, followUpNumber, isOnly, saving, onBookingToggle, o
   )
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, description, checked, onChange }: { label: string; description?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-[#4a4a5a]">{label}</span>
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-sm text-[#4a4a5a]">{label}</p>
+        {description && <p className="text-xs text-gray-400 mt-0.5">{description}</p>}
+      </div>
       <button onClick={() => onChange(!checked)}
-        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#3b6bef]' : 'bg-[#d1cec9]'}`}>
+        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 mt-0.5 ${checked ? 'bg-[#3b6bef]' : 'bg-[#d1cec9]'}`}>
         <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md ring-1 ring-black/10 transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0'}`} />
       </button>
     </div>
