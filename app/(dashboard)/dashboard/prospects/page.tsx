@@ -5,6 +5,9 @@ import {
   LifecyclePill, statusBadgeClass,
   type ImportResult,
 } from '@/components/ProspectModals'
+import ProfileQualityBadge from '@/components/ProfileQualityBadge'
+import { Tooltip } from '@/components/Tooltip'
+import { StatusBadge } from '@/components/StatusBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Contact = {
@@ -39,10 +42,22 @@ const SOURCE_LABEL: Record<string, string> = {
   manual: 'Manual', paste: 'Paste', csv_import: 'CSV',
 }
 
+const COMPANY_SIZES  = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
+const REVENUE_RANGES = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
+const ICP_TOOLTIP    = 'Your Master ICP auto-fills every new campaign you create. Override any field per campaign at launch.'
+
+const inputCls = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#7c3aed]'
+const labelCls = 'text-xs font-semibold text-[#6b5e4e]'
+
 function fmt(n: number) { return n.toLocaleString() }
 function fmtDate(iso: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function FieldOk({ show }: { show: boolean }) {
+  if (!show) return null
+  return <p className="text-xs mt-1 text-green-600">Ok ✓</p>
 }
 
 // ─── SidePanel ────────────────────────────────────────────────────────────────
@@ -222,6 +237,25 @@ export default function ProspectsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const searchTimeout               = useRef<ReturnType<typeof setTimeout>>()
 
+  // ── ICP panel state ──────────────────────────────────────────────────────────
+  const [icpOpen,     setIcpOpen]     = useState(false)
+  const [icpSaving,   setIcpSaving]   = useState(false)
+  const [icpSaved,    setIcpSaved]    = useState(false)
+  const [wid,         setWid]         = useState<string|null>(null)
+  const [fullProfile, setFullProfile] = useState<any>(null)
+  const [icpForm,     setIcpForm]     = useState({
+    icp_description:  '',
+    industry:         '',
+    target_titles:    '',
+    target_regions:   '',
+    company_sizes:    [] as string[],
+    company_revenue:  [] as string[],
+    pain_points:      '',
+  })
+  const [icpOriginal, setIcpOriginal] = useState(icpForm)
+  const [aiParseText, setAiParseText] = useState('')
+  const [aiParsing,   setAiParsing]   = useState(false)
+
   useEffect(() => {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
   }, [])
@@ -249,6 +283,73 @@ export default function ProspectsPage() {
     searchTimeout.current = setTimeout(() => { setPage(1); setRefreshKey(k => k + 1) }, 350)
     return () => clearTimeout(searchTimeout.current)
   }, [search])
+
+  useEffect(() => {
+    fetch('/api/workspace-profile')
+      .then(r => r.json())
+      .then(d => {
+        const p = d.profile
+        if (!p) return
+        setWid(p.workspace_id)
+        setFullProfile(p)
+        const loaded = {
+          icp_description:  p.icp_description  || '',
+          industry:         p.icp_industries?.[0] || '',
+          target_titles:    p.target_titles     || '',
+          target_regions:   p.target_regions    || '',
+          company_sizes:    p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []),
+          company_revenue:  p.target_company_revenue ?? [],
+          pain_points:      p.pain_points       || '',
+        }
+        setIcpForm(loaded)
+        setIcpOriginal(loaded)
+      })
+  }, [])
+
+  const profileForScore = fullProfile ? {
+    product_description:    fullProfile.product_description,
+    icp_description:        icpForm.icp_description,
+    sender_name:            fullProfile.sender_name,
+    value_proposition:      fullProfile.value_proposition,
+    icp_industries:         icpForm.industry ? [icpForm.industry] : [],
+    icp_company_sizes:      icpForm.company_sizes,
+    icp_company_size:       icpForm.company_sizes[0] ?? '',
+    pain_points:            icpForm.pain_points,
+    target_titles:          icpForm.target_titles,
+    target_regions:         icpForm.target_regions,
+    target_company_revenue: icpForm.company_revenue,
+  } : null
+
+  async function saveIcp() {
+    if (!wid) return
+    setIcpSaving(true)
+    await fetch('/api/workspace/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id:           wid,
+        icp_description:        icpForm.icp_description,
+        icp_industries:         icpForm.industry ? [icpForm.industry] : [],
+        target_titles:          icpForm.target_titles,
+        target_regions:         icpForm.target_regions,
+        icp_company_sizes:      icpForm.company_sizes,
+        target_company_revenue: icpForm.company_revenue,
+        pain_points:            icpForm.pain_points,
+      }),
+    })
+    setIcpOriginal(icpForm)
+    setIcpSaving(false)
+    setIcpSaved(true)
+    setTimeout(() => setIcpSaved(false), 2000)
+  }
+
+  async function handleAiParse() {
+    if (!aiParseText.trim()) return
+    setAiParsing(true)
+    setIcpForm(f => ({ ...f, icp_description: aiParseText.trim() }))
+    setAiParseText('')
+    setAiParsing(false)
+  }
 
   function onImported(_res: ImportResult) {
     setRefreshKey(k => k + 1)
@@ -290,6 +391,11 @@ export default function ProspectsPage() {
 
   return (
     <div>
+      {/* Profile quality badge */}
+      {profileForScore && (
+        <ProfileQualityBadge profile={profileForScore} hideEditLink={true} className="mb-4" />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
@@ -299,6 +405,10 @@ export default function ProspectsPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setIcpOpen(v => !v)}
+            className={`border px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${icpOpen ? 'bg-purple-600 text-white border-purple-600' : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'}`}>
+            🎯 ICP Settings
+          </button>
           <button disabled
             title="AI prospect discovery — Sprint 9"
             className="border border-[#e8e3dc] bg-[#f7f4f0] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 cursor-not-allowed">
@@ -319,6 +429,149 @@ export default function ProspectsPage() {
           </button>
         </div>
       </div>
+
+      {/* Master ICP panel */}
+      {icpOpen && (
+        <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-6 mb-4">
+
+          {/* Panel header */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-[#1a1a2e]">Master ICP</span>
+              <StatusBadge variant="purple">Source of truth</StatusBadge>
+              <Tooltip content={ICP_TOOLTIP}>
+                <svg className="w-4 h-4 text-purple-400 hover:text-purple-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </Tooltip>
+            </div>
+            <button onClick={() => setIcpOpen(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-lg leading-none">✕</button>
+          </div>
+
+          {/* AI Parse */}
+          <div className="bg-white border border-purple-100 rounded-xl p-4 mb-5">
+            <label className={`${labelCls} mb-2 block`}>Paste an ICP description and let AI structure it</label>
+            <textarea
+              value={aiParseText}
+              onChange={e => setAiParseText(e.target.value)}
+              rows={3}
+              placeholder="e.g. We target VP Sales at B2B SaaS companies, 50-500 employees, Series A-C, in North America..."
+              className={`${inputCls} resize-none mb-2`}
+            />
+            <button onClick={handleAiParse} disabled={aiParsing || !aiParseText.trim()}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
+              {aiParsing ? 'Parsing…' : '✨ Parse with AI'}
+            </button>
+          </div>
+
+          {/* Structured ICP */}
+          <div className="text-xs font-bold text-[#6b5e4e] uppercase tracking-wider mb-4">Structured ICP</div>
+          <div className="flex flex-col gap-4">
+
+            {/* Ideal customer description */}
+            <div>
+              <label className={`${labelCls} mb-1 block`}>Describe your ideal customer</label>
+              <textarea
+                value={icpForm.icp_description}
+                onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
+                rows={3}
+                placeholder="e.g. VP Sales at B2B SaaS companies, 50-500 employees, Series A to C, struggling with outbound volume"
+                className={`${inputCls} resize-none`}
+              />
+              <p className={`text-xs mt-1 ${icpForm.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                {icpForm.icp_description.length}/30 chars{icpForm.icp_description.length >= 30 ? ' ✓' : ''}
+              </p>
+            </div>
+
+            {/* Industry + Titles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={`${labelCls} mb-1 block`}>Industry</label>
+                <input value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
+                  className={inputCls} placeholder="e.g. SaaS, Fintech" />
+                <FieldOk show={!!icpForm.industry} />
+              </div>
+              <div>
+                <label className={`${labelCls} mb-1 block`}>Titles</label>
+                <input value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
+                  className={inputCls} placeholder="e.g. CTO, Head of Engineering" />
+                <FieldOk show={!!icpForm.target_titles} />
+              </div>
+            </div>
+
+            {/* Regions */}
+            <div>
+              <label className={`${labelCls} mb-1 block`}>Regions</label>
+              <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
+                className={inputCls} placeholder="e.g. North America, EU, DACH" />
+              <FieldOk show={!!icpForm.target_regions} />
+            </div>
+
+            {/* Company size pills */}
+            <div>
+              <label className={`${labelCls} mb-2 block`}>Company size</label>
+              <div className="flex flex-wrap gap-1.5">
+                {COMPANY_SIZES.map(s => {
+                  const active = icpForm.company_sizes.includes(s)
+                  return (
+                    <button key={s} type="button"
+                      onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                      {s}
+                    </button>
+                  )
+                })}
+              </div>
+              <FieldOk show={icpForm.company_sizes.length > 0} />
+            </div>
+
+            {/* Revenue pills */}
+            <div>
+              <label className={`${labelCls} mb-2 block`}>Company Revenue</label>
+              <div className="flex flex-wrap gap-1.5">
+                {REVENUE_RANGES.map(r => {
+                  const active = icpForm.company_revenue.includes(r)
+                  return (
+                    <button key={r} type="button"
+                      onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                      {r}
+                    </button>
+                  )
+                })}
+              </div>
+              <FieldOk show={icpForm.company_revenue.length > 0} />
+            </div>
+
+            {/* Pain points */}
+            <div>
+              <label className={`${labelCls} mb-1 block`}>Pain points</label>
+              <textarea
+                value={icpForm.pain_points}
+                onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
+                rows={2}
+                placeholder="Top 2-3 problems your customers hire you to solve"
+                className={`${inputCls} resize-none`}
+              />
+              <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
+                {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2 mt-5">
+            <button onClick={() => setIcpForm(icpOriginal)}
+              className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors">
+              Reset
+            </button>
+            <button onClick={saveIcp} disabled={icpSaving}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
+              {icpSaved ? '✓ Saved' : icpSaving ? 'Saving…' : 'Save Master ICP'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-4 mb-4 flex flex-col gap-3">

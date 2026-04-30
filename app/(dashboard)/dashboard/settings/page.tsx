@@ -9,27 +9,31 @@ const supabase = createClient()
 
 const TONES              = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
 const COMPANY_SIZES      = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
-const REVENUE_RANGES     = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
 const WORKSPACE_TIMEZONES = [
   'America/Toronto','America/New_York','America/Chicago','America/Denver',
   'America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris',
   'Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC',
 ]
 
-const MASTER_ICP_TOOLTIP = 'These are your master defaults. They auto-fill every new campaign you create — and you can override any field per campaign at launch.'
+const PRODUCT_TOOLTIP = 'These defaults auto-fill every new campaign you create — you can override any field per campaign at launch.'
 
 const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]'
 const labelCls  = 'text-xs font-semibold text-[#6b5e4e]'
-const cardCls   = 'bg-white border border-[#e8e3dc] rounded-xl p-5'
+const cardCls   = 'bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col'
 const sectionHd = 'text-xs font-bold text-[#8a7e6e] uppercase tracking-wider'
 
 function QualityBadge({ pct }: { pct: string }) {
   return <span className="text-xs text-[#8a7e6e] bg-[#f0ece6] px-1.5 py-0.5 rounded-full whitespace-nowrap">{pct}</span>
 }
 
+function FieldOk({ show }: { show: boolean }) {
+  if (!show) return null
+  return <p className="text-xs mt-1 text-green-600">Ok ✓</p>
+}
+
 function SaveButton({ section, saving, saved, onSave }: { section: string; saving: string|null; saved: string|null; onSave: () => void }) {
   return (
-    <div className="flex justify-end pt-1">
+    <div className="flex justify-end pt-3 mt-auto">
       <button onClick={onSave} disabled={saving === section}
         className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
         {saved === section ? '✓ Saved' : saving === section ? 'Saving...' : 'Save'}
@@ -49,20 +53,26 @@ export default function SettingsPage() {
   const [profileLoaded, setProfileLoaded] = useState(false)
 
   const [form, setForm] = useState({
+    // Account
     name:                '',
+    // Company
     company_name:        '',
     sender_name:         '',
     timezone:            'America/Toronto',
-    industry:            '',
-    company_sizes:       [] as string[],
-    company_revenue:     [] as string[],
+    user_industry:       '',
+    user_company_size:   '',
+    // Product
     product_description: '',
-    icp_description:     '',
     value_proposition:   '',
     tone:                'professional',
+    // ICP fields — loaded from DB for badge scoring; managed from Prospects page
+    icp_description:     '',
+    icp_industries:      [] as string[],
+    icp_company_sizes:   [] as string[],
     pain_points:         '',
     target_titles:       '',
     target_regions:      '',
+    company_revenue:     [] as string[],
   })
 
   useEffect(() => {
@@ -92,21 +102,31 @@ export default function SettingsPage() {
           company_name:        p.company_name        || '',
           sender_name:         p.sender_name         || '',
           timezone:            (p.booking_config as any)?.timezone || 'America/Toronto',
-          industry:            p.icp_industries?.[0] || '',
-          company_sizes:       p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []),
-          company_revenue:     p.target_company_revenue ?? [],
+          user_industry:       p.user_industry       || '',
+          user_company_size:   p.user_company_size   || '',
           product_description: p.product_description || '',
-          icp_description:     p.icp_description     || '',
           value_proposition:   p.value_proposition   || '',
           tone:                p.tone                || 'professional',
+          icp_description:     p.icp_description     || '',
+          icp_industries:      p.icp_industries      ?? [],
+          icp_company_sizes:   p.icp_company_sizes   ?? (p.icp_company_size ? [p.icp_company_size] : []),
           pain_points:         p.pain_points         || '',
           target_titles:       p.target_titles       || '',
           target_regions:      p.target_regions      || '',
+          company_revenue:     p.target_company_revenue ?? [],
         })
       }
       setProfileLoaded(true)
     })
   }, [])
+
+  async function saveAccount() {
+    setSavingSection('account')
+    await supabase.auth.updateUser({ data: { full_name: form.name } })
+    setSavingSection(null)
+    setSavedSection('account')
+    setTimeout(() => setSavedSection(null), 2000)
+  }
 
   async function saveSection(section: string, fields: Record<string, unknown>) {
     setSavingSection(section)
@@ -127,9 +147,9 @@ export default function SettingsPage() {
     icp_description:        form.icp_description,
     sender_name:            form.sender_name,
     value_proposition:      form.value_proposition,
-    icp_industries:         form.industry ? [form.industry] : [],
-    icp_company_sizes:      form.company_sizes,
-    icp_company_size:       form.company_sizes[0] ?? '',
+    icp_industries:         form.icp_industries,
+    icp_company_sizes:      form.icp_company_sizes,
+    icp_company_size:       form.icp_company_sizes[0] ?? '',
     pain_points:            form.pain_points,
     target_titles:          form.target_titles,
     target_regions:         form.target_regions,
@@ -152,20 +172,24 @@ export default function SettingsPage() {
       </div>
 
       {/* Row 1: Account + Plan */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
 
         {/* ACCOUNT */}
         <div className={cardCls}>
           <div className={`${sectionHd} mb-4`}>ACCOUNT</div>
-          <div className="flex items-center justify-between mb-3 pb-3 border-b border-[#f0ece6]">
-            <span className="text-sm text-[#6b5e4e] truncate">{user?.email}</span>
-            <span className="text-xs bg-[#f0ece6] text-[#8a7e6e] px-2 py-1 rounded ml-2">email</span>
+          <div className="flex flex-col gap-3 flex-1">
+            <div className="flex items-center justify-between pb-3 border-b border-[#f0ece6]">
+              <span className="text-sm text-[#6b5e4e] truncate">{user?.email}</span>
+              <span className="text-xs bg-[#f0ece6] text-[#8a7e6e] px-2 py-1 rounded ml-2">email</span>
+            </div>
+            <div>
+              <label className={`${labelCls} mb-1 block`}>Your name</label>
+              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
+                className={inputCls} placeholder="Your name" />
+              <FieldOk show={!!form.name} />
+            </div>
           </div>
-          <div>
-            <label className={`${labelCls} mb-1 block`}>Your name</label>
-            <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-              className={inputCls} placeholder="Your name" />
-          </div>
+          <SaveButton section="account" saving={savingSection} saved={savedSection} onSave={saveAccount} />
         </div>
 
         {/* PLAN */}
@@ -198,15 +222,16 @@ export default function SettingsPage() {
       </div>
 
       {/* Row 2: Company + Product */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-stretch">
 
         {/* COMPANY */}
         <div className={cardCls}>
           <div className={`${sectionHd} mb-4`}>COMPANY</div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 flex-1">
             <div>
               <label className={`${labelCls} mb-1 block`}>Company name *</label>
               <input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} className={inputCls} />
+              <FieldOk show={!!form.company_name} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -214,6 +239,22 @@ export default function SettingsPage() {
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
               </div>
               <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})} className={inputCls} />
+              <FieldOk show={!!form.sender_name} />
+            </div>
+            <div>
+              <label className={`${labelCls} mb-1 block`}>Industry</label>
+              <input value={form.user_industry} onChange={e => setForm({...form, user_industry: e.target.value})}
+                className={inputCls} placeholder="e.g. SaaS, Fintech, Healthcare" />
+              <FieldOk show={!!form.user_industry} />
+            </div>
+            <div>
+              <label className={`${labelCls} mb-1 block`}>Company size</label>
+              <select value={form.user_company_size} onChange={e => setForm({...form, user_company_size: e.target.value})}
+                className={`${inputCls} bg-white`}>
+                <option value="">Select size</option>
+                {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <FieldOk show={!!form.user_company_size} />
             </div>
             <div>
               <label className={`${labelCls} mb-1 block`}>Workspace timezone</label>
@@ -223,22 +264,28 @@ export default function SettingsPage() {
               </select>
               <p className="text-xs text-[#b0a898] mt-1">Used to display meetings and booking availability in your local time</p>
             </div>
-            <SaveButton section="company" saving={savingSection} saved={savedSection}
-              onSave={() => saveSection('company', { company_name: form.company_name, sender_name: form.sender_name, workspace_timezone: form.timezone })} />
           </div>
+          <SaveButton section="company" saving={savingSection} saved={savedSection}
+            onSave={() => saveSection('company', {
+              company_name:       form.company_name,
+              sender_name:        form.sender_name,
+              workspace_timezone: form.timezone,
+              user_industry:      form.user_industry,
+              user_company_size:  form.user_company_size,
+            })} />
         </div>
 
         {/* PRODUCT */}
         <div className={cardCls}>
           <div className="flex items-center gap-1.5 mb-4">
             <span className={sectionHd}>PRODUCT</span>
-            <Tooltip content={MASTER_ICP_TOOLTIP}>
+            <Tooltip content={PRODUCT_TOOLTIP}>
               <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </Tooltip>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 flex-1">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Product description *</label>
@@ -271,149 +318,11 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
-            </div>
-            <SaveButton section="product" saving={savingSection} saved={savedSection}
-              onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition, tone: form.tone })} />
-          </div>
-        </div>
-      </div>
-
-      {/* AUDIENCE — full width */}
-      <div className={`${cardCls} mt-6`}>
-        <div className="flex items-center gap-1.5 mb-4">
-          <span className={sectionHd}>AUDIENCE</span>
-          <Tooltip content={MASTER_ICP_TOOLTIP}>
-            <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </Tooltip>
-        </div>
-        <div className="flex flex-col gap-4">
-
-          {/* 1. Describe ideal customer */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <label className={labelCls}>Describe your ideal customer</label>
-              <span className="text-xs text-[#b0a898]">ICP</span>
-              <QualityBadge pct="Adds 20% to AI quality" />
-            </div>
-            <textarea value={form.icp_description} onChange={e => setForm({...form, icp_description: e.target.value})}
-              className={`${inputCls} resize-none`} rows={3}
-              placeholder="e.g. VP Sales at B2B SaaS companies, 50-500 employees, Series A to C, struggling with outbound volume" />
-            <p className={`text-xs mt-1 ${form.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-              {form.icp_description.length}/30 chars{form.icp_description.length >= 30 ? ' ✓' : ''}
-            </p>
-          </div>
-
-          {/* 2 + 3: Industry + Target Titles */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Industry</label>
-                <QualityBadge pct="Adds 10% to AI quality" />
-              </div>
-              <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})}
-                className={inputCls} placeholder="e.g. SaaS, Fintech" />
-              <p className={`text-xs mt-1 ${form.industry ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.industry ? '1 industry ✓' : '0/1 industry minimum'}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Target Titles</label>
-                <QualityBadge pct="Adds 10% to AI quality" />
-              </div>
-              <input value={form.target_titles} onChange={e => setForm({...form, target_titles: e.target.value})}
-                className={inputCls} placeholder="e.g. CTO, Head of Engineering" />
-              <p className={`text-xs mt-1 ${form.target_titles ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.target_titles ? '✓' : 'e.g. VP Sales, Head of Growth'}
-              </p>
+              <FieldOk show={!!form.tone} />
             </div>
           </div>
-
-          {/* 4: Target company size */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <label className={labelCls}>Target company size</label>
-              <QualityBadge pct="Adds 5% to AI quality" />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {COMPANY_SIZES.map(s => {
-                const active = form.company_sizes.includes(s)
-                return (
-                  <button key={s} type="button"
-                    onClick={() => setForm({ ...form, company_sizes: active ? form.company_sizes.filter(x => x !== s) : [...form.company_sizes, s] })}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
-                    {s}
-                  </button>
-                )
-              })}
-            </div>
-            <p className={`text-xs mt-1.5 ${form.company_sizes.length > 0 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-              {form.company_sizes.length > 0 ? `${form.company_sizes.length} selected ✓` : 'None selected'}
-            </p>
-          </div>
-
-          {/* 5 + 6: Target Regions + Company Revenue */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Target Regions</label>
-                <QualityBadge pct="Adds 5% to AI quality" />
-              </div>
-              <input value={form.target_regions} onChange={e => setForm({...form, target_regions: e.target.value})}
-                className={inputCls} placeholder="e.g. North America, EU" />
-              <p className={`text-xs mt-1 ${form.target_regions ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.target_regions ? '✓' : 'e.g. DACH, Southeast Asia'}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <label className={labelCls}>Company Revenue</label>
-                <QualityBadge pct="Adds 5% to AI quality" />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {REVENUE_RANGES.map(r => {
-                  const active = form.company_revenue.includes(r)
-                  return (
-                    <button key={r} type="button"
-                      onClick={() => setForm({ ...form, company_revenue: active ? form.company_revenue.filter(x => x !== r) : [...form.company_revenue, r] })}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
-                      {r}
-                    </button>
-                  )
-                })}
-              </div>
-              <p className={`text-xs mt-1.5 ${form.company_revenue.length > 0 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.company_revenue.length > 0 ? `${form.company_revenue.length} selected ✓` : 'None selected'}
-              </p>
-            </div>
-          </div>
-
-          {/* 7: Pain points */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <label className={labelCls}>Pain points</label>
-              <QualityBadge pct="Adds 5% to AI quality" />
-            </div>
-            <textarea value={form.pain_points} onChange={e => setForm({...form, pain_points: e.target.value})}
-              className={`${inputCls} resize-none`} rows={2}
-              placeholder="Top 2-3 problems your customers hire you to solve" />
-            <p className={`text-xs mt-1 ${form.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-              {form.pain_points.length}/20 chars{form.pain_points.length >= 20 ? ' ✓' : ''}
-            </p>
-          </div>
-
-          <SaveButton section="audience" saving={savingSection} saved={savedSection}
-            onSave={() => saveSection('audience', {
-              icp_description:        form.icp_description,
-              icp_industries:         form.industry ? [form.industry] : [],
-              icp_company_sizes:      form.company_sizes,
-              pain_points:            form.pain_points,
-              target_titles:          form.target_titles,
-              target_regions:         form.target_regions,
-              target_company_revenue: form.company_revenue,
-            })} />
+          <SaveButton section="product" saving={savingSection} saved={savedSection}
+            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition, tone: form.tone })} />
         </div>
       </div>
 
