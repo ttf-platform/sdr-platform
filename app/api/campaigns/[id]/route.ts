@@ -62,7 +62,15 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[DELETE campaign]', {
+      message: error.message,
+      code:    (error as any).code,
+      details: (error as any).details,
+      hint:    (error as any).hint,
+    })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }
 
