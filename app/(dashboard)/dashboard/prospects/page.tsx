@@ -281,7 +281,10 @@ export default function ProspectsPage() {
   const [loading, setLoading]           = useState(true)
   const [page, setPage]                 = useState(1)
   const [search, setSearch]             = useState('')
-  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set())
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(() => {
+    const p = searchParams.get('filter')
+    return p ? new Set(p.split(',').map(s => s.trim()).filter(Boolean)) : new Set()
+  })
   const [campaignFilter, setCampaignFilter] = useState('all')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [sort, setSort]                 = useState('newest')
@@ -314,15 +317,6 @@ export default function ProspectsPage() {
   useEffect(() => {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
   }, [])
-
-  // Pre-apply filters from ?filter= query param (e.g. from Dashboard "Needs attention" card)
-  useEffect(() => {
-    const filterParam = searchParams.get('filter')
-    if (filterParam) {
-      const filters = filterParam.split(',').map(s => s.trim()).filter(Boolean)
-      if (filters.length > 0) setStatusFilters(new Set(filters))
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stable string key from the Set for use in dependency array
   const statusFilterStr = [...statusFilters].sort().join(',')
