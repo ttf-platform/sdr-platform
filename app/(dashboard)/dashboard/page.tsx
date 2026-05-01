@@ -117,7 +117,7 @@ export default function DashboardPage() {
             <div className="text-xs text-blue-600 font-medium">View calendar →</div>
           </Link>
 
-          <Link href="/dashboard/prospects"
+          <Link href="/dashboard/prospects?filter=bounced,unsubscribed"
             className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 transition-colors block">
             <div className="flex items-center gap-2 mb-3">
               <span>⚠️</span>

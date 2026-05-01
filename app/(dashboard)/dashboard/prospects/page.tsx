@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   ImportCSVModal, ManualAddModal, PasteModal,
   LifecyclePill, statusBadgeClass,
@@ -270,6 +271,7 @@ function SidePanel({ contactId, onClose, onDeleted }: {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProspectsPage() {
+  const searchParams = useSearchParams()
   const [contacts, setContacts]         = useState<Contact[]>([])
   const [total, setTotal]               = useState(0)
   const [totalAll, setTotalAll]         = useState(0)
@@ -279,7 +281,7 @@ export default function ProspectsPage() {
   const [loading, setLoading]           = useState(true)
   const [page, setPage]                 = useState(1)
   const [search, setSearch]             = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set())
   const [campaignFilter, setCampaignFilter] = useState('all')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [sort, setSort]                 = useState('newest')
@@ -313,10 +315,22 @@ export default function ProspectsPage() {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
   }, [])
 
+  // Pre-apply filters from ?filter= query param (e.g. from Dashboard "Needs attention" card)
+  useEffect(() => {
+    const filterParam = searchParams.get('filter')
+    if (filterParam) {
+      const filters = filterParam.split(',').map(s => s.trim()).filter(Boolean)
+      if (filters.length > 0) setStatusFilters(new Set(filters))
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stable string key from the Set for use in dependency array
+  const statusFilterStr = [...statusFilters].sort().join(',')
+
   useEffect(() => {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '50', sort })
-    if (statusFilter !== 'all') params.set('status', statusFilter)
+    if (statusFilters.size > 0) params.set('status', statusFilterStr)
     if (campaignFilter !== 'all') params.set('campaign_id', campaignFilter)
     if (sourceFilter !== 'all') params.set('source', sourceFilter)
     if (search) params.set('search', search)
@@ -330,7 +344,7 @@ export default function ProspectsPage() {
         if (d.total_all !== undefined) setTotalAll(d.total_all)
         setLoading(false)
       })
-  }, [page, statusFilter, campaignFilter, sourceFilter, sort, refreshKey])
+  }, [page, statusFilterStr, campaignFilter, sourceFilter, sort, refreshKey])
 
   useEffect(() => {
     clearTimeout(searchTimeout.current)
@@ -684,25 +698,50 @@ export default function ProspectsPage() {
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
           placeholder="Search by name, email, company…" />
         <div className="flex gap-2 flex-wrap items-center">
-          {(['all','found','emailed','opened','replied','meeting'] as const).map(s => (
-            <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
-              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilter === s ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
-              {s === 'all' ? 'All' : s}
-              <span className={`text-[10px] ${statusFilter === s ? 'text-white/70' : 'text-[#b0a898]'}`}>
-                {s === 'all' ? totalAll : (filterCounts[s] ?? 0)}
-              </span>
-            </button>
-          ))}
+          {/* All — resets multi-select */}
+          <button onClick={() => { setStatusFilters(new Set()); setPage(1) }}
+            className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilters.size === 0 ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
+            All
+            <span className={`text-[10px] ${statusFilters.size === 0 ? 'text-white/70' : 'text-[#b0a898]'}`}>
+              {totalAll}
+            </span>
+          </button>
+
+          {/* Positive lifecycle statuses */}
+          {(['found','emailed','opened','replied','meeting'] as const).map(s => {
+            const active = statusFilters.has(s)
+            return (
+              <button key={s} onClick={() => {
+                setStatusFilters(prev => { const n = new Set(prev); active ? n.delete(s) : n.add(s); return n })
+                setPage(1)
+              }}
+                className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
+                {s}
+                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-[#b0a898]'}`}>
+                  {filterCounts[s] ?? 0}
+                </span>
+              </button>
+            )
+          })}
+
           <div className="w-px h-4 bg-[#e8e3dc] mx-1" />
-          {(['bounced','unsubscribed'] as const).map(s => (
-            <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
-              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilter === s ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
-              {s}
-              <span className={`text-[10px] ${statusFilter === s ? 'text-white/70' : 'text-red-300'}`}>
-                {filterCounts[s] ?? 0}
-              </span>
-            </button>
-          ))}
+
+          {/* Negative statuses */}
+          {(['bounced','unsubscribed'] as const).map(s => {
+            const active = statusFilters.has(s)
+            return (
+              <button key={s} onClick={() => {
+                setStatusFilters(prev => { const n = new Set(prev); active ? n.delete(s) : n.add(s); return n })
+                setPage(1)
+              }}
+                className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${active ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
+                {s}
+                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-red-300'}`}>
+                  {filterCounts[s] ?? 0}
+                </span>
+              </button>
+            )
+          })}
           <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
             <option value="all">All Campaigns</option>
