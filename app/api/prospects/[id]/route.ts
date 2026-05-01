@@ -47,6 +47,26 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Auto-create deal when prospect reaches 'replied' stage
+  if (body.status === 'replied') {
+    const { data: existing } = await admin
+      .from('deals')
+      .select('id')
+      .eq('prospect_id', params.id)
+      .maybeSingle()
+
+    if (!existing) {
+      await admin.from('deals').insert({
+        workspace_id: guard.workspaceId,
+        prospect_id:  params.id,
+        campaign_id:  prospect.campaign_id ?? null,
+        source:       'campaign_reply',
+        stage:        'replied',
+      })
+    }
+  }
+
   return NextResponse.json({ prospect })
 }
 
