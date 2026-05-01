@@ -16,9 +16,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       updates.closed_at = new Date().toISOString()
     }
   }
-  if ('amount'        in body) updates.amount        = body.amount
-  if ('closed_reason' in body) updates.closed_reason = body.closed_reason
-  if ('notes'         in body) updates.notes         = body.notes
+  if ('amount'          in body) updates.amount          = body.amount
+  if ('closed_reason'   in body) updates.closed_reason   = body.closed_reason
+  if ('notes'           in body) updates.notes            = body.notes
+  if ('manual_override' in body) updates.manual_override  = body.manual_override
 
   const admin = createAdminClient()
   const { data: deal, error } = await admin

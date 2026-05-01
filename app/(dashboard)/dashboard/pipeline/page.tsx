@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { Tooltip } from '@/components/Tooltip'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Deal = {
   id: string; stage: string; amount: number | null; currency: string
   closed_reason: string | null; notes: string | null; source: string
   stage_changed_at: string; created_at: string; closed_at: string | null
+  manual_override: boolean
   prospect_id: string; campaign_id: string | null
   contact_first_name: string | null; contact_last_name: string | null
   contact_company: string | null; contact_title: string | null
@@ -28,6 +30,17 @@ const STAGE_COLORS: Record<StageKey, string> = {
   interested:'#f59e0b', meeting_booked:'#10b981', proposal_sent:'#06b6d4',
   closed_won:'#16a34a', closed_lost:'#ef4444',
 }
+const STAGE_HEADER: Record<StageKey, { bg: string; border: string }> = {
+  new_lead:       { bg: 'bg-gray-50',    border: 'border-b-2 border-gray-400'    },
+  contacted:      { bg: 'bg-blue-50',    border: 'border-b-2 border-blue-500'    },
+  opened:         { bg: 'bg-purple-50',  border: 'border-b-2 border-purple-400'  },
+  replied:        { bg: 'bg-green-50',   border: 'border-b-2 border-green-500'   },
+  interested:     { bg: 'bg-orange-50',  border: 'border-b-2 border-orange-500'  },
+  meeting_booked: { bg: 'bg-teal-50',    border: 'border-b-2 border-teal-500'    },
+  proposal_sent:  { bg: 'bg-cyan-50',    border: 'border-b-2 border-cyan-500'    },
+  closed_won:     { bg: 'bg-emerald-50', border: 'border-b-2 border-emerald-500' },
+  closed_lost:    { bg: 'bg-red-50',     border: 'border-b-2 border-red-500'     },
+}
 const CLOSED_REASONS = [
   { value:'not_interested',    label:'Not interested' },
   { value:'no_budget',         label:'No budget' },
@@ -35,6 +48,13 @@ const CLOSED_REASONS = [
   { value:'lost_to_competitor',label:'Lost to competitor' },
   { value:'other',             label:'Other' },
 ]
+const KPI_TOOLTIPS = {
+  totalLeads:       'Total deals across all stages, including closed ones.',
+  activePipeline:   'Deals currently in progress (excludes Closed Won and Closed Lost).',
+  winRate:          'Percentage of closed deals won. Calculated as Won / (Won + Lost).',
+  meetingsThisWeek: 'Meetings scheduled between Monday and Sunday of the current week.',
+  totalCaWon:       'Sum of amounts on all Closed Won deals (USD).',
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function daysInStage(iso: string) {
@@ -50,6 +70,17 @@ function fmtAmount(n: number | null) {
 function fmtDate(iso: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// ─── Info Icon ────────────────────────────────────────────────────────────────
+function InfoIcon({ content }: { content: string }) {
+  return (
+    <Tooltip content={content}>
+      <svg className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+      </svg>
+    </Tooltip>
+  )
 }
 
 // ─── Deal Card ─────────────────────────────────────────────────────────────────
@@ -96,42 +127,94 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
   onDragOver: (stage: string) => void; onDragLeave: () => void
   onDrop: (stage: string) => void; onCardClick: (deal: Deal) => void
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft,  setCanScrollLeft]  = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  function checkScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 1)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }
+
+  useEffect(() => {
+    checkScroll()
+    const el = scrollRef.current
+    el?.addEventListener('scroll', checkScroll, { passive: true })
+    window.addEventListener('resize', checkScroll)
+    return () => {
+      el?.removeEventListener('scroll', checkScroll)
+      window.removeEventListener('resize', checkScroll)
+    }
+  }, [])
+
+  useEffect(() => { checkScroll() }, [deals.length])
+
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="flex gap-3 min-w-max">
-        {STAGES.map(stage => {
-          const col = deals.filter(d => d.stage === stage)
-          const isDragTarget = dragOverStage === stage
-          return (
-            <div key={stage} className="w-56 flex-shrink-0 flex flex-col"
-              onDragOver={e => { e.preventDefault(); onDragOver(stage) }}
-              onDragLeave={onDragLeave}
-              onDrop={e => { e.preventDefault(); onDrop(stage) }}>
-              {/* Column header */}
-              <div className="flex items-center justify-between mb-2 px-0.5">
-                <span className="text-[0.7rem] font-bold uppercase tracking-wider" style={{ color: STAGE_COLORS[stage] }}>
-                  {STAGE_LABELS[stage]}
-                </span>
-                <span className="text-[0.68rem] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{col.length}</span>
+    <div className="relative">
+      {/* Left gradient + chevron */}
+      {canScrollLeft && <>
+        <div className="absolute left-0 top-0 bottom-2 w-6 bg-gradient-to-r from-[#f5f2ee] to-transparent z-10 pointer-events-none rounded-l" />
+        <button
+          onClick={() => scrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+          className="absolute left-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
+        >‹</button>
+      </>}
+      {/* Right gradient + chevron */}
+      {canScrollRight && <>
+        <div className="absolute right-0 top-0 bottom-2 w-6 bg-gradient-to-l from-[#f5f2ee] to-transparent z-10 pointer-events-none rounded-r" />
+        <button
+          onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+          className="absolute right-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
+        >›</button>
+      </>}
+
+      <div ref={scrollRef} className="overflow-x-auto pb-2">
+        <div className="flex gap-3 min-w-max">
+          {STAGES.map(stage => {
+            const isClosed = stage === 'closed_won' || stage === 'closed_lost'
+            const rawCol = deals.filter(d => d.stage === stage)
+            const col = [...rawCol].sort((a, b) => {
+              const at = isClosed ? (a.closed_at ?? a.stage_changed_at) : a.stage_changed_at
+              const bt = isClosed ? (b.closed_at ?? b.stage_changed_at) : b.stage_changed_at
+              return new Date(bt).getTime() - new Date(at).getTime()
+            })
+            const isDragTarget = dragOverStage === stage
+            const { bg, border } = STAGE_HEADER[stage]
+            return (
+              <div key={stage} className="w-56 flex-shrink-0 flex flex-col"
+                onDragOver={e => { e.preventDefault(); onDragOver(stage) }}
+                onDragLeave={onDragLeave}
+                onDrop={e => { e.preventDefault(); onDrop(stage) }}>
+                {/* Column header — tinted bg + colored bottom border */}
+                <div className={`px-4 py-3 ${bg} ${border} rounded-t-lg flex items-center justify-between`}>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    {STAGE_LABELS[stage]}
+                  </span>
+                  <span className="text-xs font-medium text-gray-500 bg-white px-2 py-0.5 rounded-full">
+                    {col.length}
+                  </span>
+                </div>
+                {/* Drop zone body */}
+                <div className={`flex-1 min-h-24 p-2 rounded-b-xl transition-colors
+                  ${isDragTarget ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-[#f9f7f4] border-2 border-transparent'}`}>
+                  {col.map(deal => (
+                    <DealCard key={deal.id} deal={deal}
+                      dragging={draggingId === deal.id}
+                      onDragStart={() => onDragStart(deal.id)}
+                      onDragEnd={onDragEnd}
+                      onClick={() => onCardClick(deal)}
+                    />
+                  ))}
+                  {col.length === 0 && !isDragTarget && (
+                    <div className="text-center py-4 text-xs text-gray-300">Empty</div>
+                  )}
+                </div>
               </div>
-              {/* Drop zone */}
-              <div className={`flex-1 min-h-24 rounded-xl p-2 transition-colors
-                ${isDragTarget ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-[#f9f7f4] border-2 border-transparent'}`}>
-                {col.map(deal => (
-                  <DealCard key={deal.id} deal={deal}
-                    dragging={draggingId === deal.id}
-                    onDragStart={() => onDragStart(deal.id)}
-                    onDragEnd={onDragEnd}
-                    onClick={() => onCardClick(deal)}
-                  />
-                ))}
-                {col.length === 0 && !isDragTarget && (
-                  <div className="text-center py-4 text-xs text-gray-300">Empty</div>
-                )}
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -495,8 +578,11 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900">Add Lead to Pipeline</h2>
+        <div className="flex items-start justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-gray-900">Add Lead</h2>
+            <InfoIcon content="Add a lead manually — for opportunities not coming from a Sentra campaign (e.g. inbound leads, networking, referrals)." />
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">✕</button>
         </div>
 
@@ -642,17 +728,22 @@ export default function PipelinePage() {
   }
 
   async function moveStage(deal: Deal, newStage: string, extra?: { amount?: number; closed_reason?: string; notes?: string }) {
-    // Optimistic update
-    setDeals(prev => prev.map(d => d.id === deal.id ? { ...d, stage: newStage, stage_changed_at: new Date().toISOString(), ...extra } : d))
+    const now = new Date().toISOString()
+    const isClosed = newStage === 'closed_won' || newStage === 'closed_lost'
+    // Optimistic update — manual moves always set manual_override = true
+    setDeals(prev => prev.map(d => d.id === deal.id ? {
+      ...d, stage: newStage, stage_changed_at: now, manual_override: true,
+      ...(isClosed ? { closed_at: now } : {}),
+      ...extra,
+    } : d))
     setDraggingId(null); setDragOverStage(null)
 
     const res = await fetch(`/api/deals/${deal.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage: newStage, ...extra }),
+      body: JSON.stringify({ stage: newStage, manual_override: true, ...extra }),
     })
     if (!res.ok) {
-      // Rollback
       setDeals(prev => prev.map(d => d.id === deal.id ? deal : d))
       showToast('Failed to update deal — changes reverted')
     } else {
@@ -713,25 +804,40 @@ export default function PipelinePage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">Total Leads</div>
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Total Leads</span>
+            <InfoIcon content={KPI_TOOLTIPS.totalLeads} />
+          </div>
           <div className="text-3xl font-bold text-[#1a1a2e]">{loading ? '—' : stats?.totalLeads ?? 0}</div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">Active Pipeline</div>
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Active Pipeline</span>
+            <InfoIcon content={KPI_TOOLTIPS.activePipeline} />
+          </div>
           <div className="text-3xl font-bold text-[#3b6bef]">{loading ? '—' : stats?.activePipeline ?? 0}</div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">Win Rate</div>
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Win Rate</span>
+            <InfoIcon content={KPI_TOOLTIPS.winRate} />
+          </div>
           <div className="text-3xl font-bold text-green-600">
             {loading ? '—' : stats?.winRate != null ? `${stats.winRate}%` : '—'}
           </div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">Meetings This Week</div>
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Meetings This Week</span>
+            <InfoIcon content={KPI_TOOLTIPS.meetingsThisWeek} />
+          </div>
           <div className="text-3xl font-bold text-[#1a1a2e]">{loading ? '—' : stats?.meetingsThisWeek ?? 0}</div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">Total CA Won</div>
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Total CA Won</span>
+            <InfoIcon content={KPI_TOOLTIPS.totalCaWon} />
+          </div>
           <div className="text-3xl font-bold text-green-600">
             {loading ? '—' : stats?.totalCaWon ? fmtAmount(stats.totalCaWon) : '$0'}
           </div>
