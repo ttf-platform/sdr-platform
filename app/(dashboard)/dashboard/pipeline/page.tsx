@@ -55,6 +55,7 @@ const KPI_TOOLTIPS = {
   meetingsThisWeek: 'Meetings scheduled between Monday and Sunday of the current week.',
   totalCaWon:       'Sum of amounts on all Closed Won deals (USD).',
 }
+const ADD_LEAD_TOOLTIP = 'Add a lead manually — for opportunities not coming from a Sentra campaign (e.g. inbound leads, networking, referrals).'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function daysInStage(iso: string) {
@@ -120,12 +121,83 @@ function DealCard({ deal, dragging, onDragStart, onDragEnd, onClick }: {
   )
 }
 
+// ─── Closed Deals Modal ────────────────────────────────────────────────────────
+function ClosedDealsModal({ stage, deals, onClose, onDealClick }: {
+  stage: 'closed_won' | 'closed_lost'
+  deals: Deal[]
+  onClose: () => void
+  onDealClick: (deal: Deal) => void
+}) {
+  const [query, setQuery] = useState('')
+  const title = stage === 'closed_won' ? 'Closed Won' : 'Closed Lost'
+  const filtered = deals.filter(d => {
+    if (!query.trim()) return true
+    const q = query.toLowerCase()
+    return [d.contact_first_name, d.contact_last_name, d.contact_company, d.contact_email]
+      .some(v => v?.toLowerCase().includes(q))
+  })
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900">All {title} deals</h2>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400">{deals.length} total</span>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700">✕</button>
+          </div>
+        </div>
+        <div className="p-4 flex-shrink-0 border-b border-gray-100">
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by name, company…"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+          />
+        </div>
+        <div className="overflow-y-auto flex-1">
+          {filtered.length === 0 ? (
+            <div className="py-10 text-center text-sm text-gray-400">No deals found</div>
+          ) : filtered.map(deal => (
+            <div key={deal.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50">
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm text-gray-900 truncate">{displayName(deal)}</div>
+                {(deal.contact_title || deal.contact_company) && (
+                  <div className="text-xs text-gray-400 truncate">
+                    {deal.contact_title ? `${deal.contact_title} @ ` : ''}{deal.contact_company}
+                  </div>
+                )}
+              </div>
+              <div className="text-right flex-shrink-0">
+                {deal.amount != null && (
+                  <div className="text-sm font-semibold text-green-600">{fmtAmount(deal.amount)}</div>
+                )}
+                <div className="text-xs text-gray-400">Closed {fmtDate(deal.closed_at)}</div>
+              </div>
+              <button
+                onClick={() => { onClose(); onDealClick(deal) }}
+                className="text-xs text-blue-600 hover:text-blue-800 flex-shrink-0 ml-2 whitespace-nowrap"
+              >
+                View →
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Kanban View ───────────────────────────────────────────────────────────────
-function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop, onCardClick }: {
+const CLOSED_COL_LIMIT = 10
+
+function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop, onCardClick, onOpenClosedView }: {
   deals: Deal[]; draggingId: string | null; dragOverStage: string | null
   onDragStart: (id: string) => void; onDragEnd: () => void
   onDragOver: (stage: string) => void; onDragLeave: () => void
   onDrop: (stage: string) => void; onCardClick: (deal: Deal) => void
+  onOpenClosedView: (stage: 'closed_won' | 'closed_lost') => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft,  setCanScrollLeft]  = useState(false)
@@ -153,7 +225,6 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
 
   return (
     <div className="relative">
-      {/* Left gradient + chevron */}
       {canScrollLeft && <>
         <div className="absolute left-0 top-0 bottom-2 w-6 bg-gradient-to-r from-[#f5f2ee] to-transparent z-10 pointer-events-none rounded-l" />
         <button
@@ -161,7 +232,6 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
           className="absolute left-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
         >‹</button>
       </>}
-      {/* Right gradient + chevron */}
       {canScrollRight && <>
         <div className="absolute right-0 top-0 bottom-2 w-6 bg-gradient-to-l from-[#f5f2ee] to-transparent z-10 pointer-events-none rounded-r" />
         <button
@@ -174,26 +244,29 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
         <div className="flex gap-3 min-w-max">
           {STAGES.map(stage => {
             const isClosed = stage === 'closed_won' || stage === 'closed_lost'
-            const rawCol = deals.filter(d => d.stage === stage)
-            const col = [...rawCol].sort((a, b) => {
+            const allInStage = deals.filter(d => d.stage === stage)
+            const sorted = [...allInStage].sort((a, b) => {
               const at = isClosed ? (a.closed_at ?? a.stage_changed_at) : a.stage_changed_at
               const bt = isClosed ? (b.closed_at ?? b.stage_changed_at) : b.stage_changed_at
               return new Date(bt).getTime() - new Date(at).getTime()
             })
+            const col = isClosed ? sorted.slice(0, CLOSED_COL_LIMIT) : sorted
+            const hasMore = isClosed && allInStage.length > CLOSED_COL_LIMIT
             const isDragTarget = dragOverStage === stage
             const { bg, border } = STAGE_HEADER[stage]
+
             return (
               <div key={stage} className="w-56 flex-shrink-0 flex flex-col"
                 onDragOver={e => { e.preventDefault(); onDragOver(stage) }}
                 onDragLeave={onDragLeave}
                 onDrop={e => { e.preventDefault(); onDrop(stage) }}>
-                {/* Column header — tinted bg + colored bottom border */}
+                {/* Column header */}
                 <div className={`px-4 py-3 ${bg} ${border} rounded-t-lg flex items-center justify-between`}>
                   <span className="text-xs font-semibold uppercase tracking-wider text-gray-700">
                     {STAGE_LABELS[stage]}
                   </span>
                   <span className="text-xs font-medium text-gray-500 bg-white px-2 py-0.5 rounded-full">
-                    {col.length}
+                    {allInStage.length}
                   </span>
                 </div>
                 {/* Drop zone body */}
@@ -209,6 +282,14 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
                   ))}
                   {col.length === 0 && !isDragTarget && (
                     <div className="text-center py-4 text-xs text-gray-300">Empty</div>
+                  )}
+                  {hasMore && (
+                    <button
+                      onClick={() => onOpenClosedView(stage as 'closed_won' | 'closed_lost')}
+                      className="text-xs text-blue-600 hover:underline px-2 py-2 w-full text-center"
+                    >
+                      View all ({allInStage.length}) →
+                    </button>
                   )}
                 </div>
               </div>
@@ -328,7 +409,6 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
     <div className="fixed inset-0 z-[60] flex">
       <div className="flex-1 bg-black/20" onClick={onClose} />
       <div className="w-full max-w-sm bg-white shadow-xl flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
-        {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
           <div>
             <div className="font-bold text-gray-900 text-base">{displayName(deal)}</div>
@@ -338,7 +418,6 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
         </div>
 
         <div className="p-5 flex flex-col gap-5">
-          {/* Deal info */}
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Deal</div>
             <div className="flex flex-col gap-1.5">
@@ -376,7 +455,6 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
             </div>
           </div>
 
-          {/* Amount */}
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Amount (USD)</label>
             <input type="number" min="0" step="100"
@@ -387,7 +465,6 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
             />
           </div>
 
-          {/* Prospect info */}
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Prospect</div>
             <div className="flex flex-col gap-1.5">
@@ -413,7 +490,6 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
             </div>
           </div>
 
-          {/* Campaign */}
           {deal.campaign_name && (
             <div>
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Campaign</div>
@@ -422,7 +498,6 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
             </div>
           )}
 
-          {/* Notes */}
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Notes</label>
             <textarea rows={3} value={editNotes} onChange={e => setEditNotes(e.target.value)}
@@ -431,13 +506,11 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
             />
           </div>
 
-          {/* Save */}
           <button onClick={saveEdits} disabled={saving}
             className="bg-[#3b6bef] text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-opacity">
             {saving ? 'Saving…' : 'Save changes'}
           </button>
 
-          {/* Delete */}
           <div className="border-t border-gray-100 pt-4">
             {!confirmDel ? (
               <button onClick={() => setConfirmDel(true)}
@@ -578,11 +651,9 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-gray-900">Add Lead</h2>
-            <InfoIcon content="Add a lead manually — for opportunities not coming from a Sentra campaign (e.g. inbound leads, networking, referrals)." />
-          </div>
+        {/* Header — no tooltip here, it lives on the page next to the button */}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-gray-900">Add Lead</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">✕</button>
         </div>
 
@@ -623,7 +694,6 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           )}
         </div>
 
-        {/* Stage */}
         <div className="mb-4">
           <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Stage</label>
           <select value={stage} onChange={e => setStage(e.target.value as StageKey)}
@@ -632,7 +702,6 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           </select>
         </div>
 
-        {/* Amount */}
         <div className="mb-4">
           <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Estimated amount (USD, optional)</label>
           <input type="number" min="0" step="100" value={amount} onChange={e => setAmount(e.target.value)}
@@ -640,7 +709,6 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
         </div>
 
-        {/* Notes */}
         <div className="mb-5">
           <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Notes (optional)</label>
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
@@ -664,14 +732,15 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PipelinePage() {
-  const [deals,     setDeals]     = useState<Deal[]>([])
-  const [stats,     setStats]     = useState<Stats | null>(null)
-  const [loading,   setLoading]   = useState(true)
-  const [view,      setView]      = useState<'kanban' | 'list'>('kanban')
-  const [search,    setSearch]    = useState('')
-  const [stageFilter, setStageFilter] = useState('all')
-  const [syncing,   setSyncing]   = useState(false)
-  const [toast,     setToast]     = useState<string | null>(null)
+  const [deals,          setDeals]          = useState<Deal[]>([])
+  const [stats,          setStats]          = useState<Stats | null>(null)
+  const [loading,        setLoading]        = useState(true)
+  const [view,           setView]           = useState<'kanban' | 'list'>('kanban')
+  const [search,         setSearch]         = useState('')
+  const [stageFilter,    setStageFilter]    = useState('all')
+  const [syncing,        setSyncing]        = useState(false)
+  const [toast,          setToast]          = useState<string | null>(null)
+  const [closedViewStage, setClosedViewStage] = useState<'closed_won' | 'closed_lost' | null>(null)
 
   // Drag & drop
   const [draggingId,    setDraggingId]    = useState<string | null>(null)
@@ -730,7 +799,6 @@ export default function PipelinePage() {
   async function moveStage(deal: Deal, newStage: string, extra?: { amount?: number; closed_reason?: string; notes?: string }) {
     const now = new Date().toISOString()
     const isClosed = newStage === 'closed_won' || newStage === 'closed_lost'
-    // Optimistic update — manual moves always set manual_override = true
     setDeals(prev => prev.map(d => d.id === deal.id ? {
       ...d, stage: newStage, stage_changed_at: now, manual_override: true,
       ...(isClosed ? { closed_at: now } : {}),
@@ -766,6 +834,13 @@ export default function PipelinePage() {
     return matchSearch && matchStage
   })
 
+  // For "View all" closed modal — use unfiltered deals so nothing is hidden
+  const closedViewDeals = closedViewStage
+    ? [...deals.filter(d => d.stage === closedViewStage)].sort((a, b) =>
+        new Date(b.closed_at ?? b.stage_changed_at).getTime() - new Date(a.closed_at ?? a.stage_changed_at).getTime()
+      )
+    : []
+
   return (
     <div>
       {/* Toast */}
@@ -781,7 +856,7 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Pipeline</h1>
           <p className="text-sm text-[#8a7e6e]">Track leads from first touch to closed deal</p>
         </div>
-        <div className="flex gap-2 flex-wrap justify-end">
+        <div className="flex gap-2 flex-wrap justify-end items-center">
           <button onClick={sync} disabled={syncing}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40 transition-colors flex items-center gap-1.5">
             {syncing ? '↻ Syncing…' : '↻ Sync'}
@@ -794,10 +869,12 @@ export default function PipelinePage() {
             className={`border px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
             ☰ List
           </button>
+          {/* "+ Add Lead" button + tooltip */}
           <button onClick={() => setAddLeadOpen(true)}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors">
             + Add Lead
           </button>
+          <InfoIcon content={ADD_LEAD_TOOLTIP} />
         </div>
       </div>
 
@@ -871,6 +948,7 @@ export default function PipelinePage() {
           onDragLeave={() => setDragOverStage(null)}
           onDrop={handleDrop}
           onCardClick={deal => setSidePanel(deal)}
+          onOpenClosedView={stage => setClosedViewStage(stage)}
         />
       ) : (
         <ListView deals={filtered} onRowClick={deal => setSidePanel(deal)} />
@@ -913,6 +991,16 @@ export default function PipelinePage() {
             showToast('✓ Deal added to pipeline')
             fetch('/api/deals/stats').then(r => r.json()).then(setStats)
           }}
+        />
+      )}
+
+      {/* View all closed deals modal */}
+      {closedViewStage && (
+        <ClosedDealsModal
+          stage={closedViewStage}
+          deals={closedViewDeals}
+          onClose={() => setClosedViewStage(null)}
+          onDealClick={deal => setSidePanel(deal)}
         />
       )}
     </div>
