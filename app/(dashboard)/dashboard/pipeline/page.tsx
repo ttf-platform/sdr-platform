@@ -74,9 +74,9 @@ function fmtDate(iso: string | null) {
 }
 
 // ─── Info Icon ────────────────────────────────────────────────────────────────
-function InfoIcon({ content }: { content: string }) {
+function InfoIcon({ content, placement }: { content: string; placement?: 'top' | 'top-end' | 'bottom' | 'bottom-end' }) {
   return (
-    <Tooltip content={content}>
+    <Tooltip content={content} placement={placement}>
       <svg className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
       </svg>
@@ -869,12 +869,14 @@ export default function PipelinePage() {
             className={`border px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
             ☰ List
           </button>
-          {/* "+ Add Lead" button + tooltip */}
-          <button onClick={() => setAddLeadOpen(true)}
-            className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors">
-            + Add Lead
-          </button>
-          <InfoIcon content={ADD_LEAD_TOOLTIP} />
+          {/* "+ Add Lead" button + tooltip — tight group, tooltip right-aligned to avoid viewport overflow */}
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setAddLeadOpen(true)}
+              className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors">
+              + Add Lead
+            </button>
+            <InfoIcon content={ADD_LEAD_TOOLTIP} placement="top-end" />
+          </div>
         </div>
       </div>
 
