@@ -341,8 +341,8 @@ export async function generateDraftsForCampaign(
       if (opening) body = assembleSmartBody(body, opening)
     }
 
-    if ((campaign as any).include_booking_link_initial && isInitial) {
-      body = body.trimEnd() + '\n\n{{booking_link}}'
+    if ((campaign as any).include_booking_link_initial && isInitial && bookingUrl) {
+      body = body.trimEnd() + '\n\n' + bookingUrl
     }
 
     // Append signature

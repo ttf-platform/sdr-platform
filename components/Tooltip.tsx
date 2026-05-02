@@ -29,7 +29,10 @@ export function Tooltip({ content, children, placement = 'top' }: Props) {
     >
       {children}
       {visible && content && (
-        <div className={`absolute ${box} z-50 max-w-xs whitespace-normal break-words bg-gray-900 text-white text-xs px-3 py-2 rounded-md shadow-lg pointer-events-none animate-in fade-in duration-150`}>
+        <div
+          className={`absolute ${box} z-50 whitespace-normal break-words bg-gray-900 text-white text-xs px-3 py-2 rounded-md shadow-lg pointer-events-none`}
+          style={{ maxWidth: '320px' }}
+        >
           {content}
           <div className={arrow} />
         </div>
