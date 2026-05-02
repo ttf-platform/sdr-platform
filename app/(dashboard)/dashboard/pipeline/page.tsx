@@ -870,12 +870,12 @@ export default function PipelinePage() {
             ☰ List
           </button>
           {/* "+ Add Lead" button + tooltip — tight group, tooltip right-aligned to avoid viewport overflow */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-0.5">
             <button onClick={() => setAddLeadOpen(true)}
               className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors">
               + Add Lead
             </button>
-            <InfoIcon content={ADD_LEAD_TOOLTIP} placement="top-end" />
+            <InfoIcon content={ADD_LEAD_TOOLTIP} placement="bottom-end" />
           </div>
         </div>
       </div>
