@@ -14,10 +14,12 @@ interface Props {
 export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, includeBookingLink, isRegenerate, onClose, onGenerated }: Props) {
   const [mode, setMode]               = useState<'fast' | 'smart'>(defaultMode ?? 'smart')
   const [bookingLink, setBookingLink] = useState(includeBookingLink ?? false)
+  const [includeSignature,    setIncludeSignature]    = useState<boolean | null>(null)
   const [generating, setGenerating]   = useState(false)
   const [progressCount, setProgressCount] = useState(0)
   const [error, setError]             = useState('')
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollRef        = useRef<ReturnType<typeof setInterval> | null>(null)
+  const workspaceIdRef = useRef<string | null>(null)
 
   const progress = prospectCount > 0 ? Math.min(100, Math.round((progressCount / prospectCount) * 100)) : 0
   const estimatedSeconds = mode === 'smart' ? Math.max(5, Math.round(prospectCount * 0.6)) : null
@@ -27,6 +29,29 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
   }
 
   useEffect(() => () => stopPoll(), [])
+
+  useEffect(() => {
+    fetch('/api/workspace-profile')
+      .then(r => r.json())
+      .then(d => {
+        if (d.profile) {
+          setIncludeSignature(d.profile.signature_in_initial ?? true)
+          workspaceIdRef.current = d.profile.workspace_id
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  function toggleSignature(checked: boolean) {
+    setIncludeSignature(checked)
+    if (workspaceIdRef.current) {
+      fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspaceIdRef.current, signature_in_initial: checked }),
+      }).catch(() => {})
+    }
+  }
 
   async function handleGenerate() {
     setGenerating(true)
@@ -128,6 +153,14 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
               className="rounded border-[#e8e3dc] text-[#3b6bef]" />
             <span className="text-sm text-[#4a4a5a]">📅 Include calendar booking link in this email</span>
           </label>
+
+          {includeSignature !== null && (
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" checked={includeSignature} onChange={e => toggleSignature(e.target.checked)}
+                className="rounded border-[#e8e3dc] text-[#3b6bef]" />
+              <span className="text-sm text-[#4a4a5a]">✍️ Include email signature in generated emails</span>
+            </label>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             {/* Fast */}

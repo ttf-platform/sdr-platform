@@ -83,7 +83,7 @@ export default function SettingsPage() {
   const [savedSection,  setSavedSection]  = useState<string|null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
-  const [toast,         setToast]         = useState<string|null>(null)
+  const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string } | null>(null)
 
   const [form, setForm] = useState({
     // Account
@@ -202,12 +202,16 @@ export default function SettingsPage() {
     setSavingSection(null)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setToast(data.error || 'Failed to save. Please try again.')
+      setToast({ type: 'error', msg: data.error || 'Failed to save. Please try again.' })
       setTimeout(() => setToast(null), 4000)
       return
     }
     setSavedSection(section)
     setTimeout(() => setSavedSection(null), 2000)
+    if (section === 'signature') {
+      setToast({ type: 'info', msg: 'Signature saved. This will only affect future email generations and regenerations. Existing drafts won\'t be modified.' })
+      setTimeout(() => setToast(null), 7000)
+    }
   }
 
   const ws = (workspace?.workspaces as any)
@@ -237,12 +241,12 @@ export default function SettingsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
 
-      {/* Toast error */}
+      {/* Toast */}
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-center gap-3 min-w-max">
-          <span>⚠</span>
-          <span>{toast}</span>
-          <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none">✕</button>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#3b6bef]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-center gap-3 max-w-sm`}>
+          <span className="shrink-0">{toast.type === 'error' ? '⚠' : 'ℹ'}</span>
+          <span>{toast.msg}</span>
+          <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0">✕</button>
         </div>
       )}
 
@@ -257,6 +261,23 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
         <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
       </div>
+
+      {/* Loading skeleton */}
+      {!profileLoaded && (
+        <div className="flex flex-col gap-6 animate-pulse">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-[#f5f2ee] rounded-xl h-56" />
+            <div className="bg-[#f5f2ee] rounded-xl h-56" />
+          </div>
+          <div className="bg-[#f5f2ee] rounded-xl h-72" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-[#f5f2ee] rounded-xl h-96" />
+            <div className="bg-[#f5f2ee] rounded-xl h-64" />
+          </div>
+        </div>
+      )}
+
+      {profileLoaded && <>
 
       {/* Row 1: Account + Plan */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
@@ -285,6 +306,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Your title</label>
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
+                <StatusBadge variant="gray">Used in email signature</StatusBadge>
               </div>
               <input
                 value={form.user_title}
@@ -347,14 +369,7 @@ export default function SettingsPage() {
           className={`${inputCls} font-mono resize-none`}
           placeholder={DEFAULT_SIGNATURE}
         />
-        <div className="flex items-center justify-between mt-1.5">
-          <p className="text-xs text-[#b0a898]">
-            Available variables:{' '}
-            <span className="font-mono">{`{{user_name}}`}</span>{' '}
-            <span className="font-mono">{`{{user_title}}`}</span>{' '}
-            <span className="font-mono">{`{{company}}`}</span>{' '}
-            <span className="font-mono">{`{{company_website}}`}</span>
-          </p>
+        <div className="flex justify-end mt-1.5">
           <span className="text-xs text-[#b0a898]">{form.email_signature.length}/1000</span>
         </div>
 
@@ -428,6 +443,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls}>Company website</label>
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
+                <StatusBadge variant="gray">Used in email signature</StatusBadge>
               </div>
               <input
                 value={form.company_website}
@@ -616,6 +632,8 @@ export default function SettingsPage() {
           <button className="text-sm border border-red-200 text-red-500 px-3 py-1.5 rounded-lg">Delete account</button>
         </div>
       </div>
+
+      </>}
 
     </div>
   )

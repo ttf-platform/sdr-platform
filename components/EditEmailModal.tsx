@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { normalizeBody } from '@/lib/normalize-body'
+import { renderSignature, appendSignature, stripSignature } from '@/lib/signature'
 
 interface EmailDetail {
   id:         string
@@ -36,14 +37,30 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
   const [regenning,          setRegenning]          = useState(false)
   const [bookingSlug,        setBookingSlug]        = useState<string | null>(null)
   const [includeBookingLink, setIncludeBookingLink] = useState(false)
-  const bookingUrlRef = useRef<string | null>(null)
+  const [includeSignature,   setIncludeSignature]   = useState(false)
+  const [sigLoaded,          setSigLoaded]          = useState(false)
+  const bookingUrlRef  = useRef<string | null>(null)
+  const signatureRef   = useRef<string>('')
+  const workspaceIdRef = useRef<string | null>(null)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
 
   useEffect(() => {
     fetch('/api/workspace-profile')
       .then(r => r.json())
-      .then(d => { if (d.profile?.booking_slug) setBookingSlug(d.profile.booking_slug) })
+      .then(d => {
+        if (!d.profile) return
+        if (d.profile.booking_slug) setBookingSlug(d.profile.booking_slug)
+        workspaceIdRef.current = d.profile.workspace_id
+        const rendered = renderSignature(d.profile.email_signature ?? null, {
+          user_name:       d.profile.sender_name    ?? '',
+          user_title:      d.profile.user_title     ?? '',
+          company:         d.profile.company_name   ?? '',
+          company_website: d.profile.company_website ?? '',
+        })
+        signatureRef.current = rendered
+        setSigLoaded(true)
+      })
       .catch(() => {})
   }, [])
 
@@ -73,11 +90,32 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
     setBody(normalizeBody(email.body, on, url))
   }, [email, bookingSlug, appUrl])
 
+  // Detect signature in body once both email and signature are loaded
+  useEffect(() => {
+    if (!email || !sigLoaded) return
+    const sig = signatureRef.current
+    if (!sig) { setIncludeSignature(false); return }
+    setIncludeSignature(email.body.trimEnd().endsWith(sig.trimEnd()))
+  }, [email, sigLoaded])
+
   function toggleBookingLink(checked: boolean) {
     const url = bookingUrlRef.current
     setIncludeBookingLink(checked)
     if (!url) return
     setBody(b => normalizeBody(b, checked, url))
+  }
+
+  function toggleSignature(checked: boolean) {
+    const sig = signatureRef.current
+    setIncludeSignature(checked)
+    if (sig) setBody(b => checked ? appendSignature(b, sig) : stripSignature(b, sig))
+    if (workspaceIdRef.current) {
+      fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspaceIdRef.current, signature_in_initial: checked }),
+      }).catch(() => {})
+    }
   }
 
   async function handleSave(approve = false) {
@@ -211,6 +249,20 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                     </p>
                   )}
                 </div>
+              )}
+
+              {/* Signature toggle */}
+              {sigLoaded && signatureRef.current && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeSignature}
+                    onChange={e => toggleSignature(e.target.checked)}
+                    disabled={saving || regenning}
+                    className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
+                  />
+                  <span className="text-xs text-[#6b5e4e]">✍️ Include email signature</span>
+                </label>
               )}
 
               <div className="flex justify-start">

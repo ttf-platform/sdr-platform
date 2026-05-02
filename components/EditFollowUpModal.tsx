@@ -21,16 +21,23 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
   const [subject,            setSubject]            = useState(step.subject ?? '')
   const [body,               setBody]               = useState(step.body)
   const [includeBookingLink, setIncludeBookingLink] = useState(step.include_booking_link)
+  const [includeSignature,   setIncludeSignature]   = useState<boolean | null>(null)
   const [saving,             setSaving]             = useState(false)
   const [bookingSlug,        setBookingSlug]        = useState<string | null>(null)
-  const bookingUrlRef = useRef<string | null>(null)
+  const bookingUrlRef  = useRef<string | null>(null)
+  const workspaceIdRef = useRef<string | null>(null)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
 
   useEffect(() => {
     fetch('/api/workspace-profile')
       .then(r => r.json())
-      .then(d => { if (d.profile?.booking_slug) setBookingSlug(d.profile.booking_slug) })
+      .then(d => {
+        if (!d.profile) return
+        if (d.profile.booking_slug) setBookingSlug(d.profile.booking_slug)
+        workspaceIdRef.current = d.profile.workspace_id
+        setIncludeSignature(d.profile.signature_in_followups ?? false)
+      })
       .catch(() => {})
   }, [])
 
@@ -48,6 +55,17 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
     setIncludeBookingLink(checked)
     if (!url) return
     setBody(b => normalizeBody(b, checked, url))
+  }
+
+  function toggleSignature(checked: boolean) {
+    setIncludeSignature(checked)
+    if (workspaceIdRef.current) {
+      fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspaceIdRef.current, signature_in_followups: checked }),
+      }).catch(() => {})
+    }
   }
 
   async function handleSave() {
@@ -133,6 +151,20 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
                 </p>
               )}
             </div>
+          )}
+
+          {/* Signature toggle */}
+          {includeSignature !== null && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeSignature}
+                onChange={e => toggleSignature(e.target.checked)}
+                disabled={saving}
+                className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
+              />
+              <span className="text-xs text-[#6b5e4e]">✍️ Include email signature in follow-ups</span>
+            </label>
           )}
         </div>
 
