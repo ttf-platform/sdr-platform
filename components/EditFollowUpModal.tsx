@@ -127,7 +127,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
               value={body}
               onChange={e => setBody(e.target.value)}
               disabled={saving}
-              rows={10}
+              rows={8}
               className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] focus:outline-none focus:border-[#3b6bef] resize-none disabled:opacity-60 font-mono"
             />
           </div>

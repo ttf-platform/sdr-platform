@@ -14,9 +14,11 @@ export function renderSignature(template: string | null, vars: SignatureVars): s
     .replace(/\{\{company_website\}\}/g, vars.company_website ?? '')
   // Clean orphaned separators when fields are empty
   result = result
-    .replace(/ · ,/g, ',')     // empty title before company: "Name ·  , Co" → "Name, Co"
+    .replace(/ · ,/g, ',')     // empty title before company: "Name · , Co" → "Name, Co"
+    .replace(/^ · /gm, '')     // empty name, non-empty title: " · Title, Co" → "Title, Co"
     .replace(/,\s*$/gm, '')    // trailing comma when company empty: "Name · Title," → "Name · Title"
-    .replace(/ · $/gm, '')     // trailing separator when both empty: "Name · " → "Name"
+    .replace(/ · $/gm, '')     // trailing separator when title+company empty: "Name · " → "Name"
+    .replace(/^,\s*/gm, '')    // leading comma when name+title empty: ", Co" → "Co"
     .replace(/\n{3,}/g, '\n\n')
     .trimEnd()
   return result

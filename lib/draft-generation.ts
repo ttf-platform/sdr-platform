@@ -194,7 +194,7 @@ export async function generateDraftsForCampaign(
   // 2. Workspace profile (sender name + AI generation context + booking + meeting duration)
   const { data: profile } = await admin
     .from('workspace_profiles')
-    .select('sender_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size, booking_slug, booking_config, user_title, company_website, email_signature, signature_in_initial, signature_in_followups')
+    .select('sender_name, user_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size, booking_slug, booking_config, user_title, company_website, email_signature, signature_in_initial, signature_in_followups')
     .eq('workspace_id', workspaceId)
     .single()
 
@@ -320,33 +320,39 @@ export async function generateDraftsForCampaign(
   // 8. Render and assemble rows
   const renderExtras = { bookingUrl, meetingDuration }
   const insertRows = workItems.map(item => {
-    const subject = renderTemplate(item.subject_template, item.vars, renderExtras)
-    let body      = renderTemplate(item.body_template,    item.vars, renderExtras)
+    const isInitial   = item.step_order === 0
+    const sigTemplate = (profile as any)?.email_signature as string | null | undefined
+    const appendSig   = sigTemplate?.trim()
+      ? (isInitial
+          ? ((profile as any)?.signature_in_initial   ?? true)
+          : ((profile as any)?.signature_in_followups ?? false))
+      : false
 
-    if (mode === 'smart' && item.step_order === 0) {
+    // Strip trailing {{sender_name}} sign-off from template when signature will replace it
+    const bodyTemplate = appendSig
+      ? item.body_template.replace(/\n*\{\{sender_name\}\}\s*$/, '')
+      : item.body_template
+
+    const subject = renderTemplate(item.subject_template, item.vars, renderExtras)
+    let body      = renderTemplate(bodyTemplate, item.vars, renderExtras)
+
+    if (mode === 'smart' && isInitial) {
       const opening = openingLines.get(item.prospect_id)
       if (opening) body = assembleSmartBody(body, opening)
     }
 
-    if ((campaign as any).include_booking_link_initial && item.step_order === 0) {
+    if ((campaign as any).include_booking_link_initial && isInitial) {
       body = body.trimEnd() + '\n\n{{booking_link}}'
     }
 
-    // Append signature based on step type and workspace toggle
-    const sigTemplate = (profile as any)?.email_signature as string | null | undefined
-    if (sigTemplate?.trim()) {
-      const isInitial = item.step_order === 0
-      const appendSig = isInitial
-        ? ((profile as any)?.signature_in_initial ?? true)
-        : ((profile as any)?.signature_in_followups ?? false)
-      if (appendSig) {
-        body = appendSignature(body, renderSignature(sigTemplate, {
-          user_name:       (profile as any)?.sender_name       ?? '',
-          user_title:      (profile as any)?.user_title        ?? '',
-          company:         (profile as any)?.company_name      ?? '',
-          company_website: (profile as any)?.company_website   ?? '',
-        }))
-      }
+    // Append signature
+    if (appendSig) {
+      body = appendSignature(body, renderSignature(sigTemplate!, {
+        user_name:       (profile as any)?.user_name       ?? '',
+        user_title:      (profile as any)?.user_title      ?? '',
+        company:         (profile as any)?.company_name    ?? '',
+        company_website: (profile as any)?.company_website ?? '',
+      }))
     }
 
     return {

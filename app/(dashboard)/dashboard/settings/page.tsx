@@ -14,7 +14,8 @@ const WORKSPACE_TIMEZONES = [
   'Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC',
 ]
 
-const PRODUCT_TOOLTIP = 'These defaults auto-fill every new campaign you create — you can override any field per campaign at launch.'
+const PRODUCT_TOOLTIP      = 'These defaults auto-fill every new campaign you create — you can override any field per campaign at launch.'
+const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From field. Defaults to Your name (Account) if empty. Use this to display a more formal name (e.g. 'Robert Smith' instead of 'Bob')."
 
 const DEFAULT_SIGNATURE = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
 
@@ -183,7 +184,7 @@ export default function SettingsPage() {
       ops.push(fetch('/api/workspace/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspace_id: workspaceId, user_title: form.user_title }),
+        body: JSON.stringify({ workspace_id: workspaceId, user_title: form.user_title, user_name: form.name }),
       }))
     }
     await Promise.all(ops)
@@ -434,10 +435,16 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Sender name</label>
+                <label className={labelCls}>Display name</label>
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
+                <Tooltip content={DISPLAY_NAME_TOOLTIP}>
+                  <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </Tooltip>
               </div>
-              <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})} className={inputCls} />
+              <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})}
+                className={inputCls} placeholder="e.g. Robert Smith (defaults to your name)" />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if ('email_signature' in body && body.email_signature != null && String(body.email_signature).length > 1000)
     return NextResponse.json({ error: 'email_signature too long (max 1000 chars)' }, { status: 400 })
 
-  const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size','user_title','company_website','email_signature','signature_in_initial','signature_in_followups'] as const
+  const FIELDS = ['company_name','sender_name','user_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size','user_title','company_website','email_signature','signature_in_initial','signature_in_followups'] as const
   const updates: Record<string, unknown> = {}
   for (const key of FIELDS) {
     if (key in body) updates[key] = body[key]

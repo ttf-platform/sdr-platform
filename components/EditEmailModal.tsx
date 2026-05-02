@@ -53,7 +53,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
         if (d.profile.booking_slug) setBookingSlug(d.profile.booking_slug)
         workspaceIdRef.current = d.profile.workspace_id
         const rendered = renderSignature(d.profile.email_signature ?? null, {
-          user_name:       d.profile.sender_name    ?? '',
+          user_name:       d.profile.user_name      ?? '',
           user_title:      d.profile.user_title     ?? '',
           company:         d.profile.company_name   ?? '',
           company_website: d.profile.company_website ?? '',
@@ -225,7 +225,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                   value={body}
                   onChange={e => setBody(e.target.value)}
                   disabled={saving || regenning}
-                  rows={14}
+                  rows={12}
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] focus:outline-none focus:border-[#3b6bef] resize-none disabled:opacity-60 font-mono"
                 />
               </div>
