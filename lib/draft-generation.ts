@@ -23,7 +23,7 @@ export interface GenerateError {
 }
 
 // Fallback body used when no campaign content is available (blank canvas)
-const BLANK_INITIAL_BODY = 'Hi {{first_name}},\n\nI wanted to reach out — I think there might be a good fit between what we do and what {{company}} is working on.\n\nWould you be open to a quick chat?\n\n{{sender_name}}'
+const BLANK_INITIAL_BODY = 'Hi {{first_name}},\n\nI wanted to reach out — I think there might be a good fit between what we do and what {{company}} is working on.\n\nWould you be open to a quick chat?'
 const BLANK_INITIAL_SUBJECT = 'Quick note for {{company}}'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -92,10 +92,9 @@ CRITICAL — Template variables (mandatory):
 The body MUST include:
 - {{first_name}} in the greeting line (e.g., "Hi {{first_name}},")
 - {{company}} somewhere naturally in the body
-- {{sender_name}} as the sign-off (last line, no "Best," or "Regards," prefix — just {{sender_name}} on its own line)
 These are literal placeholders replaced at send time. DO NOT replace them with real values.
 DO NOT hardcode any name, company, or generic substitute like "Hey there", "Hi friend", or "Hi [Name]".
-DO NOT skip {{company}} or {{sender_name}}.
+DO NOT add a sign-off, closing name, or signature — these are handled separately outside the email body.
 
 CRITICAL — Anti-fabrication:
 Do NOT invent specific facts about prospects. No fake fundraising, no fake employee counts, no named clients.
@@ -328,10 +327,7 @@ export async function generateDraftsForCampaign(
           : ((profile as any)?.signature_in_followups ?? false))
       : false
 
-    // Strip trailing {{sender_name}} sign-off from template when signature will replace it
-    const bodyTemplate = appendSig
-      ? item.body_template.replace(/\n*\{\{sender_name\}\}\s*$/, '')
-      : item.body_template
+    const bodyTemplate = item.body_template.replace(/\n*\{\{sender_name\}\}\s*$/, '')
 
     const subject = renderTemplate(item.subject_template, item.vars, renderExtras)
     let body      = renderTemplate(bodyTemplate, item.vars, renderExtras)
