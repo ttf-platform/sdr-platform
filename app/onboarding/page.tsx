@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
+import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 
 const steps = ['Workspace', 'Company', 'ICP']
 const tones = ['professional', 'friendly', 'direct', 'casual']
@@ -10,7 +12,15 @@ export default function OnboardingPage() {
   const supabase = createClient()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState({ workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
+  const [data, setData] = useState({ workspaceName: '', companyName: '', companyWebsite: '', product: '', icp: '', tone: 'professional' })
+
+  function handleAutoFillApply(extracted: ExtractedFields) {
+    setData(d => ({
+      ...d,
+      ...(extracted.product_description !== undefined && { product: extracted.product_description }),
+      ...(extracted.icp_description     !== undefined && { icp: extracted.icp_description }),
+    }))
+  }
 
   async function handleFinish() {
     setLoading(true)
@@ -64,6 +74,13 @@ export default function OnboardingPage() {
             <div className="flex flex-col gap-4">
               <h2 className="text-lg font-bold text-[#1a1a2e]">What do you sell?</h2>
               <input type="text" value={data.companyName} onChange={e => setData({...data, companyName: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Company name" />
+              <div>
+                <div className="flex items-start gap-2">
+                  <input type="text" value={data.companyWebsite} onChange={e => setData({...data, companyWebsite: e.target.value})} className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="yourcompany.com (optional)" />
+                  <AutoFillFromUrlButton websiteValue={data.companyWebsite} onApply={handleAutoFillApply} />
+                </div>
+                <p className="text-xs text-[#b0a898] mt-1">We'll analyze your site to pre-fill the fields below.</p>
+              </div>
               <textarea value={data.product} onChange={e => setData({...data, product: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="We help SaaS companies automate outbound sales..." />
               <div className="flex gap-2">
                 <button onClick={() => setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>

@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
+import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
+import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 
 const supabase = createClient()
 
@@ -213,6 +215,38 @@ export default function SettingsPage() {
       setToast({ type: 'info', msg: 'Signature saved. This will only affect future email generations and regenerations. Existing drafts won\'t be modified.' })
       setTimeout(() => setToast(null), 7000)
     }
+  }
+
+  async function handleAutoFillApply(extracted: ExtractedFields) {
+    // Update Settings form fields (company + product)
+    setForm(f => ({
+      ...f,
+      ...(extracted.industry           !== undefined && { user_industry:       extracted.industry }),
+      ...(extracted.user_company_size   !== undefined && { user_company_size:   extracted.user_company_size }),
+      ...(extracted.product_description !== undefined && { product_description: extracted.product_description }),
+      ...(extracted.value_proposition   !== undefined && { value_proposition:   extracted.value_proposition }),
+    }))
+
+    // ICP fields — persist directly via API (ICP lives in Prospects > Master ICP)
+    const icpPayload: Record<string, unknown> = {}
+    if (extracted.icp_description   !== undefined) icpPayload.icp_description   = extracted.icp_description
+    if (extracted.target_industry   !== undefined) icpPayload.icp_industries    = [extracted.target_industry]
+    if (extracted.target_titles     !== undefined) icpPayload.target_titles     = (extracted.target_titles as string[]).join(', ')
+    if (extracted.target_regions    !== undefined) icpPayload.target_regions    = (extracted.target_regions as string[]).join(', ')
+    if (extracted.target_company_size !== undefined) icpPayload.icp_company_sizes = [extracted.target_company_size]
+    if (extracted.target_pain_points !== undefined) icpPayload.pain_points      = extracted.target_pain_points
+    if (extracted.email_tone        !== undefined) icpPayload.tone              = extracted.email_tone
+
+    if (Object.keys(icpPayload).length > 0 && workspaceId) {
+      await fetch('/api/workspace/profile', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ workspace_id: workspaceId, ...icpPayload }),
+      })
+    }
+
+    setToast({ type: 'info', msg: 'Auto-fill applied. Review the fields below and click Save to confirm.' })
+    setTimeout(() => setToast(null), 6000)
   }
 
   const ws = (workspace?.workspaces as any)
@@ -452,12 +486,21 @@ export default function SettingsPage() {
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
                 <StatusBadge variant="gray">Used in email signature</StatusBadge>
               </div>
-              <input
-                value={form.company_website}
-                onChange={e => setForm({...form, company_website: e.target.value})}
-                className={inputCls}
-                placeholder="e.g. zobo.com"
-              />
+              <div className="flex items-start gap-2">
+                <input
+                  value={form.company_website}
+                  onChange={e => setForm({...form, company_website: e.target.value})}
+                  className={`${inputCls} flex-1`}
+                  placeholder="e.g. zobo.com"
+                />
+                <AutoFillFromUrlButton
+                  websiteValue={form.company_website}
+                  onApply={handleAutoFillApply}
+                />
+              </div>
+              <p className="text-xs text-[#b0a898] mt-1.5">
+                Save time — we&apos;ll analyze your website to suggest your industry, product description, ICP, and more.
+              </p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
