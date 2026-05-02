@@ -5,6 +5,7 @@ import {
   renderTemplate, generateOpeningLine, assembleSmartBody,
   type ContactVars, type CampaignContext,
 } from '@/lib/personalization'
+import { renderSignature, appendSignature } from '@/lib/signature'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -193,7 +194,7 @@ export async function generateDraftsForCampaign(
   // 2. Workspace profile (sender name + AI generation context + booking + meeting duration)
   const { data: profile } = await admin
     .from('workspace_profiles')
-    .select('sender_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size, booking_slug, booking_config')
+    .select('sender_name, company_name, product_description, value_proposition, tone, icp_description, icp_industries, pain_points, icp_company_size, booking_slug, booking_config, user_title, company_website, email_signature, signature_in_initial, signature_in_followups')
     .eq('workspace_id', workspaceId)
     .single()
 
@@ -329,6 +330,23 @@ export async function generateDraftsForCampaign(
 
     if ((campaign as any).include_booking_link_initial && item.step_order === 0) {
       body = body.trimEnd() + '\n\n{{booking_link}}'
+    }
+
+    // Append signature based on step type and workspace toggle
+    const sigTemplate = (profile as any)?.email_signature as string | null | undefined
+    if (sigTemplate?.trim()) {
+      const isInitial = item.step_order === 0
+      const appendSig = isInitial
+        ? ((profile as any)?.signature_in_initial ?? true)
+        : ((profile as any)?.signature_in_followups ?? false)
+      if (appendSig) {
+        body = appendSignature(body, renderSignature(sigTemplate, {
+          user_name:       (profile as any)?.sender_name       ?? '',
+          user_title:      (profile as any)?.user_title        ?? '',
+          company:         (profile as any)?.company_name      ?? '',
+          company_website: (profile as any)?.company_website   ?? '',
+        }))
+      }
     }
 
     return {

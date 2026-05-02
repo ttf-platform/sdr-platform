@@ -16,6 +16,8 @@ const WORKSPACE_TIMEZONES = [
 
 const PRODUCT_TOOLTIP = 'These defaults auto-fill every new campaign you create — you can override any field per campaign at launch.'
 
+const DEFAULT_SIGNATURE = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
+
 const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]'
 const labelCls  = 'text-xs font-semibold text-[#6b5e4e]'
 const cardCls   = 'bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col'
@@ -59,6 +61,18 @@ function SaveButton({ section, saving, saved, onSave, missing = [] }: {
   )
 }
 
+// Replaces signature template variables with current profile values for the live preview
+function previewSignature(
+  template: string,
+  name: string, userTitle: string, companyName: string, companyWebsite: string,
+): string {
+  return template
+    .replace(/\{\{user_name\}\}/g,       name          || '')
+    .replace(/\{\{user_title\}\}/g,      userTitle     || '')
+    .replace(/\{\{company\}\}/g,         companyName   || '')
+    .replace(/\{\{company_website\}\}/g, companyWebsite || '')
+}
+
 export default function SettingsPage() {
   const [user,          setUser]          = useState<any>(null)
   const [workspaceId,   setWorkspaceId]   = useState<string|null>(null)
@@ -73,25 +87,31 @@ export default function SettingsPage() {
 
   const [form, setForm] = useState({
     // Account
-    name:                '',
+    name:                    '',
+    user_title:              '',
     // Company
-    company_name:        '',
-    sender_name:         '',
-    timezone:            'America/Toronto',
-    user_industry:       '',
-    user_company_size:   '',
+    company_name:            '',
+    sender_name:             '',
+    company_website:         '',
+    timezone:                'America/Toronto',
+    user_industry:           '',
+    user_company_size:       '',
     // Product
-    product_description: '',
-    value_proposition:   '',
+    product_description:     '',
+    value_proposition:       '',
     // ICP + Tone — loaded from DB for badge scoring; managed from Prospects page
-    tone:                'professional',
-    icp_description:     '',
-    icp_industries:      [] as string[],
-    icp_company_sizes:   [] as string[],
-    pain_points:         '',
-    target_titles:       '',
-    target_regions:      '',
-    company_revenue:     [] as string[],
+    tone:                    'professional',
+    icp_description:         '',
+    icp_industries:          [] as string[],
+    icp_company_sizes:       [] as string[],
+    pain_points:             '',
+    target_titles:           '',
+    target_regions:          '',
+    company_revenue:         [] as string[],
+    // Email Signature
+    email_signature:         DEFAULT_SIGNATURE,
+    signature_in_initial:    true,
+    signature_in_followups:  false,
   })
 
   function touch(field: string) {
@@ -126,22 +146,28 @@ export default function SettingsPage() {
 
       if (p) {
         setForm({
-          name:                session.user.user_metadata?.full_name || '',
-          company_name:        p.company_name        || '',
-          sender_name:         p.sender_name         || '',
-          timezone:            (p.booking_config as any)?.timezone || 'America/Toronto',
-          user_industry:       p.user_industry       || '',
-          user_company_size:   p.user_company_size   || '',
-          product_description: p.product_description || '',
-          value_proposition:   p.value_proposition   || '',
-          tone:                p.tone                || 'professional',
-          icp_description:     p.icp_description     || '',
-          icp_industries:      p.icp_industries      ?? [],
-          icp_company_sizes:   p.icp_company_sizes   ?? (p.icp_company_size ? [p.icp_company_size] : []),
-          pain_points:         p.pain_points         || '',
-          target_titles:       p.target_titles       || '',
-          target_regions:      p.target_regions      || '',
-          company_revenue:     p.target_company_revenue ?? [],
+          name:                   session.user.user_metadata?.full_name || '',
+          user_title:             p.user_title              || '',
+          company_name:           p.company_name            || '',
+          sender_name:            p.sender_name             || '',
+          company_website:        p.company_website         || '',
+          timezone:               (p.booking_config as any)?.timezone || 'America/Toronto',
+          user_industry:          p.user_industry           || '',
+          user_company_size:      p.user_company_size       || '',
+          product_description:    p.product_description     || '',
+          value_proposition:      p.value_proposition       || '',
+          tone:                   p.tone                    || 'professional',
+          icp_description:        p.icp_description         || '',
+          icp_industries:         p.icp_industries          ?? [],
+          icp_company_sizes:      p.icp_company_sizes       ?? (p.icp_company_size ? [p.icp_company_size] : []),
+          pain_points:            p.pain_points             || '',
+          target_titles:          p.target_titles           || '',
+          target_regions:         p.target_regions          || '',
+          company_revenue:        p.target_company_revenue  ?? [],
+          // Pre-fill default template when email_signature has never been set
+          email_signature:        p.email_signature         ?? DEFAULT_SIGNATURE,
+          signature_in_initial:   p.signature_in_initial    ?? true,
+          signature_in_followups: p.signature_in_followups  ?? false,
         })
       }
       setProfileLoaded(true)
@@ -150,7 +176,17 @@ export default function SettingsPage() {
 
   async function saveAccount() {
     setSavingSection('account')
-    await supabase.auth.updateUser({ data: { full_name: form.name } })
+    const ops: Promise<any>[] = [
+      supabase.auth.updateUser({ data: { full_name: form.name } }),
+    ]
+    if (workspaceId) {
+      ops.push(fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspaceId, user_title: form.user_title }),
+      }))
+    }
+    await Promise.all(ops)
     setSavingSection(null)
     setSavedSection('account')
     setTimeout(() => setSavedSection(null), 2000)
@@ -192,6 +228,11 @@ export default function SettingsPage() {
     target_company_revenue: form.company_revenue,
     tone:                   form.tone,
   }
+
+  const sigPreview = previewSignature(
+    form.email_signature,
+    form.name, form.user_title, form.company_name, form.company_website,
+  )
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
@@ -240,6 +281,18 @@ export default function SettingsPage() {
                 placeholder="Your name"
               />
             </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Your title</label>
+                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
+              </div>
+              <input
+                value={form.user_title}
+                onChange={e => setForm({...form, user_title: e.target.value})}
+                className={inputCls}
+                placeholder="e.g. Founder, CEO, Head of Sales"
+              />
+            </div>
           </div>
           <SaveButton
             section="account"
@@ -279,6 +332,75 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* EMAIL SIGNATURE — full width, between Account+Plan and Company+Product */}
+      <div className={`${cardCls} mt-6`}>
+        <div className={`${sectionHd} mb-1`}>EMAIL SIGNATURE</div>
+        <p className="text-xs text-[#8a7e6e] mb-4">
+          Plain text signature appended to your emails. Use variables for automatic personalization.
+        </p>
+
+        <textarea
+          value={form.email_signature}
+          onChange={e => setForm({...form, email_signature: e.target.value})}
+          rows={5}
+          maxLength={1000}
+          className={`${inputCls} font-mono resize-none`}
+          placeholder={DEFAULT_SIGNATURE}
+        />
+        <div className="flex items-center justify-between mt-1.5">
+          <p className="text-xs text-[#b0a898]">
+            Available variables:{' '}
+            <span className="font-mono">{`{{user_name}}`}</span>{' '}
+            <span className="font-mono">{`{{user_title}}`}</span>{' '}
+            <span className="font-mono">{`{{company}}`}</span>{' '}
+            <span className="font-mono">{`{{company_website}}`}</span>
+          </p>
+          <span className="text-xs text-[#b0a898]">{form.email_signature.length}/1000</span>
+        </div>
+
+        {/* Live preview */}
+        <div className="mt-4">
+          <div className={`${sectionHd} mb-2`}>PREVIEW</div>
+          <div className="bg-[#f9f7f4] border border-[#e8e3dc] rounded-lg px-4 py-3 text-sm font-mono whitespace-pre-wrap text-[#4a3f35] leading-relaxed min-h-[3.5rem]">
+            {sigPreview || <span className="text-[#c0b8b0] italic">Signature will appear here…</span>}
+          </div>
+        </div>
+
+        {/* Toggles */}
+        <div className="mt-4 flex flex-col gap-2.5">
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.signature_in_initial}
+              onChange={e => setForm({...form, signature_in_initial: e.target.checked})}
+              className="w-4 h-4 accent-[#3b6bef]"
+            />
+            <span className="text-sm text-[#1a1a2e]">Include in initial emails</span>
+          </label>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.signature_in_followups}
+              onChange={e => setForm({...form, signature_in_followups: e.target.checked})}
+              className="w-4 h-4 accent-[#3b6bef]"
+            />
+            <span className="text-sm text-[#1a1a2e]">Include in follow-ups</span>
+            <span className="text-xs text-[#b0a898]">(shorter follow-ups perform better)</span>
+          </label>
+        </div>
+
+        <SaveButton
+          section="signature"
+          saving={savingSection}
+          saved={savedSection}
+          onSave={() => saveSection('signature', {
+            email_signature:        form.email_signature,
+            signature_in_initial:   form.signature_in_initial,
+            signature_in_followups: form.signature_in_followups,
+          })}
+        />
+      </div>
+
       {/* Row 2: Company + Product */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-stretch">
 
@@ -301,6 +423,18 @@ export default function SettingsPage() {
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
               </div>
               <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})} className={inputCls} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls}>Company website</label>
+                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
+              </div>
+              <input
+                value={form.company_website}
+                onChange={e => setForm({...form, company_website: e.target.value})}
+                className={inputCls}
+                placeholder="e.g. zobo.com"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -340,6 +474,7 @@ export default function SettingsPage() {
             onSave={() => saveSection('company', {
               company_name:       form.company_name,
               sender_name:        form.sender_name,
+              company_website:    form.company_website,
               workspace_timezone: form.timezone,
               user_industry:      form.user_industry,
               user_company_size:  form.user_company_size,

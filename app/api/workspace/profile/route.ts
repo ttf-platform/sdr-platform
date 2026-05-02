@@ -16,8 +16,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Required field missing: Company name' }, { status: 400 })
   if ('product_description' in body && !String(body.product_description ?? '').trim())
     return NextResponse.json({ error: 'Required field missing: Product description' }, { status: 400 })
+  if ('user_title' in body && body.user_title != null && String(body.user_title).length > 100)
+    return NextResponse.json({ error: 'user_title too long (max 100 chars)' }, { status: 400 })
+  if ('company_website' in body && body.company_website != null && String(body.company_website).length > 200)
+    return NextResponse.json({ error: 'company_website too long (max 200 chars)' }, { status: 400 })
+  if ('email_signature' in body && body.email_signature != null && String(body.email_signature).length > 1000)
+    return NextResponse.json({ error: 'email_signature too long (max 1000 chars)' }, { status: 400 })
 
-  const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size'] as const
+  const FIELDS = ['company_name','sender_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size','user_title','company_website','email_signature','signature_in_initial','signature_in_followups'] as const
   const updates: Record<string, unknown> = {}
   for (const key of FIELDS) {
     if (key in body) updates[key] = body[key]
