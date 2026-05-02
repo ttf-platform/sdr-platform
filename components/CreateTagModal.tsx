@@ -2,6 +2,17 @@
 import { useState } from 'react'
 import { TAG_COLORS } from '@/lib/tag-colors'
 
+const DOT_HEX: Record<string, string> = {
+  gray:   '#9ca3af',
+  blue:   '#3b82f6',
+  green:  '#22c55e',
+  purple: '#a855f7',
+  orange: '#f97316',
+  red:    '#ef4444',
+  yellow: '#eab308',
+  pink:   '#ec4899',
+}
+
 interface Props {
   initialLabel: string
   prospectId:   string
@@ -65,13 +76,17 @@ export function CreateTagModal({ initialLabel, prospectId, onCreated, onClose }:
 
         <div className="mb-5">
           <label className="text-xs font-medium text-[#6b5e4e] block mb-2">Color</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-8 gap-2">
             {TAG_COLORS.map(c => (
               <button
                 key={c.value}
+                type="button"
                 onClick={() => setColor(c.value)}
-                className={`w-7 h-7 rounded-full ${c.dot} transition-all ${color === c.value ? 'ring-2 ring-offset-2 ring-[#3b6bef]' : 'opacity-70 hover:opacity-100'}`}
-                title={c.value}
+                style={{ backgroundColor: DOT_HEX[c.value] }}
+                className={`w-8 h-8 rounded-full transition-all hover:scale-110 ${
+                  color === c.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                }`}
+                aria-label={`Color ${c.value}`}
               />
             ))}
           </div>

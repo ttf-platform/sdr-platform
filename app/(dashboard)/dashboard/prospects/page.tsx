@@ -141,12 +141,12 @@ function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total
 }
 
 // ─── SidePanel ────────────────────────────────────────────────────────────────
-function SidePanel({ contactId, currentUserId, onClose, onDeleted, onTagsChanged }: {
-  contactId:     string
-  currentUserId: string | null
-  onClose:       () => void
-  onDeleted:     () => void
-  onTagsChanged: () => void
+function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTagsUpdated }: {
+  contactId:             string
+  currentUserId:         string | null
+  onClose:               () => void
+  onDeleted:             () => void
+  onContactTagsUpdated:  (contactId: string, tags: ProspectTag[]) => void
 }) {
   const [detail,   setDetail]   = useState<ContactDetail | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -187,26 +187,60 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onTagsChanged
 
   async function handleAssignTag(tag: ProspectTag) {
     if (!primaryProspectId) return
-    await fetch(`/api/prospects/${primaryProspectId}/tags`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ tag_id: tag.id }),
+    // Optimistic add
+    setTags(prev => {
+      if (prev.some(t => t.id === tag.id)) return prev
+      const next = [...prev, tag]
+      onContactTagsUpdated(contactId, next)
+      return next
     })
-    setTags(prev => prev.some(t => t.id === tag.id) ? prev : [...prev, tag])
-    onTagsChanged()
+    try {
+      await fetch(`/api/prospects/${primaryProspectId}/tags`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ tag_id: tag.id }),
+      })
+    } catch {
+      // Rollback
+      setTags(prev => {
+        const next = prev.filter(t => t.id !== tag.id)
+        onContactTagsUpdated(contactId, next)
+        return next
+      })
+    }
   }
 
   async function handleRemoveTag(tagId: string) {
     if (!primaryProspectId) return
-    await fetch(`/api/prospects/${primaryProspectId}/tags/${tagId}`, { method: 'DELETE' })
-    setTags(prev => prev.filter(t => t.id !== tagId))
-    onTagsChanged()
+    // Optimistic remove
+    setTags(prev => {
+      const next = prev.filter(t => t.id !== tagId)
+      onContactTagsUpdated(contactId, next)
+      return next
+    })
+    try {
+      const res = await fetch(`/api/prospects/${primaryProspectId}/tags/${tagId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('failed')
+    } catch {
+      // Rollback — re-fetch from API to restore accurate state
+      fetch(`/api/prospects/${primaryProspectId}/tags`)
+        .then(r => r.json())
+        .then(d => {
+          const restored = d.tags ?? []
+          setTags(restored)
+          onContactTagsUpdated(contactId, restored)
+        })
+    }
   }
 
   function handleTagCreated(tag: ProspectTag) {
-    setTags(prev => prev.some(t => t.id === tag.id) ? prev : [...prev, tag])
+    setTags(prev => {
+      if (prev.some(t => t.id === tag.id)) return prev
+      const next = [...prev, tag]
+      onContactTagsUpdated(contactId, next)
+      return next
+    })
     setCreateTagLabel(null)
-    onTagsChanged()
   }
 
   async function handleAddNote() {
@@ -873,17 +907,18 @@ export default function ProspectsPage() {
 
       {/* Filter bar */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-4 mb-4 flex flex-col gap-3">
+        {/* Row 1: search */}
         <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
+          className="max-w-2xl border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
           placeholder="Search by name, email, company…" />
+
+        {/* Row 2: filters + sort pushed right */}
         <div className="flex gap-2 flex-wrap items-center">
-          {/* All — resets multi-select */}
+          {/* All */}
           <button onClick={() => { setStatusFilters(new Set()); setPage(1) }}
             className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilters.size === 0 ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
             All
-            <span className={`text-[10px] ${statusFilters.size === 0 ? 'text-white/70' : 'text-[#b0a898]'}`}>
-              {totalAll}
-            </span>
+            <span className={`text-[10px] ${statusFilters.size === 0 ? 'text-white/70' : 'text-[#b0a898]'}`}>{totalAll}</span>
           </button>
 
           {/* Positive lifecycle statuses */}
@@ -896,14 +931,12 @@ export default function ProspectsPage() {
               }}
                 className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
                 {s}
-                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-[#b0a898]'}`}>
-                  {filterCounts[s] ?? 0}
-                </span>
+                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-[#b0a898]'}`}>{filterCounts[s] ?? 0}</span>
               </button>
             )
           })}
 
-          <div className="w-px h-4 bg-[#e8e3dc] mx-1" />
+          <div className="w-px h-4 bg-[#e8e3dc] mx-0.5" />
 
           {/* Negative statuses */}
           {(['bounced','unsubscribed'] as const).map(s => {
@@ -915,12 +948,11 @@ export default function ProspectsPage() {
               }}
                 className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${active ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
                 {s}
-                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-red-300'}`}>
-                  {filterCounts[s] ?? 0}
-                </span>
+                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-red-300'}`}>{filterCounts[s] ?? 0}</span>
               </button>
             )
           })}
+
           <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
             <option value="all">All Campaigns</option>
@@ -938,6 +970,10 @@ export default function ProspectsPage() {
             selectedTagIds={selectedTagIds}
             onChange={ids => { setSelectedTagIds(ids); setPage(1) }}
           />
+
+          {/* Spacer — pushes Sort to the right */}
+          <div className="flex-1" />
+
           <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
             <option value="newest">Newest</option>
@@ -1069,7 +1105,9 @@ export default function ProspectsPage() {
             setSelectedIds(prev => { const n = new Set(prev); n.delete(selectedPanel); return n })
             setRefreshKey(k => k + 1)
           }}
-          onTagsChanged={() => setRefreshKey(k => k + 1)}
+          onContactTagsUpdated={(cid, newTags) => {
+            setContacts(prev => prev.map(c => c.id === cid ? { ...c, tags: newTags } : c))
+          }}
         />
       )}
 
