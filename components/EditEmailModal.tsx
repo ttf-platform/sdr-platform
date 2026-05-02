@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { normalizeBody } from '@/lib/normalize-body'
+import { insertBookingUrl, stripBookingUrl } from '@/lib/normalize-body'
 import { renderSignature, appendSignature, stripSignature } from '@/lib/signature'
 
 interface EmailDetail {
@@ -80,14 +80,12 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
       .finally(() => setLoading(false))
   }, [emailId])
 
-  // Once both email body and booking slug are known, detect toggle state and normalize body
+  // Detect booking link toggle state — don't re-order body (preserve DB-stored order)
   useEffect(() => {
     if (!email || !bookingSlug) return
     const url = `${appUrl}/book/${bookingSlug}`
     bookingUrlRef.current = url
-    const on = email.body.includes(url)
-    setIncludeBookingLink(on)
-    setBody(normalizeBody(email.body, on, url))
+    setIncludeBookingLink(email.body.includes(url))
   }, [email, bookingSlug, appUrl])
 
   // Detect signature in body once both email and signature are loaded
@@ -102,7 +100,11 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
     const url = bookingUrlRef.current
     setIncludeBookingLink(checked)
     if (!url) return
-    setBody(b => normalizeBody(b, checked, url))
+    if (checked) {
+      setBody(b => insertBookingUrl(b, url, includeSignature ? signatureRef.current : ''))
+    } else {
+      setBody(b => stripBookingUrl(b, url))
+    }
   }
 
   function toggleSignature(checked: boolean) {
@@ -154,9 +156,21 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
 
       if (res.error) { setError(res.error); setRegenning(false); return }
       if (res.email) {
-        setEmail(res.email)
         setSubject(res.email.subject)
-        setBody(res.email.body)
+
+        // Re-apply current toggle states to regenerated body.
+        // Do NOT call setEmail — that would re-trigger detection effects
+        // which would reset toggles based on the bare regenerated body.
+        let newBody = res.email.body
+        const url = bookingUrlRef.current
+        const sig = signatureRef.current
+        if (includeBookingLink && url) {
+          newBody = insertBookingUrl(newBody, url, includeSignature && sig ? sig : '')
+        }
+        if (includeSignature && sig) {
+          newBody = appendSignature(newBody, sig)
+        }
+        setBody(newBody)
       }
     } catch {
       setError('Regeneration failed. Please try again.')

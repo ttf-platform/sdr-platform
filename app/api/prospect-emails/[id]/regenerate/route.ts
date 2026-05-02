@@ -76,9 +76,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     sender_name:  profile?.sender_name ?? null,
   }
 
-  // 4. Render
-  const subject = renderTemplate(step.subject ?? '', vars)
-  let   bodyOut = renderTemplate(step.body    ?? '', vars)
+  // 4. Render — strip {{sender_name}} sign-off (modal manages sign-off via signature/booking toggles)
+  const stepBody = (step.body ?? '').replace(/\n*\{\{sender_name\}\}\s*$/, '')
+  const subject  = renderTemplate(step.subject ?? '', vars)
+  let   bodyOut  = renderTemplate(stepBody, vars)
 
   if (mode === 'smart' && step.step_order === 0) {
     const opening = await generateOpeningLine(anthropic, vars, {
