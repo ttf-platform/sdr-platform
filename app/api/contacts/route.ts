@@ -33,6 +33,7 @@ export async function GET(request: Request) {
   const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
   const limit       = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50')))
   const offset      = (page - 1) * limit
+  const tag_ids     = (searchParams.get('tag_ids') ?? '').split(',').map(s => s.trim()).filter(Boolean)
 
   // Resolve contactIds (if assignment filters active) and filter_counts in parallel
   let filterCountsRows: { contact_id: string; status: string }[] = []
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     .select('contact_id, status')
     .eq('workspace_id', guard.workspaceId)
 
-  if (campaign_id || status || source) {
+  if (campaign_id || status || source || tag_ids.length > 0) {
     let q = admin
       .from('prospects')
       .select('contact_id')
@@ -53,10 +54,40 @@ export async function GET(request: Request) {
     if (status)      q = q.in('status', status.split(',').map(s => s.trim()))
     if (source)      q = q.in('source', source.split(',').map(s => s.trim()))
 
-    const [{ data: filterRows }, { data: countsRows }] = await Promise.all([q, countsQuery])
+    const countsPromise = countsQuery
+    let taggedContactIds: string[] | null = null
+
+    if (tag_ids.length > 0) {
+      const { data: taggedRows } = await admin
+        .from('prospect_tag_assignments')
+        .select('prospect_id')
+        .in('tag_id', tag_ids)
+
+      const taggedProspectIds = (taggedRows ?? []).map((r: any) => r.prospect_id as string)
+
+      if (taggedProspectIds.length > 0) {
+        const { data: taggedProspects } = await admin
+          .from('prospects')
+          .select('contact_id')
+          .in('id', taggedProspectIds)
+          .eq('workspace_id', guard.workspaceId)
+        taggedContactIds = [...new Set((taggedProspects ?? []).map((r: any) => r.contact_id as string))]
+      } else {
+        taggedContactIds = []
+      }
+    }
+
+    const [{ data: filterRows }, { data: countsRows }] = await Promise.all([q, countsPromise])
 
     filterCountsRows = countsRows ?? []
-    contactIds = [...new Set((filterRows ?? []).map(r => r.contact_id as string))]
+    let ids = [...new Set((filterRows ?? []).map(r => r.contact_id as string))]
+
+    if (taggedContactIds !== null) {
+      const tagSet = new Set(taggedContactIds)
+      ids = ids.filter(id => tagSet.has(id))
+    }
+
+    contactIds = ids
 
     if (contactIds.length === 0) {
       const filter_counts = computeFilterCounts(filterCountsRows)
@@ -98,6 +129,29 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Fetch tags for all returned contacts (via their prospect assignments)
+  const returnedContactIds = (rawContacts ?? []).map((c: any) => c.id as string)
+  let tagsPerContact: Record<string, { id: string; label: string; color: string }[]> = {}
+
+  if (returnedContactIds.length > 0) {
+    const { data: tagRows } = await admin
+      .from('prospects')
+      .select('contact_id, prospect_tag_assignments(tag_id, prospect_tags(id, label, color))')
+      .in('contact_id', returnedContactIds)
+      .eq('workspace_id', guard.workspaceId)
+
+    for (const row of (tagRows ?? []) as any[]) {
+      const cid = row.contact_id as string
+      if (!tagsPerContact[cid]) tagsPerContact[cid] = []
+      for (const assignment of (row.prospect_tag_assignments ?? [])) {
+        const tag = assignment.prospect_tags
+        if (tag && !tagsPerContact[cid].some((t: any) => t.id === tag.id)) {
+          tagsPerContact[cid].push(tag)
+        }
+      }
+    }
+  }
+
   // Aggregate per-contact stats from embedded assignments in JS.
   // TODO Sprint 17: move to SQL aggregation (GROUP BY contact_id, MAX CASE WHEN status...)
   // if query latency becomes an issue at scale.
@@ -135,6 +189,7 @@ export async function GET(request: Request) {
       primary_campaign_name: latest?.campaigns?.name ?? null,
       primary_campaign_id:   latest?.campaign_id     ?? null,
       primary_source:        latest?.source          ?? null,
+      tags:                  tagsPerContact[c.id]    ?? [],
     }
   })
 

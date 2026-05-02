@@ -22,7 +22,7 @@ export async function GET() {
     .eq('workspace_id', workspaceId)
     .maybeSingle()
 
-  return NextResponse.json({ profile: profile ?? null })
+  return NextResponse.json({ profile: profile ? { ...profile, user_id: user.id } : null })
 }
 
 export async function PUT(request: Request) {

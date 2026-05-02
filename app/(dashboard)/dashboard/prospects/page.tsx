@@ -9,12 +9,19 @@ import {
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Tag } from '@/components/Tag'
+import { TagPicker } from '@/components/TagPicker'
+import { CreateTagModal } from '@/components/CreateTagModal'
+import { NoteItem } from '@/components/NoteItem'
+import { TagFilterDropdown } from '@/components/TagFilterDropdown'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LifecycleCounts = {
   found: number; emailed: number; opened: number; replied: number; meeting: number
   bounced: number; unsubscribed: number
 }
+
+type ProspectTag = { id: string; label: string; color: string }
 
 type Contact = {
   id: string; email: string
@@ -29,6 +36,13 @@ type Contact = {
   primary_campaign_name: string | null
   primary_campaign_id: string | null
   primary_source: string | null
+  tags: ProspectTag[]
+}
+
+type ProspectNote = {
+  id: string; content: string
+  created_at: string; updated_at: string
+  author_id: string | null
 }
 
 type Assignment = {
@@ -127,20 +141,100 @@ function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total
 }
 
 // ─── SidePanel ────────────────────────────────────────────────────────────────
-function SidePanel({ contactId, onClose, onDeleted }: {
-  contactId: string
-  onClose: () => void
-  onDeleted: () => void
+function SidePanel({ contactId, currentUserId, onClose, onDeleted, onTagsChanged }: {
+  contactId:     string
+  currentUserId: string | null
+  onClose:       () => void
+  onDeleted:     () => void
+  onTagsChanged: () => void
 }) {
-  const [detail, setDetail]     = useState<ContactDetail | null>(null)
+  const [detail,   setDetail]   = useState<ContactDetail | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Tags state
+  const [tags,           setTags]           = useState<ProspectTag[]>([])
+  const [showTagPicker,  setShowTagPicker]  = useState(false)
+  const [createTagLabel, setCreateTagLabel] = useState<string | null>(null)
+
+  // Notes state
+  const [notes,    setNotes]    = useState<ProspectNote[]>([])
+  const [newNote,  setNewNote]  = useState('')
+  const [addingNote, setAddingNote] = useState(false)
+
+  // Primary prospect ID (first in list — used for tags + notes API calls)
+  const primaryProspectId = detail?.prospects?.[0]?.id ?? null
 
   useEffect(() => {
     setDetail(null)
+    setTags([])
+    setNotes([])
     fetch(`/api/contacts/${contactId}`)
       .then(r => r.json())
       .then(d => setDetail(d.contact ?? null))
   }, [contactId])
+
+  // Load tags + notes once we have the primary prospect
+  useEffect(() => {
+    if (!primaryProspectId) return
+    Promise.all([
+      fetch(`/api/prospects/${primaryProspectId}/tags`).then(r => r.json()),
+      fetch(`/api/prospects/${primaryProspectId}/notes`).then(r => r.json()),
+    ]).then(([td, nd]) => {
+      setTags(td.tags ?? [])
+      setNotes(nd.notes ?? [])
+    })
+  }, [primaryProspectId])
+
+  async function handleAssignTag(tag: ProspectTag) {
+    if (!primaryProspectId) return
+    await fetch(`/api/prospects/${primaryProspectId}/tags`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ tag_id: tag.id }),
+    })
+    setTags(prev => prev.some(t => t.id === tag.id) ? prev : [...prev, tag])
+    onTagsChanged()
+  }
+
+  async function handleRemoveTag(tagId: string) {
+    if (!primaryProspectId) return
+    await fetch(`/api/prospects/${primaryProspectId}/tags/${tagId}`, { method: 'DELETE' })
+    setTags(prev => prev.filter(t => t.id !== tagId))
+    onTagsChanged()
+  }
+
+  function handleTagCreated(tag: ProspectTag) {
+    setTags(prev => prev.some(t => t.id === tag.id) ? prev : [...prev, tag])
+    setCreateTagLabel(null)
+    onTagsChanged()
+  }
+
+  async function handleAddNote() {
+    const content = newNote.trim()
+    if (!content || !primaryProspectId) return
+    setAddingNote(true)
+    try {
+      const res = await fetch(`/api/prospects/${primaryProspectId}/notes`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ content }),
+      }).then(r => r.json())
+      if (res.note) {
+        setNotes(prev => [res.note, ...prev])
+        setNewNote('')
+      }
+    } finally {
+      setAddingNote(false)
+    }
+  }
+
+  function handleEditNote(id: string, content: string) {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, content, updated_at: new Date().toISOString() } : n))
+  }
+
+  function handleDeleteNote(id: string) {
+    setNotes(prev => prev.filter(n => n.id !== id))
+  }
 
   async function deleteContact() {
     setDeleting(true)
@@ -176,6 +270,7 @@ function SidePanel({ contactId, onClose, onDeleted }: {
           </div>
         ) : (
           <div className="p-5 flex flex-col gap-5">
+            {/* Campaigns */}
             {(() => {
               const campaignAssignments = (detail.prospects ?? []).filter(a => a.campaign_id)
               if (campaignAssignments.length === 0) return (
@@ -203,6 +298,7 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               )
             })()}
 
+            {/* Contact info */}
             <div>
               <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Contact</div>
               <div className="flex flex-col gap-2">
@@ -235,6 +331,7 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               </div>
             </div>
 
+            {/* Dates */}
             <div className="flex flex-col gap-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-[#8a7e6e]">Added</span>
@@ -248,14 +345,83 @@ function SidePanel({ contactId, onClose, onDeleted }: {
               )}
             </div>
 
+            {/* Tags */}
             <div>
-              <div className="text-xs font-semibold text-[#6b5e4e] mb-2 flex items-center gap-2">
-                Notes
-                <span className="text-[10px] bg-[#f0ece6] text-[#8a7e6e] px-1.5 py-0.5 rounded font-normal">Coming soon</span>
+              <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Tags</div>
+              <div className="relative flex flex-wrap items-center gap-1.5">
+                {tags.map(tag => (
+                  <Tag
+                    key={tag.id}
+                    label={tag.label}
+                    color={tag.color}
+                    onRemove={() => handleRemoveTag(tag.id)}
+                  />
+                ))}
+                {primaryProspectId && (
+                  <button
+                    onClick={() => setShowTagPicker(true)}
+                    className="inline-flex items-center gap-1 text-xs text-[#8a7e6e] hover:text-[#1a1a2e] px-2 py-0.5 rounded-full border border-dashed border-[#d0cbc5] hover:border-[#8a7e6e]"
+                  >
+                    + Add tag
+                  </button>
+                )}
+                {showTagPicker && primaryProspectId && (
+                  <TagPicker
+                    workspaceId=""
+                    assignedTagIds={tags.map(t => t.id)}
+                    onAssign={handleAssignTag}
+                    onCreate={label => { setCreateTagLabel(label); setShowTagPicker(false) }}
+                    onClose={() => setShowTagPicker(false)}
+                  />
+                )}
               </div>
-              <div className="border border-dashed border-[#e8e3dc] rounded-lg p-3 text-xs text-[#b0a898] text-center">
-                Tags and notes in Sprint 16d
+            </div>
+
+            {/* Notes */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-semibold text-[#6b5e4e]">Notes</div>
+                {notes.length > 0 && (
+                  <span className="text-xs text-[#b0a898]">{notes.length}</span>
+                )}
               </div>
+
+              <div className="mb-3">
+                <textarea
+                  value={newNote}
+                  onChange={e => setNewNote(e.target.value)}
+                  placeholder="Add a note…"
+                  rows={2}
+                  maxLength={5000}
+                  className="w-full px-3 py-2 bg-white border border-[#e8e3dc] rounded-lg text-xs resize-none focus:outline-none focus:ring-1 focus:ring-[#3b6bef] focus:border-[#3b6bef]"
+                />
+                {newNote.trim() && (
+                  <div className="flex justify-end gap-2 mt-1.5">
+                    <button onClick={() => setNewNote('')}
+                      className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e]">Cancel</button>
+                    <button onClick={handleAddNote} disabled={addingNote}
+                      className="text-xs bg-[#3b6bef] text-white px-3 py-1 rounded-md hover:bg-[#2d5cd9] disabled:opacity-40">
+                      {addingNote ? 'Adding…' : 'Add note'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {notes.length === 0 ? (
+                <div className="text-xs text-[#b0a898] italic">No notes yet.</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {notes.map(note => (
+                    <NoteItem
+                      key={note.id}
+                      note={note}
+                      isAuthor={note.author_id === currentUserId}
+                      onEdit={handleEditNote}
+                      onDelete={handleDeleteNote}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <button onClick={deleteContact} disabled={deleting}
@@ -265,6 +431,15 @@ function SidePanel({ contactId, onClose, onDeleted }: {
           </div>
         )}
       </div>
+
+      {createTagLabel !== null && primaryProspectId && (
+        <CreateTagModal
+          initialLabel={createTagLabel}
+          prospectId={primaryProspectId}
+          onCreated={handleTagCreated}
+          onClose={() => setCreateTagLabel(null)}
+        />
+      )}
     </div>
   )
 }
@@ -293,6 +468,9 @@ export default function ProspectsPage() {
   const [refreshKey, setRefreshKey]     = useState(0)
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [workspaceTags, setWorkspaceTags]   = useState<ProspectTag[]>([])
+  const [currentUserId, setCurrentUserId]   = useState<string | null>(null)
   const searchTimeout                   = useRef<ReturnType<typeof setTimeout>>()
 
   // ── ICP panel ───────────────────────────────────────────────────────────────
@@ -316,10 +494,16 @@ export default function ProspectsPage() {
 
   useEffect(() => {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
+    fetch('/api/tags').then(r => r.json()).then(d => setWorkspaceTags(d.tags ?? []))
+    // Get current user id for note authorship
+    fetch('/api/workspace-profile').then(r => r.json()).then(d => {
+      if (d.profile?.user_id) setCurrentUserId(d.profile.user_id)
+    })
   }, [])
 
   // Stable string key from the Set for use in dependency array
   const statusFilterStr = [...statusFilters].sort().join(',')
+  const tagFilterStr    = [...selectedTagIds].sort().join(',')
 
   useEffect(() => {
     setLoading(true)
@@ -328,6 +512,7 @@ export default function ProspectsPage() {
     if (campaignFilter !== 'all') params.set('campaign_id', campaignFilter)
     if (sourceFilter !== 'all') params.set('source', sourceFilter)
     if (search) params.set('search', search)
+    if (selectedTagIds.length > 0) params.set('tag_ids', tagFilterStr)
     fetch(`/api/contacts?${params}`)
       .then(r => r.json())
       .then(d => {
@@ -338,7 +523,7 @@ export default function ProspectsPage() {
         if (d.total_all !== undefined) setTotalAll(d.total_all)
         setLoading(false)
       })
-  }, [page, statusFilterStr, campaignFilter, sourceFilter, sort, refreshKey])
+  }, [page, statusFilterStr, campaignFilter, sourceFilter, sort, tagFilterStr, refreshKey])
 
   useEffect(() => {
     clearTimeout(searchTimeout.current)
@@ -748,6 +933,11 @@ export default function ProspectsPage() {
             <option value="paste">Paste</option>
             <option value="csv_import">CSV</option>
           </select>
+          <TagFilterDropdown
+            availableTags={workspaceTags}
+            selectedTagIds={selectedTagIds}
+            onChange={ids => { setSelectedTagIds(ids); setPage(1) }}
+          />
           <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
             <option value="newest">Newest</option>
@@ -767,16 +957,16 @@ export default function ProspectsPage() {
                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
                   className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
               </th>
-              {['NAME', 'COMPANY', 'EMAIL', 'CAMPAIGNS', 'LIFECYCLE', 'SOURCE', 'ADDED'].map(h => (
+              {['NAME', 'COMPANY', 'EMAIL', 'CAMPAIGNS', 'LIFECYCLE', 'TAGS', 'SOURCE', 'ADDED'].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
             ) : contacts.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-12 text-center">
+              <tr><td colSpan={9} className="px-4 py-12 text-center">
                 <div className="text-2xl mb-2">📋</div>
                 <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
                 <div className="text-xs text-[#8a7e6e]">Import a CSV or add prospects manually to get started.</div>
@@ -816,6 +1006,20 @@ export default function ProspectsPage() {
                     ? <span className="text-xs text-[#b0a898]">—</span>
                     : <LifecycleCountsCell counts={c.lifecycle_counts} total={c.campaigns_count} />
                   }
+                </td>
+                <td className="px-4 py-3">
+                  {c.tags.length === 0 ? (
+                    <span className="text-xs text-[#b0a898]">—</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 max-w-[160px]">
+                      {c.tags.slice(0, 2).map(t => (
+                        <Tag key={t.id} label={t.label} color={t.color} />
+                      ))}
+                      {c.tags.length > 2 && (
+                        <span className="text-[10px] text-[#8a7e6e] self-center">+{c.tags.length - 2}</span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
@@ -859,11 +1063,13 @@ export default function ProspectsPage() {
       {selectedPanel && (
         <SidePanel
           contactId={selectedPanel}
+          currentUserId={currentUserId}
           onClose={() => setSelectedPanel(null)}
           onDeleted={() => {
             setSelectedIds(prev => { const n = new Set(prev); n.delete(selectedPanel); return n })
             setRefreshKey(k => k + 1)
           }}
+          onTagsChanged={() => setRefreshKey(k => k + 1)}
         />
       )}
 
