@@ -907,21 +907,42 @@ export default function ProspectsPage() {
 
       {/* Filter bar */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-4 mb-4 flex flex-col gap-3">
-        {/* Row 1: search */}
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="max-w-2xl border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
-          placeholder="Search by name, email, company…" />
 
-        {/* Row 2: filters + sort pushed right */}
-        <div className="flex gap-2 flex-wrap items-center">
-          {/* All */}
+        {/* Row 1: search · campaigns · sources · [spacer] · sort */}
+        <div className="flex items-center gap-2">
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+            className="flex-1 max-w-2xl border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]"
+            placeholder="Search by name, email, company…" />
+          <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
+            className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
+            <option value="all">Campaigns</option>
+            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={sourceFilter} onChange={e => { setSourceFilter(e.target.value); setPage(1) }}
+            className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
+            <option value="all">Sources</option>
+            <option value="manual">Manual</option>
+            <option value="paste">Paste</option>
+            <option value="csv_import">CSV</option>
+          </select>
+          <div className="flex-1" />
+          <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
+            className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name A–Z</option>
+            <option value="name_z">Name Z–A</option>
+          </select>
+        </div>
+
+        {/* Row 2: status pills · tags */}
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => { setStatusFilters(new Set()); setPage(1) }}
             className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilters.size === 0 ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
             All
             <span className={`text-[10px] ${statusFilters.size === 0 ? 'text-white/70' : 'text-[#b0a898]'}`}>{totalAll}</span>
           </button>
 
-          {/* Positive lifecycle statuses */}
           {(['found','emailed','opened','replied','meeting'] as const).map(s => {
             const active = statusFilters.has(s)
             return (
@@ -938,7 +959,6 @@ export default function ProspectsPage() {
 
           <div className="w-px h-4 bg-[#e8e3dc] mx-0.5" />
 
-          {/* Negative statuses */}
           {(['bounced','unsubscribed'] as const).map(s => {
             const active = statusFilters.has(s)
             return (
@@ -953,34 +973,11 @@ export default function ProspectsPage() {
             )
           })}
 
-          <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
-            className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
-            <option value="all">All Campaigns</option>
-            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select value={sourceFilter} onChange={e => { setSourceFilter(e.target.value); setPage(1) }}
-            className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
-            <option value="all">All Sources</option>
-            <option value="manual">Manual</option>
-            <option value="paste">Paste</option>
-            <option value="csv_import">CSV</option>
-          </select>
           <TagFilterDropdown
             availableTags={workspaceTags}
             selectedTagIds={selectedTagIds}
             onChange={ids => { setSelectedTagIds(ids); setPage(1) }}
           />
-
-          {/* Spacer — pushes Sort to the right */}
-          <div className="flex-1" />
-
-          <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
-            className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none">
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="name">Name A–Z</option>
-            <option value="name_z">Name Z–A</option>
-          </select>
         </div>
       </div>
 
