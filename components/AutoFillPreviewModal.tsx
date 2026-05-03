@@ -2,17 +2,17 @@
 import { useState } from 'react'
 
 export interface ExtractedFields {
-  industry?:           string
-  user_company_size?:  string
+  industry?:            string
+  user_company_size?:   string | string[]
   product_description?: string
-  value_proposition?:  string
-  icp_description?:    string
-  target_industry?:    string
-  target_titles?:      string[]
-  target_regions?:     string[]
-  target_company_size?: string
-  target_pain_points?: string
-  email_tone?:         string
+  value_proposition?:   string
+  icp_description?:     string
+  target_industry?:     string
+  target_titles?:       string[]
+  target_regions?:      string[]
+  target_company_size?: string | string[]
+  target_pain_points?:  string
+  email_tone?:          string
 }
 
 interface Props {
@@ -22,29 +22,42 @@ interface Props {
   onCancel:  () => void
 }
 
-type FieldDef = { key: keyof ExtractedFields; label: string; type: 'input' | 'textarea' | 'array' | 'select'; section: string; options?: string[] }
+const SIZE_OPTIONS = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+']
+
+type FieldDef = {
+  key:     keyof ExtractedFields
+  label:   string
+  type:    'input' | 'textarea' | 'array' | 'select' | 'multisize'
+  section: string
+  options?: string[]
+}
 
 const FIELDS: FieldDef[] = [
-  { key: 'industry',           label: 'Your industry',        type: 'input',    section: 'COMPANY' },
-  { key: 'user_company_size',  label: 'Your company size',    type: 'select',   section: 'COMPANY', options: ['1-10','11-50','51-200','201-500','501-1000','1000+'] },
-  { key: 'product_description',label: 'Product description',  type: 'textarea', section: 'PRODUCT' },
-  { key: 'value_proposition',  label: 'Value proposition',    type: 'textarea', section: 'PRODUCT' },
-  { key: 'icp_description',    label: 'ICP description',      type: 'textarea', section: 'AUDIENCE' },
-  { key: 'target_industry',    label: 'Target industry',      type: 'input',    section: 'AUDIENCE' },
-  { key: 'target_titles',      label: 'Decision-maker titles',type: 'array',    section: 'AUDIENCE' },
-  { key: 'target_regions',     label: 'Target regions',       type: 'array',    section: 'AUDIENCE' },
-  { key: 'target_company_size',label: 'Target company size',  type: 'input',    section: 'AUDIENCE' },
-  { key: 'target_pain_points', label: 'Pain points',          type: 'textarea', section: 'AUDIENCE' },
-  { key: 'email_tone',         label: 'Email tone',           type: 'select',   section: 'AUDIENCE', options: ['professional','casual','technical','warm','friendly','direct'] },
+  { key: 'industry',            label: 'Your industry',         type: 'input',     section: 'COMPANY' },
+  { key: 'user_company_size',   label: 'Your company size',     type: 'multisize', section: 'COMPANY' },
+  { key: 'product_description', label: 'Product description',   type: 'textarea',  section: 'PRODUCT' },
+  { key: 'value_proposition',   label: 'Value proposition',     type: 'textarea',  section: 'PRODUCT' },
+  { key: 'icp_description',     label: 'ICP description',       type: 'textarea',  section: 'AUDIENCE' },
+  { key: 'target_industry',     label: 'Target industry',       type: 'input',     section: 'AUDIENCE' },
+  { key: 'target_titles',       label: 'Decision-maker titles', type: 'array',     section: 'AUDIENCE' },
+  { key: 'target_regions',      label: 'Target regions',        type: 'array',     section: 'AUDIENCE' },
+  { key: 'target_company_size', label: 'Target company size',   type: 'multisize', section: 'AUDIENCE' },
+  { key: 'target_pain_points',  label: 'Pain points',           type: 'textarea',  section: 'AUDIENCE' },
+  { key: 'email_tone',          label: 'Email tone',            type: 'select',    section: 'AUDIENCE',
+    options: ['professional', 'casual', 'technical', 'warm'] },
 ]
 
 const SECTIONS = ['COMPANY', 'PRODUCT', 'AUDIENCE']
 
+function toStringArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string')
+  if (typeof v === 'string') return [v]
+  return []
+}
+
 export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Props) {
-  // Editable copies of the extracted values
-  const [edited, setEdited]       = useState<ExtractedFields>({ ...extracted })
-  // Which fields are selected for apply (default: all extracted)
-  const [selected, setSelected]   = useState<Set<keyof ExtractedFields>>(
+  const [edited, setEdited]     = useState<ExtractedFields>({ ...extracted })
+  const [selected, setSelected] = useState<Set<keyof ExtractedFields>>(
     () => new Set(Object.keys(extracted) as (keyof ExtractedFields)[]),
   )
 
@@ -61,16 +74,25 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
   }
 
   function updateArray(key: keyof ExtractedFields, raw: string) {
-    const arr = raw.split(',').map(s => s.trim()).filter(Boolean)
-    setEdited(prev => ({ ...prev, [key]: arr }))
+    setEdited(prev => ({ ...prev, [key]: raw.split(',').map(s => s.trim()).filter(Boolean) }))
+  }
+
+  function toggleSizeOption(key: keyof ExtractedFields, option: string) {
+    setEdited(prev => {
+      const current = toStringArray(prev[key])
+      const next    = current.includes(option)
+        ? current.filter(v => v !== option)
+        : [...current, option]
+      return { ...prev, [key]: next }
+    })
   }
 
   function handleApply() {
     const result: ExtractedFields = {}
-    for (const key of selected) {
-      const v = edited[key]
-      if (v !== undefined) (result as any)[key] = v
-    }
+    selected.forEach(key => {
+      const v = (edited as Record<string, unknown>)[key]
+      if (v !== undefined) (result as Record<string, unknown>)[key] = v
+    })
     onApply(result)
   }
 
@@ -109,12 +131,17 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
                     const hasValue  = extracted[field.key] !== undefined
                     const isChecked = selected.has(field.key)
                     const rawValue  = edited[field.key]
+
                     const displayValue = Array.isArray(rawValue)
                       ? (rawValue as string[]).join(', ')
                       : (rawValue as string | undefined) ?? ''
 
+                    const sizeValues = field.type === 'multisize' ? toStringArray(rawValue) : []
+
                     return (
-                      <div key={field.key} className={`flex gap-3 items-start p-3 rounded-lg border transition-colors ${isChecked && hasValue ? 'border-[#e8e3dc] bg-white' : 'border-[#f0ece6] bg-[#faf8f5] opacity-60'}`}>
+                      <div key={field.key}
+                        className={`flex gap-3 items-start p-3 rounded-lg border transition-colors
+                          ${isChecked && hasValue ? 'border-[#e8e3dc] bg-white' : 'border-[#f0ece6] bg-[#faf8f5] opacity-60'}`}>
                         <input
                           type="checkbox"
                           checked={isChecked && hasValue}
@@ -126,6 +153,27 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
                           <label className="text-xs font-medium text-[#6b5e4e] block mb-1">{field.label}</label>
                           {!hasValue ? (
                             <p className="text-xs text-[#b0a898] italic">Not found on website</p>
+                          ) : field.type === 'multisize' ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {SIZE_OPTIONS.map(opt => {
+                                const active = sizeValues.includes(opt)
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    disabled={!isChecked}
+                                    onClick={() => toggleSizeOption(field.key, opt)}
+                                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors
+                                      ${active
+                                        ? 'bg-[#3b6bef] text-white border-[#3b6bef]'
+                                        : 'bg-white text-[#6b5e4e] border-[#e8e3dc] hover:border-[#3b6bef]'}
+                                      disabled:opacity-40 disabled:cursor-not-allowed`}
+                                  >
+                                    {opt}
+                                  </button>
+                                )
+                              })}
+                            </div>
                           ) : field.type === 'select' ? (
                             <select
                               value={displayValue}

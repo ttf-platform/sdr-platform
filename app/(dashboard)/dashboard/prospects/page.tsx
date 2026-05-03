@@ -535,6 +535,16 @@ export default function ProspectsPage() {
     })
   }, [])
 
+  // Open Master ICP panel when ?openIcp=1 is in the URL
+  useEffect(() => {
+    if (searchParams.get('openIcp') === '1') {
+      setIcpOpen(true)
+      setTimeout(() => {
+        document.getElementById('master-icp-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [searchParams])
+
   // Stable string key from the Set for use in dependency array
   const statusFilterStr = [...statusFilters].sort().join(',')
   const tagFilterStr    = [...selectedTagIds].sort().join(',')
@@ -731,7 +741,7 @@ export default function ProspectsPage() {
 
       {/* ── Master ICP Panel ─────────────────────────────────────────────────── */}
       {icpOpen && (
-        <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-6 mb-4">
+        <div id="master-icp-panel" className="bg-purple-50/50 border border-purple-200 rounded-xl p-6 mb-4">
 
           {/* Panel header */}
           <div className="flex items-center justify-between mb-2">

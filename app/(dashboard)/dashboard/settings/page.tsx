@@ -86,7 +86,7 @@ export default function SettingsPage() {
   const [savedSection,  setSavedSection]  = useState<string|null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
-  const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string } | null>(null)
+  const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string } | null>(null)
 
   const [form, setForm] = useState({
     // Account
@@ -218,24 +218,37 @@ export default function SettingsPage() {
   }
 
   async function handleAutoFillApply(extracted: ExtractedFields) {
-    // Update Settings form fields (company + product)
+    // Settings form fields (company + product) — single-value, user clicks Save afterwards
+    const userSize = Array.isArray(extracted.user_company_size)
+      ? extracted.user_company_size[0]
+      : extracted.user_company_size
     setForm(f => ({
       ...f,
-      ...(extracted.industry           !== undefined && { user_industry:       extracted.industry }),
-      ...(extracted.user_company_size   !== undefined && { user_company_size:   extracted.user_company_size }),
+      ...(extracted.industry            !== undefined && { user_industry:       extracted.industry }),
+      ...(userSize                      !== undefined && { user_company_size:   userSize }),
       ...(extracted.product_description !== undefined && { product_description: extracted.product_description }),
       ...(extracted.value_proposition   !== undefined && { value_proposition:   extracted.value_proposition }),
     }))
 
-    // ICP fields — persist directly via API (ICP lives in Prospects > Master ICP)
+    // ICP fields — persist directly via API (Master ICP, managed from Prospects page)
+    const ICP_KEYS: (keyof ExtractedFields)[] = [
+      'icp_description', 'target_industry', 'target_titles',
+      'target_regions', 'target_company_size', 'target_pain_points', 'email_tone',
+    ]
+    let icpAppliedCount = 0
     const icpPayload: Record<string, unknown> = {}
-    if (extracted.icp_description   !== undefined) icpPayload.icp_description   = extracted.icp_description
-    if (extracted.target_industry   !== undefined) icpPayload.icp_industries    = [extracted.target_industry]
-    if (extracted.target_titles     !== undefined) icpPayload.target_titles     = (extracted.target_titles as string[]).join(', ')
-    if (extracted.target_regions    !== undefined) icpPayload.target_regions    = (extracted.target_regions as string[]).join(', ')
-    if (extracted.target_company_size !== undefined) icpPayload.icp_company_sizes = [extracted.target_company_size]
-    if (extracted.target_pain_points !== undefined) icpPayload.pain_points      = extracted.target_pain_points
-    if (extracted.email_tone        !== undefined) icpPayload.tone              = extracted.email_tone
+    if (extracted.icp_description    !== undefined) { icpPayload.icp_description = extracted.icp_description; icpAppliedCount++ }
+    if (extracted.target_industry    !== undefined) { icpPayload.icp_industries  = [extracted.target_industry]; icpAppliedCount++ }
+    if (extracted.target_titles      !== undefined) { icpPayload.target_titles   = (extracted.target_titles as string[]).join(', '); icpAppliedCount++ }
+    if (extracted.target_regions     !== undefined) { icpPayload.target_regions  = (extracted.target_regions as string[]).join(', '); icpAppliedCount++ }
+    if (extracted.target_company_size !== undefined) {
+      icpPayload.icp_company_sizes = Array.isArray(extracted.target_company_size)
+        ? extracted.target_company_size
+        : [extracted.target_company_size]
+      icpAppliedCount++
+    }
+    if (extracted.target_pain_points !== undefined) { icpPayload.pain_points = extracted.target_pain_points; icpAppliedCount++ }
+    if (extracted.email_tone         !== undefined) { icpPayload.tone        = extracted.email_tone; icpAppliedCount++ }
 
     if (Object.keys(icpPayload).length > 0 && workspaceId) {
       await fetch('/api/workspace/profile', {
@@ -245,8 +258,18 @@ export default function SettingsPage() {
       })
     }
 
-    setToast({ type: 'info', msg: 'Auto-fill applied. Review the fields below and click Save to confirm.' })
-    setTimeout(() => setToast(null), 6000)
+    if (icpAppliedCount > 0) {
+      setToast({
+        type:      'info',
+        msg:       `Auto-fill applied. Don't forget to click Save. We also pre-filled ${icpAppliedCount} ICP field${icpAppliedCount !== 1 ? 's' : ''} in your Master ICP.`,
+        link:      '/dashboard/prospects?openIcp=1',
+        linkLabel: 'Review and adjust →',
+      })
+      setTimeout(() => setToast(null), 12000)
+    } else {
+      setToast({ type: 'info', msg: "Auto-fill applied. Review the fields below and click Save to confirm." })
+      setTimeout(() => setToast(null), 6000)
+    }
   }
 
   const ws = (workspace?.workspaces as any)
@@ -278,9 +301,16 @@ export default function SettingsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#3b6bef]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-center gap-3 max-w-sm`}>
-          <span className="shrink-0">{toast.type === 'error' ? '⚠' : 'ℹ'}</span>
-          <span>{toast.msg}</span>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#3b6bef]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-3 max-w-sm`}>
+          <span className="shrink-0 mt-0.5">{toast.type === 'error' ? '⚠' : 'ℹ'}</span>
+          <div className="flex-1 min-w-0">
+            <p>{toast.msg}</p>
+            {toast.link && (
+              <a href={toast.link} className="underline opacity-90 hover:opacity-100 text-white mt-1 block">
+                {toast.linkLabel ?? toast.link}
+              </a>
+            )}
+          </div>
           <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0">✕</button>
         </div>
       )}

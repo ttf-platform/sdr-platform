@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { scrapeWebsite } from '@/lib/website-scraper'
+import { mapCompanySize } from '@/lib/company-size-mapper'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -9,8 +10,40 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const lastUsed = new Map<string, number>()
 const RATE_LIMIT_MS = 30_000
 
-const VALID_TONES         = ['professional', 'casual', 'technical', 'warm', 'friendly', 'direct']
-const VALID_COMPANY_SIZES = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+']
+const VALID_EMAIL_TONES = ['professional', 'casual', 'technical', 'warm']
+
+function validateExtracted(raw: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+
+  for (const key of ['industry', 'product_description', 'value_proposition',
+                      'icp_description', 'target_industry', 'target_pain_points']) {
+    const v = raw[key]
+    if (typeof v === 'string' && v.trim()) result[key] = v.trim()
+  }
+
+  if (VALID_EMAIL_TONES.includes(raw.email_tone as string)) {
+    result.email_tone = raw.email_tone
+  }
+
+  const userSizes = mapCompanySize(raw.user_company_size as string | string[] | undefined)
+  if (userSizes.length > 0) result.user_company_size = userSizes
+
+  const targetSizes = mapCompanySize(raw.target_company_size as string | string[] | undefined)
+  if (targetSizes.length > 0) result.target_company_size = targetSizes
+
+  for (const key of ['target_titles', 'target_regions'] as const) {
+    const v = raw[key]
+    if (Array.isArray(v)) {
+      const clean = v
+        .filter((x): x is string => typeof x === 'string' && !!x.trim())
+        .map(x => x.trim())
+        .slice(0, 10)
+      if (clean.length > 0) result[key] = clean
+    }
+  }
+
+  return result
+}
 
 export async function POST(request: Request) {
   const guard = await billingGuard()
@@ -45,22 +78,24 @@ Below is text content scraped from the company's website (home + pricing + about
 
 ${scraped.totalText}
 
-Extract the following fields. If you cannot determine a field with reasonable confidence, omit it entirely — do not guess.
+Extract every field you can reasonably infer from the website content.
+Be GENEROUS: if the text gives you any signal about a field, include
+it with your best inference. Only omit a field if the text contains
+ZERO information about it.
 
-Return STRICTLY a JSON object with these optional keys:
+Return STRICTLY a JSON object with these keys (all optional):
 - industry: string (the company's own industry, e.g. "SaaS", "E-commerce", "B2B services")
-- user_company_size: string (one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+")
-- product_description: string (1-2 sentences, plain language, what they sell)
-- value_proposition: string (1-2 sentences, the core benefit/promise)
-- icp_description: string (who they target, 1-2 sentences in plain English)
-- target_industry: string (what industry their customers are in)
-- target_titles: array of strings (decision-maker job titles, max 5)
-- target_regions: array of strings (geographic focus, e.g. ["North America", "Europe"])
-- target_company_size: string (size of customer companies)
-- target_pain_points: string (problems they solve, 1-2 sentences)
-- email_tone: string (one of: "professional", "casual", "technical", "warm", "friendly", "direct")
+- user_company_size: string (a range like "11-50" or "1000+", or a wider description like "11-500")
+- product_description: string (1-2 sentences, plain language)
+- value_proposition: string (1-2 sentences, the core benefit)
+- icp_description: string (who they target, 1-2 sentences)
+- target_industry: string (industry of their customers)
+- target_titles: array of strings (decision-maker job titles)
+- target_regions: array of strings (geographic focus)
+- target_company_size: string (a range like "51-200" or wider like "11-1000", or "small/medium/large")
+- target_pain_points: string (problems they solve)
+- email_tone: one of: "professional", "casual", "technical", "warm" (choose closest)
 
-DO NOT include fields where you have no evidence from the text.
 DO NOT include explanations or wrapping text — only valid JSON.
 
 JSON:`
@@ -70,6 +105,7 @@ JSON:`
     const msg  = await anthropic.messages.create({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 1500,
+      temperature: 0,
       messages:   [{ role: 'user', content: prompt }],
     })
     const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
@@ -81,40 +117,11 @@ JSON:`
     return NextResponse.json({ error: 'AI extraction failed. Please try again.' }, { status: 422 })
   }
 
-  // Validate and sanitize
-  const result: Record<string, unknown> = {}
-
-  const str = (key: string) => {
-    const v = extracted[key]
-    if (typeof v === 'string' && v.trim()) result[key] = v.trim()
-  }
-  const arr = (key: string) => {
-    const v = extracted[key]
-    if (Array.isArray(v) && v.length > 0) {
-      const clean = v.filter((x): x is string => typeof x === 'string' && !!x.trim()).map(x => x.trim())
-      if (clean.length > 0) result[key] = clean
-    }
-  }
-
-  str('industry')
-  str('product_description')
-  str('value_proposition')
-  str('icp_description')
-  str('target_industry')
-  str('target_company_size')
-  str('target_pain_points')
-  arr('target_titles')
-  arr('target_regions')
-
-  const cs = extracted['user_company_size']
-  if (typeof cs === 'string' && VALID_COMPANY_SIZES.includes(cs)) result['user_company_size'] = cs
-
-  const tone = extracted['email_tone']
-  if (typeof tone === 'string' && VALID_TONES.includes(tone.toLowerCase())) result['email_tone'] = tone.toLowerCase()
+  const result = validateExtracted(extracted)
 
   if (Object.keys(result).length === 0) {
     return NextResponse.json(
-      { error: 'We couldn\'t extract useful information from this website. Try filling in manually.' },
+      { error: "We couldn't extract useful information from this website. Try filling in manually." },
       { status: 422 },
     )
   }
