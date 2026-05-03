@@ -1,10 +1,16 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireSentraAdmin } from '@/lib/auth'
+import { logAdminAction } from '@/lib/admin'
+import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
+  const guard = await requireSentraAdmin()
+  if (guard) return guard
+
   const { subject, body, target } = await request.json()
   const admin = createAdminClient()
   const { data: workspaces } = await admin.from('workspaces').select('id, plan')
@@ -21,5 +27,13 @@ export async function POST(request: Request) {
   for (const email of emails) {
     await resend.emails.send({ from: 'Sentra <hello@sentra.app>', to: email as string, subject, html: htmlBody })
   }
+
+  const { data: { user } } = await createClient().auth.getUser()
+  await logAdminAction({
+    admin_id:    user!.id,
+    action_type: 'broadcast_sent',
+    metadata:    { target, subject, recipient_count: emails.length },
+  })
+
   return NextResponse.json({ success: true, sent: emails.length })
 }

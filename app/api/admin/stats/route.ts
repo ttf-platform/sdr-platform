@@ -1,7 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireSentraAdmin } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+  const guard = await requireSentraAdmin()
+  if (guard) return guard
   const admin = createAdminClient()
   const { data: campaigns } = await admin.from('campaigns').select('sent_count, open_count')
   const { data: workspaces } = await admin.from('workspaces').select('id, plan, created_at')
