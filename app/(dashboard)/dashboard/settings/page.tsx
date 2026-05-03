@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
@@ -86,8 +87,11 @@ export default function SettingsPage() {
   const [savedSection,  setSavedSection]  = useState<string|null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
-  const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string } | null>(null)
+  const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string; persistent?: boolean } | null>(null)
   const [pendingIcpUpdates, setPendingIcpUpdates] = useState<Record<string, unknown> | null>(null)
+
+  const pathname = usePathname()
+  useEffect(() => { setToast(t => t?.persistent ? null : t) }, [pathname])
 
   const [form, setForm] = useState({
     // Account
@@ -249,12 +253,12 @@ export default function SettingsPage() {
     setTimeout(() => setSavedSection(null), 2000)
     if (icpCount > 0) {
       setToast({
-        type:      'info',
-        msg:       `Settings saved. We also saved ${icpCount} ICP field${icpCount !== 1 ? 's' : ''} in your Master ICP.`,
-        link:      '/dashboard/prospects?openIcp=1',
-        linkLabel: 'Review and adjust →',
+        type:       'info',
+        msg:        `Settings saved. We also saved ${icpCount} ICP field${icpCount !== 1 ? 's' : ''} in your Master ICP.`,
+        link:       '/dashboard/prospects?openIcp=1',
+        linkLabel:  'Review and adjust →',
+        persistent: true,
       })
-      setTimeout(() => setToast(null), 12000)
     }
   }
 
@@ -318,7 +322,7 @@ export default function SettingsPage() {
           <div className="flex-1 min-w-0">
             <p>{toast.msg}</p>
             {toast.link && (
-              <a href={toast.link} className="underline opacity-90 hover:opacity-100 text-white mt-1 block">
+              <a href={toast.link} onClick={() => setToast(null)} className="underline opacity-90 hover:opacity-100 text-white mt-1 block">
                 {toast.linkLabel ?? toast.link}
               </a>
             )}
