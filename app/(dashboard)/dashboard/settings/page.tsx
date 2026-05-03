@@ -87,6 +87,7 @@ export default function SettingsPage() {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
   const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string } | null>(null)
+  const [pendingIcpUpdates, setPendingIcpUpdates] = useState<Record<string, unknown> | null>(null)
 
   const [form, setForm] = useState({
     // Account
@@ -217,59 +218,70 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleAutoFillApply(extracted: ExtractedFields) {
-    // Settings form fields (company + product) — single-value, user clicks Save afterwards
-    const userSize = Array.isArray(extracted.user_company_size)
-      ? extracted.user_company_size[0]
-      : extracted.user_company_size
-    setForm(f => ({
-      ...f,
-      ...(extracted.industry            !== undefined && { user_industry:       extracted.industry }),
-      ...(userSize                      !== undefined && { user_company_size:   userSize }),
-      ...(extracted.product_description !== undefined && { product_description: extracted.product_description }),
-      ...(extracted.value_proposition   !== undefined && { value_proposition:   extracted.value_proposition }),
-    }))
-
-    // ICP fields — persist directly via API (Master ICP, managed from Prospects page)
-    const ICP_KEYS: (keyof ExtractedFields)[] = [
-      'icp_description', 'target_industry', 'target_titles',
-      'target_regions', 'target_company_size', 'target_pain_points', 'email_tone',
-    ]
-    let icpAppliedCount = 0
-    const icpPayload: Record<string, unknown> = {}
-    if (extracted.icp_description    !== undefined) { icpPayload.icp_description = extracted.icp_description; icpAppliedCount++ }
-    if (extracted.target_industry    !== undefined) { icpPayload.icp_industries  = [extracted.target_industry]; icpAppliedCount++ }
-    if (extracted.target_titles      !== undefined) { icpPayload.target_titles   = (extracted.target_titles as string[]).join(', '); icpAppliedCount++ }
-    if (extracted.target_regions     !== undefined) { icpPayload.target_regions  = (extracted.target_regions as string[]).join(', '); icpAppliedCount++ }
-    if (extracted.target_company_size !== undefined) {
-      icpPayload.icp_company_sizes = Array.isArray(extracted.target_company_size)
-        ? extracted.target_company_size
-        : [extracted.target_company_size]
-      icpAppliedCount++
+  async function saveCompany() {
+    if (!form.company_name.trim()) return
+    setSavingSection('company')
+    const icpCount = pendingIcpUpdates ? Object.keys(pendingIcpUpdates).length : 0
+    const payload: Record<string, unknown> = {
+      workspace_id:       workspaceId,
+      company_name:       form.company_name,
+      sender_name:        form.sender_name,
+      company_website:    form.company_website,
+      workspace_timezone: form.timezone,
+      user_industry:      form.user_industry,
+      user_company_size:  form.user_company_size,
+      ...(pendingIcpUpdates ?? {}),
     }
-    if (extracted.target_pain_points !== undefined) { icpPayload.pain_points = extracted.target_pain_points; icpAppliedCount++ }
-    if (extracted.email_tone         !== undefined) { icpPayload.tone        = extracted.email_tone; icpAppliedCount++ }
-
-    if (Object.keys(icpPayload).length > 0 && workspaceId) {
-      await fetch('/api/workspace/profile', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ workspace_id: workspaceId, ...icpPayload }),
-      })
+    const res = await fetch('/api/workspace/profile', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+    setSavingSection(null)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setToast({ type: 'error', msg: data.error || 'Failed to save. Please try again.' })
+      setTimeout(() => setToast(null), 4000)
+      return
     }
-
-    if (icpAppliedCount > 0) {
+    setPendingIcpUpdates(null)
+    setSavedSection('company')
+    setTimeout(() => setSavedSection(null), 2000)
+    if (icpCount > 0) {
       setToast({
         type:      'info',
-        msg:       `Auto-fill applied. Don't forget to click Save. We also pre-filled ${icpAppliedCount} ICP field${icpAppliedCount !== 1 ? 's' : ''} in your Master ICP.`,
+        msg:       `Settings saved. We also saved ${icpCount} ICP field${icpCount !== 1 ? 's' : ''} in your Master ICP.`,
         link:      '/dashboard/prospects?openIcp=1',
         linkLabel: 'Review and adjust →',
       })
       setTimeout(() => setToast(null), 12000)
-    } else {
-      setToast({ type: 'info', msg: "Auto-fill applied. Review the fields below and click Save to confirm." })
-      setTimeout(() => setToast(null), 6000)
     }
+  }
+
+  function handleAutoFillApply(extracted: ExtractedFields) {
+    // Settings form fields — deferred to Save
+    setForm(f => ({
+      ...f,
+      ...(extracted.industry            !== undefined && { user_industry:       extracted.industry }),
+      ...(extracted.user_company_size   !== undefined && { user_company_size:   extracted.user_company_size }),
+      ...(extracted.product_description !== undefined && { product_description: extracted.product_description }),
+      ...(extracted.value_proposition   !== undefined && { value_proposition:   extracted.value_proposition }),
+    }))
+
+    // ICP fields — store in pending state, persisted at Save (not now)
+    const icpPayload: Record<string, unknown> = {}
+    if (extracted.icp_description     !== undefined) icpPayload.icp_description  = extracted.icp_description
+    if (extracted.target_industry     !== undefined) icpPayload.icp_industries   = [extracted.target_industry]
+    if (extracted.target_titles       !== undefined) icpPayload.target_titles    = (extracted.target_titles as string[]).join(', ')
+    if (extracted.target_regions      !== undefined) icpPayload.target_regions   = (extracted.target_regions as string[]).join(', ')
+    if (extracted.target_company_size !== undefined) icpPayload.icp_company_sizes = extracted.target_company_size
+    if (extracted.target_pain_points  !== undefined) icpPayload.pain_points      = extracted.target_pain_points
+    if (extracted.email_tone          !== undefined) icpPayload.tone             = extracted.email_tone
+
+    if (Object.keys(icpPayload).length > 0) setPendingIcpUpdates(icpPayload)
+
+    setToast({ type: 'info', msg: "Auto-fill applied. Review the fields below and click Save to confirm." })
+    setTimeout(() => setToast(null), 6000)
   }
 
   const ws = (workspace?.workspaces as any)
@@ -567,14 +579,7 @@ export default function SettingsPage() {
             saving={savingSection}
             saved={savedSection}
             missing={form.company_name.trim() ? [] : ['Company name']}
-            onSave={() => saveSection('company', {
-              company_name:       form.company_name,
-              sender_name:        form.sender_name,
-              company_website:    form.company_website,
-              workspace_timezone: form.timezone,
-              user_industry:      form.user_industry,
-              user_company_size:  form.user_company_size,
-            })}
+            onSave={saveCompany}
           />
         </div>
 

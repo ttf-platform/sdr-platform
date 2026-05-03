@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { scrapeWebsite } from '@/lib/website-scraper'
-import { mapCompanySize } from '@/lib/company-size-mapper'
+import { mapCompanySize, mapUserCompanySize } from '@/lib/company-size-mapper'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -25,9 +25,11 @@ function validateExtracted(raw: Record<string, unknown>): Record<string, unknown
     result.email_tone = raw.email_tone
   }
 
-  const userSizes = mapCompanySize(raw.user_company_size as string | string[] | undefined)
-  if (userSizes.length > 0) result.user_company_size = userSizes
+  // user_company_size: strict — exact enum match only, returns string
+  const userSize = mapUserCompanySize(raw.user_company_size as string | undefined)
+  if (userSize) result.user_company_size = userSize
 
+  // target_company_size: generous — can span multiple ranges, returns array
   const targetSizes = mapCompanySize(raw.target_company_size as string | string[] | undefined)
   if (targetSizes.length > 0) result.target_company_size = targetSizes
 
@@ -78,23 +80,26 @@ Below is text content scraped from the company's website (home + pricing + about
 
 ${scraped.totalText}
 
-Extract every field you can reasonably infer from the website content.
-Be GENEROUS: if the text gives you any signal about a field, include
-it with your best inference. Only omit a field if the text contains
-ZERO information about it.
+Extract every field you can reasonably infer. Be GENEROUS for most fields,
+but APPLY DIFFERENT RULES for company sizes:
 
 Return STRICTLY a JSON object with these keys (all optional):
-- industry: string (the company's own industry, e.g. "SaaS", "E-commerce", "B2B services")
-- user_company_size: string (a range like "11-50" or "1000+", or a wider description like "11-500")
+- industry: string (the company's own industry)
+- user_company_size: STRICT — must be EXACTLY one of: "1-10", "10-50", "50-200", "200-500", "500-1000", "1000+".
+  This is the OWN size of the company being analyzed. Only return a value
+  if the text gives a clear, precise indication (e.g. "we're a team of 30",
+  "150+ employees worldwide"). If ambiguous or wide range, OMIT this field entirely.
 - product_description: string (1-2 sentences, plain language)
 - value_proposition: string (1-2 sentences, the core benefit)
 - icp_description: string (who they target, 1-2 sentences)
 - target_industry: string (industry of their customers)
 - target_titles: array of strings (decision-maker job titles)
 - target_regions: array of strings (geographic focus)
-- target_company_size: string (a range like "51-200" or wider like "11-1000", or "small/medium/large")
-- target_pain_points: string (problems they solve)
-- email_tone: one of: "professional", "casual", "technical", "warm" (choose closest)
+- target_company_size: GENEROUS — can be a single range like "50-200" OR a wider spectrum
+  like "10-1000" if the company targets multiple sizes. Use the same enum values as
+  user_company_size but ranges can be wider.
+- target_pain_points: string (problems they solve, 1-2 sentences)
+- email_tone: must be EXACTLY one of: "professional", "casual", "technical", "warm"
 
 DO NOT include explanations or wrapping text — only valid JSON.
 
@@ -103,10 +108,10 @@ JSON:`
   let extracted: Record<string, unknown> = {}
   try {
     const msg  = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
+      model:       'claude-haiku-4-5-20251001',
+      max_tokens:  1500,
       temperature: 0,
-      messages:   [{ role: 'user', content: prompt }],
+      messages:    [{ role: 'user', content: prompt }],
     })
     const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
     const start = text.indexOf('{')

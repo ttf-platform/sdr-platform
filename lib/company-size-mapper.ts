@@ -1,12 +1,16 @@
+// Canonical enum values — must match COMPANY_SIZES in prospects/page.tsx and settings/page.tsx
 const ENUM_RANGES = [
   { key: '1-10',     min: 1,    max: 10 },
-  { key: '11-50',    min: 11,   max: 50 },
-  { key: '51-200',   min: 51,   max: 200 },
-  { key: '201-500',  min: 201,  max: 500 },
-  { key: '501-1000', min: 501,  max: 1000 },
-  { key: '1000+',    min: 1001, max: Infinity },
+  { key: '10-50',    min: 10,   max: 50 },
+  { key: '50-200',   min: 50,   max: 200 },
+  { key: '200-500',  min: 200,  max: 500 },
+  { key: '500-1000', min: 500,  max: 1000 },
+  { key: '1000+',    min: 1000, max: Infinity },
 ]
 
+const VALID_SIZES = ENUM_RANGES.map(r => r.key)
+
+// Maps a free-text AI company size to one or more canonical enum keys (for target_company_size)
 export function mapCompanySize(aiValue: string | string[] | undefined): string[] {
   if (!aiValue) return []
 
@@ -21,7 +25,7 @@ export function mapCompanySize(aiValue: string | string[] | undefined): string[]
   if (!value) return []
 
   // Exact enum match
-  if (ENUM_RANGES.some(r => r.key === value)) return [value]
+  if (VALID_SIZES.includes(value)) return [value]
 
   // Pattern "X+" (e.g. "1000+", "500+")
   const plusMatch = value.match(/^(\d+)\+$/)
@@ -42,18 +46,25 @@ export function mapCompanySize(aiValue: string | string[] | undefined): string[]
 
   // Textual mapping
   const lower = value.toLowerCase()
-  if (lower.includes('startup') || lower.includes('small') && !lower.includes('mid') && !lower.includes('medium')) {
-    return ['1-10', '11-50']
-  }
-  if (lower.includes('mid') || lower.includes('medium')) {
-    return ['51-200', '201-500']
-  }
-  if (lower.includes('large') || lower.includes('enterprise')) {
-    return ['501-1000', '1000+']
+  if (lower.includes('startup') || (lower.includes('small') && !lower.includes('mid') && !lower.includes('medium'))) {
+    return ['1-10', '10-50']
   }
   if (lower.includes('smb') || lower.includes('small business')) {
-    return ['1-10', '11-50', '51-200']
+    return ['1-10', '10-50', '50-200']
+  }
+  if (lower.includes('mid') || lower.includes('medium')) {
+    return ['50-200', '200-500']
+  }
+  if (lower.includes('large') || lower.includes('enterprise')) {
+    return ['500-1000', '1000+']
   }
 
   return []
+}
+
+// Strict version for user_company_size — only exact enum match, returns single string or undefined
+export function mapUserCompanySize(aiValue: string | undefined): string | undefined {
+  if (!aiValue || typeof aiValue !== 'string') return undefined
+  const value = aiValue.trim()
+  return VALID_SIZES.includes(value) ? value : undefined
 }

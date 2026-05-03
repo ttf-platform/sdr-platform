@@ -13,6 +13,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState({ workspaceName: '', companyName: '', companyWebsite: '', product: '', icp: '', tone: 'professional' })
+  const [pendingIcpFromAutofill, setPendingIcpFromAutofill] = useState<Record<string, unknown>>({})
 
   function handleAutoFillApply(extracted: ExtractedFields) {
     setData(d => ({
@@ -20,6 +21,15 @@ export default function OnboardingPage() {
       ...(extracted.product_description !== undefined && { product: extracted.product_description }),
       ...(extracted.icp_description     !== undefined && { icp: extracted.icp_description }),
     }))
+    // Store extra ICP fields — persisted together at handleFinish
+    const icp: Record<string, unknown> = {}
+    if (extracted.target_industry     !== undefined) icp.icp_industries    = [extracted.target_industry]
+    if (extracted.target_titles       !== undefined) icp.target_titles     = (extracted.target_titles as string[]).join(', ')
+    if (extracted.target_regions      !== undefined) icp.target_regions    = (extracted.target_regions as string[]).join(', ')
+    if (extracted.target_company_size !== undefined) icp.icp_company_sizes = extracted.target_company_size
+    if (extracted.target_pain_points  !== undefined) icp.pain_points       = extracted.target_pain_points
+    if (extracted.email_tone          !== undefined) icp.tone              = extracted.email_tone
+    if (Object.keys(icp).length > 0) setPendingIcpFromAutofill(icp)
   }
 
   async function handleFinish() {
@@ -35,7 +45,15 @@ export default function OnboardingPage() {
       await fetch('/api/workspace/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspace_id: wsRes.workspace.id, company_name: data.companyName, product_description: data.product, icp_description: data.icp, tone: data.tone })
+        body: JSON.stringify({
+          workspace_id:      wsRes.workspace.id,
+          company_name:      data.companyName,
+          company_website:   data.companyWebsite,
+          product_description: data.product,
+          icp_description:   data.icp,
+          tone:              data.tone,
+          ...pendingIcpFromAutofill,
+        })
       })
     }
     window.location.href = '/dashboard'

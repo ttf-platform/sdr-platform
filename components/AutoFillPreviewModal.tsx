@@ -3,14 +3,14 @@ import { useState } from 'react'
 
 export interface ExtractedFields {
   industry?:            string
-  user_company_size?:   string | string[]
+  user_company_size?:   string          // strict single enum value
   product_description?: string
   value_proposition?:   string
   icp_description?:     string
   target_industry?:     string
   target_titles?:       string[]
   target_regions?:      string[]
-  target_company_size?: string | string[]
+  target_company_size?: string[]        // generous multi-range array
   target_pain_points?:  string
   email_tone?:          string
 }
@@ -22,7 +22,8 @@ interface Props {
   onCancel:  () => void
 }
 
-const SIZE_OPTIONS = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+']
+// Must match COMPANY_SIZES in prospects/page.tsx and settings/page.tsx
+const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 
 type FieldDef = {
   key:     keyof ExtractedFields
@@ -34,7 +35,7 @@ type FieldDef = {
 
 const FIELDS: FieldDef[] = [
   { key: 'industry',            label: 'Your industry',         type: 'input',     section: 'COMPANY' },
-  { key: 'user_company_size',   label: 'Your company size',     type: 'multisize', section: 'COMPANY' },
+  { key: 'user_company_size',   label: 'Your company size',     type: 'select',    section: 'COMPANY', options: SIZE_OPTIONS },
   { key: 'product_description', label: 'Product description',   type: 'textarea',  section: 'PRODUCT' },
   { key: 'value_proposition',   label: 'Value proposition',     type: 'textarea',  section: 'PRODUCT' },
   { key: 'icp_description',     label: 'ICP description',       type: 'textarea',  section: 'AUDIENCE' },
