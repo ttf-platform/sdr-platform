@@ -319,13 +319,12 @@ export async function generateDraftsForCampaign(
   // 8. Render and assemble rows
   const renderExtras = { bookingUrl, meetingDuration }
   const insertRows = workItems.map(item => {
-    const isInitial   = item.step_order === 0
-    const sigTemplate = (profile as any)?.email_signature as string | null | undefined
-    const appendSig   = sigTemplate?.trim()
-      ? (isInitial
-          ? ((profile as any)?.signature_in_initial   ?? true)
-          : ((profile as any)?.signature_in_followups ?? false))
-      : false
+    const DEFAULT_SIG  = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
+    const isInitial    = item.step_order === 0
+    const sigTemplate  = ((profile as any)?.email_signature as string | null | undefined)?.trim() || DEFAULT_SIG
+    const appendSig    = isInitial
+      ? ((profile as any)?.signature_in_initial   ?? true)
+      : ((profile as any)?.signature_in_followups ?? false)
 
     const bodyTemplate = item.body_template.replace(/\n*\{\{sender_name\}\}\s*$/, '')
 

@@ -33,8 +33,6 @@ export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: P
       : [...selectedTagIds, id])
   }
 
-  if (availableTags.length === 0) return null
-
   return (
     <div ref={ref} className="relative">
       <button
@@ -65,7 +63,12 @@ export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: P
           )}
 
           <div className="py-1 max-h-48 overflow-y-auto">
-            {filtered.map(tag => {
+            {availableTags.length === 0 ? (
+              <div className="px-3 py-4 text-center">
+                <p className="text-xs text-[#6b5e4e]">No tags yet.</p>
+                <p className="text-xs text-[#b0a898] mt-1">Create tags from a prospect&apos;s side panel.</p>
+              </div>
+            ) : filtered.map(tag => {
               const cls     = getTagColorClasses(tag.color)
               const checked = selectedTagIds.includes(tag.id)
               return (
