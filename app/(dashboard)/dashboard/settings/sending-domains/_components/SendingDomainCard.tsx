@@ -1,17 +1,9 @@
 'use client';
 
-/**
- * SendingDomainCard — one card per connected mailbox in the list.
- *
- * Shows: email + sender name + warmup status pill, reputation/capacity stats,
- * 3 DNS verification pills, action menu (pause/resume/disconnect).
- *
- * "View details" is wired but disabled until livraison 7 (drawer).
- */
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StatusPill, warmupStatusToPill, DnsRecordPill } from './StatusPill';
+import { Tooltip, InfoIcon } from './Tooltip';
 
 export interface EmailAccount {
   id: string;
@@ -27,6 +19,7 @@ export interface EmailAccount {
   dns_dmarc_verified: boolean;
   sending_phase: number;
   paused_by_user: boolean;
+  setup_status?: 'dns_pending' | 'verified';
 }
 
 export function SendingDomainCard({ account }: { account: EmailAccount }) {
@@ -34,7 +27,11 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const warmupPill = warmupStatusToPill(account.warmup_status, account.paused_by_user);
+  const warmupPill = warmupStatusToPill(
+    account.warmup_status,
+    account.paused_by_user,
+    account.setup_status
+  );
 
   const allDnsVerified =
     account.dns_spf_verified && account.dns_dkim_verified && account.dns_dmarc_verified;
@@ -116,7 +113,6 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
 
           {menuOpen && (
             <>
-              {/* Backdrop to close menu on outside click */}
               <button
                 type="button"
                 aria-label="Close menu"
@@ -155,12 +151,20 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
 
       {/* Stats grid */}
       <div className="mb-4 grid grid-cols-3 gap-4 rounded-md bg-[#f5f2ee] px-4 py-3">
-        <Stat label="Reputation" value={`${account.reputation_score}/100`} />
+        <StatWithTooltip
+          label="Reputation"
+          value={`${account.reputation_score ?? '—'}/100`}
+          tooltip="Your domain's standing with email providers (Gmail, Outlook, etc.). Builds gradually in the background. Sending capacity is independent of this score."
+        />
         <Stat
           label="Daily capacity"
-          value={`${account.daily_sent} / ${account.daily_capacity}`}
+          value={`${account.daily_sent ?? 0} / ${account.daily_capacity ?? '—'}`}
         />
-        <Stat label="Phase" value={`${account.sending_phase} of 3`} />
+        <StatWithTooltip
+          label="Phase"
+          value={`${account.sending_phase ?? 1} of 3`}
+          tooltip="Background process building your domain's email reputation over ~21 days. Does not affect your sending — you're at full capacity from day one."
+        />
       </div>
 
       {/* DNS verification */}
@@ -183,6 +187,28 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs text-[#4a4a5a]">{label}</div>
+      <div className="mt-0.5 text-sm font-medium text-[#1a1a1a]">{value}</div>
+    </div>
+  );
+}
+
+function StatWithTooltip({
+  label,
+  value,
+  tooltip,
+}: {
+  label: string;
+  value: string;
+  tooltip: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1 text-xs text-[#4a4a5a]">
+        <span>{label}</span>
+        <Tooltip content={tooltip}>
+          <InfoIcon />
+        </Tooltip>
+      </div>
       <div className="mt-0.5 text-sm font-medium text-[#1a1a1a]">{value}</div>
     </div>
   );

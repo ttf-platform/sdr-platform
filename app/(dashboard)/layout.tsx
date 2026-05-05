@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
+import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
 
 const supabase = createClient()
 
@@ -215,6 +216,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="max-w-7xl mx-auto px-6 py-6">
         {children}
       </main>
+
+      <FloatingHelpButton />
     </div>
   )
 }

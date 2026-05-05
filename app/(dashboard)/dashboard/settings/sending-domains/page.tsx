@@ -30,7 +30,7 @@ export default async function SendingDomainsPage() {
     .select(
       'id, domain, email_address, sender_name, warmup_status, reputation_score, ' +
       'daily_capacity, daily_sent, dns_spf_verified, dns_dkim_verified, ' +
-      'dns_dmarc_verified, sending_phase, paused_by_user'
+      'dns_dmarc_verified, sending_phase, paused_by_user, setup_status'
     )
     .order('created_at', { ascending: false });
 

@@ -25,16 +25,15 @@ export function StatusPill({
 
 export function warmupStatusToPill(
   status: 'pending' | 'warming' | 'active' | 'paused' | 'failed',
-  pausedByUser: boolean
+  pausedByUser: boolean,
+  setupStatus?: 'dns_pending' | 'verified'
 ): { variant: PillVariant; label: string } {
   if (pausedByUser) return { variant: 'amber', label: 'Paused by you' };
-  switch (status) {
-    case 'pending': return { variant: 'gray',  label: 'Setup pending' };
-    case 'warming': return { variant: 'blue',  label: 'Warming up' };
-    case 'active':  return { variant: 'green', label: 'Active' };
-    case 'paused':  return { variant: 'amber', label: 'Paused' };
-    case 'failed':  return { variant: 'red',   label: 'Action required' };
-  }
+  if (status === 'failed') return { variant: 'red',   label: 'Action required' };
+  if (status === 'paused') return { variant: 'amber', label: 'Paused' };
+  if (setupStatus === 'dns_pending') return { variant: 'gray', label: 'Setup pending' };
+  // DNS verified — user can send at full capacity regardless of warmup phase.
+  return { variant: 'green', label: 'Active' };
 }
 
 export function DnsRecordPill({
