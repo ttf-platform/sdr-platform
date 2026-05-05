@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
@@ -655,6 +656,21 @@ export default function SettingsPage() {
           </div>
           <div className="text-xs text-[#8a7e6e]">Starter plan · 100 credits remaining</div>
         </div>
+      </div>
+
+      {/* SENDING DOMAINS — full width */}
+      <div className={`${cardCls} mt-6`}>
+        <header className="flex items-center gap-2 mb-2">
+          <span className="text-xl" aria-hidden>📬</span>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#1a1a1a]">Sending domains</h2>
+        </header>
+        <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Sentra warm it up while you send from day one.</p>
+        <Link
+          href="/dashboard/settings/sending-domains"
+          className="inline-flex items-center gap-1 text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
+        >
+          Configure →
+        </Link>
       </div>
 
       {/* BILLING & PAYMENT — full width */}
