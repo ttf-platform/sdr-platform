@@ -9,7 +9,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/overview', label: 'Overview', icon: '📊' },
   { href: '/admin/users', label: 'Users', icon: '👥' },
   { href: '/admin/support', label: 'Support Center', icon: '🎫' },
-  { href: '/admin/analytics', label: 'Analytics', icon: '📈', comingSoon: true },
+  { href: '/admin/analytics', label: 'Analytics', icon: '📈' },
   { href: '/admin/settings', label: 'Platform Settings', icon: '⚙️' },
 ];
 
