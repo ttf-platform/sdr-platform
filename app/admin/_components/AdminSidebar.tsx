@@ -15,7 +15,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/users', label: 'Users', icon: '👥', comingSoon: true },
   { href: '/admin/support', label: 'Support Center', icon: '🎫' },
   { href: '/admin/analytics', label: 'Analytics', icon: '📈', comingSoon: true },
-  { href: '/admin/settings', label: 'Platform Settings', icon: '⚙️', comingSoon: true },
+  { href: '/admin/settings', label: 'Platform Settings', icon: '⚙️' },
 ];
 
 export function AdminSidebar() {

@@ -17,6 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [billingData, setBillingData] = useState<{ blocked: boolean; daysRemaining: number; status: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
+  const [isSentraAdmin, setIsSentraAdmin] = useState(false)
   const avatarRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
 
@@ -33,6 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
         setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
       }
+      fetch('/api/admin/check').then(r => { if (r.ok) setIsSentraAdmin(true) }).catch(() => {})
     })
   }, [])
 
@@ -101,6 +103,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ♦ Admin
               </Link>
             )}
+            {isSentraAdmin && (
+              <Link href="/admin"
+                className={"text-xs px-2 py-1 rounded-lg font-semibold " + (pathname.startsWith('/admin') ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600 hover:bg-indigo-50')}>
+                ⬡ Sentra Admin
+              </Link>
+            )}
             <TrialBadge />
             <div className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg whitespace-nowrap">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#8a7e6e" strokeWidth="1.2"/><path d="M6 3.5v2.5l1.5 1.5" stroke="#8a7e6e" strokeWidth="1.2" strokeLinecap="round"/></svg>
@@ -125,6 +133,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <Link href="/dashboard/admin" onClick={() => setAvatarOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-purple-600 font-medium hover:bg-purple-50">
                       ♦ Admin <span className="text-xs bg-purple-100 px-1.5 py-0.5 rounded ml-auto">ADMIN</span>
+                    </Link>
+                  )}
+                  {isSentraAdmin && (
+                    <Link href="/admin" onClick={() => setAvatarOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-indigo-600 font-medium hover:bg-indigo-50">
+                      ⬡ Sentra Admin <span className="text-xs bg-indigo-100 px-1.5 py-0.5 rounded ml-auto">PLATFORM</span>
                     </Link>
                   )}
                   <div className="border-t border-[#f0ece6]">
@@ -168,6 +182,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {role === 'owner' && (
               <Link href="/dashboard/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-purple-600 font-medium">
                 ♦ Admin Dashboard
+              </Link>
+            )}
+            {isSentraAdmin && (
+              <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-indigo-600 font-medium">
+                ⬡ Sentra Admin
               </Link>
             )}
             <Link href="/" className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-[#6b5e4e]">← Homepage</Link>
