@@ -1,16 +1,18 @@
 /**
  * POST /api/dev/simulate-reply/:prospect_email_id
  *
- * Dev-only endpoint. Inserts a mock inbound reply into inbox_messages and
- * updates prospect_emails.replied_at. Allows E2E testing of the full
- * signup → campaign → approve → send → reply flow without a real Instantly
- * webhook.
+ * Dev-only endpoint. Inserts a mock inbound reply into inbox_messages,
+ * updates prospect_emails.replied_at, then fires sentiment analysis
+ * in the background. Allows E2E testing of the full
+ * signup → campaign → approve → send → reply → sentiment flow
+ * without a real Instantly webhook.
  *
  * Blocked in production at runtime — returns 404 when NODE_ENV !== 'development'.
  */
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
 
 const MOCK_REPLIES = [
   "Hi, I saw your message — this looks interesting. Can we schedule a quick call?",
@@ -94,8 +96,15 @@ export async function POST(
       .eq('id', pe.id),
   ])
 
+  // Fire-and-forget sentiment analysis
+  if (message?.id) {
+    analyzeMessageSentiment(message.id).catch(err =>
+      console.error('[simulate-reply] sentiment analysis failed:', err)
+    )
+  }
+
   return NextResponse.json({
-    message: 'Simulated reply inserted',
+    message: 'Simulated reply inserted — sentiment analysis running in background',
     inbox_message: message,
     prospect_email_id: pe.id,
   })
