@@ -31,7 +31,7 @@ export async function billingGuard(): Promise<
     return {
       blocked: true,
       response: NextResponse.json(
-        { error: 'Your trial has expired. Please upgrade to continue.', code: 'TRIAL_EXPIRED' },
+        { error: 'Your trial has expired. Please upgrade to continue.', code: 'SUBSCRIPTION_INACTIVE' },
         { status: 402 },
       ),
     }

@@ -8,8 +8,8 @@ const PLAN_PRICES: Record<string, number> = { starter: 149, pro: 299, power: 399
 
 function SignupForm() {
   const searchParams = useSearchParams()
-  const planParam = searchParams.get('plan') ?? 'starter'
-  const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'starter'
+  const planParam = searchParams.get('plan') ?? 'power'
+  const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'power'
 
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)

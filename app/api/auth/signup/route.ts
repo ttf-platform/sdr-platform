@@ -4,7 +4,7 @@ import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supab
 
 export async function POST(request: Request) {
   const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier } = await request.json()
-  const tier = ['starter','pro','power'].includes(plan_tier) ? plan_tier : 'starter'
+  const tier = ['starter','pro','power'].includes(plan_tier) ? plan_tier : 'power'
 
   const admin = createAdminClient()
   const cookieJar: Record<string, { name: string; value: string; options: any }> = {}
