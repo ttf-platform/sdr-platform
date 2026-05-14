@@ -21,7 +21,7 @@ interface Campaign {
 }
 type EmailDraft = {
   id: string; subject: string; body: string
-  status: 'draft' | 'edited' | 'approved' | 'sent' | 'rejected'
+  status: 'draft' | 'edited' | 'approved' | 'sending' | 'sent' | 'failed' | 'bounced' | 'replied' | 'rejected'
   mode: 'fast' | 'smart'
   step_order: number | null
   step_type:  string | null
@@ -198,7 +198,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     setEmailsRefreshKey(k => k + 1)
   }
 
-  function optimisticEmailStatus(id: string, newStatus: string) {
+  function optimisticEmailStatus(id: string, newStatus: EmailDraft['status']) {
     const prev = { drafts: emailDrafts, byStatus: { ...emailsByStatus } }
     const email = emailDrafts.find(e => e.id === id)
     if (!email) return prev

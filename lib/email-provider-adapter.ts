@@ -30,7 +30,7 @@ export interface ProvisionInboxParams {
 }
 
 export interface DnsRecord {
-  type: 'TXT';
+  type: 'TXT' | 'CNAME';
   name: string;
   value: string;
 }
@@ -41,6 +41,7 @@ export interface ProvisionInboxResult {
     spf: DnsRecord;
     dkim: DnsRecord;
     dmarc: DnsRecord;
+    customReturnPath?: DnsRecord;
   };
 }
 
@@ -63,11 +64,13 @@ export interface SendEmailParams {
   body: string;          // HTML or plaintext, provider handles conversion
   campaignId?: string;
   prospectEmailId?: string;
+  threadId?: string | null;
 }
 
 export interface SendEmailResult {
   providerMessageId: string;
   scheduledAt: string;   // ISO timestamp
+  threadId: string;      // thread identifier (new or continued)
 }
 
 export interface IEmailProvider {
@@ -112,7 +115,7 @@ export class MockEmailProvider implements IEmailProvider {
         spf: {
           type: 'TXT',
           name: '@',
-          value: 'v=spf1 include:_spf.mail.sentra.app ~all',
+          value: `v=spf1 include:_spf.mail.sentra.app include:_spf.${params.domain} ~all`,
         },
         dkim: {
           type: 'TXT',
@@ -123,7 +126,12 @@ export class MockEmailProvider implements IEmailProvider {
         dmarc: {
           type: 'TXT',
           name: `_dmarc.${params.domain}`,
-          value: 'v=DMARC1; p=quarantine; rua=mailto:dmarc@sentra.app; pct=100',
+          value: `v=DMARC1; p=quarantine; rua=mailto:dmarc@${params.domain}; pct=100`,
+        },
+        customReturnPath: {
+          type: 'CNAME',
+          name: `mail.${params.domain}`,
+          value: 'return-path.mail.sentra.app',
         },
       },
     };
@@ -161,10 +169,22 @@ export class MockEmailProvider implements IEmailProvider {
     };
   }
 
-  async sendEmail(_params: SendEmailParams): Promise<SendEmailResult> {
+  async sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
+    // Simulate realistic network latency (100-600ms)
+    await this.sleep(Math.random() * 500 + 100);
+
+    // 5% failure rate to exercise the error path in tests
+    if (Math.random() < 0.05) {
+      throw new Error('[MockEmailProvider] Simulated failure: Mailbox not ready');
+    }
+
+    const providerMessageId = this.makeMockId('msg');
+    const threadId = params.threadId || this.makeMockId('thread');
+
     return {
-      providerMessageId: this.makeMockId('msg'),
+      providerMessageId,
       scheduledAt: new Date().toISOString(),
+      threadId,
     };
   }
 
@@ -196,6 +216,10 @@ export class MockEmailProvider implements IEmailProvider {
       hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
     }
     return Math.abs(hash);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
@@ -312,18 +336,14 @@ export class InstantlyProvider implements IEmailProvider {
   }
 
   async pauseInbox(_inboxId: string): Promise<void> {
-    // Likely: POST {baseUrl}/email-accounts/{id}/warmup with { on: false }
-    // (no dedicated pause endpoint documented in the Firstsend prior art).
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
   async resumeInbox(_inboxId: string): Promise<void> {
-    // Likely: POST {baseUrl}/email-accounts/{id}/warmup with { on: true }
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
   async deleteInbox(_inboxId: string): Promise<void> {
-    // Likely: DELETE {baseUrl}/email-accounts/{id}
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 }
