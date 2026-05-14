@@ -3,12 +3,17 @@
 -- Sprint 8.5a — Create inbox_messages table + email_send_log audit table
 -- Apply manually in Supabase Dashboard → SQL Editor
 -- =============================================================================
+-- NOTE: Uses DROP … CASCADE before CREATE to guarantee a clean slate.
+-- Safe because these tables are new and contain no production data.
+-- =============================================================================
 
 -- ---------------------------------------------------------------------------
 -- 1. email_send_log — lightweight audit trail for every sendEmail() attempt
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS email_send_log (
+DROP TABLE IF EXISTS email_send_log CASCADE;
+
+CREATE TABLE email_send_log (
   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id         UUID        NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   prospect_email_id    UUID        REFERENCES prospect_emails(id) ON DELETE SET NULL,
@@ -19,10 +24,10 @@ CREATE TABLE IF NOT EXISTS email_send_log (
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_email_send_log_workspace
+CREATE INDEX idx_email_send_log_workspace
   ON email_send_log(workspace_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_email_send_log_prospect_email
+CREATE INDEX idx_email_send_log_prospect_email
   ON email_send_log(prospect_email_id);
 
 ALTER TABLE email_send_log ENABLE ROW LEVEL SECURITY;
@@ -40,7 +45,9 @@ CREATE POLICY "email_send_log_workspace_select" ON email_send_log
 -- 2. inbox_messages — inbound replies from prospects
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS inbox_messages (
+DROP TABLE IF EXISTS inbox_messages CASCADE;
+
+CREATE TABLE inbox_messages (
   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id         UUID        NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 
@@ -83,16 +90,16 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_inbox_messages_workspace_received
+CREATE INDEX idx_inbox_messages_workspace_received
   ON inbox_messages(workspace_id, received_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_inbox_messages_thread
+CREATE INDEX idx_inbox_messages_thread
   ON inbox_messages(thread_id) WHERE thread_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_inbox_messages_prospect
+CREATE INDEX idx_inbox_messages_prospect
   ON inbox_messages(prospect_id) WHERE prospect_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_inbox_messages_unread
+CREATE INDEX idx_inbox_messages_unread
   ON inbox_messages(workspace_id, is_read) WHERE is_read = FALSE;
 
 ALTER TABLE inbox_messages ENABLE ROW LEVEL SECURITY;
