@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { campaignCreateSchema, badRequest } from '@/lib/schemas'
 
 export async function GET() {
   const guard = await billingGuard()
@@ -35,15 +36,19 @@ export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const parsed = campaignCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
   const {
     name, angle, value_prop, cta, target_persona,
     target_industry, target_titles, target_regions,
     company_sizes, company_revenue, tone, language,
     smart_stop_on_reply = true, smart_stop_on_bounce = true, booking_link_in_followups = false,
-  } = body
-
-  if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
+  } = parsed.data
 
   const admin = createAdminClient()
 

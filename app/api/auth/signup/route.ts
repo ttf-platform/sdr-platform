@@ -1,10 +1,18 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr'
+import { signupSchema } from '@/lib/schemas'
 
 export async function POST(request: Request) {
-  const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier } = await request.json()
-  const tier = ['starter','pro','power'].includes(plan_tier) ? plan_tier : 'power'
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const parsed = signupSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'invalid_payload', issues: parsed.error.issues }, { status: 400 })
+
+  const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier } = parsed.data
+  const tier = plan_tier ?? 'power'
 
   const admin = createAdminClient()
   const cookieJar: Record<string, { name: string; value: string; options: any }> = {}

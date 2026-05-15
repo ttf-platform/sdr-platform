@@ -1,9 +1,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { loginSchema } from '@/lib/schemas'
 
 export async function POST(request: Request) {
-  const { email, password } = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const parsed = loginSchema.safeParse(rawBody)
+  if (!parsed.success) return NextResponse.json({ error: 'invalid_payload', issues: parsed.error.issues }, { status: 400 })
+
+  const { email, password } = parsed.data
   const cookieStore = cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

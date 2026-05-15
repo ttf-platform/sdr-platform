@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { prospectUpdateSchema, badRequest } from '@/lib/schemas'
 
 // Patchable fields on the prospect (assignment) row.
 // Identity fields live on contacts — patch via /api/contacts/[id].
@@ -28,10 +29,17 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const parsed = prospectUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
+  const body = parsed.data
   const updates: Record<string, unknown> = {}
   for (const key of PATCHABLE) {
-    if (key in body) updates[key] = body[key]
+    if (key in body) updates[key] = body[key as keyof typeof body]
   }
   if (!Object.keys(updates).length) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })

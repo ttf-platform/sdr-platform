@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TIER_CAPS } from '@/lib/tier-limits'
 import type { PlanTier } from '@/lib/stripe-prices'
+import { prospectImportSchema, badRequest } from '@/lib/schemas'
 
 function normalizeEmail(raw: string): string | null {
   const trimmed = (raw ?? '').trim().toLowerCase()
@@ -13,12 +14,14 @@ export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
-  const { campaign_id, mode, data } = body
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
 
-  if (!['manual', 'paste', 'csv'].includes(mode)) {
-    return NextResponse.json({ error: 'Invalid mode. Expected: manual | paste | csv' }, { status: 400 })
-  }
+  const parsed = prospectImportSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
+  const { campaign_id, mode, data } = parsed.data
 
   type InputRow = {
     email: string

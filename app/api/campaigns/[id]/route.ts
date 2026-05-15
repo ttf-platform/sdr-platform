@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { campaignUpdateSchema, badRequest } from '@/lib/schemas'
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
@@ -79,14 +80,20 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const parsed = campaignUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
   const {
     name, angle, value_prop, cta, target_persona,
     target_industry, target_titles, target_regions,
     company_sizes, company_revenue, tone, language,
     status, smart_stop_on_reply, smart_stop_on_bounce,
     booking_link_in_followups, include_booking_link_initial,
-  } = body
+  } = parsed.data
 
   const updates: Record<string, unknown> = {}
   if (name             !== undefined) updates.name             = name

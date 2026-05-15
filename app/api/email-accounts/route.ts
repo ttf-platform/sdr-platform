@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getEmailProvider } from '@/lib/email-provider-adapter';
 import { checkMailboxQuota } from '@/lib/quotas';
+import { emailAccountCreateSchema, badRequest } from '@/lib/schemas';
 
 const DOMAIN_REGEX = /^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63}(?<!-))+$/i;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,13 +94,17 @@ export async function POST(request: Request) {
   }
 
   // --- Body validation ---
-  let body: CreateBody;
+  let rawBody: unknown;
   try {
-    body = await request.json();
+    rawBody = await request.json();
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
 
+  const schemaResult = emailAccountCreateSchema.safeParse(rawBody);
+  if (!schemaResult.success) return badRequest(schemaResult.error.issues);
+
+  const body: CreateBody = schemaResult.data;
   const domain = body.domain?.trim().toLowerCase();
   const emailAddress = body.emailAddress?.trim().toLowerCase();
   const senderName = body.senderName?.trim();
