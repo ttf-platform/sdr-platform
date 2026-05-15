@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { calculateProfileScore } from '@/lib/profile-quality'
 import { billingGuard } from '@/lib/billing-guard'
+import { morningBriefGenerateSchema, badRequest } from '@/lib/schemas'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -26,8 +27,16 @@ export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const { workspace_id } = await request.json()
-  if (!workspace_id) return NextResponse.json({ error: 'workspace_id required' }, { status: 400 })
+  // workspace_id from body is validated as UUID but the authoritative value always
+  // comes from billingGuard — prevents IDOR where body workspace_id != auth user's workspace.
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const parsed = morningBriefGenerateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
+  const workspace_id = guard.workspaceId
 
   const admin = createAdminClient()
 

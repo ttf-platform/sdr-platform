@@ -2,6 +2,7 @@ export * from './auth'
 export * from './campaigns'
 export * from './prospects'
 export * from './email-accounts'
+export * from './workspace-profile'
 
 import { NextResponse } from 'next/server'
 
