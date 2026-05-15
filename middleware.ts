@@ -8,7 +8,7 @@ const SUPABASE_HOST = SUPABASE_URL.replace(/^https?:\/\//, '').replace(/\/$/, ''
 function buildStrictCsp(): string {
   return [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
