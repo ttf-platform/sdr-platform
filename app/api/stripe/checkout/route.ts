@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
-import { STRIPE_PRICES, LAUNCH50_COUPONS, type PlanTier, type BillingInterval } from '@/lib/stripe-prices'
+import { STRIPE_PRICES, LAUNCH50_COUPONS } from '@/lib/stripe-prices'
+import { stripeCheckoutSchema, badRequest } from '@/lib/schemas'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://sentra.app'
 
 export async function POST(request: Request) {
   if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
@@ -13,9 +14,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { plan, interval = 'monthly', promo_code } = await request.json() as {
-    plan: PlanTier; interval: BillingInterval; promo_code?: string
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = stripeCheckoutSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { plan, interval = 'monthly', promo_code } = parsed.data
 
   const priceId = STRIPE_PRICES[plan]?.[interval]
   if (!priceId) return NextResponse.json({ error: 'Invalid plan or interval' }, { status: 400 })

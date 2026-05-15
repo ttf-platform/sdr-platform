@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 import { LAUNCH50_COUPONS } from '@/lib/stripe-prices'
+import { stripePromoSchema, badRequest } from '@/lib/schemas'
 
 export async function POST(request: Request) {
   if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
@@ -11,10 +12,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { promo_code } = await request.json()
-  if (typeof promo_code !== 'string') {
-    return NextResponse.json({ error: 'promo_code required' }, { status: 400 })
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = stripePromoSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { promo_code } = parsed.data
 
   const admin = createAdminClient()
   const { data: member } = await admin
