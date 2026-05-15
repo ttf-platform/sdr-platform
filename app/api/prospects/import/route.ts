@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { TIER_CAPS } from '@/lib/tier-limits'
 import type { PlanTier } from '@/lib/stripe-prices'
 import { prospectImportSchema, badRequest } from '@/lib/schemas'
+import { rateLimitByWorkspace } from '@/lib/rate-limit'
 
 function normalizeEmail(raw: string): string | null {
   const trimmed = (raw ?? '').trim().toLowerCase()
@@ -13,6 +14,9 @@ function normalizeEmail(raw: string): string | null {
 export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const rl = await rateLimitByWorkspace(guard.workspaceId, { limit: 5, window: '1 m', prefix: 'prospects-import' })
+  if (!rl.allowed) return rl.response
 
   let rawBody: unknown
   try { rawBody = await request.json() }

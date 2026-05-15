@@ -16,6 +16,8 @@
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@types/papaparse": "^5.5.2",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",

@@ -2,8 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { loginSchema } from '@/lib/schemas'
+import { rateLimitByIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
+  const rl = await rateLimitByIp(request, { limit: 10, window: '15 m', prefix: 'auth-login' })
+  if (!rl.allowed) return rl.response
+
   let rawBody: unknown
   try { rawBody = await request.json() }
   catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }

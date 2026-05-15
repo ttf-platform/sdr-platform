@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getEmailProvider } from '@/lib/email-provider-adapter';
 import { checkMailboxQuota } from '@/lib/quotas';
 import { emailAccountCreateSchema, badRequest } from '@/lib/schemas';
+import { rateLimitByWorkspace } from '@/lib/rate-limit';
 
 const DOMAIN_REGEX = /^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63}(?<!-))+$/i;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -151,6 +152,9 @@ export async function POST(request: Request) {
   if (!membership) {
     return NextResponse.json({ error: 'no_workspace' }, { status: 403 });
   }
+
+  const rl = await rateLimitByWorkspace(membership.workspace_id, { limit: 10, window: '1 m', prefix: 'email-accounts-create' });
+  if (!rl.allowed) return rl.response;
 
   const { data: workspace } = await supabase
     .from('workspaces')
