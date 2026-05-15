@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { contactsListQuerySchema, badRequest } from '@/lib/schemas'
 
 const STATUS_PRIORITY: Record<string, number> = {
   meeting: 4, replied: 3, opened: 2, emailed: 1, found: 0,
@@ -24,16 +25,12 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const admin = createAdminClient()
-
-  const campaign_id = searchParams.get('campaign_id')
-  const status      = searchParams.get('status')
-  const source      = searchParams.get('source')
-  const search      = searchParams.get('search')
-  const sort        = searchParams.get('sort') ?? 'newest'
-  const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-  const limit       = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50')))
-  const offset      = (page - 1) * limit
-  const tag_ids     = (searchParams.get('tag_ids') ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  const qp = Object.fromEntries(searchParams)
+  const parsed = contactsListQuerySchema.safeParse(qp)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { campaign_id, status, source, search, tag_ids, page, limit } = parsed.data
+  const sort   = parsed.data.sort ?? 'newest'
+  const offset = (page - 1) * limit
 
   // Resolve contactIds (if assignment filters active) and filter_counts in parallel
   let filterCountsRows: { contact_id: string; status: string }[] = []
@@ -44,15 +41,15 @@ export async function GET(request: Request) {
     .select('contact_id, status')
     .eq('workspace_id', guard.workspaceId)
 
-  if (campaign_id || status || source || tag_ids.length > 0) {
+  if (campaign_id || status?.length || source?.length || tag_ids.length > 0) {
     let q = admin
       .from('prospects')
       .select('contact_id')
       .eq('workspace_id', guard.workspaceId)
 
     if (campaign_id) q = q.eq('campaign_id', campaign_id)
-    if (status)      q = q.in('status', status.split(',').map(s => s.trim()))
-    if (source)      q = q.in('source', source.split(',').map(s => s.trim()))
+    if (status?.length) q = q.in('status', status)
+    if (source?.length) q = q.in('source', source)
 
     const countsPromise = countsQuery
     let taggedContactIds: string[] | null = null

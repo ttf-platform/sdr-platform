@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { prospectsListQuerySchema, prospectsListByEmailsQuerySchema, badRequest } from '@/lib/schemas'
 
 // GET /api/prospects
 //
@@ -24,23 +25,22 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const admin = createAdminClient()
+  const qp = Object.fromEntries(searchParams)
 
   // Cross-campaign lookup mode
-  const emailsParam = searchParams.get('emails')
-  if (emailsParam) {
-    const emailList = emailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
-    const excludeCampaign = searchParams.get('exclude_campaign')
+  if (searchParams.has('emails')) {
+    const emailsParsed = prospectsListByEmailsQuerySchema.safeParse(qp)
+    if (!emailsParsed.success) return badRequest(emailsParsed.error.issues)
+    const { emails, exclude_campaign, campaign_id: inCampaign } = emailsParsed.data
 
     let query = admin
       .from('prospects')
       .select('email, campaign_id, campaigns(name)')
       .eq('workspace_id', guard.workspaceId)
-      .in('email', emailList)
+      .in('email', emails)
 
-    const inCampaign = searchParams.get('campaign_id')
-
-    if (excludeCampaign) query = query.neq('campaign_id', excludeCampaign)
-    if (inCampaign)      query = query.eq('campaign_id', inCampaign)
+    if (exclude_campaign) query = query.neq('campaign_id', exclude_campaign)
+    if (inCampaign)       query = query.eq('campaign_id', inCampaign)
 
     const { data, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -48,14 +48,11 @@ export async function GET(request: Request) {
   }
 
   // Standard list mode
-  const campaign_id = searchParams.get('campaign_id')
-  const status      = searchParams.get('status')
-  const source      = searchParams.get('source')
-  const search      = searchParams.get('search')
-  const sort        = searchParams.get('sort') ?? 'newest'
-  const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-  const limit       = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50')))
-  const offset      = (page - 1) * limit
+  const listParsed = prospectsListQuerySchema.safeParse(qp)
+  if (!listParsed.success) return badRequest(listParsed.error.issues)
+  const { campaign_id, status, source, search, page, limit } = listParsed.data
+  const sort   = listParsed.data.sort ?? 'newest'
+  const offset = (page - 1) * limit
 
   let query = admin
     .from('prospects')
@@ -66,8 +63,8 @@ export async function GET(request: Request) {
     .eq('workspace_id', guard.workspaceId)
 
   if (campaign_id) query = query.eq('campaign_id', campaign_id)
-  if (status)      query = query.in('status', status.split(',').map(s => s.trim()))
-  if (source)      query = query.in('source', source.split(',').map(s => s.trim()))
+  if (status?.length) query = query.in('status', status)
+  if (source?.length) query = query.in('source', source)
 
   if (search) {
     const q = search.replace(/'/g, "''")

@@ -1,23 +1,18 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { prospectEmailsListQuerySchema, badRequest } from '@/lib/schemas'
 
 export async function GET(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
   const { searchParams } = new URL(request.url)
-  const campaign_id    = searchParams.get('campaign_id')
-  const step_order_raw = searchParams.get('step_order')
-  const status_raw     = searchParams.get('status')
-  const search         = searchParams.get('search')
-  const page           = Math.max(1, parseInt(searchParams.get('page')  ?? '1'))
-  const limit          = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50')))
-  const offset         = (page - 1) * limit
-
-  if (!campaign_id) {
-    return NextResponse.json({ error: 'campaign_id is required' }, { status: 400 })
-  }
+  const qp = Object.fromEntries(searchParams)
+  const parsed = prospectEmailsListQuerySchema.safeParse(qp)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { campaign_id, step_order, status, search, page, limit } = parsed.data
+  const offset = (page - 1) * limit
 
   const admin = createAdminClient()
 
@@ -50,9 +45,8 @@ export async function GET(request: Request) {
 
   // Apply step_order filter
   let queryStepIds = allStepIds
-  if (step_order_raw) {
-    const orders = step_order_raw.split(',').map(n => parseInt(n.trim()))
-    queryStepIds = (steps ?? []).filter(s => orders.includes(s.step_order)).map(s => s.id)
+  if (step_order) {
+    queryStepIds = (steps ?? []).filter(s => step_order.includes(s.step_order)).map(s => s.id)
     if (queryStepIds.length === 0) {
       return NextResponse.json({
         emails: [], total: 0, page, limit, pages: 0,
@@ -106,7 +100,7 @@ export async function GET(request: Request) {
     .in('campaign_step_id', queryStepIds)
     .order('generated_at', { ascending: false })
 
-  if (status_raw) q = q.in('status', status_raw.split(',').map(s => s.trim()))
+  if (status?.length) q = q.in('status', status)
   if (prospectIdFilter) q = q.in('prospect_id', prospectIdFilter)
 
   const { data: rawEmails, count, error } = await q.range(offset, offset + limit - 1)
