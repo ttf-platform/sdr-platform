@@ -3,6 +3,7 @@ export * from './campaigns'
 export * from './prospects'
 export * from './email-accounts'
 export * from './workspace-profile'
+export * from './admin'
 
 import { NextResponse } from 'next/server'
 

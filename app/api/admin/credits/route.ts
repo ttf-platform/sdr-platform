@@ -3,12 +3,17 @@ import { requireSentraAdmin } from '@/lib/auth'
 import { logAdminAction } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { adminCreditsGrantSchema, badRequest } from '@/lib/schemas'
 
 export async function POST(request: Request) {
   const guard = await requireSentraAdmin()
   if (guard) return guard
 
-  const { email, amount, reason } = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = adminCreditsGrantSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { email, amount, reason } = parsed.data
   const admin = createAdminClient()
   const { data: users } = await admin.auth.admin.listUsers()
   const targetUser = users?.users?.find(u => u.email === email)

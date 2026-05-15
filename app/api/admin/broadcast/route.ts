@@ -4,6 +4,7 @@ import { logAdminAction } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { adminBroadcastSchema, badRequest } from '@/lib/schemas'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -11,7 +12,11 @@ export async function POST(request: Request) {
   const guard = await requireSentraAdmin()
   if (guard) return guard
 
-  const { subject, body, target } = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = adminBroadcastSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { subject, body, target } = parsed.data
   const admin = createAdminClient()
   const { data: workspaces } = await admin.from('workspaces').select('id, plan')
   const filtered = workspaces?.filter(w => {

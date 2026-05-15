@@ -1,10 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
+import { adminEscalationUpdateSchema, badRequest } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
-
-const ALLOWED_STATUSES = ['pending', 'in_progress', 'resolved'] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -19,12 +18,11 @@ export async function PATCH(
     throw err;
   }
 
-  let body: { status?: string; admin_response?: string };
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }); }
-
-  if (body.status && !(ALLOWED_STATUSES as readonly string[]).includes(body.status)) {
-    return NextResponse.json({ error: 'invalid_status' }, { status: 400 });
-  }
+  let rawBody: unknown;
+  try { rawBody = await req.json(); } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }); }
+  const parsed = adminEscalationUpdateSchema.safeParse(rawBody);
+  if (!parsed.success) return badRequest(parsed.error.issues);
+  const body = parsed.data;
 
   const update: Record<string, unknown> = {};
   if (body.status) update.status = body.status;
