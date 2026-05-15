@@ -9,7 +9,7 @@ function buildStrictCsp(): string {
   return [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",
-    "style-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
     `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST}`,
