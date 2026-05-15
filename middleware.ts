@@ -56,17 +56,17 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       const redirect = NextResponse.redirect(url)
-      redirect.headers.set('Content-Security-Policy-Report-Only', csp)
+      redirect.headers.set('Content-Security-Policy', csp)
       return redirect
     }
 
-    supabaseResponse.headers.set('Content-Security-Policy-Report-Only', csp)
+    supabaseResponse.headers.set('Content-Security-Policy', csp)
     return supabaseResponse
   }
 
   // All other HTML pages: pass through with Report-Only CSP
   const response = NextResponse.next()
-  response.headers.set('Content-Security-Policy-Report-Only', csp)
+  response.headers.set('Content-Security-Policy', csp)
   return response
 }
 
