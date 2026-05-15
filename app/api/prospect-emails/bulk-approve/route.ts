@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { bulkIdsSchema, badRequest } from '@/lib/schemas'
 
 export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const { ids } = await request.json()
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return NextResponse.json({ error: 'ids must be a non-empty array' }, { status: 400 })
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = bulkIdsSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { ids } = parsed.data
 
   const admin = createAdminClient()
   const { data: updated, error } = await admin

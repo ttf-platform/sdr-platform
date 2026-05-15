@@ -5,6 +5,7 @@ export * from './email-accounts'
 export * from './workspace-profile'
 export * from './admin'
 export * from './billing'
+export * from './bulk'
 
 import { NextResponse } from 'next/server'
 
