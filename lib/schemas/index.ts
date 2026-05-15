@@ -7,6 +7,7 @@ export * from './admin'
 export * from './billing'
 export * from './bulk'
 export * from './booking'
+export * from './campaigns-llm'
 
 import { NextResponse } from 'next/server'
 

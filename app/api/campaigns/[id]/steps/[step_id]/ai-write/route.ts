@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { campaignStepAiWriteSchema, badRequest } from '@/lib/schemas'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -24,8 +25,11 @@ export async function POST(request: Request, { params }: { params: { id: string;
   const { data: profile } = await admin
     .from('workspace_profiles').select('*').eq('workspace_id', guard.workspaceId).single()
 
-  const body = await request.json()
-  const { tone, instructions } = body
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const zodParsed = campaignStepAiWriteSchema.safeParse(rawBody)
+  if (!zodParsed.success) return badRequest(zodParsed.error.issues)
+  const { tone, instructions } = zodParsed.data
   const campaign = stepRow.campaigns as any
   const stepLabel = stepRow.step_type === 'initial' ? 'initial cold email' : `follow-up email #${stepRow.step_order} (sent ~${stepRow.delay_days} days after previous)`
 

@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDraftsForCampaign } from '@/lib/draft-generation'
 import { rateLimitByWorkspace } from '@/lib/rate-limit'
+import { campaignRegenerateDraftsSchema, badRequest } from '@/lib/schemas'
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
@@ -11,15 +12,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const rl = await rateLimitByWorkspace(guard.workspaceId, { limit: 10, window: '1 m', prefix: 'llm-regenerate-drafts' })
   if (!rl.allowed) return rl.response
 
-  const body = await request.json()
-  const { mode, confirm, include_booking_link_initial } = body
-
-  if (!['fast', 'smart'].includes(mode)) {
-    return NextResponse.json({ error: 'mode must be "fast" or "smart"' }, { status: 400 })
-  }
-  if (confirm !== true) {
-    return NextResponse.json({ error: 'confirm: true is required to regenerate all drafts' }, { status: 400 })
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = campaignRegenerateDraftsSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { mode, include_booking_link_initial } = parsed.data
 
   const admin = createAdminClient()
 
