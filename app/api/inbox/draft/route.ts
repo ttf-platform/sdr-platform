@@ -1,17 +1,65 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { billingGuard } from '@/lib/billing-guard'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getAnthropicClient } from '@/lib/anthropic'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  professional: 'Be formal and professional.',
+  casual: 'Be friendly and conversational.',
+  short: 'Be very concise — 2-3 sentences max.',
+}
+
+const schema = z.object({
+  message_id: z.string().uuid(),
+  tone: z.enum(['professional', 'casual', 'short']).optional().default('professional'),
+})
 
 export async function POST(request: Request) {
-  const { message } = await request.json()
-  const sep = String.fromCharCode(10)
-  const prompt = 'Write a short professional reply to this email. Be concise and move toward a next step.' + sep + 'From: ' + (message.from_name || message.from_email || '') + sep + 'Subject: ' + (message.subject || '') + sep + 'Message: ' + (message.body || '') + sep + 'Write only the email body, no subject line.'
+  const guard = await billingGuard()
+  if (guard.blocked) return guard.response
+
+  let body: unknown
+  try { body = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parsed.error.errors }, { status: 400 })
+  }
+
+  const { message_id, tone } = parsed.data
+  const admin = createAdminClient()
+
+  // Verify the message belongs to the authenticated user's workspace
+  const { data: message, error } = await admin
+    .from('inbox_messages')
+    .select('id, from_name, from_email, subject, body, workspace_id')
+    .eq('id', message_id)
+    .eq('workspace_id', guard.workspaceId)
+    .single()
+
+  if (error || !message) {
+    return NextResponse.json({ error: 'Message not found' }, { status: 404 })
+  }
+
+  const toneInstruction = TONE_INSTRUCTIONS[tone] ?? TONE_INSTRUCTIONS.professional
+  const sep = '\n'
+  const prompt = [
+    `Write a short reply to this email. ${toneInstruction} Move toward a next step.`,
+    `From: ${message.from_name || message.from_email || ''}`,
+    `Subject: ${message.subject || ''}`,
+    `Message: ${message.body || ''}`,
+    `Write only the email body, no subject line.`,
+  ].join(sep)
+
+  const client = getAnthropicClient()
   const msg = await client.messages.create({
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 500,
-    messages: [{ role: 'user', content: prompt }]
+    messages: [{ role: 'user', content: prompt }],
   })
+
   const draft = msg.content[0].type === 'text' ? msg.content[0].text : ''
   return NextResponse.json({ draft })
 }

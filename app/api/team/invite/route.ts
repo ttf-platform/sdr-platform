@@ -1,19 +1,64 @@
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Resend } from 'resend'
-import { NextResponse } from 'next/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+const schema = z.object({
+  workspace_id: z.string().uuid(),
+  email: z.string().email().max(254),
+})
+
 export async function POST(request: Request) {
-  const { workspace_id, email } = await request.json()
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let body: unknown
+  try { body = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parsed.error.errors }, { status: 400 })
+  }
+
+  const { workspace_id, email } = parsed.data
+
+  // Verify the authenticated user is owner or admin of this workspace
+  const { data: membership } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspace_id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!membership) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (!['owner', 'admin'].includes(membership.role)) {
+    return NextResponse.json({ error: 'Only workspace owners and admins can invite members' }, { status: 403 })
+  }
+
   const admin = createAdminClient()
-  const token = Math.random().toString(36).slice(2) + Date.now().toString(36)
-  await admin.from('workspace_members').insert({ workspace_id, invited_email: email, role: 'member', invite_token: token, invite_accepted: false })
+  const token = crypto.randomUUID()
+
+  await admin.from('workspace_members').insert({
+    workspace_id,
+    invited_email: email,
+    role: 'member',
+    invite_token: token,
+    invite_accepted: false,
+  })
+
   await resend.emails.send({
     from: 'Sentra <hello@sentra.app>',
     to: email,
     subject: 'You have been invited to a Sentra workspace',
-    html: '<p>You have been invited to join a workspace on Sentra.</p><p><a href="' + process.env.NEXT_PUBLIC_APP_URL + '/accept-invite?token=' + token + '">Accept invitation</a></p>'
+    html: `<p>You have been invited to join a workspace on Sentra.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${token}">Accept invitation</a></p>`,
   })
+
   return NextResponse.json({ success: true })
 }

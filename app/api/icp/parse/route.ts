@@ -1,10 +1,27 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { billingGuard } from '@/lib/billing-guard'
+import { getAnthropicClient } from '@/lib/anthropic'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const schema = z.object({
+  description: z.string().min(1).max(5000),
+})
 
 export async function POST(request: Request) {
-  const { description } = await request.json()
+  const guard = await billingGuard()
+  if (guard.blocked) return guard.response
+
+  let body: unknown
+  try { body = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parsed.error.errors }, { status: 400 })
+  }
+
+  const { description } = parsed.data
+  const client = getAnthropicClient()
 
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',

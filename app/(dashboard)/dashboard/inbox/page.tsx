@@ -259,7 +259,7 @@ export default function InboxPage() {
       const res = await fetch('/api/inbox/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: selected }),
+        body: JSON.stringify({ message_id: selected.id }),
       })
       const data = await res.json()
       setAiDraft(data.draft || '')
