@@ -38,15 +38,24 @@ const STATUS_CLS: Record<string, string> = {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashStats | null>(null)
+  const [blocked, setBlocked] = useState(false)
 
   useEffect(() => {
     fetch('/api/dashboard/stats')
-      .then(r => r.json())
-      .then(d => setStats(d))
+      .then(r => {
+        if (!r.ok) {
+          if (r.status === 402) setBlocked(true)
+          return null
+        }
+        return r.json()
+      })
+      .then(d => { if (d) setStats(d) })
   }, [])
 
   const empty    = stats !== null && stats.totalCampaigns === 0
   const loading  = stats === null
+
+  if (blocked) return null
 
   return (
     <div>
@@ -79,13 +88,13 @@ export default function DashboardPage() {
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
           <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">OPEN RATE</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#1a1a2e]'}`}>
-            {loading ? '—' : `${stats.openRate.toFixed(1)}%`}
+            {loading ? '—' : `${stats.openRate?.toFixed(1) ?? '—'}%`}
           </div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
           <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">REPLY RATE</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#1a1a2e]'}`}>
-            {loading ? '—' : `${stats.replyRate.toFixed(1)}%`}
+            {loading ? '—' : `${stats.replyRate?.toFixed(1) ?? '—'}%`}
           </div>
         </div>
       </div>
