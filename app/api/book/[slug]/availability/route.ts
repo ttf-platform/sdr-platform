@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { bookingAvailabilitySchema, badRequest } from '@/lib/schemas'
 
 function getTzOffset(tz: string, dateStr: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -15,12 +16,10 @@ export async function GET(
   { params }: { params: { slug: string } },
 ) {
   const { searchParams } = new URL(request.url)
-  const date       = searchParams.get('date')        // "YYYY-MM-DD"
-  const prospectTz = searchParams.get('prospect_tz') // IANA TZ of the prospect
-
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return NextResponse.json({ error: 'date param required (YYYY-MM-DD)' }, { status: 400 })
-  }
+  const qp = Object.fromEntries(searchParams)
+  const parsed = bookingAvailabilitySchema.safeParse(qp)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { date, prospect_tz: prospectTz } = parsed.data
 
   const admin = createAdminClient()
   const { data: profile, error } = await admin

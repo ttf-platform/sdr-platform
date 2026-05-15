@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateICS } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
+import { bookingCreateSchema, badRequest } from '@/lib/schemas'
 
 // Auto-advance (or create) a deal when a meeting is booked.
 // Meeting booked is a hard factual signal — always advances UNLESS deal is
@@ -33,7 +34,6 @@ async function syncDealOnMeetingBooked(
   }
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
 
 async function getProfile(slug: string) {
@@ -97,19 +97,12 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   const cfg = profile.booking_config ?? {}
   if (cfg.enabled === false) return NextResponse.json({ error: 'Booking page is disabled' }, { status: 404 })
 
-  const body = await request.json()
-  // New payload: { date, time, prospect_timezone, duration_min, attendee_email, ... }
-  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = body
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = bookingCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = parsed.data
 
-  if (!date || !time || !prospect_timezone || !attendee_email || !duration_min) {
-    return NextResponse.json(
-      { error: 'date, time, prospect_timezone, attendee_email and duration_min are required' },
-      { status: 400 },
-    )
-  }
-  if (!EMAIL_RE.test(attendee_email)) {
-    return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
-  }
   if (!(cfg.meeting_durations ?? [30]).includes(duration_min)) {
     return NextResponse.json({ error: 'Invalid meeting duration' }, { status: 400 })
   }
