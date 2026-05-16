@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:rls": "vitest run __tests__/rls"
+    "test:rls": "vitest run __tests__/rls",
+    "test:rls:gc": "node --experimental-strip-types __tests__/rls/gc.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",

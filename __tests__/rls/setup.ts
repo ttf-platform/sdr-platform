@@ -23,20 +23,22 @@ export type TestUser = {
 }
 
 export type Fixtures = {
-  contactId:          string
-  prospectId:         string
-  campaignId:         string
-  campaignStepId:     string
-  prospectEmailId:    string
-  dealId:             string
-  meetingId:          string
-  inboxMessageId:     string
-  emailAccountId:     string
-  campaignSuggestionId: string
-  prospectNoteId:     string
-  prospectTagId:      string
-  emailSendLogId:     string
-  workspaceProfileId: string
+  contactId:              string
+  prospectId:             string
+  campaignId:             string
+  campaignStepId:         string
+  prospectEmailId:        string
+  dealId:                 string
+  meetingId:              string
+  inboxMessageId:         string
+  emailAccountId:         string
+  campaignSuggestionId:   string
+  prospectNoteId:         string
+  prospectTagId:          string
+  prospectTagAssignmentId: string
+  emailSendLogId:         string
+  usageTrackingId:        string
+  workspaceProfileId:     string
 }
 
 // Creates a Supabase user + workspace + workspace_members + workspace_profiles,
@@ -75,17 +77,17 @@ export async function createTestUser(suffix: string): Promise<TestUser> {
   const workspaceId = workspace.id
 
   await admin.from('workspace_members').insert({
-    workspace_id:   workspaceId,
-    user_id:        userId,
-    role:           'owner',
+    workspace_id:    workspaceId,
+    user_id:         userId,
+    role:            'owner',
     invite_accepted: true,
   })
 
   await admin.from('workspace_profiles').insert({
-    workspace_id:        workspaceId,
-    company_name:        `Test Co ${suffix}`,
+    workspace_id:         workspaceId,
+    company_name:         `Test Co ${suffix}`,
     onboarding_completed: true,
-    booking_slug:        `test-${suffix}-${ts}`,
+    booking_slug:         `test-${suffix}-${ts}`,
   })
 
   // Sign in with anon key to get a user JWT (required for RLS auth.uid() evaluation)
@@ -106,15 +108,27 @@ export async function createTestUser(suffix: string): Promise<TestUser> {
   return { userId, workspaceId, email, password, authedClient }
 }
 
-// Deletes workspace (CASCADE wipes all child rows) then deletes the auth user.
+// Deletes auth user first (higher priority — avoids orphan auth quotas),
+// then deletes workspace (CASCADE wipes all child rows).
+// Both steps wrapped in try/catch so a partial failure doesn't abort the other.
 export async function teardownTestUser(user: TestUser): Promise<void> {
   const admin = adminClient()
-  await admin.from('workspaces').delete().eq('id', user.workspaceId)
-  await admin.auth.admin.deleteUser(user.userId)
+
+  try {
+    await admin.auth.admin.deleteUser(user.userId)
+  } catch (err) {
+    console.warn('[teardownTestUser] Failed to delete auth user', user.userId, err)
+  }
+
+  try {
+    await admin.from('workspaces').delete().eq('id', user.workspaceId)
+  } catch (err) {
+    console.warn('[teardownTestUser] Failed to delete workspace', user.workspaceId, err)
+  }
 }
 
-// Seeds 1 row in each of the 14 workspace-scoped tables via the admin client
-// (bypasses RLS). Respects FK insert order.
+// Seeds 1 row in each workspace-scoped table via the admin client (bypasses RLS).
+// Respects FK insert order. author_id is set on prospect_notes for author-only tests.
 export async function seedFixtures(workspaceId: string, userId: string): Promise<Fixtures> {
   const admin = adminClient()
   const ts    = Date.now()
@@ -216,7 +230,7 @@ export async function seedFixtures(workspaceId: string, userId: string): Promise
   const { data: emailAccount, error: eaErr } = await admin
     .from('email_accounts')
     .insert({
-      workspace_id: workspaceId,
+      workspace_id:  workspaceId,
       domain,
       email_address: `sender@${domain}`,
       sender_name:   'Seed Sender',
@@ -233,12 +247,13 @@ export async function seedFixtures(workspaceId: string, userId: string): Promise
     .single()
   if (!campaignSuggestion) throw new Error(`campaign_suggestion seed failed: ${csErr?.message}`)
 
-  // 11. prospect_note
+  // 11. prospect_note — author_id set to userId for author-only policy tests
   const { data: prospectNote, error: pnErr } = await admin
     .from('prospect_notes')
     .insert({
       workspace_id: workspaceId,
       prospect_id:  prospect.id,
+      author_id:    userId,
       content:      'Seed note content',
     })
     .select('id')
@@ -253,7 +268,15 @@ export async function seedFixtures(workspaceId: string, userId: string): Promise
     .single()
   if (!prospectTag) throw new Error(`prospect_tag seed failed: ${ptErr?.message}`)
 
-  // 13. email_send_log
+  // 13. prospect_tag_assignment — links the prospect to the tag
+  const { data: prospectTagAssignment, error: ptaErr } = await admin
+    .from('prospect_tag_assignments')
+    .insert({ prospect_id: prospect.id, tag_id: prospectTag.id, created_by: userId })
+    .select('id')
+    .single()
+  if (!prospectTagAssignment) throw new Error(`prospect_tag_assignment seed failed: ${ptaErr?.message}`)
+
+  // 14. email_send_log (service role INSERT — no user INSERT policy)
   const { data: emailSendLog, error: eslErr } = await admin
     .from('email_send_log')
     .insert({ workspace_id: workspaceId, provider: 'mock', status: 'sent' })
@@ -261,7 +284,22 @@ export async function seedFixtures(workspaceId: string, userId: string): Promise
     .single()
   if (!emailSendLog) throw new Error(`email_send_log seed failed: ${eslErr?.message}`)
 
-  // 14. workspace_profile — created in createTestUser, just fetch the ID
+  // 15. usage_tracking (service role INSERT — no user INSERT policy)
+  const periodStart = new Date()
+  periodStart.setDate(1)
+  const { data: usageTracking, error: utErr } = await admin
+    .from('usage_tracking')
+    .insert({
+      workspace_id: workspaceId,
+      metric:       'prospects_added',
+      value:        1,
+      period_start: periodStart.toISOString().slice(0, 10),
+    })
+    .select('id')
+    .single()
+  if (!usageTracking) throw new Error(`usage_tracking seed failed: ${utErr?.message}`)
+
+  // 16. workspace_profile — created in createTestUser, just fetch the ID
   const { data: wsProfile } = await admin
     .from('workspace_profiles')
     .select('id')
@@ -269,19 +307,21 @@ export async function seedFixtures(workspaceId: string, userId: string): Promise
     .single()
 
   return {
-    contactId:           contact.id,
-    prospectId:          prospect.id,
-    campaignId:          campaign.id,
-    campaignStepId:      campaignStep.id,
-    prospectEmailId:     prospectEmail.id,
-    dealId:              deal.id,
-    meetingId:           meeting.id,
-    inboxMessageId:      inboxMessage.id,
-    emailAccountId:      emailAccount.id,
-    campaignSuggestionId: campaignSuggestion.id,
-    prospectNoteId:      prospectNote.id,
-    prospectTagId:       prospectTag.id,
-    emailSendLogId:      emailSendLog.id,
-    workspaceProfileId:  wsProfile?.id ?? '',
+    contactId:               contact.id,
+    prospectId:              prospect.id,
+    campaignId:              campaign.id,
+    campaignStepId:          campaignStep.id,
+    prospectEmailId:         prospectEmail.id,
+    dealId:                  deal.id,
+    meetingId:               meeting.id,
+    inboxMessageId:          inboxMessage.id,
+    emailAccountId:          emailAccount.id,
+    campaignSuggestionId:    campaignSuggestion.id,
+    prospectNoteId:          prospectNote.id,
+    prospectTagId:           prospectTag.id,
+    prospectTagAssignmentId: prospectTagAssignment.id,
+    emailSendLogId:          emailSendLog.id,
+    usageTrackingId:         usageTracking.id,
+    workspaceProfileId:      wsProfile?.id ?? '',
   }
 }
