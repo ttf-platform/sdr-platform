@@ -9,9 +9,30 @@ const dmSans = DM_Sans({
   preload: true,
 })
 
+const BASE_URL = 'https://sentra.app'
+
 export const metadata: Metadata = {
-  title: 'SDR Platform - Autonomous B2B Cold Outreach',
-  description: 'Autonomous B2B cold outreach and lead qualification platform',
+  title: 'Sentra — Cold outreach that books meetings',
+  description:
+    'Sentra finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires.',
+  metadataBase: new URL(BASE_URL),
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Sentra — Cold outreach that books meetings',
+    description:
+      'Sentra finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires.',
+    url: `${BASE_URL}/`,
+    siteName: 'Sentra',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Sentra — Cold outreach that books meetings',
+    description:
+      'All-in-one outbound for founders and first sales hires. Setup in under an hour.',
+  },
+  robots: { index: true, follow: true },
 }
 
 export default function RootLayout({

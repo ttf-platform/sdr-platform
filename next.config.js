@@ -13,6 +13,11 @@ const nextConfig = {
     domains: ['localhost'],
     unoptimized: true,
   },
+  async redirects() {
+    return [
+      { source: '/landing-v2', destination: '/', permanent: true },
+    ]
+  },
   async headers() {
     return [
       {
