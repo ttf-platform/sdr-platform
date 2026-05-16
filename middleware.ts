@@ -8,11 +8,11 @@ const SUPABASE_HOST = SUPABASE_URL.replace(/^https?:\/\//, '').replace(/\/$/, ''
 function buildStrictCsp(): string {
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' https://eu-assets.i.posthog.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST}`,
+    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} https://eu.i.posthog.com https://eu-assets.i.posthog.com`,
     "frame-src 'none'",
     "frame-ancestors 'none'",
     "object-src 'none'",
