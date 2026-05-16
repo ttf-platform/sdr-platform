@@ -10,13 +10,17 @@ import {
 describe('RLS workspace isolation', () => {
   let userA: TestUser
   let userB: TestUser
+  let fixturesA: Fixtures
   let fixturesB: Fixtures
 
   beforeAll(async () => {
     userA = await createTestUser('a')
     await new Promise(r => setTimeout(r, 1000)) // space out auth calls
     userB = await createTestUser('b')
-    fixturesB = await seedFixtures(userB.workspaceId, userB.userId)
+    ;[fixturesA, fixturesB] = await Promise.all([
+      seedFixtures(userA.workspaceId, userA.userId),
+      seedFixtures(userB.workspaceId, userB.userId),
+    ])
   }, 60_000)
 
   afterAll(async () => {
@@ -149,5 +153,69 @@ describe('RLS workspace isolation', () => {
       .eq('workspace_id', userB.workspaceId)
     expect(error).toBeNull()
     expect(data).toEqual([])
+  })
+})
+
+describe('Positive: user can read own workspace data (sanity check)', () => {
+  let userA: TestUser
+  let fixturesA: Fixtures
+
+  beforeAll(async () => {
+    userA = await createTestUser('pos-a')
+    fixturesA = await seedFixtures(userA.workspaceId, userA.userId)
+  }, 60_000)
+
+  afterAll(async () => {
+    await teardownTestUser(userA)
+  }, 30_000)
+
+  it('campaigns: user A can SELECT own campaigns', async () => {
+    const { data, error } = await userA.authedClient
+      .from('campaigns')
+      .select('id')
+      .eq('id', fixturesA.campaignId)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data![0].id).toBe(fixturesA.campaignId)
+  })
+
+  it('prospects: user A can SELECT own prospects', async () => {
+    const { data, error } = await userA.authedClient
+      .from('prospects')
+      .select('id')
+      .eq('id', fixturesA.prospectId)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data![0].id).toBe(fixturesA.prospectId)
+  })
+
+  it('inbox_messages: user A can SELECT own inbox_messages', async () => {
+    const { data, error } = await userA.authedClient
+      .from('inbox_messages')
+      .select('id')
+      .eq('id', fixturesA.inboxMessageId)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data![0].id).toBe(fixturesA.inboxMessageId)
+  })
+
+  it('campaign_steps: user A can SELECT own campaign_steps (via campaign_id FK)', async () => {
+    const { data, error } = await userA.authedClient
+      .from('campaign_steps')
+      .select('id')
+      .eq('id', fixturesA.campaignStepId)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data![0].id).toBe(fixturesA.campaignStepId)
+  })
+
+  it('prospect_notes: user A can SELECT own prospect_notes', async () => {
+    const { data, error } = await userA.authedClient
+      .from('prospect_notes')
+      .select('id')
+      .eq('id', fixturesA.prospectNoteId)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data![0].id).toBe(fixturesA.prospectNoteId)
   })
 })
