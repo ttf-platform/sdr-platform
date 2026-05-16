@@ -108,6 +108,26 @@ export async function createTestUser(suffix: string): Promise<TestUser> {
   return { userId, workspaceId, email, password, authedClient }
 }
 
+// Creates a new user (with their own throwaway workspace) and adds them as a member
+// of an existing workspace. Used to test intra-workspace author_only RLS patterns.
+// teardownTestUser handles cleanup of the throwaway workspace; the target workspace
+// membership row is cascade-deleted when the target workspace is torn down separately.
+export async function addUserToWorkspace(
+  suffix: string,
+  targetWorkspaceId: string,
+  role: 'owner' | 'admin' | 'member' = 'member',
+): Promise<TestUser> {
+  const user  = await createTestUser(suffix)
+  const admin = adminClient()
+  await admin.from('workspace_members').insert({
+    workspace_id:    targetWorkspaceId,
+    user_id:         user.userId,
+    role,
+    invite_accepted: true,
+  })
+  return user
+}
+
 // Deletes auth user first (higher priority — avoids orphan auth quotas),
 // then deletes workspace (CASCADE wipes all child rows).
 // Both steps wrapped in try/catch so a partial failure doesn't abort the other.
