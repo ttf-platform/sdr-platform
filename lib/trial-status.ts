@@ -14,23 +14,33 @@ export function getTrialStatus(workspace: {
   const trialEnd = workspace.trial_end_date
     ? new Date(workspace.trial_end_date).getTime()
     : null
+  const s = workspace.subscription_status
 
-  if (workspace.subscription_status === 'active') {
+  if (s === 'active') {
     return { status: 'active', daysRemaining: -1, blockedActions: false }
   }
 
-  if (workspace.subscription_status === 'past_due') {
+  if (s === 'past_due') {
     return { status: 'past_due', daysRemaining: 0, blockedActions: true }
   }
 
-  if (workspace.subscription_status === 'canceled') {
+  if (s === 'canceled') {
     return { status: 'canceled', daysRemaining: 0, blockedActions: true }
   }
 
-  if (workspace.subscription_status === 'trialing' && trialEnd && now < trialEnd) {
-    const daysRemaining = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24))
-    return { status: 'trialing', daysRemaining, blockedActions: false }
+  if (s === 'expired') {
+    return { status: 'expired', daysRemaining: 0, blockedActions: true }
   }
 
-  return { status: 'expired', daysRemaining: 0, blockedActions: true }
+  if (s === 'trialing') {
+    if (trialEnd && now < trialEnd) {
+      const daysRemaining = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24))
+      return { status: 'trialing', daysRemaining, blockedActions: false }
+    }
+    return { status: 'expired', daysRemaining: 0, blockedActions: true }
+  }
+
+  // Unknown status (null, '', or any unrecognized value) — do not block, log for diagnosis
+  console.warn('[getTrialStatus] Unrecognized subscription_status — allowing access:', { subscription_status: s })
+  return { status: 'active', daysRemaining: -1, blockedActions: false }
 }
