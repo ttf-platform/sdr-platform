@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { noteUpdateSchema, badRequest } from '@/lib/schemas'
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body    = await request.json()
-  const content = (body.content ?? '').trim()
-  if (!content) return NextResponse.json({ error: 'Content is required' }, { status: 400 })
-  if (content.length > 5000) return NextResponse.json({ error: 'Content too long' }, { status: 400 })
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = noteUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { content } = parsed.data
 
   const admin = createAdminClient()
 

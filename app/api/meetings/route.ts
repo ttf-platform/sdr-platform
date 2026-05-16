@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { billingGuard } from '@/lib/billing-guard'
+import { meetingCreateSchema, badRequest } from '@/lib/schemas'
 
 const MEETING_BLOCKED_STAGES = ['proposal_sent', 'closed_won', 'closed_lost']
 
@@ -70,12 +71,11 @@ export async function POST(request: Request) {
     .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
   if (!member) return NextResponse.json({ error: 'No workspace' }, { status: 400 })
 
-  const body = await request.json()
-  const { title, meeting_at, duration_min, attendee_email, attendee_name, company_name, notes, prospect_id } = body
-
-  if (!title || !meeting_at || !attendee_email) {
-    return NextResponse.json({ error: 'title, meeting_at and attendee_email are required' }, { status: 400 })
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = meetingCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { title, meeting_at, duration_min, attendee_email, attendee_name, company_name, notes, prospect_id } = parsed.data
 
   // Convert naive local datetime ("YYYY-MM-DDTHH:MM") to true UTC using workspace timezone
   const { data: wpProfile } = await supabase

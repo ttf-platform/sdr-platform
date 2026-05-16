@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { prospectTagAttachSchema, badRequest } from '@/lib/schemas'
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
@@ -33,9 +34,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body   = await request.json()
-  const tag_id = body.tag_id
-  if (!tag_id) return NextResponse.json({ error: 'tag_id required' }, { status: 400 })
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = prospectTagAttachSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { tag_id } = parsed.data
 
   const admin = createAdminClient()
 

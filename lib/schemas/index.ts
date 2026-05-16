@@ -9,6 +9,12 @@ export * from './bulk'
 export * from './booking'
 export * from './campaigns-llm'
 export * from './list-queries'
+export * from './meetings'
+export * from './deals'
+export * from './notes'
+export * from './tags'
+export * from './contacts'
+export * from './prospect-emails'
 
 import { NextResponse } from 'next/server'
 

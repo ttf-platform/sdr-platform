@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { tagCreateSchema, badRequest } from '@/lib/schemas'
 
 export async function GET() {
   const guard = await billingGuard()
@@ -21,11 +22,11 @@ export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
-  const label = (body.label ?? '').trim()
-  const color = body.color ?? 'gray'
-
-  if (!label) return NextResponse.json({ error: 'Label is required' }, { status: 400 })
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = tagCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { label, color = 'gray' } = parsed.data
 
   const admin = createAdminClient()
   const { data, error } = await admin

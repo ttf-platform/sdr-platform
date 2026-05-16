@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-const PATCHABLE = ['title', 'meeting_at', 'duration_min', 'attendee_email', 'attendee_name', 'company_name', 'status', 'notes']
+import { meetingUpdateSchema, badRequest } from '@/lib/schemas'
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
-  const updates: Record<string, unknown> = {}
-  for (const key of PATCHABLE) {
-    if (key in body) updates[key] = body[key]
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = meetingUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
 
   const { data: meeting, error } = await supabase
-    .from('meetings').update(updates).eq('id', params.id).select().single()
+    .from('meetings').update(parsed.data).eq('id', params.id).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ meeting })

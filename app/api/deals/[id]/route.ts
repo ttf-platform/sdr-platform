@@ -1,25 +1,30 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { dealUpdateSchema, badRequest } from '@/lib/schemas'
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = dealUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
-  if ('stage' in body) {
-    updates.stage = body.stage
+  if ('stage' in parsed.data) {
+    updates.stage = parsed.data.stage
     updates.stage_changed_at = new Date().toISOString()
-    if (body.stage === 'closed_won' || body.stage === 'closed_lost') {
+    if (parsed.data.stage === 'closed_won' || parsed.data.stage === 'closed_lost') {
       updates.closed_at = new Date().toISOString()
     }
   }
-  if ('amount'          in body) updates.amount          = body.amount
-  if ('closed_reason'   in body) updates.closed_reason   = body.closed_reason
-  if ('notes'           in body) updates.notes            = body.notes
-  if ('manual_override' in body) updates.manual_override  = body.manual_override
+  if ('amount'          in parsed.data) updates.amount          = parsed.data.amount
+  if ('closed_reason'   in parsed.data) updates.closed_reason   = parsed.data.closed_reason
+  if ('notes'           in parsed.data) updates.notes           = parsed.data.notes
+  if ('manual_override' in parsed.data) updates.manual_override = parsed.data.manual_override
 
   const admin = createAdminClient()
   const { data: deal, error } = await admin

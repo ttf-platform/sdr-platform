@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-const PATCHABLE = ['first_name', 'last_name', 'company', 'title', 'linkedin_url', 'website'] as const
+import { contactUpdateSchema, badRequest } from '@/lib/schemas'
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const guard = await billingGuard()
@@ -24,19 +23,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
-  const updates: Record<string, unknown> = {}
-  for (const key of PATCHABLE) {
-    if (key in body) updates[key] = body[key]
-  }
-  if (!Object.keys(updates).length) {
-    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
-  }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = contactUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
 
   const admin = createAdminClient()
   const { data: contact, error } = await admin
     .from('contacts')
-    .update(updates)
+    .update(parsed.data)
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
     .select()

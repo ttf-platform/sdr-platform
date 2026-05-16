@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { dealCreateSchema, badRequest } from '@/lib/schemas'
 
 function flattenDeal(raw: any) {
   const contact = raw.prospects?.contacts ?? {}
@@ -51,10 +52,11 @@ export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
-  const body = await request.json()
-  const { contact_id, stage = 'new_lead', amount, notes } = body
-
-  if (!contact_id) return NextResponse.json({ error: 'contact_id required' }, { status: 400 })
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = dealCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { contact_id, stage = 'new_lead', amount, notes } = parsed.data
 
   const admin = createAdminClient()
 
