@@ -7,6 +7,7 @@ import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingU
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
+import { PostHogIdentify } from '@/components/PostHogIdentify'
 
 const supabase = createClient()
 
@@ -75,6 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-[#f5f2ee]">
+      <PostHogIdentify />
       <nav className="bg-white border-b border-[#e8e3dc] sticky top-0 z-50">
         <div className="flex items-center px-4 h-12">
           <Link href="/dashboard" className="flex items-center gap-1 mr-5 flex-shrink-0">
