@@ -15,6 +15,9 @@ export * from './notes'
 export * from './tags'
 export * from './contacts'
 export * from './prospect-emails'
+export * from './sending-preferences'
+export * from './bot'
+export * from './support'
 
 import { NextResponse } from 'next/server'
 

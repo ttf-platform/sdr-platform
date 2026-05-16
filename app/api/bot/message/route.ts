@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { getAnthropicClient } from '@/lib/anthropic';
+import { botMessageSchema, badRequest } from '@/lib/schemas';
 import {
   BOT_TOOLS,
   BOT_MODEL,
@@ -26,10 +27,12 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  let body: { message?: string; conversationId?: string };
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }); }
-  const userMessage = (body.message ?? '').trim();
-  if (!userMessage) return NextResponse.json({ error: 'empty_message' }, { status: 400 });
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = botMessageSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const userMessage = parsed.data.message
+  const body = parsed.data
 
   const { data: membership } = await supabase
     .from('workspace_members')

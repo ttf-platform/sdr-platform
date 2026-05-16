@@ -26,6 +26,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getAnthropicClient } from '@/lib/anthropic';
 import { sendAdminBugReportEmail } from '@/lib/email';
 import type Anthropic from '@anthropic-ai/sdk';
+import { bugReportSchema, badRequest } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
 
@@ -40,31 +41,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  let body: {
-    title?: string;
-    description?: string;
-    stepsToReproduce?: string;
-    expectedBehavior?: string;
-    browser?: string;
-    pageUrl?: string;
-    screenshotUrl?: string;
-  };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
-  }
-  const title = (body.title ?? '').trim();
-  const description = (body.description ?? '').trim();
-  if (!title || !description) {
-    return NextResponse.json({ error: 'title_and_description_required' }, { status: 400 });
-  }
-  if (title.length > 200) {
-    return NextResponse.json({ error: 'title_too_long' }, { status: 400 });
-  }
-  if (description.length > 5000) {
-    return NextResponse.json({ error: 'description_too_long' }, { status: 400 });
-  }
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = bugReportSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { title, description, stepsToReproduce, expectedBehavior, browser, pageUrl, screenshotUrl } = parsed.data
 
   const { data: membership } = await supabase
     .from('workspace_members')
@@ -86,11 +67,11 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       title,
       description,
-      steps_to_reproduce: body.stepsToReproduce ?? null,
-      expected_behavior: body.expectedBehavior ?? null,
-      browser: body.browser ?? null,
-      page_url: body.pageUrl ?? null,
-      screenshot_url: body.screenshotUrl ?? null,
+      steps_to_reproduce: stepsToReproduce ?? null,
+      expected_behavior: expectedBehavior ?? null,
+      browser: browser ?? null,
+      page_url: pageUrl ?? null,
+      screenshot_url: screenshotUrl ?? null,
       priority,
       status: 'new',
     })

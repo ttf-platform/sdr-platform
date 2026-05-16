@@ -28,3 +28,11 @@ export const workspaceProfileUpdateSchema = z.object({
 export const morningBriefGenerateSchema = z.object({
   workspace_id: z.string().uuid(),
 })
+
+export const workspaceBookingProfileSchema = z.object({
+  booking_config: z.record(z.string(), z.unknown()).optional(),
+  booking_slug:   z.string().min(1).max(100).optional(),
+}).strict().refine(
+  obj => obj.booking_config !== undefined || obj.booking_slug !== undefined,
+  'At least one of booking_config or booking_slug is required',
+)

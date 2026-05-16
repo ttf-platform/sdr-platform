@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { workspaceBookingProfileSchema, badRequest } from '@/lib/schemas'
 
 async function getWorkspaceId() {
   const supabase = createClient()
@@ -31,13 +32,17 @@ export async function PUT(request: Request) {
   if (!workspaceId) return NextResponse.json({ error: 'No workspace' }, { status: 400 })
 
   const admin = createAdminClient()
-  const body = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = workspaceBookingProfileSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+
   const updates: Record<string, unknown> = {}
 
-  if ('booking_config' in body) updates.booking_config = body.booking_config
+  if (parsed.data.booking_config !== undefined) updates.booking_config = parsed.data.booking_config
 
-  if ('booking_slug' in body) {
-    const slug = String(body.booking_slug).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30)
+  if (parsed.data.booking_slug !== undefined) {
+    const slug = parsed.data.booking_slug.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30)
     if (!slug) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 })
 
     const { data: taken } = await admin

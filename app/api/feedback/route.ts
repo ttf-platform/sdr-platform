@@ -19,17 +19,9 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { feedbackSchema, badRequest } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
-
-const ALLOWED_CATEGORIES = [
-  'suggestion',
-  'feature_request',
-  'ux',
-  'performance',
-  'other',
-] as const;
-type Category = (typeof ALLOWED_CATEGORIES)[number];
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -40,24 +32,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  let body: { category?: string; content?: string; wouldPay?: boolean };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
-  }
-
-  const content = (body.content ?? '').trim();
-  if (!content) {
-    return NextResponse.json({ error: 'content_required' }, { status: 400 });
-  }
-  if (content.length > 5000) {
-    return NextResponse.json({ error: 'content_too_long' }, { status: 400 });
-  }
-
-  const category: Category = ALLOWED_CATEGORIES.includes(body.category as Category)
-    ? (body.category as Category)
-    : 'suggestion';
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = feedbackSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { content, wouldPay, category = 'suggestion' } = parsed.data
 
   const { data: membership } = await supabase
     .from('workspace_members')
@@ -77,7 +56,7 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       category,
       content,
-      would_pay: typeof body.wouldPay === 'boolean' ? body.wouldPay : null,
+      would_pay: wouldPay ?? null,
       status: 'new',
     })
     .select('id')

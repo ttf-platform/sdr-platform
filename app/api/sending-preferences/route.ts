@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_SENDING_PREFS } from "@/lib/types/sending-prefs";
+import { sendingPreferencesSchema, badRequest } from "@/lib/schemas";
 
 export async function GET() {
   const supabase = createClient();
@@ -29,9 +30,11 @@ export async function PUT(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const prefs = body?.prefs;
-  if (!prefs) return NextResponse.json({ error: "Missing prefs" }, { status: 400 });
+  let rawBody: unknown
+  try { rawBody = await req.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  const parsed = sendingPreferencesSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { prefs } = parsed.data
 
   const { data: member } = await supabase
     .from("workspace_members")
