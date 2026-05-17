@@ -31,7 +31,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   if (!UUID_REGEX.test(params.id)) {
@@ -117,7 +117,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   if (!UUID_REGEX.test(params.id)) {

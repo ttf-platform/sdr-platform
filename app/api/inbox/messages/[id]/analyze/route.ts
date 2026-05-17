@@ -20,7 +20,7 @@ export async function POST(_req: Request, { params }: RouteParams) {
   const supabase = createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // RLS verify: message must belong to user's workspace
   const { data: message } = await supabase
