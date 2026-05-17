@@ -26,7 +26,7 @@ next-env.d.ts
 
 # Agent tools artifacts (impeccable + Claude Code skill installations)
 .agents/
-.claude/skills/impeccable/
+.claude/skills/impeccable
 
 # Design system cache (regenerable via `impeccable document`)
 .impeccable/
