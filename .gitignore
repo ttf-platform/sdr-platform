@@ -21,3 +21,23 @@ next-env.d.ts
 *.pem
 .vercel
 .env*.local
+
+# === Bug #24 cleanup (17 mai 2026) ===
+
+# Agent tools artifacts (impeccable + Claude Code skill installations)
+.agents/
+.claude/skills/impeccable/
+
+# Design system cache (regenerable via `impeccable document`)
+.impeccable/
+
+# Playwright MCP test artifacts (session logs + snapshots)
+.playwright-mcp/
+landing-prod-snapshot.md
+
+# Env file backups — CRITICAL (gap closure : .env*.local pattern actuel ne couvre PAS .backup.*)
+.env*.backup*
+.env.local.backup*
+
+# Dev screenshots in repo root (assets app dans /public préservés)
+/*.png
