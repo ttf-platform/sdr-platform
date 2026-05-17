@@ -1,6 +1,7 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { track } from '@/lib/track'
 
 const tones = ['professional', 'friendly', 'direct', 'casual']
 const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
@@ -34,6 +35,8 @@ function SignupForm() {
       setLoading(false)
       return
     }
+    track('signup_completed', { plan })
+    track('trial_started', { plan, auto: true })
     window.location.href = '/dashboard'
   }
 

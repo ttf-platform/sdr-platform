@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { track } from '@/lib/track'
 
 const supabase = createClient()
 
@@ -16,6 +17,7 @@ export default function LoginPage() {
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
+    track('login_completed')
     window.location.href = '/dashboard'
   }
 

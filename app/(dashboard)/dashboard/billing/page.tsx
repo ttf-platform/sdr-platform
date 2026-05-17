@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import CreditUsageIndicator from '@/components/CreditUsageIndicator'
+import { track } from '@/lib/track'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UsageData {
@@ -49,7 +50,12 @@ export default function BillingPage() {
   const [toast, setToast]                     = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/usage/current').then(r => r.json()).then(setUsage)
+    fetch('/api/usage/current').then(r => r.json()).then((data) => {
+      setUsage(data)
+      if (checkoutResult === 'success' && data?.plan_tier) {
+        track('subscription_created', { plan: data.plan_tier })
+      }
+    })
   }, [])
 
   useEffect(() => {

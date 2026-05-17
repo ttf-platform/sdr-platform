@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
+import { track } from '@/lib/track'
 
 const SIZE_OPTIONS = ['1-10', '11-50', '51-200', '201-1000', '1000+']
 const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
@@ -141,6 +142,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
       return
     }
     if (res.error) { setError(res.error); setCreating(false); return }
+    track('campaign_created', { campaign_id: res.campaign.id, has_steps: false })
     router.push(`/dashboard/campaigns/${res.campaign.id}`)
   }
 
