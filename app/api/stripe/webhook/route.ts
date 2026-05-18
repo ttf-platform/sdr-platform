@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolvePlanFromPriceId } from '@/lib/stripe-plans'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -50,9 +51,15 @@ export async function POST(request: Request) {
                    : sub.status === 'canceled' ? 'canceled'
                    : sub.status === 'trialing' ? 'trialing'
                    : 'expired'
+      const priceId = sub.items.data[0]?.price?.id
+      const resolved = priceId ? resolvePlanFromPriceId(priceId) : null
+      if (priceId && !resolved) {
+        console.warn(`[stripe-webhook] Unknown priceId ${priceId} for subscription ${sub.id}`)
+      }
       await updateWorkspace(workspaceId, {
         subscription_status:    status,
         stripe_subscription_id: sub.id,
+        ...(resolved ? { plan_tier: resolved.tier, billing_interval: resolved.interval } : {}),
       })
       break
     }
@@ -61,7 +68,10 @@ export async function POST(request: Request) {
       const sub         = event.data.object as Stripe.Subscription
       const workspaceId = sub.metadata?.workspace_id
       if (!workspaceId) break
-      await updateWorkspace(workspaceId, { subscription_status: 'canceled' })
+      await updateWorkspace(workspaceId, {
+        subscription_status:    'canceled',
+        stripe_subscription_id: null,
+      })
       break
     }
 
