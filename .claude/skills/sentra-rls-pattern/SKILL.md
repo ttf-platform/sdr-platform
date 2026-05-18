@@ -16,7 +16,7 @@ Sentra est multi-tenant. Toutes les tables qui contiennent des données utilisat
 3. **Aucun bypass admin** dans les policies elles-mêmes — les actions admin passent par des routes serveur dédiées avec service role + guards
 4. **Aucune récursion** sur `workspace_members` (bug historique 42P17)
 5. Toute migration RLS est validée par le founder **AVANT** run dans Supabase
-6. État actuel : **23/23 tables ont RLS activé** (audit Sprint 11) — toute nouvelle table doit maintenir ce 100%
+6. État cible : **toutes les tables publiques avec données métier ont RLS activé**. Validation factuelle via la query d'audit RLS global (cf. section Validation post-migration) — doit retourner 0 lignes.
 
 ---
 
@@ -382,14 +382,51 @@ WHERE schemaname = 'public' AND rowsecurity = false;
 
 ---
 
+## Tests RLS automatisés (Sprint 9b.2 Lots A-D)
+
+Le repo contient des tests d'intégration RLS qui tournent contre une vraie instance Supabase. **Préférer ces tests à Playwright MCP pour validation post-migration** : plus rapides (~14s pour 55 tests), déterministes, réutilisables sans interaction navigateur.
+
+### Fichiers `__tests__/rls/`
+
+| Fichier | Couverture | Sprint |
+|---|---|---|
+| `workspace-isolation.test.ts` | SELECT cross-workspace (User A ne voit pas les ressources de User B) | Phase 1 |
+| `write-isolation.test.ts` | INSERT/UPDATE/DELETE cross-workspace (Lots A + B) | 9b.2 Lots A+B |
+| `author-only.test.ts` | Pattern author-only (prospect_notes — auteur seul peut UPDATE/DELETE) | 9b.2 Lot C |
+| `missing-tables.test.ts` | Audit que toutes les tables sensibles ont des tests RLS | 9b.2 Lot D |
+| `setup.ts` | Création/cleanup workspaces de test (`Test Workspace *`) | utility |
+| `gc.ts` | Garbage collect orphelins > 24h | utility |
+
+Status au marathon Tier 1 Security 18 mai 2026 : **55 tests verts**, 5 patterns RLS couverts.
+
+### Commandes
+
+```bash
+npm run test:rls       # Run tous les tests RLS (~14s)
+npm run test:rls:gc    # GC orphan workspaces > 24h
+```
+
+### Workflow d'extension
+
+Quand tu ajoutes une nouvelle table avec RLS :
+1. Migration SQL appliquée (cf. workflow obligatoire ci-dessous)
+2. Ajouter un test dans le fichier `__tests__/rls/` approprié :
+   - Cross-workspace isolation → `workspace-isolation.test.ts` ou `write-isolation.test.ts`
+   - Author-only → `author-only.test.ts`
+3. Le test `missing-tables.test.ts` listera la nouvelle table — vérifier qu'elle est couverte
+4. Run `npm run test:rls` → doit rester vert
+
+---
+
 ## Workflow obligatoire pour toute migration
 
+0. **Audit READ-ONLY préalable** : avant rédaction du SQL, lire littéralement (cat/view brut) les fichiers/schémas concernés. Pas de supposition basée sur résumé. Sauter cette étape = échec (règle 17.10 du marathon Tier 1 Security mai 2026)
 1. **Claude (chat) rédige le SQL** en suivant les patterns ci-dessus
 2. **Founder review** le SQL avant tout run
 3. **Run dans Supabase Dashboard** (SQL Editor)
 4. **Si erreur** → coller le retour à Claude (chat) pour debug, ne PAS retenter à l'aveugle
-5. **Validation post-migration** via les requêtes ci-dessus
-6. **Update CURRENT_STATE.md** avec le numéro de migration appliqué
+5. **Validation post-migration** via les requêtes ci-dessus + run `npm run test:rls` (cf. section Tests RLS automatisés)
+6. **Documenter la migration** : numéro + résumé des changes dans le sprint summary. Le founder maintient `CURRENT_STATE_v7.md` (Project Knowledge claude.ai, hors-repo) en fin de sprint — pas pendant.
 
 **Pas de skip de cette étape**. Plusieurs migrations bancales en début de projet → workflow renforcé.
 
