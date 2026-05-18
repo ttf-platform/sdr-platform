@@ -76,6 +76,22 @@ export default function BillingPage() {
     else { setToast(res.error ?? 'Checkout failed'); setLoadingCheckout(null) }
   }
 
+  async function changePlan(plan: string) {
+    setLoadingCheckout(plan)
+    const res = await fetch('/api/stripe/change-plan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, interval }),
+    }).then(r => r.json())
+    setLoadingCheckout(null)
+    if (res.noop) { setToast(res.message ?? 'Already on this plan.'); return }
+    if (res.success) {
+      setToast('Plan changed. Your billing will update shortly.')
+      setTimeout(() => window.location.reload(), 3000)
+      return
+    }
+    setToast(res.error ?? 'Failed to change plan.')
+  }
+
   async function openPortal() {
     setLoadingPortal(true)
     const res = await fetch('/api/stripe/portal', { method: 'POST' }).then(r => r.json())
@@ -271,9 +287,11 @@ export default function BillingPage() {
                     Current plan
                   </button>
                 ) : (
-                  <button onClick={() => startCheckout(p.id)} disabled={!!loadingCheckout}
+                  <button
+                    onClick={() => isActive ? changePlan(p.id) : startCheckout(p.id)}
+                    disabled={!!loadingCheckout}
                     className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-40 transition-colors">
-                    {loadingCheckout === p.id ? 'Redirecting...' : btnLabel}
+                    {loadingCheckout === p.id ? (isActive ? 'Changing...' : 'Redirecting...') : btnLabel}
                   </button>
                 )}
               </div>
