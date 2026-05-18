@@ -60,7 +60,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
+    const t = setTimeout(() => setToast(null), 4500)
     return () => clearTimeout(t)
   }, [toast])
 
@@ -123,11 +123,10 @@ export default function BillingPage() {
     setOverageLoading(false)
   }
 
-  const currentPlan = usage?.plan_tier ?? 'starter'
-  const status      = usage?.subscription_status ?? 'trialing'
+  const currentPlan = usage?.plan_tier
+  const status      = usage?.subscription_status
   const isActive    = status === 'active'
-  const canUsePortal = ['active', 'past_due', 'canceled'].includes(status)
-  const isExpired   = status === 'canceled' || status === 'expired'
+  const canUsePortal = ['active', 'past_due', 'canceled'].includes(status ?? '')
   const tierIndex: Record<string, number> = { starter: 0, pro: 1, power: 2 }
 
   return (
@@ -249,6 +248,9 @@ export default function BillingPage() {
             </button>
           </div>
         </div>
+        {!usage ? (
+          <p className="text-sm text-[#8a7e6e]">Loading...</p>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLANS.map(p => {
             const isCurrent  = p.id === currentPlan
@@ -257,9 +259,9 @@ export default function BillingPage() {
             const cIdx       = tierIndex[currentPlan] ?? 0
             const isCurrentActive = isCurrent && isActive
             let btnLabel: string
-            if (isExpired) {
-              btnLabel = `Activate ${p.name}`
-            } else if (isCurrent && !isActive) {
+            if (status === 'trialing' || status === 'expired') {
+              btnLabel = 'Add payment method'
+            } else if (status === 'canceled') {
               btnLabel = `Reactivate ${p.name}`
             } else if (tIdx > cIdx) {
               btnLabel = `Upgrade to ${p.name}`
@@ -299,6 +301,7 @@ export default function BillingPage() {
             )
           })}
         </div>
+        )}
       </div>
 
       {/* ── Section 4: Overage ────────────────────────────────────────────── */}
