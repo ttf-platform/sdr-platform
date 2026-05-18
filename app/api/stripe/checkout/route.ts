@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let rawBody: unknown
-  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
   const parsed = stripeCheckoutSchema.safeParse(rawBody)
   if (!parsed.success) return badRequest(parsed.error.issues)
   const { plan, interval = 'monthly', promo_code } = parsed.data
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     customer:             customerId,
     mode:                 'subscription',
     payment_method_types: ['card'],
+    locale:               'en',
     line_items:           [{ price: priceId, quantity: 1 }],
     discounts:            discounts.length ? discounts : undefined,
     success_url: `${APP_URL}/dashboard/billing?checkout=success`,
