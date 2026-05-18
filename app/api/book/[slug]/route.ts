@@ -91,17 +91,17 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   // TODO: rate limit (Sprint 11 with Upstash/Vercel KV)
   const admin = createAdminClient()
 
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  const parsed = bookingCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = parsed.data
+
   const { data: profile, error: pErr } = await getProfile(params.slug)
   if (pErr || !profile) return NextResponse.json({ error: 'Booking page not found' }, { status: 404 })
 
   const cfg = profile.booking_config ?? {}
   if (cfg.enabled === false) return NextResponse.json({ error: 'Booking page is disabled' }, { status: 404 })
-
-  let rawBody: unknown
-  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
-  const parsed = bookingCreateSchema.safeParse(rawBody)
-  if (!parsed.success) return badRequest(parsed.error.issues)
-  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = parsed.data
 
   if (!(cfg.meeting_durations ?? [30]).includes(duration_min)) {
     return NextResponse.json({ error: 'Invalid meeting duration' }, { status: 400 })
