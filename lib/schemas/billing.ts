@@ -18,3 +18,9 @@ export const stripePromoSchema = z.object({
 export const billingOverageSchema = z.object({
   overage_enabled: z.boolean(),
 }).strict()
+
+export const stripeChangePlanSchema = z.object({
+  plan:     z.enum(PLAN_TIERS),
+  interval: z.enum(BILLING_INTERVALS),
+})
+export type StripeChangePlanInput = z.infer<typeof stripeChangePlanSchema>
