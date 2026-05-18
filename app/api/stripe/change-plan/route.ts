@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let rawBody: unknown
-  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+  try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
   const parsed = stripeChangePlanSchema.safeParse(rawBody)
   if (!parsed.success) return badRequest(parsed.error.issues)
   const { plan, interval } = parsed.data
@@ -67,10 +67,18 @@ export async function POST(request: Request) {
     )
   }
 
-  await stripe.subscriptions.update(ws.stripe_subscription_id, {
-    items: [{ id: subscription.items.data[0].id, price: targetPriceId }],
-    proration_behavior: 'create_prorations',
-  })
+  try {
+    await stripe.subscriptions.update(ws.stripe_subscription_id, {
+      items: [{ id: subscription.items.data[0].id, price: targetPriceId }],
+      proration_behavior: 'create_prorations',
+    })
+  } catch (err) {
+    console.warn(`[stripe-change-plan] subscriptions.update failed for ${ws.stripe_subscription_id}:`, err)
+    return NextResponse.json(
+      { error: 'Failed to update subscription with Stripe. Please contact support.' },
+      { status: 502 },
+    )
+  }
 
   return NextResponse.json({ success: true, message: 'Plan changed successfully. Proration applied.' })
 }
