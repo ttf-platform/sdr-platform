@@ -126,6 +126,7 @@ export default function BillingPage() {
   const currentPlan = usage?.plan_tier ?? 'starter'
   const status      = usage?.subscription_status ?? 'trialing'
   const isActive    = status === 'active'
+  const canUsePortal = ['active', 'past_due', 'canceled'].includes(status)
   const isExpired   = status === 'canceled' || status === 'expired'
   const tierIndex: Record<string, number> = { starter: 0, pro: 1, power: 2 }
 
@@ -190,7 +191,7 @@ export default function BillingPage() {
                 </p>
               )}
             </div>
-            {isActive ? (
+            {canUsePortal ? (
               <button onClick={openPortal} disabled={loadingPortal}
                 className="bg-white border border-[#e8e3dc] text-[#1a1a2e] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40">
                 {loadingPortal ? 'Opening...' : 'Manage subscription →'}
