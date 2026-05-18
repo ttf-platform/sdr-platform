@@ -30,7 +30,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
 
   useEffect(() => {
-    fetch('/api/workspace-profile')
+    fetch('/api/workspace/booking-profile')
       .then(r => r.json())
       .then(d => {
         if (!d.profile) return

@@ -90,7 +90,7 @@ export default function MeetingsPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setUser(session.user)
     })
-    fetch('/api/workspace-profile').then(r => r.json()).then(({ profile }) => {
+    fetch('/api/workspace/booking-profile').then(r => r.json()).then(({ profile }) => {
       if (!profile) return
       if (profile.booking_slug) setBookingSlug(profile.booking_slug)
       if (profile.booking_config) {
@@ -142,7 +142,7 @@ export default function MeetingsPage() {
 
   async function saveScheduler() {
     setSaving(true); setSlugErr('')
-    const res = await fetch('/api/workspace-profile', {
+    const res = await fetch('/api/workspace/booking-profile', {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ booking_slug: sSlug, booking_config: sCfg }),
     }).then(r => r.json())

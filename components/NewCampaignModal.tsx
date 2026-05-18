@@ -47,7 +47,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
 
   // Bug G — pre-fill ICP textarea with Master ICP on mount (only if empty)
   useEffect(() => {
-    fetch('/api/workspace-profile')
+    fetch('/api/workspace/booking-profile')
       .then(r => r.json())
       .then(d => {
         const desc = d.profile?.icp_description

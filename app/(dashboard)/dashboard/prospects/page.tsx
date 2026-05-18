@@ -530,7 +530,7 @@ export default function ProspectsPage() {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
     fetch('/api/tags').then(r => r.json()).then(d => setWorkspaceTags(d.tags ?? []))
     // Get current user id for note authorship
-    fetch('/api/workspace-profile').then(r => r.json()).then(d => {
+    fetch('/api/workspace/booking-profile').then(r => r.json()).then(d => {
       if (d.profile?.user_id) setCurrentUserId(d.profile.user_id)
     })
   }, [])
@@ -576,7 +576,7 @@ export default function ProspectsPage() {
   }, [search])
 
   useEffect(() => {
-    fetch('/api/workspace-profile')
+    fetch('/api/workspace/booking-profile')
       .then(r => r.json())
       .then(d => {
         const p = d.profile

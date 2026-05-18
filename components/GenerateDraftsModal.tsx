@@ -31,7 +31,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
   useEffect(() => () => stopPoll(), [])
 
   useEffect(() => {
-    fetch('/api/workspace-profile')
+    fetch('/api/workspace/booking-profile')
       .then(r => r.json())
       .then(d => {
         if (d.profile) {
