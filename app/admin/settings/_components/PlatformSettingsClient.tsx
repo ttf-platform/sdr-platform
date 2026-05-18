@@ -77,11 +77,12 @@ function EmailNotificationsCard({ initialEmail, description }: { initialEmail: s
 
 function FeatureFlagsCard({ initial }: { initial: { signups_enabled: boolean; maintenance_mode: boolean; widget_help_enabled: boolean } }) {
   const [flags, setFlags] = useState(initial);
+  const [baseline, setBaseline] = useState(initial);
   const [status, setStatus] = useState<{ kind: 'idle' | 'saving' | 'saved' | 'error'; msg?: string }>({ kind: 'idle' });
   const dirty = (
-    flags.signups_enabled !== initial.signups_enabled ||
-    flags.maintenance_mode !== initial.maintenance_mode ||
-    flags.widget_help_enabled !== initial.widget_help_enabled
+    flags.signups_enabled !== baseline.signups_enabled ||
+    flags.maintenance_mode !== baseline.maintenance_mode ||
+    flags.widget_help_enabled !== baseline.widget_help_enabled
   );
 
   async function save() {
@@ -94,6 +95,7 @@ function FeatureFlagsCard({ initial }: { initial: { signups_enabled: boolean; ma
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error ?? 'save_failed');
+      setBaseline(flags);
       setStatus({ kind: 'saved' });
       setTimeout(() => setStatus({ kind: 'idle' }), 2000);
     } catch (err) {
