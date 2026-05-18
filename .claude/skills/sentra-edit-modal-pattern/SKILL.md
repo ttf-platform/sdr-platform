@@ -5,15 +5,18 @@ description: Applique le pattern Edit Modal de Sentra utilisé pour éditer emai
 
 # Sentra Edit Modal Pattern
 
-## Principe central : symétrie stricte
+## Principe central : symétrie souhaitée + asymétries documentées
 
-Tous les Edit modals de Sentra suivent **la même architecture**. Quand tu crées un nouveau Edit modal, tu pars d'un existant (`EditEmailModal` ou `EditFollowUpModal`) et tu reproduis fidèlement.
+Tous les Edit modals **devraient** suivre la même architecture. En pratique, deux patterns coexistent aujourd'hui — c'est une dette technique à harmoniser :
+
+- **Pattern granulaire** (`EditEmailModal`) : helpers séparés `insertBookingUrl()`, `stripBookingUrl()`, `appendSignature()`, `stripSignature()` composés manuellement. N'utilise PAS `normalizeBody`.
+- **Pattern unifié** (`EditFollowUpModal`) : helper unique `normalizeBody(body, toggleOn, url)` qui combine normalize + handling booking link en une fonction. N'utilise PAS `insertBookingUrl`/`stripBookingUrl` directement.
 
 Référence canonique :
-- `components/EditEmailModal.tsx` — édition d'un draft personnalisé (tab Emails)
-- `components/EditFollowUpModal.tsx` — édition d'un step template (tab Follow-up Sequence)
+- `components/EditEmailModal.tsx` — édition d'un draft personnalisé (tab Emails) — pattern granulaire historique
+- `components/EditFollowUpModal.tsx` — édition d'un step template (tab Follow-up Sequence) — pattern unifié (à généraliser)
 
-**Règle d'or** : si un comportement existe dans un Edit modal, il doit exister à l'identique dans tous les autres (sauf justification documentée). Toute divergence → discuter AVANT d'implémenter.
+**Règle d'or** : quand tu crées un nouveau Edit modal, privilégie le pattern unifié (`normalizeBody` 3-args) sauf justification documentée. Cette consolidation amène la vraie symétrie. Toute autre divergence → discuter AVANT d'implémenter.
 
 ---
 
@@ -43,12 +46,13 @@ Tout Edit modal contient ces blocs dans cet ordre :
 │   - Variables/preview info (read-only blocks)  │
 ├────────────────────────────────────────────────┤
 │ Footer :                                       │
-│   [Cancel]                  [✨ Regenerate]    │
-│                             [Save]             │
+│   [Cancel]              [Save] [Save & approve]│
 └────────────────────────────────────────────────┘
+
+Note : le bouton/lien "Regenerate" n'est PAS dans le footer principal. Il déclenche une confirmation modal séparée (pattern observé dans EditEmailModal.tsx:321-338). Trigger placement : à clarifier au cas par cas (lien texte au-dessus du textarea, ou bouton inline body).
 ```
 
-**Largeur** : `max-w-3xl` (768px) — c'est un editor, on suit la largeur canonique éditeur du design system.
+**Largeur** : `max-w-2xl` (672px) — utilisée actuellement dans `EditEmailModal.tsx:195` et `EditFollowUpModal.tsx:85`. Note : le design system canonique pour les éditeurs est `max-w-3xl`, mais les Edit modals utilisent `max-w-2xl` pour la densité. Si tu crées un nouveau Edit modal, garde `max-w-2xl` pour la cohérence avec l'existant.
 
 **Backdrop** : overlay sombre cliquable pour close (équivalent à click Cancel).
 
@@ -93,28 +97,39 @@ const handleCancel = () => {
 
 Ces helpers sont définis **une seule fois** et importés partout. Pas de duplication.
 
-### `normalizeBody(body: string): string`
-Centralisé dans `lib/email-body.ts` (ou équivalent).
+### `normalizeBody(body: string, toggleOn: boolean, url: string): string`
+Centralisé dans `lib/normalize-body.ts`. Helper **unifié** utilisé par `EditFollowUpModal`.
 
 Rôle :
-- Strip `{{sender_name}}` inconditionnel (jamais dans le body, le sender_name sert uniquement au header SMTP From)
+- Strip `{{sender_name}}` inconditionnel (jamais dans le body, sert uniquement au header SMTP From)
 - Trim leading/trailing whitespace
 - Normalise les line breaks (\r\n → \n)
 - Collapse multiple blank lines (>2 newlines consécutifs → 2)
+- Si `toggleOn === true` : insert l'URL booking dans le body
+- Si `toggleOn === false` : strip l'URL booking du body
+- Idempotent (insert/strip répétés produisent le même résultat)
 
-Appelée systématiquement avant Save et avant render.
+Appelée systématiquement avant Save et avant render. Pattern privilégié pour tout nouveau Edit modal (plutôt que les helpers granulaires).
 
-### `insertBookingUrl(body: string, url: string): string`
+### `insertBookingUrl(body: string, url: string, signature: string): string`
+Centralisé dans `lib/normalize-body.ts`. Helper **granulaire** utilisé par `EditEmailModal` (pattern historique).
+
 - Append l'URL réelle à la fin du body (avant la signature si présente)
+- Le 3ème argument `signature` est utilisé pour placer correctement l'URL **avant** la signature dans l'ordre canonique (body → URL → signature)
+- Si `signature` est string vide : insère l'URL en fin de body
 - Idempotent : si l'URL existe déjà, ne pas dupliquer
-- Sépare avec une ligne vide propre
 
-### `stripBookingUrl(body: string, slug: string): string`
-- Retire l'URL du body (regex sur le pattern `https://.../book/{slug}` ou `{{booking_link}}`)
+### `stripBookingUrl(body: string, url: string): string`
+Centralisé dans `lib/normalize-body.ts`. Helper **granulaire** utilisé par `EditEmailModal`.
+
+- Le 2ème argument est l'**URL complète** (`https://.../book/{slug}`), pas le slug seul
+- Retire l'URL du body (regex sur le pattern complet)
 - Idempotent : si pas présent, retourne le body tel quel
 - Nettoie les blank lines orphelines
 
 ### `renderSignature(profile: Profile): string`
+Centralisé dans `lib/signature.ts`. Signature exacte à vérifier à l'usage si évolution.
+
 - Construit la signature à partir des champs `signature_*` du workspace_profiles
 - Format canonique :
   ```
@@ -127,15 +142,26 @@ Appelée systématiquement avant Save et avant render.
 - Returns string vide si aucun champ signature configuré
 
 ### `appendSignature(body: string, signature: string): string`
-- Append la signature au body avec séparateur (`\n\n` ou `\n--\n`)
+Centralisé dans `lib/signature.ts`.
+
+- Append la signature au body avec séparateur
 - Idempotent : si déjà présente, ne pas dupliquer
 - Pas de signature appended si signature vide
 
 ### `stripSignature(body: string): string`
+Centralisé dans `lib/signature.ts`.
+
 - Retire la signature précédemment appended (regex sur le marqueur `--` + lignes suivantes)
 - Idempotent
 
-**Toujours combiner** : `normalizeBody(stripSignature(stripBookingUrl(body, slug)))` pour obtenir le body "raw" éditable.
+### Récapitulatif des fichiers helpers
+
+| Fichier | Helpers définis |
+|---|---|
+| `lib/normalize-body.ts` | `normalizeBody`, `insertBookingUrl`, `stripBookingUrl` |
+| `lib/signature.ts` | `renderSignature`, `appendSignature`, `stripSignature` |
+
+Le fichier `lib/email-body.ts` mentionné dans des versions antérieures de ce skill **n'existe pas** — les helpers sont splittés entre ces 2 fichiers.
 
 ---
 
@@ -318,7 +344,7 @@ Toute autre divergence → justifier ou aligner.
 ```
 Avec Playwright MCP, ouvre [URL avec un Edit modal trigger], déclenche l'ouverture du modal [X].
 Vérifie :
-- Modal s'affiche centré, max-w-3xl
+- Modal s'affiche centré, max-w-2xl
 - Backdrop sombre visible
 - Focus se place automatiquement sur le premier input éditable
 - Press Esc → modal se ferme, backdrop disparaît
