@@ -22,5 +22,5 @@ export * from './support'
 import { NextResponse } from 'next/server'
 
 export function badRequest(issues: unknown) {
-  return NextResponse.json({ error: 'invalid_payload', issues }, { status: 400 })
+  return NextResponse.json({ error: 'Invalid payload', issues }, { status: 400 })
 }
