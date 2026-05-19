@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireSentraAdmin } from '@/lib/auth'
+import { requireSentraAdminResponse as requireSentraAdmin } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
