@@ -255,7 +255,7 @@
       "q4Question": "Where does Sentra find prospects?",
       "q4Answer": "Sentra pulls from a verified B2B database (290M+ contacts), filtered by your ICP: job title, company size, industry, tech stack, and funding stage. You can also upload your own list in CSV. Contacts are deduplicated against your CRM if you connect one.",
       "q5Question": "How personalized are the emails actually?",
-      "q5Answer": "Each email is generated per recipient using public signals: LinkedIn profile, company news, recent funding, job postings, and website copy. Not mail-merge tokens. The output reads like something a good SDR would write after 20 minutes of research, not like \"Hi {{first_name}}\".",
+      "q5Answer": "Each email is generated per recipient using public signals: LinkedIn profile, company news, recent funding, job postings, and website copy. Not mail-merge tokens. The output reads like something a good SDR would write after 20 minutes of research, not like \"Hi [first_name]\".",
       "q6Question": "What CRMs does Sentra integrate with?",
       "q6Answer": "HubSpot and Salesforce are available on all paid plans. Pipedrive is on the roadmap for Q3 2026. If your CRM has a Zapier or Make connector, you can wire it up that way in the meantime.",
       "q7Question": "Can I cancel anytime?",
