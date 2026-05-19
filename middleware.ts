@@ -1,3 +1,5 @@
+import createMiddleware from 'next-intl/middleware'
+import { routing } from './i18n/routing'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -20,9 +22,13 @@ const CSP_HEADER = [
   "upgrade-insecure-requests",
 ].join('; ')
 
+const handleI18nRouting = createMiddleware(routing)
+
 export async function middleware(request: NextRequest) {
-  // === AUTH GUARD — /dashboard/** ===
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+  const { pathname } = request.nextUrl
+
+  // === AUTH GUARD — /dashboard/** (unchanged) ===
+  if (pathname.startsWith('/dashboard')) {
     let supabaseResponse = NextResponse.next({ request })
 
     const supabase = createServerClient(
@@ -30,7 +36,6 @@ export async function middleware(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          // get/set/remove: old API required by @supabase/ssr@0.1.0
           get(name: string) { return request.cookies.get(name)?.value },
           set(name: string, value: string, options: any) {
             request.cookies.set({ name, value, ...options })
@@ -41,8 +46,8 @@ export async function middleware(request: NextRequest) {
             request.cookies.set({ name, value: '', ...options })
             supabaseResponse = NextResponse.next({ request })
             supabaseResponse.cookies.set({ name, value: '', ...options })
-          }
-        }
+          },
+        },
       }
     )
 
@@ -50,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
     if (!user) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/en/login'
       const redirect = NextResponse.redirect(url)
       redirect.headers.set('Content-Security-Policy', CSP_HEADER)
       return redirect
@@ -60,8 +65,15 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // All other HTML pages: pass through with Report-Only CSP
-  const response = NextResponse.next()
+  // === ADMIN — pass through, has server-side guards ===
+  if (pathname.startsWith('/admin')) {
+    const response = NextResponse.next()
+    response.headers.set('Content-Security-Policy', CSP_HEADER)
+    return response
+  }
+
+  // === PUBLIC PAGES — i18n locale routing ===
+  const response = handleI18nRouting(request)
   response.headers.set('Content-Security-Policy', CSP_HEADER)
   return response
 }

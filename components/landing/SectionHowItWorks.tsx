@@ -2,29 +2,9 @@
 
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
-// ─── Step card data & visuals (unchanged) ────────────────────────────────────
-
-const steps = [
-  {
-    number: '01',
-    title: 'Define your ICP',
-    body: 'Industry, company size, role, region. Five minutes in a guided setup. Sentra does the rest.',
-    visual: 'icp' as const,
-  },
-  {
-    number: '02',
-    title: 'Sentra runs',
-    body: 'Sourcing prospects. Drafting personalized emails. Sending follow-ups. You approve in one click — or set autopilot once you trust the cadence.',
-    visual: 'activity' as const,
-  },
-  {
-    number: '03',
-    title: 'Meetings book themselves',
-    body: 'When a prospect says yes, Sentra books the meeting on your calendar. You wake up to a Morning Brief. You show up to the call.',
-    visual: 'calendar' as const,
-  },
-];
+// ─── Step card visuals (static, no translation needed) ────────────────────────
 
 function ICPVisual() {
   const rows = [
@@ -92,7 +72,9 @@ function CalendarVisual() {
   );
 }
 
-const visualMap = {
+type VisualKey = 'icp' | 'activity' | 'calendar';
+
+const visualMap: Record<VisualKey, React.ReactNode> = {
   icp: <ICPVisual />,
   activity: <ActivityVisual />,
   calendar: <CalendarVisual />,
@@ -142,7 +124,7 @@ function HTimeline({
     );
 
     return () => timers.forEach(clearTimeout);
-  // nodes is a module-level constant — reference stable, safe to omit
+  // nodes is built from translations — stable per render, safe to omit
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInView, loopKey, reduced, nodeCount, loopDurationMs, holdMs]);
 
@@ -254,30 +236,9 @@ function HTimeline({
   );
 }
 
-// ─── Timeline data ─────────────────────────────────────────────────────────────
-
-// Timeline A: Day 1 setup cadence — 7 nodes, 9s loop
-const timelineANodes: TimelineNode[] = [
-  { topLabel: 'T+0', action: 'Sign up' },
-  { topLabel: 'T+5min', action: 'Define your ICP' },
-  { topLabel: 'T+15min', action: 'Set up sending email' },
-  { topLabel: 'T+25min', action: 'Sentra sources prospects' },
-  { topLabel: 'T+40min', action: 'AI drafts emails' },
-  { topLabel: 'T+55min', action: 'You review & approve' },
-  { topLabel: 'T+1h', action: 'First emails sent' },
-];
-
-// Timeline B: qualitative outbound cadence — 4 stages, no day numbers, 10s loop
-const timelineBNodes: TimelineNode[] = [
-  { topLabel: 'Stage 1', action: 'First emails sent' },
-  { topLabel: 'Stage 2', action: 'Replies start coming in' },
-  { topLabel: 'Stage 3', action: 'Meetings get booked' },
-  { topLabel: 'Stage 4', action: 'Pipeline keeps building' },
-];
-
 // ─── Warmup badge ─────────────────────────────────────────────────────────────
 
-function WarmupBadge() {
+function WarmupBadge({ title, body }: { title: string; body: string }) {
   return (
     <>
       <style>{`
@@ -326,10 +287,10 @@ function WarmupBadge() {
           {/* Text */}
           <div className="text-center sm:text-left">
             <p className="text-base text-[#1a1a1a]" style={{ fontWeight: 500 }}>
-              Warmup running automatically, since the moment you signed up.
+              {title}
             </p>
             <p className="mt-1 text-[0.875rem] leading-[1.5] text-[#4a4a5a]" style={{ fontWeight: 300 }}>
-              No 14-day delay. No DNS rabbit-hole. Sentra handles deliverability in the background while you ship.
+              {body}
             </p>
           </div>
         </div>
@@ -341,6 +302,46 @@ function WarmupBadge() {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function SectionHowItWorks() {
+  const t = useTranslations('landing.howItWorks');
+
+  const steps = [
+    {
+      number: t('step0Number'),
+      title: t('step0Title'),
+      body: t('step0Body'),
+      visual: 'icp' as VisualKey,
+    },
+    {
+      number: t('step1Number'),
+      title: t('step1Title'),
+      body: t('step1Body'),
+      visual: 'activity' as VisualKey,
+    },
+    {
+      number: t('step2Number'),
+      title: t('step2Title'),
+      body: t('step2Body'),
+      visual: 'calendar' as VisualKey,
+    },
+  ];
+
+  const timelineANodes: TimelineNode[] = [
+    { topLabel: t('timelineANode0Label'), action: t('timelineANode0Action') },
+    { topLabel: t('timelineANode1Label'), action: t('timelineANode1Action') },
+    { topLabel: t('timelineANode2Label'), action: t('timelineANode2Action') },
+    { topLabel: t('timelineANode3Label'), action: t('timelineANode3Action') },
+    { topLabel: t('timelineANode4Label'), action: t('timelineANode4Action') },
+    { topLabel: t('timelineANode5Label'), action: t('timelineANode5Action') },
+    { topLabel: t('timelineANode6Label'), action: t('timelineANode6Action') },
+  ];
+
+  const timelineBNodes: TimelineNode[] = [
+    { topLabel: t('timelineBNode0Label'), action: t('timelineBNode0Action') },
+    { topLabel: t('timelineBNode1Label'), action: t('timelineBNode1Action') },
+    { topLabel: t('timelineBNode2Label'), action: t('timelineBNode2Action') },
+    { topLabel: t('timelineBNode3Label'), action: t('timelineBNode3Action') },
+  ];
+
   return (
     <section id="how-it-works" className="bg-[#f5f2ee] py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -354,16 +355,16 @@ export function SectionHowItWorks() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
           <p className="mb-5 font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
-            Time to Result
+            {t('eyebrow')}
           </p>
           <h2
             className="mb-4 font-medium text-[#1a1a1a] mx-auto"
             style={{ fontSize: 'clamp(1.875rem, 4vw, 2.5rem)', lineHeight: 1.1, letterSpacing: '-0.01em', maxWidth: '36rem' }}
           >
-            Live in under an hour. Meetings land on your calendar.
+            {t('headline')}
           </h2>
           <p className="text-base leading-[1.5] text-[#4a4a5a] mx-auto" style={{ fontWeight: 300, maxWidth: '42rem' }}>
-            Most outbound stacks need 2–3 weeks of warmup before sending the first email. Sentra warms up your inbox in the background, so you ship Day 1 and let the cadence build from there.
+            {t('subtext')}
           </p>
         </motion.div>
 
@@ -405,7 +406,7 @@ export function SectionHowItWorks() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
           >
             <p className="font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
-              Day 1 · Under one hour
+              {t('timelineALabel')}
             </p>
           </motion.div>
 
@@ -419,7 +420,7 @@ export function SectionHowItWorks() {
           </motion.div>
 
           {/* Warmup badge */}
-          <WarmupBadge />
+          <WarmupBadge title={t('warmupTitle')} body={t('warmupBody')} />
 
           {/* Timeline B — Qualitative outbound cadence */}
           <motion.div
@@ -430,7 +431,7 @@ export function SectionHowItWorks() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
           >
             <p className="font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.16em' }}>
-              Then · The outbound cadence builds
+              {t('timelineBLabel')}
             </p>
           </motion.div>
 
@@ -459,7 +460,7 @@ export function SectionHowItWorks() {
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const, delay: 0.1 }}
           >
-            Outbound cadence pace varies by ICP, copy quality, and reply patterns. Sentra&apos;s job is to keep it moving.
+            {t('disclaimer')}
           </motion.p>
 
         </div>

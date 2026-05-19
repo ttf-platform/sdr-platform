@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -22,60 +23,21 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-const faqs = [
-  {
-    id: 'q1',
-    question: 'How is Sentra different from Instantly or Smartlead?',
-    answer:
-      'Instantly and Smartlead are sending infrastructure: they help you reach a list at scale. Sentra is the entire workflow: it finds the prospects, writes the emails, handles sending, and brings replies back to one inbox. You still need to connect a sending account, but Sentra replaces the five tools around it.',
-  },
-  {
-    id: 'q2',
-    question: 'Does Sentra send emails automatically, or do I approve each one?',
-    answer:
-      'You approve by default. Every email Sentra drafts lands in your queue first. Once you trust the cadence, you can enable autopilot for a specific campaign. You set the threshold; Sentra never flips that switch on its own.',
-  },
-  {
-    id: 'q3',
-    question: 'Will this hurt my domain reputation?',
-    answer:
-      'Sentra starts warmup the moment you connect your account, before your first campaign runs. Volume ramps gradually, bounce and spam rates are monitored continuously, and sending pauses automatically if anything looks off. Most users see improved deliverability within 2 weeks.',
-  },
-  {
-    id: 'q4',
-    question: 'Where does Sentra find prospects?',
-    answer:
-      'Sentra pulls from a verified B2B database (290M+ contacts), filtered by your ICP: job title, company size, industry, tech stack, and funding stage. You can also upload your own list in CSV. Contacts are deduplicated against your CRM if you connect one.',
-  },
-  {
-    id: 'q5',
-    question: 'How personalized are the emails actually?',
-    answer:
-      'Each email is generated per recipient using public signals: LinkedIn profile, company news, recent funding, job postings, and website copy. Not mail-merge tokens. The output reads like something a good SDR would write after 20 minutes of research, not like "Hi {{first_name}}".',
-  },
-  {
-    id: 'q6',
-    question: 'What CRMs does Sentra integrate with?',
-    answer:
-      'HubSpot and Salesforce are available on all paid plans. Pipedrive is on the roadmap for Q3 2026. If your CRM has a Zapier or Make connector, you can wire it up that way in the meantime.',
-  },
-  {
-    id: 'q7',
-    question: 'Can I cancel anytime?',
-    answer:
-      'Yes. No annual commitment, no cancellation fee. You can downgrade or cancel from your account settings at any time. Your data is exportable before and after cancellation.',
-  },
-  {
-    id: 'q8',
-    question: 'Is there a free trial?',
-    answer:
-      'Yes. 14 days, no credit card required. Full access to the Starter plan features. If you want to test Pro or Power features during the trial, contact support and we will enable them for you.',
-  },
-];
-
 export function SectionFAQ() {
+  const t = useTranslations('landing.faq');
   const [openId, setOpenId] = useState<string | null>(null);
   const prefersReduced = useReducedMotion();
+
+  const faqs = [
+    { id: 'q1', question: t('q1Question'), answer: t('q1Answer') },
+    { id: 'q2', question: t('q2Question'), answer: t('q2Answer') },
+    { id: 'q3', question: t('q3Question'), answer: t('q3Answer') },
+    { id: 'q4', question: t('q4Question'), answer: t('q4Answer') },
+    { id: 'q5', question: t('q5Question'), answer: t('q5Answer') },
+    { id: 'q6', question: t('q6Question'), answer: t('q6Answer') },
+    { id: 'q7', question: t('q7Question'), answer: t('q7Answer') },
+    { id: 'q8', question: t('q8Question'), answer: t('q8Answer') },
+  ];
 
   function toggle(id: string) {
     setOpenId((prev) => (prev === id ? null : id));
@@ -97,7 +59,7 @@ export function SectionFAQ() {
             className="mb-5 font-bold uppercase text-[#2563eb]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
-            FAQ
+            {t('eyebrow')}
           </p>
           <h2
             className="font-medium text-[#1a1a1a]"
@@ -107,7 +69,7 @@ export function SectionFAQ() {
               letterSpacing: '-0.01em',
             }}
           >
-            Questions you probably have.
+            {t('headline')}
           </h2>
         </motion.div>
 
@@ -175,15 +137,15 @@ export function SectionFAQ() {
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const, delay: 0.15 }}
         >
-          Still have a question?{' '}
+          {t('closing')}{' '}
           <a
             href="mailto:hello@sentra.so"
             className="text-[#2563eb] underline underline-offset-2"
             style={{ fontWeight: 500 }}
           >
-            Email us
+            {t('closingLink')}
           </a>
-          . We reply same day.
+          {t('closingPost')}
         </motion.p>
 
       </div>

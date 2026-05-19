@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 export function SectionFinalCTA() {
+  const t = useTranslations('landing.finalCta');
+
   return (
     <section
       className="py-32 lg:py-40 px-6"
@@ -26,7 +29,7 @@ export function SectionFinalCTA() {
               maxWidth: '30rem',
             }}
           >
-            Your first meeting is one signup away.
+            {t('headline')}
           </h2>
 
           <p
@@ -39,8 +42,7 @@ export function SectionFinalCTA() {
               maxWidth: '30rem',
             }}
           >
-            Set up in under an hour. No credit card, no annual commitment,
-            no demo required.
+            {t('subtext')}
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -54,7 +56,7 @@ export function SectionFinalCTA() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Start free trial
+              {t('ctaPrimary')}
             </Link>
             <Link
               href="/#faq"
@@ -65,7 +67,7 @@ export function SectionFinalCTA() {
                 border: '1px solid rgba(255,255,255,0.12)',
               }}
             >
-              Read the FAQ
+              {t('ctaSecondary')}
             </Link>
           </div>
 
@@ -73,7 +75,7 @@ export function SectionFinalCTA() {
             className="mt-8"
             style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}
           >
-            14-day trial. Cancel anytime.
+            {t('note')}
           </p>
         </motion.div>
 

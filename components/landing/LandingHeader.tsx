@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
 
 export function LandingHeader() {
+  const t = useTranslations('landing.nav');
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -38,19 +40,19 @@ export function LandingHeader() {
               href="#pricing"
               className="px-3 py-2 text-sm text-[#4a4a5a] hover:text-[#1a1a1a] transition-colors rounded-md hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
             >
-              Pricing
+              {t('pricing')}
             </a>
             <a
               href="#how-it-works"
               className="px-3 py-2 text-sm text-[#4a4a5a] hover:text-[#1a1a1a] transition-colors rounded-md hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
             >
-              How it works
+              {t('howItWorks')}
             </a>
             <a
               href="#faq"
               className="px-3 py-2 text-sm text-[#4a4a5a] hover:text-[#1a1a1a] transition-colors rounded-md hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
             >
-              FAQ
+              {t('faq')}
             </a>
           </nav>
 
@@ -60,10 +62,10 @@ export function LandingHeader() {
               href="/login"
               className="text-sm text-[#4a4a5a] hover:text-[#1a1a1a] transition-colors px-3 py-2 rounded-md hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
             >
-              Sign in
+              {t('signIn')}
             </Link>
             <CTAButton href="/signup" variant="primary" className="px-4 py-2 text-sm">
-              Start free trial
+              {t('startTrial')}
             </CTAButton>
           </div>
 
@@ -71,7 +73,7 @@ export function LandingHeader() {
           <button
             className="md:hidden p-2 rounded-md text-[#4a4a5a] hover:bg-[#f5f2ee] transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle mobile menu"
+            aria-label={t('menuLabel')}
             aria-expanded={mobileOpen}
           >
             <div className="space-y-1.5">
@@ -86,20 +88,20 @@ export function LandingHeader() {
         {mobileOpen && (
           <div className="md:hidden border-t border-[#e8e3dc] py-4 space-y-1 bg-[#faf8f5]">
             <a href="#pricing" className="block px-3 py-2 text-sm text-[#4a4a5a] hover:text-[#1a1a1a] hover:bg-[#f5f2ee] rounded-md">
-              Pricing
+              {t('pricing')}
             </a>
             <a href="#how-it-works" className="block px-3 py-2 text-sm text-[#4a4a5a] hover:text-[#1a1a1a] hover:bg-[#f5f2ee] rounded-md">
-              How it works
+              {t('howItWorks')}
             </a>
             <a href="#faq" className="block px-3 py-2 text-sm text-[#4a4a5a] hover:text-[#1a1a1a] hover:bg-[#f5f2ee] rounded-md">
-              FAQ
+              {t('faq')}
             </a>
             <div className="pt-3 flex flex-col gap-2 border-t border-[#e8e3dc] mt-2">
               <Link href="/login" className="block text-center text-sm text-[#4a4a5a] py-2 hover:text-[#1a1a1a]">
-                Sign in
+                {t('signIn')}
               </Link>
               <CTAButton href="/signup" variant="primary" className="w-full justify-center">
-                Start free trial
+                {t('startTrial')}
               </CTAButton>
             </div>
           </div>

@@ -1,32 +1,22 @@
-const STATS = [
-  {
-    value: 'Days, not weeks',
-    label: 'Time to first meeting',
-    sub: 'From signup to booked call',
-  },
-  {
-    value: 'All-in-one',
-    label: 'Sourcing → booking',
-    sub: 'No integration required',
-  },
-  {
-    value: '$149–$399/mo',
-    label: 'No per-user pricing',
-    sub: 'Everything included',
-  },
-  {
-    value: 'Founder-built',
-    label: 'For founders & first hires',
-    sub: 'No sales training needed',
-  },
-];
+'use client';
+
+import { useTranslations } from 'next-intl';
 
 export function TrustBand() {
+  const t = useTranslations('landing.trustBand');
+
+  const stats = [
+    { value: t('stat0Value'), label: t('stat0Label'), sub: t('stat0Sub') },
+    { value: t('stat1Value'), label: t('stat1Label'), sub: t('stat1Sub') },
+    { value: t('stat2Value'), label: t('stat2Label'), sub: t('stat2Sub') },
+    { value: t('stat3Value'), label: t('stat3Label'), sub: t('stat3Sub') },
+  ];
+
   return (
     <section className="border-y border-[#e8e3dc] bg-[#f5f2ee]/70">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid grid-cols-2 sm:grid-cols-4">
-          {STATS.map((s, i) => (
+          {stats.map((s, i) => (
             <div
               key={s.label}
               className={`px-6 py-8 ${i > 0 ? 'border-l border-[#e8e3dc]' : ''} ${i >= 2 ? 'border-t sm:border-t-0 border-[#e8e3dc]' : ''}`}
