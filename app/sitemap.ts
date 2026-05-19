@@ -26,5 +26,41 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    {
+      url: 'https://sentra.app/legal/privacy',
+      lastModified: new Date('2026-05-19'),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
+      url: 'https://sentra.app/legal/terms',
+      lastModified: new Date('2026-05-19'),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
+      url: 'https://sentra.app/legal/cookies',
+      lastModified: new Date('2026-05-19'),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
+      url: 'https://sentra.app/legal/security',
+      lastModified: new Date('2026-05-19'),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
+      url: 'https://sentra.app/legal/sending-policy',
+      lastModified: new Date('2026-05-19'),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
+      url: 'https://sentra.app/legal/dpa',
+      lastModified: new Date('2026-05-19'),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
   ];
 }
