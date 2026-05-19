@@ -1,11 +1,13 @@
 'use client'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { track } from '@/lib/track'
 
 const supabase = createClient()
 
 export default function LoginPage() {
+  const t = useTranslations('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,16 +33,16 @@ export default function LoginPage() {
             </div>
             <span className="text-lg font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
           </div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Welcome back</h1>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('welcomeBack')}</h1>
         </div>
         <form onSubmit={handle} className="bg-white rounded-xl border border-[#e8e3dc] p-6 flex flex-col gap-4">
           {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
-          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Email" required />
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Password" required />
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('emailPlaceholder')} required />
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} required />
           <button type="submit" disabled={loading} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50">
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? t('signingIn') : t('signIn')}
           </button>
-          <p className="text-center text-xs text-[#8a7e6e]">No account? <a href="/signup" className="text-[#3b6bef] font-medium">Sign up</a></p>
+          <p className="text-center text-xs text-[#8a7e6e]">{t('noAccount')} <a href="/signup" className="text-[#3b6bef] font-medium">{t('signUp')}</a></p>
         </form>
       </div>
     </div>

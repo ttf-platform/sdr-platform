@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
@@ -8,23 +9,24 @@ export const metadata: Metadata = {
   alternates: { canonical: '/legal/cookies' },
 }
 
-export default function CookiesPage() {
+export default async function CookiesPage() {
+  const t = await getTranslations('legal')
   return (
     <>
       <p
         className="mb-4 uppercase"
         style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: '#666677' }}
       >
-        Legal
+        {t('eyebrow')}
       </p>
       <h1
         className="mb-3 tracking-tight"
         style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 500, color: '#1a1a1a', lineHeight: 1.15 }}
       >
-        Cookie Policy
+        {t('cookiesTitle')}
       </h1>
       <p className="mb-12" style={{ fontSize: '0.875rem', color: '#666677' }}>
-        Last updated: May 19, 2026 · Version 1.0
+        {t('lastUpdated')}
       </p>
 
       <div className="space-y-10" style={{ borderTop: '1px solid #e8e3dc', paddingTop: '3rem' }}>

@@ -21,6 +21,7 @@ const entries: Entry[] = [
   { path: '/legal/security',       changeFrequency: 'yearly',  priority: 0.4, lastModified: new Date('2026-05-19') },
   { path: '/legal/sending-policy', changeFrequency: 'yearly',  priority: 0.4, lastModified: new Date('2026-05-19') },
   { path: '/legal/dpa',            changeFrequency: 'yearly',  priority: 0.4, lastModified: new Date('2026-05-19') },
+  { path: '/legal/gdpr',           changeFrequency: 'yearly',  priority: 0.4, lastModified: new Date('2026-05-19') },
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

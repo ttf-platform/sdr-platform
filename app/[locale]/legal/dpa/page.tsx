@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
@@ -9,23 +10,24 @@ export const metadata: Metadata = {
   alternates: { canonical: '/legal/dpa' },
 }
 
-export default function DpaPage() {
+export default async function DpaPage() {
+  const t = await getTranslations('legal')
   return (
     <>
       <p
         className="mb-4 uppercase"
         style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: '#666677' }}
       >
-        Legal
+        {t('eyebrow')}
       </p>
       <h1
         className="mb-3 tracking-tight"
         style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 500, color: '#1a1a1a', lineHeight: 1.15 }}
       >
-        Data Processing Addendum
+        {t('dpaTitle')}
       </h1>
       <p className="mb-4" style={{ fontSize: '0.875rem', color: '#666677' }}>
-        Last updated: May 19, 2026 · Version 1.0
+        {t('lastUpdated')}
       </p>
 
       <div
@@ -33,7 +35,7 @@ export default function DpaPage() {
         style={{ backgroundColor: '#f0ede8', border: '1px solid #e8e3dc', padding: '1rem 1.25rem' }}
       >
         <p style={{ fontSize: '0.875rem', color: '#4a4a5a', lineHeight: 1.6 }}>
-          <strong style={{ color: '#1a1a1a' }}>Non-negotiable DPA.</strong> As a small organization without dedicated legal staff, Sentra cannot accept customer-modified versions of this DPA. The provisions herein incorporate standard contractual terms approved by the European Commission and are the same for all subscribers.
+          {t('dpaNonNegotiable')}
         </p>
       </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
+import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
 export function LandingHeader() {
   const t = useTranslations('landing.nav');
@@ -31,7 +32,7 @@ export function LandingHeader() {
             <div className="h-7 w-7 rounded-md bg-[#2563eb] flex items-center justify-center shadow-sm">
               <span className="text-white text-xs font-bold tracking-tight">S</span>
             </div>
-            <span className="text-base font-semibold text-[#1a1a1a]">Sentra</span>
+            <span className="text-base font-semibold text-[#1a1a1a]" translate="no">Sentra</span>
           </Link>
 
           {/* Desktop nav */}
@@ -58,6 +59,7 @@ export function LandingHeader() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <LocaleSwitcher />
             <Link
               href="/login"
               className="text-sm text-[#4a4a5a] hover:text-[#1a1a1a] transition-colors px-3 py-2 rounded-md hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
@@ -77,9 +79,9 @@ export function LandingHeader() {
             aria-expanded={mobileOpen}
           >
             <div className="space-y-1.5">
-              <span className={`block h-0.5 w-5 bg-current transition-all ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`} />
-              <span className={`block h-0.5 w-5 bg-current transition-all ${mobileOpen ? 'opacity-0' : ''}`} />
-              <span className={`block h-0.5 w-5 bg-current transition-all ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-current transition-[transform,opacity] ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-current transition-[transform,opacity] ${mobileOpen ? 'opacity-0' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-current transition-[transform,opacity] ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`} />
             </div>
           </button>
         </div>
@@ -97,7 +99,8 @@ export function LandingHeader() {
               {t('faq')}
             </a>
             <div className="pt-3 flex flex-col gap-2 border-t border-[#e8e3dc] mt-2">
-              <Link href="/login" className="block text-center text-sm text-[#4a4a5a] py-2 hover:text-[#1a1a1a]">
+              <div className="flex justify-center"><LocaleSwitcher /></div>
+              <Link href="/login" className="block text-center text-sm text-[#4a4a5a] py-2 hover:text-[#1a1a1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] rounded-md">
                 {t('signIn')}
               </Link>
               <CTAButton href="/signup" variant="primary" className="w-full justify-center">

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 
@@ -16,7 +17,9 @@ export const metadata: Metadata = {
   },
 }
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const t = await getTranslations('contact')
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#faf8f5' }}>
       <LandingHeader />
@@ -26,14 +29,14 @@ export default function ContactPage() {
           className="mb-6 tracking-tight"
           style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 500, color: '#1a1a1a', lineHeight: 1.15 }}
         >
-          Talk to us.
+          {t('headline')}
         </h1>
 
         <p
           className="mb-16 leading-relaxed"
           style={{ fontSize: '1.125rem', color: '#4a4a5a', maxWidth: '60ch' }}
         >
-          Questions about the product, partnerships, press, or just want to share feedback? We read every message.
+          {t('subtext')}
         </p>
 
         <div
@@ -45,7 +48,7 @@ export default function ContactPage() {
               className="mb-2 uppercase"
               style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: '#888888' }}
             >
-              Email
+              {t('emailLabel')}
             </p>
             <a
               href="mailto:hello@sentra.so"
@@ -66,11 +69,11 @@ export default function ContactPage() {
               className="mb-2 uppercase"
               style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: '#888888' }}
             >
-              Found a bug?
+              {t('bugLabel')}
             </p>
             <p className="leading-relaxed" style={{ color: '#4a4a5a' }}>
-              Existing users can report bugs directly from inside the app, under{' '}
-              <span style={{ color: '#1a1a1a', fontWeight: 500 }}>Settings &rarr; Bug reports</span>.
+              {t('bugBody')}{' '}
+              <span style={{ color: '#1a1a1a', fontWeight: 500 }}>{t('bugSettings')}</span>.
             </p>
           </div>
 
@@ -79,10 +82,10 @@ export default function ContactPage() {
               className="mb-2 uppercase"
               style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: '#888888' }}
             >
-              Press &amp; partnerships
+              {t('pressLabel')}
             </p>
             <p className="leading-relaxed" style={{ color: '#4a4a5a' }}>
-              Same email above. Expect a reply within 2 business days.
+              {t('pressBody')}
             </p>
           </div>
         </div>

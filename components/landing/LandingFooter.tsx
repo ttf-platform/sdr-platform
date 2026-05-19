@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
 function FooterColumn({
   heading,
@@ -69,6 +70,7 @@ export function LandingFooter() {
               <span
                 className="text-white"
                 style={{ fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.01em' }}
+                translate="no"
               >
                 Sentra
               </span>
@@ -135,9 +137,12 @@ export function LandingFooter() {
           <p style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
             {t('copyright')}
           </p>
-          <p style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
-            {t('footerTagline')}
-          </p>
+          <div className="flex items-center gap-4">
+            <LocaleSwitcher />
+            <p style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
+              {t('footerTagline')}
+            </p>
+          </div>
         </div>
       </div>
     </footer>

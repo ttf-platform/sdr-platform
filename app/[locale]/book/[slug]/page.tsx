@@ -1,9 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 
-const DAY_NAMES   = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
-const DAY_ABBREVS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-const MONTHS      = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
 
 const TZ_OPTIONS = [
   { label: 'Detected: [auto]',          value: '' },
@@ -93,25 +92,31 @@ function fmtSlot(utcIso: string, tz: string): string {
 }
 
 // Format confirmation date + time in a given TZ
-function fmtConfirm(utcIso: string, tz: string): { date: string; time: string } {
+function fmtConfirm(utcIso: string, tz: string, locale: string): { date: string; time: string } {
   const d = new Date(utcIso)
   return {
-    date: new Intl.DateTimeFormat('en-US', {
+    date: new Intl.DateTimeFormat(locale, {
       timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     }).format(d),
-    time: new Intl.DateTimeFormat('en-US', {
+    time: new Intl.DateTimeFormat(locale, {
       timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true,
     }).format(d),
   }
 }
 
-// "YYYY-MM-DD" → "April 25, 2026" (UTC-safe, no browser-local drift)
-function fmtDateStr(dateStr: string): string {
-  const d = new Date(`${dateStr}T12:00:00Z`)
-  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
-}
-
 export default function BookPage({ params }: { params: { slug: string } }) {
+  const t = useTranslations('book')
+  const locale = useLocale()
+
+  function fmtDateStr(dateStr: string): string {
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric',
+    }).format(new Date(`${dateStr}T12:00:00Z`))
+  }
+
+  const dayAbbrevs = Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
+  )
   const [data, setData]         = useState<PageData | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [step, setStep]         = useState<'duration' | 'datetime' | 'form' | 'done'>('duration')
@@ -246,15 +251,15 @@ export default function BookPage({ params }: { params: { slug: string } }) {
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center px-4">
       <div className="text-center">
         <div className="text-4xl mb-3">🔍</div>
-        <p className="font-bold text-[#1a1a2e] mb-2">Booking page not found</p>
-        <p className="text-sm text-[#8a7e6e]">This link may be invalid or the booking page has been disabled.</p>
+        <p className="font-bold text-[#1a1a2e] mb-2">{t('notFound')}</p>
+        <p className="text-sm text-[#8a7e6e]">{t('notFoundSub')}</p>
       </div>
     </div>
   )
 
   if (!data) return (
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center">
-      <p className="text-sm text-[#8a7e6e]">Loading...</p>
+      <p className="text-sm text-[#8a7e6e]">{t('loading')}</p>
     </div>
   )
 
@@ -272,7 +277,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           {companyName && <p className="text-xs font-semibold text-[#3b6bef] uppercase tracking-wide mb-1">{companyName}</p>}
           <h1 className="text-2xl font-bold text-[#1a1a2e]">{subjectLine}</h1>
           {data.meeting_durations.length <= 1 && (
-            <p className="text-sm text-[#8a7e6e] mt-1">{duration}-minute meeting</p>
+            <p className="text-sm text-[#8a7e6e] mt-1">{t('minuteMeeting', { duration })}</p>
           )}
         </div>
 
@@ -281,18 +286,18 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           {/* ── Step 1: Duration ── */}
           {step === 'duration' && (
             <div>
-              <h2 className="font-semibold text-[#1a1a2e] mb-1">Select a duration</h2>
-              <p className="text-sm text-[#8a7e6e] mb-4">How long do you need?</p>
+              <h2 className="font-semibold text-[#1a1a2e] mb-1">{t('durationTitle')}</h2>
+              <p className="text-sm text-[#8a7e6e] mb-4">{t('durationSub')}</p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {data.meeting_durations.map(d => (
                   <button key={d} onClick={() => setDuration(d)}
                     className={`px-5 py-2 rounded-lg border text-sm font-medium transition-colors ${duration === d ? 'border-[#3b6bef] text-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] text-[#8a7e6e] hover:border-[#3b6bef]'}`}>
-                    {d} min
+                    {t('minLabel', { d })}
                   </button>
                 ))}
               </div>
               <button onClick={() => setStep('datetime')} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium">
-                Continue →
+                {t('continue')}
               </button>
             </div>
           )}
@@ -301,13 +306,13 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           {step === 'datetime' && (
             <div>
               {data.meeting_durations.length > 1 && (
-                <button onClick={() => setStep('duration')} className="text-sm text-[#8a7e6e] mb-4 block">← Back</button>
+                <button onClick={() => setStep('duration')} className="text-sm text-[#8a7e6e] mb-4 block">{t('back')}</button>
               )}
 
               {/* Header row: title + TZ selector */}
               <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
                 <h2 className="font-semibold text-[#1a1a2e]">
-                  Select a date and time <span className="text-xs font-normal text-[#8a7e6e]">({duration} min)</span>
+                  {t('dateTimeTitle')} <span className="text-xs font-normal text-[#8a7e6e]">({duration} min)</span>
                 </h2>
                 <select
                   value={tzOverride}
@@ -320,13 +325,13 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                 </select>
               </div>
               <p className="text-xs text-[#8a7e6e] mb-4">
-                Times shown in <span className="font-medium text-[#4a3f32]">{prospectTz}</span>
+                {t('timesShownIn')} <span className="font-medium text-[#4a3f32]">{prospectTz}</span>
               </p>
 
               {/* Mini calendar */}
               <div className="mb-5">
                 <div className="grid grid-cols-7 gap-1 mb-1">
-                  {DAY_ABBREVS.map(d => <div key={d} className="text-center text-xs text-[#8a7e6e] py-1">{d}</div>)}
+                  {dayAbbrevs.map(d => <div key={d} className="text-center text-xs text-[#8a7e6e] py-1">{d}</div>)}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {Array(firstCalDow).fill(null).map((_, i) => <div key={i} />)}
@@ -356,7 +361,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                 <div>
                   <p className="text-sm font-medium text-[#1a1a2e] mb-2">{fmtDateStr(selDateStr)}</p>
                   {slots.length === 0
-                    ? <p className="text-sm text-[#8a7e6e]">No slots available.</p>
+                    ? <p className="text-sm text-[#8a7e6e]">{t('noSlots')}</p>
                     : (
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-52 overflow-y-auto">
                         {slots.map(s => (
@@ -377,7 +382,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
 
               {selSlot && (
                 <button onClick={() => setStep('form')} className="w-full mt-4 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium">
-                  Continue →
+                  {t('continue')}
                 </button>
               )}
             </div>
@@ -386,14 +391,14 @@ export default function BookPage({ params }: { params: { slug: string } }) {
           {/* ── Step 3: Form ── */}
           {step === 'form' && (
             <form onSubmit={submit}>
-              <button type="button" onClick={() => setStep('datetime')} className="text-sm text-[#8a7e6e] mb-4 block">← Back</button>
-              <h2 className="font-semibold text-[#1a1a2e] mb-3">Confirm your booking</h2>
+              <button type="button" onClick={() => setStep('datetime')} className="text-sm text-[#8a7e6e] mb-4 block">{t('back')}</button>
+              <h2 className="font-semibold text-[#1a1a2e] mb-3">{t('confirmTitle')}</h2>
 
               <div className="bg-[#f5f2ee] rounded-lg p-3 mb-4 text-sm">
                 <p className="font-medium text-[#1a1a2e]">{fmtDateStr(selDateStr)} at {fmtSlot(selSlot, prospectTz)}</p>
                 <p className="text-[#8a7e6e]">{duration} min · {prospectTz}
                   {data.video_meeting_url && (
-                    <> · <a href={data.video_meeting_url} target="_blank" rel="noopener noreferrer" className="text-[#3b6bef]">Video link</a></>
+                    <> · <a href={data.video_meeting_url} target="_blank" rel="noopener noreferrer" className="text-[#3b6bef]">{t('videoLink')}</a></>
                   )}
                 </p>
               </div>
@@ -401,18 +406,18 @@ export default function BookPage({ params }: { params: { slug: string } }) {
               {submitErr && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-3">{submitErr}</div>}
 
               <div className="flex flex-col gap-3">
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Your name"
+                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder={t('namePlaceholder')}
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email address" required
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder={t('emailPlaceholder')} required
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-                <input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Company (optional)"
+                <input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder={t('companyPlaceholder')}
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
                 <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={3}
-                  placeholder="Agenda or notes (optional)"
+                  placeholder={t('notesPlaceholder')}
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" />
                 <button type="submit" disabled={!form.email || submitting}
                   className="w-full bg-[#3b6bef] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50">
-                  {submitting ? 'Booking...' : 'Confirm booking'}
+                  {submitting ? t('booking') : t('confirmBooking')}
                 </button>
               </div>
             </form>
@@ -420,7 +425,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step 4: Confirmed ── */}
           {step === 'done' && confirmed && (() => {
-            const { date: confDate, time: confTime } = fmtConfirm(confirmed.meeting.meeting_at, prospectTz)
+            const { date: confDate, time: confTime } = fmtConfirm(confirmed.meeting.meeting_at, prospectTz, locale)
             return (
               <div className="text-center">
                 <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
@@ -428,8 +433,8 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-[#1a1a2e] mb-1">Meeting confirmed!</h2>
-                <p className="text-sm text-[#8a7e6e] mb-5">with {firstName || 'your host'}</p>
+                <h2 className="text-xl font-bold text-[#1a1a2e] mb-1">{t('confirmedTitle')}</h2>
+                <p className="text-sm text-[#8a7e6e] mb-5">{t('confirmedWith', { name: firstName || 'your host' })}</p>
 
                 <div className="bg-[#f5f2ee] rounded-lg p-4 text-left mb-6 text-sm">
                   <p className="font-semibold text-[#1a1a2e]">{confDate}</p>
@@ -443,40 +448,38 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                   )}
                 </div>
 
-                <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-1">Add to your calendar</p>
-                <p className="text-xs text-[#8a7e6e] mb-3">Apple Calendar users: download the .ics and double-click to add.</p>
+                <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-1">{t('addToCalendar')}</p>
+                <p className="text-xs text-[#8a7e6e] mb-3">{t('icsNote')}</p>
                 <div className="flex flex-col gap-2">
                   <a href={confirmed.calendar_links.google} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> Google Calendar
+                    <span className="text-base">📅</span> {t('googleCalendar')}
                   </a>
                   <a href={confirmed.calendar_links.outlook365} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> Outlook (Office 365)
+                    <span className="text-base">📅</span> {t('outlookO365')}
                   </a>
                   <a href={confirmed.calendar_links.outlookLive} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> Outlook.com
+                    <span className="text-base">📅</span> {t('outlookCom')}
                   </a>
                   <a href={confirmed.calendar_links.yahoo} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> Yahoo Calendar
+                    <span className="text-base">📅</span> {t('yahooCalendar')}
                   </a>
                   <button onClick={downloadICS}
                     className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📥</span> Download .ics
+                    <span className="text-base">📥</span> {t('downloadICS')}
                   </button>
                 </div>
 
-                <p className="text-sm text-[#8a7e6e] mt-5">
-                  You're all set! You can safely close this window. We've sent the invite to your email.
-                </p>
+                <p className="text-sm text-[#8a7e6e] mt-5">{t('allSet')}</p>
               </div>
             )
           })()}
         </div>
 
-        <p className="text-center mt-6 text-xs text-[#8a7e6e]">Powered by <span className="font-semibold">Sentra</span></p>
+        <p className="text-center mt-6 text-xs text-[#8a7e6e]">{t('poweredBy')} <span className="font-semibold">Sentra</span></p>
       </div>
     </div>
   )

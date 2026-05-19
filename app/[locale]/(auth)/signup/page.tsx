@@ -1,13 +1,15 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { track } from '@/lib/track'
 
-const tones = ['professional', 'friendly', 'direct', 'casual']
+const tones = ['professional', 'friendly', 'direct', 'casual'] as const
+type Tone = typeof tones[number]
 const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
-const PLAN_PRICES: Record<string, number> = { starter: 149, pro: 299, power: 399 }
 
 function SignupForm() {
+  const t = useTranslations('signup')
   const searchParams = useSearchParams()
   const planParam = searchParams.get('plan') ?? 'power'
   const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'power'
@@ -16,6 +18,13 @@ function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [data, setData] = useState({ email: '', password: '', name: '', workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
+
+  const toneLabels: Record<Tone, string> = {
+    professional: t('toneProfessional'),
+    friendly: t('toneFriendly'),
+    direct: t('toneDirect'),
+    casual: t('toneCasual'),
+  }
 
   async function handleFinish() {
     setLoading(true)
@@ -31,7 +40,7 @@ function SignupForm() {
       })
     }).then(r => r.json())
     if (!res.success) {
-      setError(res.error || 'Something went wrong. Please try again.')
+      setError(res.error || t('somethingWentWrong'))
       setLoading(false)
       return
     }
@@ -40,7 +49,7 @@ function SignupForm() {
     window.location.href = '/dashboard'
   }
 
-  const steps = ['Account', 'Workspace', 'Product', 'ICP']
+  const steps = [t('step0'), t('step1'), t('step2'), t('step3')]
 
   return (
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center p-4">
@@ -53,7 +62,7 @@ function SignupForm() {
             <span className="text-lg font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
           </div>
           <div className="inline-flex items-center gap-1.5 bg-[#eef1fd] border border-[#dde6fd] text-[#3b6bef] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
-            ✦ Starting your {PLAN_LABELS[plan]} free trial
+            ✦ {t('trialBadge', { plan: PLAN_LABELS[plan] })}
           </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             {steps.map((s, i) => (
@@ -68,48 +77,48 @@ function SignupForm() {
         <div className="bg-white rounded-xl border border-[#e8e3dc] p-6 flex flex-col gap-4">
           {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
           {step === 0 && (<>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">Create your account</h2>
-            <input type="text" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Full name" />
-            <input type="email" value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Email" />
-            <input type="password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Password (8+ chars)" minLength={8} />
-            <button onClick={()=>setStep(1)} disabled={!data.email||!data.password||!data.name} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
-            <p className="text-center text-xs text-[#8a7e6e]">Already have an account? <a href="/login" className="text-[#3b6bef] font-medium">Sign in</a></p>
+            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step0Title')}</h2>
+            <input type="text" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('fullName')} />
+            <input type="email" value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('email')} />
+            <input type="password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} minLength={8} />
+            <button onClick={()=>setStep(1)} disabled={!data.email||!data.password||!data.name} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('continue')}</button>
+            <p className="text-center text-xs text-[#8a7e6e]">{t('alreadyHaveAccount')} <a href="/login" className="text-[#3b6bef] font-medium">{t('signIn')}</a></p>
           </>)}
           {step === 1 && (<>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">Name your workspace</h2>
-            <p className="text-sm text-[#8a7e6e]">Usually your company name.</p>
-            <input type="text" value={data.workspaceName} onChange={e=>setData({...data,workspaceName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Acme Corp" />
+            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step1Title')}</h2>
+            <p className="text-sm text-[#8a7e6e]">{t('step1Sub')}</p>
+            <input type="text" value={data.workspaceName} onChange={e=>setData({...data,workspaceName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('workspacePlaceholder')} />
             <div className="flex gap-2">
-              <button onClick={()=>setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-              <button onClick={()=>setStep(2)} disabled={!data.workspaceName} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
+              <button onClick={()=>setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('back')}</button>
+              <button onClick={()=>setStep(2)} disabled={!data.workspaceName} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('continue')}</button>
             </div>
           </>)}
           {step === 2 && (<>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">What do you sell?</h2>
-            <input type="text" value={data.companyName} onChange={e=>setData({...data,companyName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Company name" />
+            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step2Title')}</h2>
+            <input type="text" value={data.companyName} onChange={e=>setData({...data,companyName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('companyNamePlaceholder')} />
             <div>
-              <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">What does your company do? *</label>
-              <textarea required value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="e.g. We help indie watch brands grow through curated marketplaces" />
+              <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{t('productLabel')}</label>
+              <textarea required value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder={t('productPlaceholder')} />
             </div>
             <div className="flex gap-2">
-              <button onClick={()=>setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-              <button onClick={()=>setStep(3)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
+              <button onClick={()=>setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('back')}</button>
+              <button onClick={()=>setStep(3)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('continue')}</button>
             </div>
           </>)}
           {step === 3 && (<>
             <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-lg px-3 py-2 text-xs text-[#3b6bef] font-medium">
-              🎉 14-day free trial · No credit card required
+              🎉 {t('step3Badge')}
             </div>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">Who do you target?</h2>
-            <textarea value={data.icp} onChange={e=>setData({...data,icp:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="VP Sales at B2B SaaS, 50-500 employees..." />
+            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step3Title')}</h2>
+            <textarea value={data.icp} onChange={e=>setData({...data,icp:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder={t('icpPlaceholder')} />
             <div className="grid grid-cols-2 gap-2">
-              {tones.map(t => (
-                <button key={t} onClick={()=>setData({...data,tone:t})} className={"px-3 py-2 rounded-lg text-sm border capitalize " + (data.tone===t ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{t}</button>
+              {tones.map(tone => (
+                <button key={tone} onClick={()=>setData({...data,tone})} className={"px-3 py-2 rounded-lg text-sm border " + (data.tone===tone ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{toneLabels[tone]}</button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? 'Launching...' : `Start ${PLAN_LABELS[plan]} trial →`}</button>
+              <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('back')}</button>
+              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
             </div>
           </>)}
         </div>
@@ -119,8 +128,9 @@ function SignupForm() {
 }
 
 export default function SignupPage() {
+  const t = useTranslations('signup')
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">Loading...</div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">{t('loading')}</div></div>}>
       <SignupForm />
     </Suspense>
   )
