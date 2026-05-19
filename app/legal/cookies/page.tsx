@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 
@@ -23,31 +22,26 @@ export default function CookiesPage() {
           Legal
         </p>
         <h1
-          className="mb-6 tracking-tight"
+          className="mb-3 tracking-tight"
           style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 500, color: '#1a1a1a', lineHeight: 1.15 }}
         >
           Cookie Policy
         </h1>
-
-        <div
-          className="mb-12 rounded-lg"
-          style={{ backgroundColor: '#f0ede8', border: '1px solid #e8e3dc', padding: '1rem 1.25rem' }}
-        >
-          <p style={{ fontSize: '0.875rem', color: '#4a4a5a', lineHeight: 1.6 }}>
-            <strong style={{ color: '#1a1a1a' }}>Pre-launch placeholder.</strong> Sentra is currently in private beta. Our full, lawyer-reviewed cookie policy will be published before public launch. The page below describes our intended approach.
-          </p>
-        </div>
+        <p className="mb-12" style={{ fontSize: '0.875rem', color: '#888888' }}>
+          Last updated: May 19, 2026 · Version 1.0
+        </p>
 
         <div className="space-y-10" style={{ borderTop: '1px solid #e8e3dc', paddingTop: '3rem' }}>
+
           <section>
             <h2
               className="mb-4 tracking-tight"
               style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
             >
-              Functional cookies (auth &amp; preferences)
+              What are cookies?
             </h2>
             <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-              We use strictly necessary cookies to keep you logged in (Supabase session token) and remember your workspace preferences. These cookies cannot be disabled without breaking core functionality.
+              Cookies are small text files stored on your device by your browser when you visit a website. They help websites remember your preferences, keep you logged in, and understand how the product is being used. Sentra uses cookies sparingly — only what is necessary to operate the service and improve it.
             </p>
           </section>
 
@@ -56,10 +50,124 @@ export default function CookiesPage() {
               className="mb-4 tracking-tight"
               style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
             >
-              Analytics
+              Cookies we use
+            </h2>
+
+            <p className="mb-6 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+              Sentra uses three categories of cookies. We do not use advertising cookies or data broker integrations — no ad networks, no retargeting pixels.
+            </p>
+
+            <div className="space-y-8">
+              <div>
+                <h3 className="mb-3" style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a1a' }}>
+                  Essential cookies
+                  <span
+                    className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}
+                  >
+                    No consent required
+                  </span>
+                </h3>
+                <p className="mb-3 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
+                  These cookies are strictly necessary for the service to function. You cannot opt out of them without losing access to Sentra.
+                </p>
+                <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f5f2ee' }}>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Cookie</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Purpose</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Expires</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
+                        <td style={{ padding: '10px 16px', color: '#1a1a1a', fontFamily: 'monospace', fontSize: '0.8rem' }}>sb-*-auth-token</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Authentication session (keeps you logged in)</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session / 7 days</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
+                        <td style={{ padding: '10px 16px', color: '#1a1a1a', fontFamily: 'monospace', fontSize: '0.8rem' }}>__Host-next-auth.csrf-token</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>CSRF protection on form submissions</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '10px 16px', color: '#1a1a1a', fontFamily: 'monospace', fontSize: '0.8rem' }}>__stripe_mid / __stripe_sid</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Stripe fraud prevention (checkout flow only)</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>1 year / Session</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-3" style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a1a' }}>
+                  Analytics cookies
+                  <span
+                    className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}
+                  >
+                    Consent required in EU
+                  </span>
+                </h3>
+                <p className="mb-3 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
+                  Analytics session cookies (EU-resident product analytics provider) — used for product usage analysis and session replay. Data is stored within the EU (Frankfurt region) and never transferred outside Europe.
+                </p>
+                <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f5f2ee' }}>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Cookie</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Purpose</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Expires</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
+                        <td style={{ padding: '10px 16px', color: '#1a1a1a', fontFamily: 'monospace', fontSize: '0.8rem' }}>ph_*</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Product analytics, session replay (EU-only)</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>1 year</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '10px 16px', color: '#1a1a1a', fontFamily: 'monospace', fontSize: '0.8rem' }}>ph_*_window_id</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session window tracking</td>
+                        <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-3" style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a1a' }}>
+                  Marketing cookies
+                  <span
+                    className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}
+                  >
+                    Not used
+                  </span>
+                </h3>
+                <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
+                  Sentra does not use advertising cookies, retargeting pixels, or third-party marketing trackers. No data is shared with ad networks.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2
+              className="mb-4 tracking-tight"
+              style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+            >
+              Managing cookies
             </h2>
             <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-              We do not currently use third-party analytics cookies (no Google Analytics, no tracking pixels). If we add analytics in the future, we will update this policy and request consent where required.
+              You can clear or block cookies from your browser settings at any time. Note that clearing authentication cookies will log you out of Sentra. Most modern browsers allow you to block third-party cookies by default without affecting first-party session cookies.
+            </p>
+            <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+              To opt out of analytics cookies, you can use a browser extension that blocks analytics scripts (e.g., uBlock Origin). A dedicated cookie preferences panel will be added in a future update.
             </p>
           </section>
 
@@ -68,10 +176,10 @@ export default function CookiesPage() {
               className="mb-4 tracking-tight"
               style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
             >
-              Third-party cookies (Stripe checkout)
+              Third-party cookies
             </h2>
             <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-              When you visit the billing or checkout pages, Stripe may set cookies for fraud prevention and payment flow continuity. These are governed by{' '}
+              Stripe sets cookies on <code style={{ fontSize: '0.85em', backgroundColor: '#f0ede8', padding: '1px 5px', borderRadius: '3px' }}>checkout.stripe.com</code> during the payment flow for fraud prevention purposes. These are scoped to Stripe&apos;s domain and governed by{' '}
               <a
                 href="https://stripe.com/privacy"
                 target="_blank"
@@ -81,7 +189,7 @@ export default function CookiesPage() {
               >
                 Stripe&apos;s privacy policy
               </a>
-              .
+              . No other third-party cookies are set by Sentra.
             </p>
           </section>
 
@@ -90,10 +198,10 @@ export default function CookiesPage() {
               className="mb-4 tracking-tight"
               style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
             >
-              How to manage cookies
+              Changes to this policy
             </h2>
             <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-              You can clear cookies from your browser settings at any time. Note that clearing session cookies will log you out of Sentra. Most browsers also allow you to block third-party cookies by default.
+              We will update this policy if we add new cookies or change how existing ones work. Material changes will be communicated via in-app notice or email before they take effect.
             </p>
           </section>
 
@@ -104,16 +212,19 @@ export default function CookiesPage() {
             >
               Questions?
             </h2>
-            <p className="leading-relaxed" style={{ color: '#4a4a5a' }}>
-              <Link
-                href="/contact"
+            <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+              Email us at{' '}
+              <a
+                href="mailto:privacy@sentra.app"
                 className="transition-opacity hover:opacity-70"
                 style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}
               >
-                /contact
-              </Link>
+                privacy@sentra.app
+              </a>
+              .
             </p>
           </section>
+
         </div>
       </main>
 
