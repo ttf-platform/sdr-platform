@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
 
 /**
  * Returns the list of admin emails from env var SENTRA_ADMIN_EMAILS
@@ -36,6 +37,29 @@ export async function requireSentraAdmin(): Promise<{ id: string; email: string 
     throw new AdminAuthError('forbidden', 'Not a Sentra admin');
   }
   return { id: user.id, email: user.email ?? '' };
+}
+
+/**
+ * Guard for /api/admin/* route handlers — same call pattern as the old lib/auth.ts.
+ * Returns null if caller is a Sentra admin, otherwise a 401/403 NextResponse.
+ *
+ * Usage:
+ *   const guard = await requireSentraAdminResponse()
+ *   if (guard) return guard
+ */
+export async function requireSentraAdminResponse(): Promise<NextResponse | null> {
+  try {
+    await requireSentraAdmin();
+    return null;
+  } catch (err) {
+    if (err instanceof AdminAuthError) {
+      return NextResponse.json(
+        { error: err.code === 'unauthorized' ? 'Unauthorized' : 'Forbidden' },
+        { status: err.code === 'unauthorized' ? 401 : 403 },
+      );
+    }
+    throw err;
+  }
 }
 
 export class AdminAuthError extends Error {

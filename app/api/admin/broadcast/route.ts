@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireSentraAdmin } from '@/lib/auth'
+import { requireSentraAdminResponse as requireSentraAdmin } from '@/lib/admin-auth'
 import { logAdminAction } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'

@@ -23,8 +23,8 @@ const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From fi
 
 const DEFAULT_SIGNATURE = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
 
-const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]'
-const labelCls  = 'text-xs font-semibold text-[#6b5e4e]'
+const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#2563eb]'
+const labelCls  = 'text-xs font-bold text-[#6b5e4e]'
 const cardCls   = 'bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col'
 const sectionHd = 'text-xs font-bold text-[#8a7e6e] uppercase tracking-wider'
 
@@ -49,9 +49,10 @@ function SaveButton({ section, saving, saved, onSave, missing = [] }: {
 
   const btn = (
     <button
+      type="button"
       onClick={!hasMissing && !isSaving ? onSave : undefined}
       disabled={isSaving}
-      className={`bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity
+      className={`bg-[#2563eb] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity
         ${hasMissing ? 'opacity-50 cursor-not-allowed' : 'disabled:opacity-40'}`}>
       {saved === section ? '✓ Saved' : isSaving ? 'Saving...' : 'Save'}
     </button>
@@ -318,7 +319,7 @@ export default function SettingsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#3b6bef]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-3 max-w-sm`}>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#2563eb]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-3 max-w-sm`}>
           <span className="shrink-0 mt-0.5">{toast.type === 'error' ? '⚠' : 'ℹ'}</span>
           <div className="flex-1 min-w-0">
             <p>{toast.msg}</p>
@@ -328,7 +329,7 @@ export default function SettingsPage() {
               </a>
             )}
           </div>
-          <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0">✕</button>
+          <button type="button" aria-label="Close" onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0"><span aria-hidden="true">✕</span></button>
         </div>
       )}
 
@@ -413,10 +414,10 @@ export default function SettingsPage() {
           <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-semibold text-[#3b6bef]">{ws?.plan === 'trial' ? 'Free Trial' : ws?.plan}</div>
+                <div className="font-medium text-[#2563eb]">{ws?.plan === 'trial' ? 'Free Trial' : ws?.plan}</div>
                 <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
               </div>
-              <button className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</button>
+              <button className="bg-[#2563eb] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</button>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
@@ -470,7 +471,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={form.signature_in_initial}
               onChange={e => setForm({...form, signature_in_initial: e.target.checked})}
-              className="w-4 h-4 accent-[#3b6bef]"
+              className="w-4 h-4 accent-[#2563eb]"
             />
             <span className="text-sm text-[#1a1a2e]">Include in initial emails</span>
           </label>
@@ -479,7 +480,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={form.signature_in_followups}
               onChange={e => setForm({...form, signature_in_followups: e.target.checked})}
-              className="w-4 h-4 accent-[#3b6bef]"
+              className="w-4 h-4 accent-[#2563eb]"
             />
             <span className="text-sm text-[#1a1a2e]">Include in follow-ups</span>
             <span className="text-xs text-[#b0a898]">(shorter follow-ups perform better)</span>
@@ -610,7 +611,7 @@ export default function SettingsPage() {
                 onBlur={() => touch('product_description')}
                 className={`${touched.has('product_description') && !form.product_description.trim()
                   ? 'border-red-300 focus:border-red-400'
-                  : 'border-[#e8e3dc] focus:border-[#3b6bef]'} w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
+                  : 'border-[#e8e3dc] focus:border-[#2563eb]'} w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
                 rows={3}
               />
               <p className={`text-xs mt-1 ${form.product_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
@@ -645,14 +646,14 @@ export default function SettingsPage() {
         <p className="text-xs text-[#8a7e6e] mb-3">Your monthly prospect research credits.</p>
         <div className="border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 bg-[#3b6bef] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
+            <div className="w-8 h-8 bg-[#2563eb] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
             <div>
-              <div className="text-sm font-semibold text-[#1a1a2e]">Prospect Credits</div>
+              <div className="text-sm font-medium text-[#1a1a2e]">Prospect Credits</div>
               <div className="text-xs text-[#8a7e6e]">0 / 100 prospect credits used this month</div>
             </div>
           </div>
           <div className="w-full bg-[#f0ece6] rounded-full h-1.5 mb-1">
-            <div className="bg-[#3b6bef] h-1.5 rounded-full" style={{ width: '0%' }} />
+            <div className="bg-[#2563eb] h-1.5 rounded-full" style={{ width: '0%' }} />
           </div>
           <div className="text-xs text-[#8a7e6e]">Starter plan · 100 credits remaining</div>
         </div>
@@ -662,7 +663,7 @@ export default function SettingsPage() {
       <div className={`${cardCls} mt-6`}>
         <header className="flex items-center gap-2 mb-2">
           <span className="text-xl" aria-hidden>📬</span>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#1a1a1a]">Sending domains</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">Sending domains</h2>
         </header>
         <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Sentra warm it up while you send from day one.</p>
         <Link
@@ -671,33 +672,6 @@ export default function SettingsPage() {
         >
           Configure →
         </Link>
-      </div>
-
-      {/* BILLING & PAYMENT — full width */}
-      <div className={`${cardCls} mt-6`}>
-        <div className={`${sectionHd} mb-4`}>BILLING & PAYMENT</div>
-        <div className="border border-[#e8e3dc] rounded-xl p-4 mb-3">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-sm font-semibold text-[#1a1a2e]">Current Plan</div>
-              <div className="text-sm text-[#6b5e4e]">{ws?.plan === 'trial' ? 'Free Trial' : ws?.plan}</div>
-            </div>
-            <button className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Change plan →</button>
-          </div>
-          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-[#f0ece6]">
-            <div><div className="text-xs text-[#8a7e6e] uppercase tracking-wider">NEXT BILLING DATE</div><div className="text-sm text-[#1a1a2e] mt-1">—</div></div>
-            <div><div className="text-xs text-[#8a7e6e] uppercase tracking-wider">BILLING STATUS</div><div className="text-sm text-[#1a1a2e] mt-1">Active</div></div>
-          </div>
-        </div>
-        <div className="border border-[#e8e3dc] rounded-xl p-4 mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold text-[#1a1a2e]">Payment Method</div>
-            <div className="text-xs text-[#8a7e6e]">No payment method on file</div>
-          </div>
-          <button className="text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e]">Update →</button>
-        </div>
-        <div className="text-sm font-semibold text-[#1a1a2e] mb-2">Invoice History</div>
-        <div className="text-center py-6 text-sm text-[#8a7e6e] border border-[#e8e3dc] rounded-xl">No invoices yet.</div>
       </div>
 
       {/* ADVANCED SETTINGS — full width */}

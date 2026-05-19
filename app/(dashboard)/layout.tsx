@@ -3,11 +3,12 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Megaphone, Users, BarChart2, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard, BarChart2, Globe, Shield } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
 import { PostHogIdentify } from '@/components/PostHogIdentify'
+import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
 
 const supabase = createClient()
 
@@ -19,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [isSentraAdmin, setIsSentraAdmin] = useState(false)
-  const avatarRef = useRef<HTMLDivElement>(null)
+  const avatarRef = useRef<HTMLButtonElement>(null)
   const pathname = usePathname()
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!session) { window.location.href = '/login'; return }
       setUser(session.user)
       const { data: member } = await supabase.from('workspace_members')
-        .select('workspace_id, role, workspaces(name, plan, credits, subscription_status, trial_end_date)')
+        .select('workspace_id, role, workspaces(name, plan, plan_tier, credits, subscription_status, trial_end_date)')
         .eq('user_id', session.user.id).single()
       if (member) {
         setWorkspace(member); setRole(member.role)
@@ -47,50 +48,63 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  useEffect(() => {
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setMenuOpen(false); setAvatarOpen(false) }
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [])
+
   async function signOut() {
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard',           label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone },
+    { href: '/dashboard/inbox',     label: 'Inbox',     icon: Mail },
     { href: '/dashboard/prospects', label: 'Prospects', icon: Users },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart2 },
-    { href: '/dashboard/inbox', label: 'Inbox', icon: Mail },
-    { href: '/dashboard/meetings', label: 'Meetings', icon: Calendar },
-    { href: '/dashboard/morning-brief', label: 'Morning Brief', icon: Sun },
-    { href: '/dashboard/pipeline', label: 'Pipeline', icon: TrendingUp },
-    { href: '/dashboard/call-recording', label: 'Call Recording', icon: Phone },
-    { href: '/dashboard/team', label: 'Team', icon: UserPlus },
-    { href: '/dashboard/billing',  label: 'Billing',  icon: CreditCard },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+    { href: '/dashboard/pipeline',  label: 'Pipeline',  icon: TrendingUp },
+    { href: '/dashboard/meetings',  label: 'Meetings',  icon: Calendar },
   ]
 
   const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href)
   const ws = (workspace?.workspaces as any)
+  const planTier = ws?.plan_tier ?? 'starter'
+  const hasCallRecording = !!ws?.has_call_recording
+  const hasLinkedIn = !!ws?.has_linkedin
   const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || ''
   const initials = firstName?.[0]?.toUpperCase() || '?'
 
-  if (!user) return <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center"><div className="text-sm text-[#8a7e6e]">Loading...</div></div>
+  if (!user) return (
+    <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center">
+      <div className="text-sm text-[#8a7e6e]">Loading...</div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[#f5f2ee]">
       <PostHogIdentify />
-      <nav className="bg-white border-b border-[#e8e3dc] sticky top-0 z-50">
+
+      {/* Top nav */}
+      <nav aria-label="App navigation" className="bg-white border-b border-[#e8e3dc] sticky top-0 z-50">
         <div className="flex items-center px-4 h-12">
-          <Link href="/dashboard" className="flex items-center gap-1 mr-5 flex-shrink-0">
-            <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#3b6bef]">tra</span></span>
+          {/* Logo */}
+          <Link href="/dashboard" className="flex items-center gap-1 mr-6 flex-shrink-0">
+            <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#2563eb]">tra</span></span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide min-w-0">
+          {/* Desktop nav — 6 entries */}
+          <div className="hidden md:flex items-center gap-0.5 flex-1 min-w-0">
             {navItems.map(item => {
               const Icon = item.icon
               const active = isActive(item.href)
               return (
-                <Link key={item.href} href={item.href}
+                <Link key={item.href} href={item.href as never}
                   className={"flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors font-medium " +
-                    (active ? 'bg-[#eef1fd] text-[#3b6bef]' : 'text-[#4a4a5a] hover:bg-[#f0ece6]')}>
+                    (active ? 'bg-[#eef1fd] text-[#2563eb]' : 'text-[#4a4a5a] hover:bg-[#f0ece6]')}>
                   <Icon size={13} strokeWidth={active ? 2.5 : 2} />
                   <span className="hidden lg:inline">{item.label}</span>
                 </Link>
@@ -98,26 +112,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </div>
 
-          <div className="hidden md:flex items-center gap-2 ml-3 flex-shrink-0">
-            {role === 'owner' && (
-              <Link href="/dashboard/admin"
-                className={"text-xs px-2 py-1 rounded-lg font-semibold " + (pathname.startsWith('/dashboard/admin') ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50')}>
-                ♦ Admin
-              </Link>
-            )}
-            {isSentraAdmin && (
-              <Link href="/admin"
-                className={"text-xs px-2 py-1 rounded-lg font-semibold " + (pathname.startsWith('/admin') ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600 hover:bg-indigo-50')}>
-                ⬡ Sentra Admin
-              </Link>
-            )}
-            <TrialBadge />
-            <div className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#8a7e6e" strokeWidth="1.2"/><path d="M6 3.5v2.5l1.5 1.5" stroke="#8a7e6e" strokeWidth="1.2" strokeLinecap="round"/></svg>
-              {ws?.credits || 100} / 100
+          {/* Desktop right side */}
+          <div className="hidden md:flex items-center gap-2 ml-auto flex-shrink-0">
+            <WorkspaceDropdown
+              planTier={planTier}
+              role={role}
+              isSentraAdmin={isSentraAdmin}
+              hasCallRecording={hasCallRecording}
+              hasLinkedIn={hasLinkedIn}
+              pathname={pathname}
+            />
+            <div
+              className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg whitespace-nowrap"
+              aria-label={`${ws?.credits ?? 100} of 100 credits remaining`}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <circle cx="6" cy="6" r="5" stroke="#8a7e6e" strokeWidth="1.2"/>
+                <path d="M6 3.5v2.5l1.5 1.5" stroke="#8a7e6e" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              <span aria-hidden="true">{ws?.credits ?? 100} / 100</span>
             </div>
-            <div ref={avatarRef} className="relative flex items-center gap-1.5 cursor-pointer" onClick={() => setAvatarOpen(!avatarOpen)}>
-              <div className="w-7 h-7 rounded-full bg-[#3b6bef] flex items-center justify-center text-white text-xs font-bold">
+            <TrialBadge />
+            {/* Avatar */}
+            <button
+              ref={avatarRef}
+              className="relative flex items-center gap-1.5 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+              onClick={() => setAvatarOpen(!avatarOpen)}
+              aria-label="Account menu"
+              aria-haspopup="true"
+              aria-expanded={avatarOpen}
+            >
+              <div className="w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center text-white text-xs font-bold">
                 {initials}
               </div>
               <span className="text-sm font-medium text-[#1a1a2e] hidden lg:inline">{firstName}</span>
@@ -131,73 +156,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#1a1a2e] hover:bg-[#f7f4f0]">
                     <Settings size={14} /> Settings
                   </Link>
-                  {role === 'owner' && (
-                    <Link href="/dashboard/admin" onClick={() => setAvatarOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-purple-600 font-medium hover:bg-purple-50">
-                      ♦ Admin <span className="text-xs bg-purple-100 px-1.5 py-0.5 rounded ml-auto">ADMIN</span>
-                    </Link>
-                  )}
-                  {isSentraAdmin && (
-                    <Link href="/admin" onClick={() => setAvatarOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-indigo-600 font-medium hover:bg-indigo-50">
-                      ⬡ Sentra Admin <span className="text-xs bg-indigo-100 px-1.5 py-0.5 rounded ml-auto">PLATFORM</span>
-                    </Link>
-                  )}
                   <div className="border-t border-[#f0ece6]">
                     <Link href="/" onClick={() => setAvatarOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#6b5e4e] hover:bg-[#f7f4f0]">
                       ← Homepage
                     </Link>
-                    <button onClick={signOut}
+                    <button type="button" onClick={signOut}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50">
-                      ⏻ Log out
+                      ⏻ Sign out
                     </button>
                   </div>
                 </div>
               )}
-            </div>
+            </button>
           </div>
 
-          <button className="md:hidden ml-auto p-2 text-[#6b5e4e]" onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? '✕' : '☰'}
+          {/* Mobile burger */}
+          <button
+            type="button"
+            className="md:hidden ml-auto p-2 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-drawer"
+          >
+            <span aria-hidden="true">☰</span>
           </button>
         </div>
-
-        {menuOpen && (
-          <div className="md:hidden border-t border-[#e8e3dc] bg-white">
-            <div className="px-4 py-3 border-b border-[#f0ece6] flex items-center justify-between">
-              <TrialBadge />
-              <div className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg">
-                {ws?.credits || 100} / 100 credits
-              </div>
-            </div>
-            {navItems.map(item => {
-              const Icon = item.icon
-              return (
-                <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
-                  className={"flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] " +
-                    (isActive(item.href) ? 'text-[#3b6bef] font-medium bg-[#eef1fd]' : 'text-[#4a4a5a]')}>
-                  <Icon size={15} /> {item.label}
-                </Link>
-              )
-            })}
-            {role === 'owner' && (
-              <Link href="/dashboard/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-purple-600 font-medium">
-                ♦ Admin Dashboard
-              </Link>
-            )}
-            {isSentraAdmin && (
-              <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-indigo-600 font-medium">
-                ⬡ Sentra Admin
-              </Link>
-            )}
-            <Link href="/" className="flex items-center gap-2 px-4 py-3 text-sm border-b border-[#f0ece6] text-[#6b5e4e]">← Homepage</Link>
-            <button onClick={signOut} className="w-full text-left px-4 py-3 text-sm text-red-500">⏻ Log out</button>
-          </div>
-        )}
       </nav>
 
-      {/* Trial expiry banner (3 days or less) */}
+      {/* Trial expiry banner */}
       {billingData && !billingData.blocked && billingData.status === 'trialing' && billingData.daysRemaining <= 3 && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-4">
           <p className="text-sm text-amber-800 font-medium">
@@ -212,7 +200,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Trial expired overlay */}
       {billingData?.blocked && pathname !== '/dashboard/billing' && pathname !== '/dashboard/settings' && (
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-[#1a1a1a]/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
             <div className="text-4xl mb-4">🔒</div>
             <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">Your trial has ended</h2>
@@ -222,7 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
             <div className="flex flex-col gap-2">
               <Link href="/dashboard/billing"
-                className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-xl py-3 text-sm font-semibold transition-colors">
+                className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-xl py-3 text-sm font-medium transition-colors">
                 Upgrade now →
               </Link>
               <Link href="/dashboard/settings"
@@ -232,6 +220,117 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile drawer */}
+      {menuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-[#1a1a1a]/40 md:hidden"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div id="mobile-drawer" className="fixed inset-y-0 left-0 z-50 w-72 bg-white overflow-y-auto md:hidden shadow-xl flex flex-col">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-4 h-12 border-b border-[#e8e3dc] flex-shrink-0">
+              <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
+                <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#2563eb]">tra</span></span>
+              </Link>
+              <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" className="text-[#6b5e4e] p-1.5 text-lg leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] rounded"><span aria-hidden="true">✕</span></button>
+            </div>
+
+            {/* 6 main nav items */}
+            <div className="py-2">
+              {navItems.map(item => {
+                const Icon = item.icon
+                return (
+                  <Link key={item.href} href={item.href as never} onClick={() => setMenuOpen(false)}
+                    className={"flex items-center gap-3 px-4 py-3 text-sm " +
+                      (isActive(item.href) ? 'text-[#2563eb] font-medium bg-[#eef1fd]' : 'text-[#4a4a5a] hover:bg-[#f5f2ee]')}>
+                    <Icon size={16} /> {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+
+            <div className="border-t border-[#e8e3dc]" />
+
+            {/* Workspace sections inline */}
+            <div className="py-2">
+              <p className="px-4 pt-2 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Insights</p>
+              <Link href="/dashboard/analytics" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                <BarChart2 size={16} /> Analytics
+              </Link>
+              <Link href="/dashboard/morning-brief" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                <Sun size={16} /> Morning Brief
+              </Link>
+
+              {(hasCallRecording || hasLinkedIn) && (
+                <>
+                  <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Add-ons</p>
+                  {hasCallRecording && (
+                    <Link href="/dashboard/call-recording" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                      <Phone size={16} /> Call Recording
+                    </Link>
+                  )}
+                  {hasLinkedIn && (
+                    <Link href={"/dashboard/linkedin" as never} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                      <Globe size={16} /> LinkedIn
+                    </Link>
+                  )}
+                </>
+              )}
+
+              <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Setup</p>
+              <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                <Settings size={16} /> Settings
+              </Link>
+              {planTier === 'team' && (
+                <Link href="/dashboard/team" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                  <UserPlus size={16} /> Team
+                </Link>
+              )}
+              <Link href="/dashboard/billing" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                <CreditCard size={16} /> Billing
+              </Link>
+              {role === 'owner' && (
+                <Link href="/dashboard/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#2563eb] hover:bg-[#f5f2ee]">
+                  <Shield size={16} /> Workspace Admin
+                </Link>
+              )}
+
+              {isSentraAdmin && (
+                <>
+                  <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Sentra Staff</p>
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#2563eb] font-medium hover:bg-[#f5f2ee]">
+                    <Shield size={16} /> Sentra Admin
+                  </Link>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-[#e8e3dc]" />
+
+            {/* Profile / sign out */}
+            <div className="py-2">
+              <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                <Settings size={16} /> Settings
+              </Link>
+              <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#6b5e4e] hover:bg-[#f5f2ee]">
+                ← Homepage
+              </Link>
+              <button type="button" onClick={() => { setMenuOpen(false); signOut() }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50">
+                ⏻ Sign out
+              </button>
+            </div>
+
+            {/* Credits + trial badge at bottom */}
+            <div className="mt-auto border-t border-[#e8e3dc] px-4 py-3 flex items-center justify-between">
+              <TrialBadge />
+              <div className="text-xs text-[#8a7e6e]">{ws?.credits ?? 100} / 100 credits</div>
+            </div>
+          </div>
+        </>
       )}
 
       <main className="max-w-7xl mx-auto px-6 py-6">
