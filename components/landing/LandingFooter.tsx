@@ -35,7 +35,7 @@ function FooterColumn({
 
 export function LandingFooter() {
   return (
-    <footer style={{ backgroundColor: '#1a1a1a' }}>
+    <footer id="footer" style={{ backgroundColor: '#1a1a1a' }}>
       <div
         className="mx-auto max-w-6xl px-6 lg:px-8 py-16 lg:py-20"
         style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}

@@ -28,7 +28,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           <ol className="flex items-center gap-2" style={{ fontSize: '0.8125rem', color: '#666677' }}>
             <li>
               <Link
-                href="/"
+                href="/#footer"
                 className="transition-opacity hover:opacity-70"
                 style={{ color: '#666677', textDecoration: 'underline', textUnderlineOffset: '3px' }}
               >
@@ -42,8 +42,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
 
         <div className="flex gap-12 items-start">
           {/* Sidebar — desktop */}
-          <aside className="hidden md:block shrink-0" style={{ width: '200px' }}>
-            <div className="sticky" style={{ top: '6rem' }}>
+          <aside className="hidden md:block shrink-0 sticky self-start" style={{ width: '200px', top: '6rem' }}>
+            <div>
               <p
                 className="mb-4 uppercase"
                 style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#aaaaaa' }}

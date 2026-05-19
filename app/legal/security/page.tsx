@@ -46,60 +46,74 @@ export default function SecurityPage() {
             className="mb-4 tracking-tight"
             style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
           >
-            Technical measures
+            Data encryption
           </h2>
+          <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            All data in transit is encrypted using TLS 1.3. Data at rest is encrypted using AES-256 at the storage layer by default.
+          </p>
+        </section>
 
-          <div className="space-y-6">
-            <div>
-              <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Data encryption</h3>
-              <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                All data in transit is encrypted using TLS 1.3. Data at rest is encrypted using AES-256 at the storage layer by default.
-              </p>
-            </div>
+        <section>
+          <h2
+            className="mb-4 tracking-tight"
+            style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+          >
+            Access controls &amp; multi-tenant isolation
+          </h2>
+          <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Row-Level Security (RLS) is enforced at the database level on all tables. Each workspace&apos;s data is isolated — a user in workspace A cannot access data from workspace B, regardless of application-level logic. This isolation is validated through automated integration tests that run against real data on every pull request.
+          </p>
+        </section>
 
-            <div>
-              <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Access controls &amp; multi-tenant isolation</h3>
-              <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Row-Level Security (RLS) is enforced at the database level on all tables. Each workspace&apos;s data is isolated — a user in workspace A cannot access data from workspace B, regardless of application-level logic. This isolation is validated through automated integration tests that run against real data on every pull request.
-              </p>
-            </div>
+        <section>
+          <h2
+            className="mb-4 tracking-tight"
+            style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+          >
+            Authentication
+          </h2>
+          <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Authentication is handled by a managed auth provider using industry-standard session management. Sessions are scoped and expire automatically. Admin access to internal tooling uses a separate, hardened authentication path.
+          </p>
+        </section>
 
-            <div>
-              <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Authentication</h3>
-              <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Authentication is handled by a managed auth provider using industry-standard session management. Sessions are scoped and expire automatically. Admin access to internal tooling uses a separate, hardened authentication path.
-              </p>
-            </div>
+        <section>
+          <h2
+            className="mb-4 tracking-tight"
+            style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+          >
+            Security headers
+          </h2>
+          <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Every Sentra response includes a hardened set of HTTP security headers:
+          </p>
+          <ul className="space-y-2" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            {[
+              'Content-Security-Policy (CSP) — restricts script and resource origins',
+              'HTTP Strict Transport Security (HSTS)',
+              'X-Frame-Options: DENY — prevents clickjacking',
+              'X-Content-Type-Options: nosniff',
+              'Referrer-Policy: strict-origin-when-cross-origin',
+              'Permissions-Policy — disables unused browser APIs',
+            ].map((item) => (
+              <li key={item} className="flex gap-3">
+                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-            <div>
-              <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Security headers</h3>
-              <p className="mb-2 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Every Sentra response includes a hardened set of HTTP security headers:
-              </p>
-              <ul className="space-y-1" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.875rem' }}>
-                {[
-                  'Content-Security-Policy (CSP) — restricts script and resource origins',
-                  'HTTP Strict Transport Security (HSTS)',
-                  'X-Frame-Options: DENY — prevents clickjacking',
-                  'X-Content-Type-Options: nosniff',
-                  'Referrer-Policy: strict-origin-when-cross-origin',
-                  'Permissions-Policy — disables unused browser APIs',
-                ].map((item) => (
-                  <li key={item} className="flex gap-3">
-                    <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Code review &amp; dependency scanning</h3>
-              <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Every pull request is automatically reviewed by an AI-powered security analysis tool before merge. Dependencies are regularly audited for known CVEs, and critical vulnerabilities trigger immediate patching.
-              </p>
-            </div>
-          </div>
+        <section>
+          <h2
+            className="mb-4 tracking-tight"
+            style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+          >
+            Code review &amp; dependency scanning
+          </h2>
+          <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Every pull request is automatically reviewed by an AI-powered security analysis tool before merge. Dependencies are regularly audited for known CVEs, and critical vulnerabilities trigger immediate patching.
+          </p>
         </section>
 
         <section>

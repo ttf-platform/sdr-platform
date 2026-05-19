@@ -42,114 +42,114 @@ export default function CookiesPage() {
         </section>
 
         <section>
+          <p className="mb-10 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Sentra uses three categories of cookies. We do not use advertising cookies or data broker integrations — no ad networks, no retargeting pixels.
+          </p>
+        </section>
+
+        <section>
           <h2
             className="mb-4 tracking-tight"
             style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
           >
-            Cookies we use
+            Essential cookies
+            <span
+              className="ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', verticalAlign: 'middle' }}
+            >
+              No consent required
+            </span>
           </h2>
-
-          <p className="mb-6 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra uses three categories of cookies. We do not use advertising cookies or data broker integrations — no ad networks, no retargeting pixels.
+          <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            These cookies are strictly necessary for the service to function. You cannot opt out of them without losing access to Sentra.
           </p>
-
-          <div className="space-y-8">
-            <div>
-              <h3 className="mb-3" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>
-                Essential cookies
-                <span
-                  className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}
-                >
-                  No consent required
-                </span>
-              </h3>
-              <p className="mb-3 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                These cookies are strictly necessary for the service to function. You cannot opt out of them without losing access to Sentra.
-              </p>
-              <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden', overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse', minWidth: '440px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f5f2ee' }}>
-                      <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Cookie</th>
-                      <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Purpose</th>
-                      <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Expires</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
-                      <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>sb-*-auth-token</InlineCode></td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Authentication session (keeps you logged in)</td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session / 7 days</td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
-                      <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>__Host-next-auth.csrf-token</InlineCode></td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>CSRF protection on form submissions</td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session</td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>__stripe_mid / __stripe_sid</InlineCode></td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Stripe fraud prevention (checkout flow only)</td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>1 year / Session</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="mb-3" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>
-                Analytics cookies
-                <span
-                  className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}
-                >
-                  Consent required in EU
-                </span>
-              </h3>
-              <p className="mb-3 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Analytics session cookies (EU-resident product analytics provider) — used for product usage analysis and session replay. Data is stored within the EU (Frankfurt region) and never transferred outside Europe.
-              </p>
-              <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden', overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse', minWidth: '440px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f5f2ee' }}>
-                      <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Cookie</th>
-                      <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Purpose</th>
-                      <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Expires</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
-                      <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>ph_*</InlineCode></td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Product analytics, session replay (EU-only)</td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>1 year</td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>ph_*_window_id</InlineCode></td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session window tracking</td>
-                      <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="mb-3" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>
-                Marketing cookies
-                <span
-                  className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}
-                >
-                  Not used
-                </span>
-              </h3>
-              <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Sentra does not use advertising cookies, retargeting pixels, or third-party marketing trackers. No data is shared with ad networks.
-              </p>
-            </div>
+          <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden', overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse', minWidth: '440px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f5f2ee' }}>
+                  <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Cookie</th>
+                  <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Purpose</th>
+                  <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Expires</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
+                  <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>sb-*-auth-token</InlineCode></td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Authentication session (keeps you logged in)</td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session / 7 days</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
+                  <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>__Host-next-auth.csrf-token</InlineCode></td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>CSRF protection on form submissions</td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>__stripe_mid / __stripe_sid</InlineCode></td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Stripe fraud prevention (checkout flow only)</td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>1 year / Session</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        </section>
+
+        <section>
+          <h2
+            className="mb-4 tracking-tight"
+            style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+          >
+            Analytics cookies
+            <span
+              className="ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', verticalAlign: 'middle' }}
+            >
+              Consent required in EU
+            </span>
+          </h2>
+          <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Analytics session cookies (EU-resident product analytics provider) — used for product usage analysis and session replay. Data is stored within the EU (Frankfurt region) and never transferred outside Europe.
+          </p>
+          <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden', overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse', minWidth: '440px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f5f2ee' }}>
+                  <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Cookie</th>
+                  <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Purpose</th>
+                  <th scope="col" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#1a1a1a', borderBottom: '1px solid #e8e3dc' }}>Expires</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid #e8e3dc' }}>
+                  <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>ph_*</InlineCode></td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Product analytics, session replay (EU-only)</td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>1 year</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '10px 16px', color: '#1a1a1a' }}><InlineCode>ph_*_window_id</InlineCode></td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session window tracking</td>
+                  <td style={{ padding: '10px 16px', color: '#4a4a5a' }}>Session</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <h2
+            className="mb-4 tracking-tight"
+            style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}
+          >
+            Marketing cookies
+            <span
+              className="ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{ backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', verticalAlign: 'middle' }}
+            >
+              Not used
+            </span>
+          </h2>
+          <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
+            Sentra does not use advertising cookies, retargeting pixels, or third-party marketing trackers. No data is shared with ad networks.
+          </p>
         </section>
 
         <section>
