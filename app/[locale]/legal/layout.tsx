@@ -29,7 +29,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <li>
               <Link
                 href="/#footer"
-                className="transition-opacity hover:opacity-70"
+                className="transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
                 style={{ color: '#666677', textDecoration: 'underline', textUnderlineOffset: '3px' }}
               >
                 Home
@@ -40,7 +40,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           </ol>
         </nav>
 
-        <div className="flex gap-12 items-start">
+        <div className="flex flex-col md:flex-row gap-12 items-start">
           {/* Sidebar — desktop */}
           <aside className="hidden md:block shrink-0 sticky self-start" style={{ width: '200px', top: '6rem' }}>
             <div>
@@ -58,14 +58,14 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
                       <li key={href}>
                         <Link
                           href={href as never}
-                          className="block py-1.5 text-sm transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+                          className="flex items-center min-h-[44px] py-1.5 px-1 text-sm transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
                           style={{
                             color: active ? '#1a1a1a' : '#6a6a7a',
                             fontWeight: active ? 600 : 400,
                             textDecoration: 'none',
                             paddingLeft: active ? '0.625rem' : '0',
                             borderLeft: active ? '2px solid #2563eb' : '2px solid transparent',
-                            transition: 'all 0.15s ease',
+                            transition: 'color 0.15s ease, padding-left 0.15s ease, border-color 0.15s ease',
                           }}
                         >
                           {label}

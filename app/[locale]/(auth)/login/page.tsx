@@ -37,12 +37,18 @@ export default function LoginPage() {
         </div>
         <form onSubmit={handle} className="bg-white rounded-xl border border-[#e8e3dc] p-6 flex flex-col gap-4">
           {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
-          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('emailPlaceholder')} required />
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} required />
-          <button type="submit" disabled={loading} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50">
+          <div>
+            <label className="sr-only" htmlFor="login-email">{t('emailPlaceholder')}</label>
+            <input id="login-email" type="email" name="email" autoComplete="email" spellCheck={false} value={email} onChange={e=>setEmail(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('emailPlaceholder')} required />
+          </div>
+          <div>
+            <label className="sr-only" htmlFor="login-password">{t('passwordPlaceholder')}</label>
+            <input id="login-password" type="password" name="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} required />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
             {loading ? t('signingIn') : t('signIn')}
           </button>
-          <p className="text-center text-xs text-[#8a7e6e]">{t('noAccount')} <a href="/signup" className="text-[#3b6bef] font-medium">{t('signUp')}</a></p>
+          <p className="text-center text-xs text-[#8a7e6e]">{t('noAccount')} <a href="/signup" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signUp')}</a></p>
         </form>
       </div>
     </div>

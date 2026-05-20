@@ -229,14 +229,14 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
         <div className="absolute left-0 top-0 bottom-2 w-6 bg-gradient-to-r from-[#f5f2ee] to-transparent z-10 pointer-events-none rounded-l" />
         <button
           onClick={() => scrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-          className="absolute left-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
+          className="absolute left-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
         >‹</button>
       </>}
       {canScrollRight && <>
         <div className="absolute right-0 top-0 bottom-2 w-6 bg-gradient-to-l from-[#f5f2ee] to-transparent z-10 pointer-events-none rounded-r" />
         <button
           onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-          className="absolute right-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
+          className="absolute right-1 top-20 z-20 rounded-full bg-white border border-gray-200 shadow-md min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 text-lg leading-none"
         >›</button>
       </>}
 

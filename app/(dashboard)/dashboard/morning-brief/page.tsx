@@ -140,7 +140,7 @@ function RichBrief({ content }: { content: any }) {
                   </div>
                   <p className="font-bold text-[#1a1a2e] text-base mb-4">{idea.name}</p>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">Target Persona</p>
                       <p className="text-sm text-[#1a1a2e]">{idea.target_persona}</p>
@@ -451,7 +451,7 @@ export default function MorningBriefPage() {
             className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
           <p className="text-xs text-[#b0a898] mt-1">Timezone set in <a href="/dashboard/settings" className="text-[#3b6bef] hover:underline">Settings → Company</a></p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-[#f7f4f0] rounded-xl p-3">
             <div className="text-sm font-semibold text-[#1a1a2e] mb-1">📅 Meeting Days</div>
             <div className="text-xs text-[#8a7e6e]">AI-researched prospect profiles, talking points & discovery questions</div>

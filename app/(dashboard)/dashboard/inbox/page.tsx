@@ -311,10 +311,10 @@ export default function InboxPage() {
       </div>
 
       {/* Split panel */}
-      <div className="flex gap-4 flex-1 min-h-0" style={{ height: 'calc(100vh - 220px)' }}>
+      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0" style={{ height: 'calc(100vh - 220px)' }}>
 
-        {/* Message list */}
-        <div className="w-80 flex-shrink-0 bg-white border border-[#e8e3dc] rounded-xl overflow-y-auto">
+        {/* Message list — hidden on mobile when detail selected */}
+        <div className={`md:w-80 md:flex-shrink-0 w-full bg-white border border-[#e8e3dc] rounded-xl overflow-y-auto ${selected ? 'hidden md:flex md:flex-col' : 'flex flex-col'}`}>
           {loading ? (
             <div className="p-8 text-center text-sm text-[#8a7e6e]">Loading...</div>
           ) : error ? (
@@ -335,7 +335,7 @@ export default function InboxPage() {
                 key={m.id}
                 onClick={() => selectMessage(m)}
                 className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-[#f0ece6] hover:bg-[#faf8f5] transition-colors ${
-                  selected?.id === m.id ? 'bg-[#f4f6ff] border-l-2 border-l-[#3b6bef]' : ''
+                  selected?.id === m.id ? 'bg-[#f4f6ff]' : ''
                 }`}
               >
                 {/* Avatar */}
@@ -377,8 +377,8 @@ export default function InboxPage() {
           )}
         </div>
 
-        {/* Detail panel */}
-        <div className="flex-1 bg-white border border-[#e8e3dc] rounded-xl overflow-hidden flex flex-col">
+        {/* Detail panel — hidden on mobile when no message selected */}
+        <div className={`flex-1 bg-white border border-[#e8e3dc] rounded-xl overflow-hidden flex flex-col ${!selected ? 'hidden md:flex' : 'flex'}`}>
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
               <div className="text-3xl mb-3">📭</div>
@@ -389,6 +389,13 @@ export default function InboxPage() {
             </div>
           ) : (
             <>
+              {/* Mobile back button */}
+              <button
+                className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-[#f0ece6] text-sm text-[#3b6bef] font-medium hover:bg-[#faf8f5] transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-inset"
+                onClick={() => setSelected(null)}
+              >
+                ← Back to inbox
+              </button>
               {/* Message header */}
               <div className="flex items-start justify-between px-5 py-4 border-b border-[#f0ece6]">
                 <div className="flex items-start gap-3">

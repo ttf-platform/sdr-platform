@@ -27,7 +27,7 @@ export function LocaleSwitcher() {
           aria-pressed={l === locale}
           aria-label={labels[l]}
           className={
-            'px-2 py-1 rounded text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-1 ' +
+            'min-h-[44px] min-w-[44px] px-3 flex items-center justify-center rounded text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-1 ' +
             (isPending ? 'opacity-50 cursor-wait ' : '') +
             (l === locale
               ? 'text-[#1a1a1a] bg-[#e8e3dc]'

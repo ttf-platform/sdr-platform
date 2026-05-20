@@ -58,12 +58,13 @@ export default async function ContactPage({
             </p>
             <a
               href="mailto:hello@sentra.so"
-              className="transition-opacity hover:opacity-70"
+              className="transition-opacity hover:opacity-70 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
               style={{
                 fontSize: '1.25rem',
                 color: '#1a1a1a',
                 textDecoration: 'underline',
                 textUnderlineOffset: '4px',
+                minHeight: '44px',
               }}
             >
               hello@sentra.so

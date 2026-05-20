@@ -993,6 +993,7 @@ export default function ProspectsPage() {
 
       {/* Table */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden mb-4">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#f0ece6]">
@@ -1074,6 +1075,7 @@ export default function ProspectsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}
