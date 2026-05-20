@@ -322,7 +322,32 @@
     "signIn": "Sign in",
     "signingIn": "Signing in...",
     "noAccount": "No account?",
-    "signUp": "Sign up"
+    "signUp": "Sign up",
+    "forgotPassword": "Forgot password?"
+  },
+  "forgotPassword": {
+    "title": "Reset your password",
+    "sub": "Enter your email and we'll send you a reset link.",
+    "emailPlaceholder": "Email",
+    "submit": "Send reset link",
+    "submitting": "Sending...",
+    "successTitle": "Check your inbox",
+    "successSub": "If an account exists for that email, you'll receive a reset link shortly.",
+    "backToLogin": "← Back to sign in"
+  },
+  "resetPassword": {
+    "title": "Set a new password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Update password",
+    "submitting": "Updating...",
+    "successTitle": "Password updated",
+    "successSub": "You can now sign in with your new password.",
+    "goToLogin": "Sign in",
+    "errorMismatch": "Passwords do not match.",
+    "errorTooShort": "Password must be at least 8 characters.",
+    "errorInvalidLink": "This reset link has expired or is invalid. Please request a new one.",
+    "backToLogin": "← Back to sign in"
   },
   "signup": {
     "step0": "Account",

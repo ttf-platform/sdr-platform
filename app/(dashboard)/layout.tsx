@@ -122,16 +122,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               hasLinkedIn={hasLinkedIn}
               pathname={pathname}
             />
-            <div
-              className="flex items-center gap-1.5 text-xs text-[#8a7e6e] bg-[#f0ece6] px-2.5 py-1.5 rounded-lg whitespace-nowrap"
-              aria-label={`${ws?.credits ?? 100} of 100 credits remaining`}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <circle cx="6" cy="6" r="5" stroke="#8a7e6e" strokeWidth="1.2"/>
-                <path d="M6 3.5v2.5l1.5 1.5" stroke="#8a7e6e" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-              <span aria-hidden="true">{ws?.credits ?? 100} / 100</span>
-            </div>
             <TrialBadge />
             {/* Avatar */}
             <button
@@ -321,10 +311,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
             </div>
 
-            {/* Credits + trial badge at bottom */}
-            <div className="mt-auto border-t border-[#e8e3dc] px-4 py-3 flex items-center justify-between">
+            {/* Trial badge at bottom */}
+            <div className="mt-auto border-t border-[#e8e3dc] px-4 py-3">
               <TrialBadge />
-              <div className="text-xs text-[#8a7e6e]">{ws?.credits ?? 100} / 100 credits</div>
             </div>
           </div>
         </>

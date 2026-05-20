@@ -23,7 +23,8 @@ export default function AnalyticsPage() {
       const bounces = data?.reduce((a, c) => a + (c.bounce_count || 0), 0) || 0
       setStats({ sent, open_rate: sent > 0 ? ((opens/sent)*100).toFixed(1) : '0.0', reply_rate: sent > 0 ? ((replies/sent)*100).toFixed(1) : '0.0', replies, bounce_rate: sent > 0 ? ((bounces/sent)*100).toFixed(1) : '0.0' })
     })
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period])
 
   return (
     <div>
