@@ -7,6 +7,8 @@ import { morningBriefGenerateSchema, badRequest } from '@/lib/schemas'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+export const maxDuration = 60
+
 // Returns UTC start/end of "today" in the given IANA timezone
 function todayBoundsUTC(tz: string): { start: Date; end: Date; dateStr: string } {
   const now = new Date()
@@ -152,20 +154,27 @@ Rules:
 
 Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 
-    const msg = await client.messages.create({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 4000,
-      messages:   [{ role: 'user', content: promptB }],
-    })
+    let msgB: Awaited<ReturnType<typeof client.messages.create>>
+    try {
+      msgB = await client.messages.create({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 2500,
+        messages:   [{ role: 'user', content: promptB }],
+      })
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err)
+      console.error('[morning-brief] Anthropic call failed (Mode B):', detail)
+      return NextResponse.json({ error: 'AI service temporarily unavailable. Please try again in a moment.' }, { status: 503 })
+    }
 
-    const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
+    const text  = msgB.content[0].type === 'text' ? msgB.content[0].text : '{}'
     const start = text.indexOf('{')
     const end   = text.lastIndexOf('}')
     const raw   = start >= 0 && end >= 0 ? text.slice(start, end + 1) : '{}'
 
     let content: unknown
     try { content = JSON.parse(raw) }
-    catch { return NextResponse.json({ error: 'Failed to generate AI response' }, { status: 500 }) }
+    catch { return NextResponse.json({ error: 'Failed to parse AI response. Please try again.' }, { status: 500 }) }
 
     const { data: brief, error } = await admin
       .from('morning_briefs')
@@ -229,20 +238,27 @@ Rules:
 
 Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 
-  const msg = await client.messages.create({
-    model:      'claude-sonnet-4-6',
-    max_tokens: 2000,
-    messages:   [{ role: 'user', content: promptA }],
-  })
+  let msgA: Awaited<ReturnType<typeof client.messages.create>>
+  try {
+    msgA = await client.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages:   [{ role: 'user', content: promptA }],
+    })
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error('[morning-brief] Anthropic call failed (Mode A):', detail)
+    return NextResponse.json({ error: 'AI service temporarily unavailable. Please try again in a moment.' }, { status: 503 })
+  }
 
-  const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
+  const text  = msgA.content[0].type === 'text' ? msgA.content[0].text : '{}'
   const start = text.indexOf('{')
   const end   = text.lastIndexOf('}')
   const raw   = start >= 0 && end >= 0 ? text.slice(start, end + 1) : '{}'
 
   let content: unknown
   try { content = JSON.parse(raw) }
-  catch { return NextResponse.json({ error: 'Failed to generate AI response' }, { status: 500 }) }
+  catch { return NextResponse.json({ error: 'Failed to parse AI response. Please try again.' }, { status: 500 }) }
 
   const { data: brief, error } = await admin
     .from('morning_briefs')

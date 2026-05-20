@@ -418,7 +418,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
               </div>
-              <button className="bg-[#2563eb] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</button>
+              <Link href="/dashboard/billing" className="bg-[#2563eb] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</Link>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
