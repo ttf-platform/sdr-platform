@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const supabase = createClient()
 
 export default function AdminPage() {
+  const router = useRouter()
   const [stats, setStats] = useState({ users: 0, active: 0, campaigns: 0, emails: 0, opens: 0 })
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -18,12 +20,14 @@ export default function AdminPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
+      if (!session) { router.replace('/dashboard'); return }
+      const check = await fetch('/api/admin/check').then(r => r.json()).catch(() => ({ isAdmin: false }))
+      if (!check.isAdmin) { router.replace('/dashboard'); return }
       const res = await fetch('/api/admin/stats').then(r => r.json())
       setStats(res.stats || {})
       setUsers(res.users || [])
     })
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function sendBroadcast() {
     setSending(true)
@@ -84,13 +88,14 @@ export default function AdminPage() {
               className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
               placeholder="Search by name, email, or company..." />
           </div>
-          <div className="px-5 py-2 border-b border-[#f0ece6] grid grid-cols-4 gap-4">
+          <div className="overflow-x-auto">
+          <div className="px-5 py-2 border-b border-[#f0ece6] grid grid-cols-4 gap-4 min-w-[480px]">
             {['NAME / EMAIL','COMPANY','JOINED','PLAN'].map(h => (
               <div key={h} className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{h}</div>
             ))}
           </div>
           {filtered.map((u, i) => (
-            <div key={i} className="px-5 py-3 border-b border-[#f7f4f0] grid grid-cols-4 gap-4 items-center">
+            <div key={i} className="px-5 py-3 border-b border-[#f7f4f0] grid grid-cols-4 gap-4 items-center min-w-[480px]">
               <div>
                 <div className="text-sm font-medium text-[#1a1a2e]">{u.name || u.email?.split('@')[0]}</div>
                 <div className="text-xs text-[#8a7e6e]">{u.email}</div>
@@ -100,6 +105,7 @@ export default function AdminPage() {
               <div><span className="text-xs bg-[#f0ece6] text-[#6b5e4e] px-2 py-0.5 rounded-full capitalize">{u.plan || 'trial'}</span></div>
             </div>
           ))}
+          </div>
         </div>
       )}
 

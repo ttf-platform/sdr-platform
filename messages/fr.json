@@ -322,7 +322,32 @@
     "signIn": "Se connecter",
     "signingIn": "Connexion...",
     "noAccount": "Pas de compte ?",
-    "signUp": "S'inscrire"
+    "signUp": "S'inscrire",
+    "forgotPassword": "Mot de passe oublié ?"
+  },
+  "forgotPassword": {
+    "title": "Réinitialiser votre mot de passe",
+    "sub": "Saisissez votre email et nous vous enverrons un lien de réinitialisation.",
+    "emailPlaceholder": "Email",
+    "submit": "Envoyer le lien",
+    "submitting": "Envoi...",
+    "successTitle": "Vérifiez votre boîte mail",
+    "successSub": "Si un compte existe pour cet email, vous recevrez un lien de réinitialisation prochainement.",
+    "backToLogin": "← Retour à la connexion"
+  },
+  "resetPassword": {
+    "title": "Définir un nouveau mot de passe",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "submit": "Mettre à jour le mot de passe",
+    "submitting": "Mise à jour...",
+    "successTitle": "Mot de passe mis à jour",
+    "successSub": "Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
+    "goToLogin": "Se connecter",
+    "errorMismatch": "Les mots de passe ne correspondent pas.",
+    "errorTooShort": "Le mot de passe doit comporter au moins 8 caractères.",
+    "errorInvalidLink": "Ce lien de réinitialisation a expiré ou est invalide. Veuillez en demander un nouveau.",
+    "backToLogin": "← Retour à la connexion"
   },
   "signup": {
     "step0": "Compte",

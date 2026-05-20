@@ -49,7 +49,10 @@ export default function LoginPage() {
           <button type="submit" disabled={loading} className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
             {loading ? t('signingIn') : t('signIn')}
           </button>
-          <p className="text-center text-xs text-[#8a7e6e]">{t('noAccount')} <Link href="/signup" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signUp')}</Link></p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-[#8a7e6e]">{t('noAccount')} <Link href="/signup" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signUp')}</Link></p>
+            <Link href="/forgot-password" className="text-xs text-[#8a7e6e] hover:text-[#3b6bef] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('forgotPassword')}</Link>
+          </div>
         </form>
       </div>
     </div>

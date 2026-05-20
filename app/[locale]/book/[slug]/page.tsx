@@ -316,7 +316,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
                 </h2>
                 <select
                   value={tzOverride}
-                  onChange={e => { setTzOverride(e.target.value); setSelDateStr(''); setSelSlot('') }}
+                  onChange={e => { setTzOverride(e.target.value); setSelSlot('') }}
                   className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-[#4a3f32] focus:outline-none focus:border-[#3b6bef] bg-white max-w-[200px]"
                 >
                   {TZ_OPTIONS.map(o => (
