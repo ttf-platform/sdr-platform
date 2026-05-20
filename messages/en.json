@@ -469,5 +469,8 @@
     "dpaTitle": "Data Processing Addendum",
     "gdprTitle": "GDPR Rights",
     "dpaNonNegotiable": "Non-negotiable DPA. As a small organization without dedicated legal staff, Sentra cannot accept customer-modified versions of this DPA. The provisions herein incorporate standard contractual terms approved by the European Commission and are the same for all subscribers."
+  },
+  "common": {
+    "backHome": "Home"
   }
 }
