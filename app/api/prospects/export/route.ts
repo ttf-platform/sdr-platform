@@ -6,6 +6,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimitByWorkspace } from '@/lib/rate-limit'
 import { csvUuidArray, badRequest } from '@/lib/schemas'
+import { sanitizeRow } from '@/lib/sanitize-export'
 
 const MAX_SYNC_EXPORT = 10_000
 
@@ -242,6 +243,9 @@ export async function GET(req: NextRequest) {
 
   // ── 8. Generate file ─────────────────────────────────────────────────────────
 
+  // Sanitize after all concatenation (tags join, notes join) to catch injected prefixes
+  const safeRows = rows.map(r => sanitizeRow(r))
+
   const durationMs = Date.now() - startTime
   const dateStr    = new Date().toISOString().split('T')[0]
 
@@ -250,13 +254,13 @@ export async function GET(req: NextRequest) {
   let filename: string
 
   if (format === 'csv') {
-    const csv = Papa.unparse(rows)
+    const csv = Papa.unparse(safeRows)
     fileBuffer  = Buffer.from('\uFEFF' + csv, 'utf-8') // BOM for Excel UTF-8
     contentType = 'text/csv; charset=utf-8'
     filename    = `sentra-prospects-${dateStr}.csv`
   } else {
     const wb  = XLSX.utils.book_new()
-    const ws  = XLSX.utils.json_to_sheet(rows)
+    const ws  = XLSX.utils.json_to_sheet(safeRows)
     XLSX.utils.book_append_sheet(wb, ws, 'Prospects')
     fileBuffer  = Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }))
     contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
