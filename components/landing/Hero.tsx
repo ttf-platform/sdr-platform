@@ -600,7 +600,7 @@ export function Hero() {
             </div>
 
             {/* Annotations — desktop only */}
-            <div className="hidden lg:flex gap-3 mt-2">
+            <div className="hidden lg:flex gap-3 mt-2 min-h-[48px]">
               {/* Annotation 1 — HITL: 0.75rem Ink Mist quand Phase 3 active */}
               <div className="flex-[3] min-w-0">
                 <motion.div
@@ -614,11 +614,12 @@ export function Hero() {
                     <div className="h-1 w-1 rounded-full bg-[#e8e3dc]" />
                   </div>
                   <p
-                    className="leading-[1.4] transition-[font-size,color] duration-300"
+                    className="leading-[1.4] transition-[transform,color] duration-300 origin-left"
                     style={{
                       fontWeight: 300,
-                      fontSize: phase === 3 ? '0.75rem' : '0.625rem',
+                      fontSize: '0.75rem',
                       color: phase === 3 ? '#4a4a5a' : '#9a9a9a',
+                      transform: phase === 3 ? 'scale(1)' : 'scale(0.83)',
                     }}
                   >
                     {t('annotationHITL')}
@@ -640,11 +641,12 @@ export function Hero() {
                     <div className="h-1 w-1 rounded-full bg-[#e8e3dc]" />
                   </div>
                   <p
-                    className="leading-[1.4] transition-[font-size,color] duration-300"
+                    className="leading-[1.4] transition-[transform,color] duration-300 origin-left"
                     style={{
                       fontWeight: phase === 5 ? 400 : 300,
-                      fontSize: phase === 5 ? '0.875rem' : '0.625rem',
+                      fontSize: '0.875rem',
                       color: phase === 5 ? '#1a1a1a' : '#9a9a9a',
+                      transform: phase === 5 ? 'scale(1)' : 'scale(0.71)',
                     }}
                   >
                     {t('annotationCalendar')}

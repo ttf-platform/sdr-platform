@@ -89,7 +89,7 @@ export function WorkspaceDropdown({ planTier, role, isSentraAdmin, hasCallRecord
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-[#e8e3dc] rounded-xl shadow-lg z-50 overflow-hidden pb-1.5"
+          className="absolute right-0 top-full mt-1.5 w-56 max-w-[calc(100vw-2rem)] bg-white border border-[#e8e3dc] rounded-xl shadow-lg z-50 overflow-hidden pb-1.5"
         >
           <SectionHeader label="Insights" />
           <NavItem href="/dashboard/analytics" icon={BarChart2} label="Analytics" active={isActive('/dashboard/analytics')} onClose={close} />

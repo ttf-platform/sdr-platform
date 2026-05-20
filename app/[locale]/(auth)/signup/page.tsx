@@ -78,31 +78,31 @@ function SignupForm() {
           {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
           {step === 0 && (<>
             <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step0Title')}</h2>
-            <input type="text" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('fullName')} />
-            <input type="email" value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('email')} />
-            <input type="password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} minLength={8} />
-            <button onClick={()=>setStep(1)} disabled={!data.email||!data.password||!data.name} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('continue')}</button>
-            <p className="text-center text-xs text-[#8a7e6e]">{t('alreadyHaveAccount')} <a href="/login" className="text-[#3b6bef] font-medium">{t('signIn')}</a></p>
+            <input type="text" name="name" autoComplete="name" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('fullName')} />
+            <input type="email" name="email" autoComplete="email" spellCheck={false} value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('email')} />
+            <input type="password" name="new-password" autoComplete="new-password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} minLength={8} />
+            <button onClick={()=>setStep(1)} disabled={!data.email||!data.password||!data.name} className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('continue')}</button>
+            <p className="text-center text-xs text-[#8a7e6e]">{t('alreadyHaveAccount')} <a href="/login" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signIn')}</a></p>
           </>)}
           {step === 1 && (<>
             <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step1Title')}</h2>
             <p className="text-sm text-[#8a7e6e]">{t('step1Sub')}</p>
-            <input type="text" value={data.workspaceName} onChange={e=>setData({...data,workspaceName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('workspacePlaceholder')} />
+            <input type="text" value={data.workspaceName} onChange={e=>setData({...data,workspaceName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('workspacePlaceholder')} />
             <div className="flex gap-2">
-              <button onClick={()=>setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('back')}</button>
-              <button onClick={()=>setStep(2)} disabled={!data.workspaceName} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('continue')}</button>
+              <button onClick={()=>setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
+              <button onClick={()=>setStep(2)} disabled={!data.workspaceName} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('continue')}</button>
             </div>
           </>)}
           {step === 2 && (<>
             <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step2Title')}</h2>
-            <input type="text" value={data.companyName} onChange={e=>setData({...data,companyName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('companyNamePlaceholder')} />
+            <input type="text" value={data.companyName} onChange={e=>setData({...data,companyName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('companyNamePlaceholder')} />
             <div>
               <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{t('productLabel')}</label>
-              <textarea required value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder={t('productPlaceholder')} />
+              <textarea required value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef] resize-none" rows={3} placeholder={t('productPlaceholder')} />
             </div>
             <div className="flex gap-2">
-              <button onClick={()=>setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('back')}</button>
-              <button onClick={()=>setStep(3)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('continue')}</button>
+              <button onClick={()=>setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
+              <button onClick={()=>setStep(3)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('continue')}</button>
             </div>
           </>)}
           {step === 3 && (<>
@@ -110,15 +110,15 @@ function SignupForm() {
               🎉 {t('step3Badge')}
             </div>
             <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step3Title')}</h2>
-            <textarea value={data.icp} onChange={e=>setData({...data,icp:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder={t('icpPlaceholder')} />
+            <textarea value={data.icp} onChange={e=>setData({...data,icp:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef] resize-none" rows={3} placeholder={t('icpPlaceholder')} />
             <div className="grid grid-cols-2 gap-2">
               {tones.map(tone => (
                 <button key={tone} onClick={()=>setData({...data,tone})} className={"px-3 py-2 rounded-lg text-sm border " + (data.tone===tone ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{toneLabels[tone]}</button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('back')}</button>
-              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
+              <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
+              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
             </div>
           </>)}
         </div>

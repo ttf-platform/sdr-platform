@@ -66,13 +66,13 @@ export default function DashboardPage() {
           <p className="text-sm text-[#8a7e6e]">Your outbound performance at a glance</p>
         </div>
         <Link href="/dashboard/campaigns"
-          className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors">
+          className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
           + New Campaign
         </Link>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
           <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">CAMPAIGNS</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#1a1a2e]'}`}>

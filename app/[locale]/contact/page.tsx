@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Link } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
@@ -25,12 +26,23 @@ export default async function ContactPage({
   const { locale } = await params
   setRequestLocale(locale)
   const t = await getTranslations('contact')
+  const tc = await getTranslations('common')
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#faf8f5' }}>
       <LandingHeader />
 
-      <main className="mx-auto max-w-3xl px-6 py-32 md:py-40">
+      <nav className="mx-auto max-w-3xl px-6 pt-24 pb-0" aria-label="Breadcrumb">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-[#8a7e6e] hover:text-[#1a1a1a] transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+        >
+          <span aria-hidden>←</span>
+          <span>{tc('backHome')}</span>
+        </Link>
+      </nav>
+
+      <main className="mx-auto max-w-3xl px-6 pt-8 pb-32 md:pb-40">
         <h1
           className="mb-6 tracking-tight"
           style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 500, color: '#1a1a1a', lineHeight: 1.15 }}
@@ -58,12 +70,13 @@ export default async function ContactPage({
             </p>
             <a
               href="mailto:hello@sentra.so"
-              className="transition-opacity hover:opacity-70"
+              className="transition-opacity hover:opacity-70 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
               style={{
                 fontSize: '1.25rem',
                 color: '#1a1a1a',
                 textDecoration: 'underline',
                 textUnderlineOffset: '4px',
+                minHeight: '44px',
               }}
             >
               hello@sentra.so
