@@ -23,7 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_export_history_created_at
 
 ALTER TABLE export_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "export_history_select_workspace_member" ON export_history
+DROP POLICY IF EXISTS "export_history_select_workspace_member" ON export_history;
+CREATE POLICY "export_history_select_workspace_member" ON export_history
   FOR SELECT TO authenticated
   USING (
     workspace_id IN (
@@ -31,7 +32,8 @@ CREATE POLICY IF NOT EXISTS "export_history_select_workspace_member" ON export_h
     )
   );
 
-CREATE POLICY IF NOT EXISTS "export_history_insert_workspace_member" ON export_history
+DROP POLICY IF EXISTS "export_history_insert_workspace_member" ON export_history;
+CREATE POLICY "export_history_insert_workspace_member" ON export_history
   FOR INSERT TO authenticated
   WITH CHECK (
     workspace_id IN (

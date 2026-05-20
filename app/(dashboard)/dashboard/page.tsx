@@ -60,9 +60,9 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Hero */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">{stats?.workspaceName || '...'}</h1>
+      <div className="flex items-center justify-between mb-6 gap-3 min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold text-[#1a1a2e] truncate">{stats?.workspaceName || '...'}</h1>
           <p className="text-sm text-[#8a7e6e]">Your outbound performance at a glance</p>
         </div>
         <Link href="/dashboard/campaigns"

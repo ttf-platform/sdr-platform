@@ -291,7 +291,7 @@ export default function InboxPage() {
             Replies from prospects across all campaigns
           </p>
         </div>
-        <div className="flex gap-1 bg-[#f5f3f0] border border-[#e8e3dc] rounded-xl p-1">
+        <div className="flex gap-1 bg-[#f5f3f0] border border-[#e8e3dc] rounded-xl p-1 overflow-x-auto flex-shrink-0 min-w-0">
           {TABS.map(t => (
             <button
               key={t.key}

@@ -47,6 +47,14 @@ export function ExportProspectsModal({ isOpen, onClose, selectedIds, totalCount,
   const dialogRef       = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
+  // Reset scope to smart default whenever modal opens
+  useEffect(() => {
+    if (!isOpen) return
+    setScope(selectedIds.length > 0 ? 'selected' : filteredCount < totalCount ? 'filtered' : 'all')
+    setError(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+
   // P2: sync scope when selection is cleared externally
   useEffect(() => {
     if (selectedIds.length === 0 && scope === 'selected') {

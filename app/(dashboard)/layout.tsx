@@ -36,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
         setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
       }
-      fetch('/api/admin/check').then(r => { if (r.ok) setIsSentraAdmin(true) }).catch(() => {})
+      fetch('/api/admin/check').then(r => r.json()).then(d => { if (d?.isAdmin) setIsSentraAdmin(true) }).catch(() => {})
     })
   }, [])
 
@@ -312,9 +312,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Profile / sign out */}
             <div className="py-2">
-              <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
-                <Settings size={16} /> Settings
-              </Link>
               <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#6b5e4e] hover:bg-[#f5f2ee]">
                 ← Homepage
               </Link>

@@ -7,10 +7,12 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     await requireSentraAdmin();
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ isAdmin: true });
   } catch (err) {
     if (err instanceof AdminAuthError) {
-      return NextResponse.json({ ok: false }, { status: err.code === 'unauthorized' ? 401 : 403 });
+      // Return 200+{isAdmin:false} for authenticated non-admins to avoid console pollution
+      if (err.code === 'forbidden') return NextResponse.json({ isAdmin: false });
+      return NextResponse.json({ isAdmin: false }, { status: 401 });
     }
     throw err;
   }

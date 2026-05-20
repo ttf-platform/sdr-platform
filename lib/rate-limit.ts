@@ -37,7 +37,7 @@ type RateLimitResult =
 function buildLimitedResponse(reset: number): NextResponse {
   const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000))
   return NextResponse.json(
-    { error: 'rate_limited', retry_after_seconds: retryAfter },
+    { error: 'Rate limited', retry_after_seconds: retryAfter },
     { status: 429, headers: { 'Retry-After': String(retryAfter) } },
   )
 }
