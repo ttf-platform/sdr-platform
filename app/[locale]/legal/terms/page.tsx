@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const metadata: Metadata = {
   title: 'Terms of Service — Sentra',
@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   alternates: { canonical: '/legal/terms' },
 }
 
-export default async function TermsPage() {
+export default async function TermsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
   const t = await getTranslations('legal')
   return (
     <>

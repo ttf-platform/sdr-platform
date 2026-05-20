@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { getTranslations } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const metadata: Metadata = {
   title: 'GDPR Rights — Sentra',
@@ -8,7 +8,13 @@ export const metadata: Metadata = {
   alternates: { canonical: '/legal/gdpr' },
 }
 
-export default async function GdprPage() {
+export default async function GdprPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
   const t = await getTranslations('legal')
   return (
     <>

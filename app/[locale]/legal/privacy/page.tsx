@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
@@ -10,7 +10,13 @@ export const metadata: Metadata = {
   alternates: { canonical: '/legal/privacy' },
 }
 
-export default async function PrivacyPage() {
+export default async function PrivacyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
   const t = await getTranslations('legal')
   return (
     <>

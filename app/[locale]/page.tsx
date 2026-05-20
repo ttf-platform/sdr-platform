@@ -1,4 +1,5 @@
 import { Fraunces } from 'next/font/google';
+import { setRequestLocale } from 'next-intl/server';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { Hero } from '@/components/landing/Hero';
 import { TrustBand } from '@/components/landing/TrustBand';
@@ -40,7 +41,13 @@ const jsonLd = {
   },
 };
 
-export default function LandingPage() {
+export default async function LandingPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
   return (
     <div className={`${fraunces.variable} min-h-screen bg-[#faf8f5]`}>
       <a
