@@ -472,5 +472,9 @@
   },
   "common": {
     "backHome": "Accueil"
+  },
+  "metadata": {
+    "siteTitle": "Sentra — Prospection à froid qui décroche des rendez-vous",
+    "siteDescription": "Sentra trouve vos acheteurs, rédige l'email, prend le rendez-vous. Outbound tout-en-un pour les fondateurs et premières recrues commerciales."
   }
 }

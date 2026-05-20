@@ -914,7 +914,7 @@ export default function PipelinePage() {
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Total CA Won</span>
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Total Revenue Won</span>
             <InfoIcon content={KPI_TOOLTIPS.totalCaWon} />
           </div>
           <div className="text-3xl font-bold text-green-600">

@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/routing'
 import { createClient } from '@/lib/supabase/client'
 import { track } from '@/lib/track'
 
@@ -8,6 +10,7 @@ const supabase = createClient()
 
 export default function LoginPage() {
   const t = useTranslations('login')
+  const { locale } = useParams<{ locale: string }>()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -20,7 +23,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
     track('login_completed')
-    window.location.href = '/dashboard'
+    window.location.href = `/${locale}/dashboard`
   }
 
   return (
@@ -48,7 +51,7 @@ export default function LoginPage() {
           <button type="submit" disabled={loading} className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
             {loading ? t('signingIn') : t('signIn')}
           </button>
-          <p className="text-center text-xs text-[#8a7e6e]">{t('noAccount')} <a href="/signup" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signUp')}</a></p>
+          <p className="text-center text-xs text-[#8a7e6e]">{t('noAccount')} <Link href="/signup" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signUp')}</Link></p>
         </form>
       </div>
     </div>
