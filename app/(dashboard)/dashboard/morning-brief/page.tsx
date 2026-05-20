@@ -326,6 +326,7 @@ export default function MorningBriefPage() {
   const [briefs, setBriefs]           = useState<any[]>([])
   const [selected, setSelected]       = useState<any>(null)
   const [generating, setGenerating]   = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [profile, setProfile] = useState<ProfileForScore | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
@@ -393,21 +394,36 @@ export default function MorningBriefPage() {
   async function generateBrief() {
     if (!workspaceId || profileGated) return
     setGenerating(true)
-    const res = await fetch('/api/morning-brief/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspace_id: workspaceId }),
-    }).then(r => r.json())
-    if (res.brief) {
-      setBriefs(prev => [res.brief, ...prev])
-      setSelected(res.brief)
+    setGenerateError(null)
+    try {
+      const r = await fetch('/api/morning-brief/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      })
+      const res = await r.json()
+      if (res.brief) {
+        setBriefs(prev => [res.brief, ...prev])
+        setSelected(res.brief)
+      } else {
+        setGenerateError(res.error ?? 'Unable to generate brief. Please try again.')
+      }
+    } catch {
+      setGenerateError('Network error. Please check your connection and try again.')
+    } finally {
+      setGenerating(false)
     }
-    setGenerating(false)
   }
 
   return (
     <div className="max-w-2xl mx-auto">
       {profileLoaded && <ProfileQualityBadge profile={profile} className="mb-4" />}
+      {generateError && (
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+          <span className="flex-shrink-0">⚠</span>
+          <span>{generateError}</span>
+        </div>
+      )}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>

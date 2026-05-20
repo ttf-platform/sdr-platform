@@ -60,7 +60,7 @@ export default function TrialBadge() {
 
   return (
     <Link
-      href="/dashboard/settings?tab=billing"
+      href="/dashboard/billing"
       className={"text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap " + className}
     >
       {text}
