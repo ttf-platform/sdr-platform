@@ -14,6 +14,7 @@ import { TagPicker } from '@/components/TagPicker'
 import { CreateTagModal } from '@/components/CreateTagModal'
 import { NoteItem } from '@/components/NoteItem'
 import { TagFilterDropdown } from '@/components/TagFilterDropdown'
+import { ExportProspectsModal } from '@/components/ExportProspectsModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LifecycleCounts = {
@@ -499,6 +500,7 @@ export default function ProspectsPage() {
   const [sort, setSort]                 = useState('newest')
   const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
   const [modal, setModal]               = useState<null | 'csv' | 'manual' | 'paste'>(null)
+  const [showExport, setShowExport]     = useState(false)
   const [refreshKey, setRefreshKey]     = useState(0)
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
@@ -731,6 +733,10 @@ export default function ProspectsPage() {
           <button onClick={() => setModal('manual')}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">
             Add manually
+          </button>
+          <button onClick={() => setShowExport(true)}
+            className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] flex items-center gap-1.5">
+            <span aria-hidden="true">⬇</span> Export
           </button>
           <button onClick={() => setModal('csv')}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5">
@@ -1096,6 +1102,10 @@ export default function ProspectsPage() {
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
             <button onClick={() => setSelectedIds(new Set())}
               className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+            <button onClick={() => setShowExport(true)}
+              className="bg-[#3b6bef] hover:bg-[#2a5adf] text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">
+              <span aria-hidden="true">⬇</span> Export ({selectedIds.size})
+            </button>
             <button onClick={bulkDelete} disabled={bulkDeleting}
               className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
               {bulkDeleting ? 'Deleting…' : 'Delete'}
@@ -1124,6 +1134,21 @@ export default function ProspectsPage() {
       {modal === 'csv'    && <ImportCSVModal campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
       {modal === 'manual' && <ManualAddModal campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
       {modal === 'paste'  && <PasteModal     campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
+
+      <ExportProspectsModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        selectedIds={[...selectedIds]}
+        totalCount={totalAll}
+        filteredCount={total}
+        filters={{
+          campaign_id: campaignFilter !== 'all' ? campaignFilter : undefined,
+          status:      statusFilters.size > 0 ? [...statusFilters].join(',') : undefined,
+          source:      sourceFilter !== 'all' ? sourceFilter : undefined,
+          tag_ids:     selectedTagIds.length > 0 ? selectedTagIds : undefined,
+          search:      search.trim() || undefined,
+        }}
+      />
     </div>
   )
 }

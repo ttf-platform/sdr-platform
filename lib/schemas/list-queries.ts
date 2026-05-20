@@ -21,7 +21,7 @@ const csvEmailArray = z
 
 // CSV UUIDs (optional, defaults to empty array)
 // Note: .transform(v => v ?? []) instead of .default([]) avoids Zod re-validating [] against z.string()
-const csvUuidArray = z
+export const csvUuidArray = z
   .string()
   .transform(s => s.split(',').map(v => v.trim()).filter(Boolean))
   .pipe(z.array(z.string().uuid()).max(500))
