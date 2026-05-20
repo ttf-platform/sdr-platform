@@ -45,13 +45,15 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     if (name.trim()) scheduleNameCheck(name, 600)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Bug G — pre-fill ICP textarea with Master ICP on mount (only if empty)
+  // Pre-fill ICP + product description from workspace profile on mount (only if empty / no preset)
   useEffect(() => {
     fetch('/api/workspace-profile')
       .then(r => r.json())
       .then(d => {
-        const desc = d.profile?.icp_description
-        if (desc && !icpText) setIcpText(desc)
+        const p = d.profile
+        if (!p) return
+        if (p.icp_description && !icpText) setIcpText(p.icp_description)
+        if (p.product_description && !angle) setAngle(p.product_description)
       })
       .catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
