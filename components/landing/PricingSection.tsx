@@ -1,78 +1,61 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
 
-const PLANS = [
-  {
-    name: 'Starter',
-    price: '$149',
-    annual: '$1,490/yr',
-    annualNote: '2 months free',
-    tagline: 'For founders making their first 100 cold reaches',
-    features: [
-      '5,000 prospects sourced',
-      '5,000 emails/month',
-      '500 enrichment credits/month',
-      'All AI features included',
-      'Email support',
-    ],
-    cta: 'Start free trial',
-    highlighted: false,
-    badge: null,
-  },
-  {
-    name: 'Pro',
-    price: '$299',
-    annual: '$2,990/yr',
-    annualNote: '2 months free',
-    tagline: 'For startups scaling outbound past first traction',
-    features: [
-      '25,000 prospects sourced',
-      '25,000 emails/month',
-      '2,000 enrichment credits/month',
-      'All AI features included',
-      'Priority support',
-    ],
-    cta: 'Start free trial',
-    highlighted: true,
-    badge: 'Most popular',
-  },
-  {
-    name: 'Power',
-    price: '$399',
-    annual: '$3,990/yr',
-    annualNote: '2 months free',
-    tagline: 'For sales teams who need volume without losing quality',
-    features: [
-      '100,000 prospects sourced',
-      '100,000 emails/month',
-      '5,000 enrichment credits/month',
-      'All AI features included',
-      'Dedicated success manager',
-    ],
-    cta: 'Start free trial',
-    highlighted: false,
-    badge: null,
-  },
-];
-
 export function PricingSection() {
+  const t = useTranslations('landing.pricing');
+
+  const PLANS = [
+    {
+      name: t('starterName'),
+      price: t('starterPrice'),
+      annual: t('starterAnnual'),
+      annualNote: t('annualNote'),
+      tagline: t('starterTagline'),
+      features: [t('starterF0'), t('starterF1'), t('starterF2'), t('starterF3'), t('starterF4')],
+      highlighted: false,
+      badge: null,
+    },
+    {
+      name: t('proName'),
+      price: t('proPrice'),
+      annual: t('proAnnual'),
+      annualNote: t('annualNote'),
+      tagline: t('proTagline'),
+      features: [t('proF0'), t('proF1'), t('proF2'), t('proF3'), t('proF4')],
+      highlighted: true,
+      badge: t('proBadge'),
+    },
+    {
+      name: t('powerName'),
+      price: t('powerPrice'),
+      annual: t('powerAnnual'),
+      annualNote: t('annualNote'),
+      tagline: t('powerTagline'),
+      features: [t('powerF0'), t('powerF1'), t('powerF2'), t('powerF3'), t('powerF4')],
+      highlighted: false,
+      badge: null,
+    },
+  ];
+
   return (
     <section id="pricing" className="py-24 bg-[#faf8f5]">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-16">
           <div className="inline-block text-[10px] font-bold uppercase tracking-[0.18em] text-[#2563eb] mb-5">
-            Pricing
+            {t('eyebrow')}
           </div>
           <h2
             className="text-4xl lg:text-5xl font-light text-[#1a1a1a] mb-5 leading-tight"
             style={{ fontFamily: 'var(--font-fraunces)', fontStyle: 'italic' }}
           >
-            Pick a plan. Start free.{' '}
-            <span className="text-[#4a4a5a]">No surprises.</span>
+            {t('headline')}{' '}
+            <span className="text-[#4a4a5a]">{t('headlineAccent')}</span>
           </h2>
           <p className="text-base lg:text-lg text-[#4a4a5a] max-w-xl mx-auto leading-relaxed">
-            All plans include sourcing, writing, sending, deliverability, follow-ups, and meeting booking.
-            The only difference is volume.
+            {t('subtext')}
           </p>
         </div>
 
@@ -106,10 +89,10 @@ export function PricingSection() {
               {/* Price */}
               <div className="mb-1 flex items-baseline gap-1">
                 <span className="text-4xl font-bold text-[#1a1a1a] tracking-tight">{plan.price}</span>
-                <span className="text-sm text-[#9a9a9a] ml-0.5">/mo</span>
+                <span className="text-sm text-[#9a9a9a] ml-0.5">{t('perMonth')}</span>
               </div>
               <div className="text-xs text-[#9a9a9a] mb-3">
-                or {plan.annual} — {plan.annualNote}
+                {t('annualOr')} {plan.annual} — {plan.annualNote}
               </div>
 
               {/* Tagline */}
@@ -140,7 +123,7 @@ export function PricingSection() {
                 variant={plan.highlighted ? 'primary' : 'secondary'}
                 className="w-full justify-center"
               >
-                {plan.cta}
+                {t('cta')}
               </CTAButton>
             </div>
           ))}
@@ -149,12 +132,12 @@ export function PricingSection() {
         {/* Footer note */}
         <div className="mt-10 text-center">
           <p className="text-sm text-[#9a9a9a]">
-            All plans include 14-day free trial. No credit card required. Cancel anytime.{' '}
+            {t('footerNote')}{' '}
             <a
               href="/pricing"
               className="text-[#4a4a5a] underline underline-offset-2 hover:text-[#1a1a1a] transition-colors"
             >
-              Full pricing details →
+              {t('footerLink')}
             </a>
           </p>
         </div>

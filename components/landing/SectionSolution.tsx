@@ -2,17 +2,8 @@
 
 import { useRef } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
-
-const chips = [
-  { label: 'Data tool', price: '$149/mo' },
-  { label: 'Enrichment', price: '$349/mo' },
-  { label: 'Sending', price: '$97/mo' },
-  { label: 'Multichannel', price: '$79/mo' },
-  { label: 'Booking', price: '$20/mo' },
-];
-
-const capabilities = ['Sourcing', 'Drafting', 'Sending', 'Replies', 'Booking'];
 
 // X positions (0–100) in SVG viewBox for the 5 converging lines
 const chipXPositions = [5, 23, 50, 77, 95];
@@ -23,9 +14,26 @@ const inView = {
 };
 
 export function SectionSolution() {
+  const t = useTranslations('landing.solution');
   const reduced = useReducedMotion() ?? false;
   const cardRef = useRef<HTMLDivElement>(null);
   const cardInView = useInView(cardRef, { once: true, margin: '-60px' });
+
+  const chips = [
+    { label: t('chip0Label'), price: t('chip0Price') },
+    { label: t('chip1Label'), price: t('chip1Price') },
+    { label: t('chip2Label'), price: t('chip2Price') },
+    { label: t('chip3Label'), price: t('chip3Price') },
+    { label: t('chip4Label'), price: t('chip4Price') },
+  ];
+
+  const capabilities = [
+    t('chip0Label'),
+    t('chip1Label'),
+    t('chip2Label'),
+    t('chip3Label'),
+    t('chip4Label'),
+  ];
 
   return (
     <section className="bg-[#faf8f5] py-24 lg:py-32">
@@ -43,7 +51,7 @@ export function SectionSolution() {
             className="mb-5 font-bold uppercase text-[#2563eb]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
-            The Solution
+            {t('eyebrow')}
           </p>
 
           <h2
@@ -55,18 +63,15 @@ export function SectionSolution() {
               maxWidth: '36rem',
             }}
           >
-            One product. One price. One founder-friendly setup.
+            {t('headline')}
           </h2>
 
           <div className="mx-auto" style={{ maxWidth: '42rem' }}>
             <p className="text-base leading-[1.6] text-[#4a4a5a] lg:text-lg" style={{ fontWeight: 300 }}>
-              Sentra is the outbound role you&apos;d otherwise hire a Sales Development Rep (SDR) to
-              run — sourcing the right buyers, drafting the emails, handling replies, and booking
-              meetings. Except Sentra doesn&apos;t need a salary, doesn&apos;t need a 6-week ramp,
-              and doesn&apos;t need three tools to do its job.
+              {t('body1')}
             </p>
             <p className="mt-4 text-base leading-[1.6] text-[#4a4a5a] lg:text-lg" style={{ fontWeight: 300 }}>
-              From $149/mo. 14 days free. Zero stack to assemble.
+              {t('body2')}
             </p>
           </div>
         </motion.div>
@@ -84,7 +89,7 @@ export function SectionSolution() {
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const, delay: 0.05 }}
           >
-            All of this...
+            {t('narrativeIn')}
           </motion.p>
 
           {/* 5 chips — visible, sized up, with prices */}
@@ -189,7 +194,7 @@ export function SectionSolution() {
               <div>
                 <div className="text-2xl font-medium text-[#1a1a1a]">Sentra</div>
                 <div className="text-sm text-[#4a4a5a]" style={{ fontWeight: 300 }}>
-                  All-in-one outbound
+                  {t('cardTagline')}
                 </div>
               </div>
             </div>
@@ -215,7 +220,7 @@ export function SectionSolution() {
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const, delay: 0.1 }}
           >
-            ...in one product.
+            {t('narrativeOut')}
           </motion.p>
         </div>
 
@@ -229,7 +234,7 @@ export function SectionSolution() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const, delay: 0.15 }}
         >
           <CTAButton href="/signup" variant="primary" className="px-6 py-3 text-sm font-medium">
-            Start free trial — no credit card
+            {t('cta')}
           </CTAButton>
         </motion.div>
 

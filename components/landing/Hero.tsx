@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
 
 type Phase = 1 | 2 | 3 | 4 | 5;
@@ -467,6 +468,7 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
 // ─── Hero export ──────────────────────────────────────────────────────────────
 
 export function Hero() {
+  const t = useTranslations('landing.hero');
   const reduced = useReducedMotion() ?? false;
   const [phase, setPhase] = useState<Phase>(reduced ? 5 : 1);
   const [loopKey, setLoopKey] = useState(0);
@@ -493,9 +495,9 @@ export function Hero() {
   }, [reduced, loopKey]);
 
   const stats = [
-    { value: '5,000', label: 'prospects sourced' },
-    { value: '8.3%', label: 'avg reply rate' },
-    { value: '47h', label: 'saved per month' },
+    { value: t('stat0Value'), label: t('stat0Label') },
+    { value: t('stat1Value'), label: t('stat1Label') },
+    { value: t('stat2Value'), label: t('stat2Label') },
   ];
 
   return (
@@ -517,7 +519,7 @@ export function Hero() {
                 className="font-bold text-[#2563eb]"
                 style={{ fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase' }}
               >
-                For founders who won&apos;t hire full-time outbound
+                {t('eyebrow')}
               </p>
             </motion.div>
 
@@ -526,11 +528,11 @@ export function Hero() {
               className="mb-6 font-light text-[#1a1a1a]"
               style={{ fontSize: 'clamp(2.75rem, 6vw, 4.25rem)', lineHeight: 1.05, letterSpacing: '-0.01em' }}
             >
-              Your{' '}
+              {t('headlinePre')}
               <span style={{ fontFamily: 'var(--font-fraunces)', fontStyle: 'italic', fontWeight: 300 }}>
-                first hire
+                {t('headlineItalic')}
               </span>
-              .{' '}Without the headcount.
+              {t('headlinePost')}
             </motion.h1>
 
             <motion.p
@@ -538,19 +540,15 @@ export function Hero() {
               className="mb-8 text-base leading-[1.5] text-[#4a4a5a]"
               style={{ fontWeight: 300, maxWidth: '65ch' }}
             >
-              Sentra finds your buyers and drafts the emails.{' '}
-              <span style={{ fontWeight: 500, color: '#1a1a1a' }}>You approve.</span>
-              {' '}Meetings land on your calendar. From{' '}
-              <span style={{ fontWeight: 500 }}>$149/mo</span>
-              {' '}— no salary, no benefits, no 6-week ramp.
+              {t('subtext')}
             </motion.p>
 
             <motion.div variants={fadeUp} className="mb-6 flex flex-wrap items-center gap-3">
               <CTAButton href="/signup" variant="primary" className="px-6 py-3 text-sm font-medium">
-                Start free trial — no credit card
+                {t('ctaPrimary')}
               </CTAButton>
               <CTAButton href="#how-it-works" variant="secondary" className="px-6 py-3 text-sm">
-                See how it works
+                {t('ctaSecondary')}
               </CTAButton>
             </motion.div>
 
@@ -578,7 +576,7 @@ export function Hero() {
               className="text-[0.75rem] text-[#6b6b6b]"
               style={{ fontWeight: 400 }}
             >
-              14 days free · Cancel anytime · Setup in under an hour
+              {t('trustLine')}
             </motion.p>
           </motion.div>
 
@@ -623,8 +621,8 @@ export function Hero() {
                       color: phase === 3 ? '#4a4a5a' : '#9a9a9a',
                     }}
                   >
-                    AI drafts · you approve
-                    <span className="block text-[9px]">every email before sending</span>
+                    {t('annotationHITL')}
+                    <span className="block text-[9px]">{t('annotationHITLSub')}</span>
                   </p>
                 </motion.div>
               </div>
@@ -649,8 +647,8 @@ export function Hero() {
                       color: phase === 5 ? '#1a1a1a' : '#9a9a9a',
                     }}
                   >
-                    Meetings land automatically
-                    <span className="block text-[9px]">no manual scheduling</span>
+                    {t('annotationCalendar')}
+                    <span className="block text-[9px]">{t('annotationCalendarSub')}</span>
                   </p>
                 </motion.div>
               </div>

@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
 
 function FooterColumn({
   heading,
@@ -34,6 +38,8 @@ function FooterColumn({
 }
 
 export function LandingFooter() {
+  const t = useTranslations('landing.footer');
+
   return (
     <footer id="footer" style={{ backgroundColor: '#1a1a1a' }}>
       <div
@@ -64,6 +70,7 @@ export function LandingFooter() {
               <span
                 className="text-white"
                 style={{ fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.01em' }}
+                translate="no"
               >
                 Sentra
               </span>
@@ -72,7 +79,7 @@ export function LandingFooter() {
               className="text-[#888888]"
               style={{ fontSize: '0.875rem', fontWeight: 300, lineHeight: 1.55, maxWidth: '18rem' }}
             >
-              AI-powered outbound for founders who sell before they hire.
+              {t('tagline')}
             </p>
 
             {/* Status */}
@@ -83,41 +90,41 @@ export function LandingFooter() {
                 aria-hidden="true"
               />
               <span style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
-                All systems operational
+                {t('statusText')}
               </span>
             </div>
           </div>
 
           {/* Product */}
           <FooterColumn
-            heading="Product"
+            heading={t('productHeading')}
             links={[
-              { label: 'Features', href: '/#features' },
-              { label: 'Pricing', href: '/#pricing' },
-              { label: 'Roadmap', href: '/#roadmap' },
-              { label: 'Changelog', href: '/changelog' },
+              { label: t('productFeatures'),  href: '/#features' },
+              { label: t('productPricing'),   href: '/#pricing' },
+              { label: t('productRoadmap'),   href: '/#roadmap' },
+              { label: t('productChangelog'), href: '/changelog' },
             ]}
           />
 
           {/* Company */}
           <FooterColumn
-            heading="Company"
+            heading={t('companyHeading')}
             links={[
-              { label: 'About', href: '/about' },
-              { label: 'Blog', href: '/blog' },
-              { label: 'Careers', href: '/careers' },
-              { label: 'Contact', href: 'mailto:hello@sentra.so' },
+              { label: t('companyAbout'),   href: '/about' },
+              { label: t('companyBlog'),    href: '/blog' },
+              { label: t('companyCareers'), href: '/careers' },
+              { label: t('companyContact'), href: 'mailto:hello@sentra.so' },
             ]}
           />
 
           {/* Legal */}
           <FooterColumn
-            heading="Legal"
+            heading={t('legalHeading')}
             links={[
-              { label: 'Privacy Policy', href: '/legal/privacy' },
-              { label: 'Terms of Service', href: '/legal/terms' },
-              { label: 'Cookie Policy', href: '/legal/cookies' },
-              { label: 'GDPR', href: '/legal/gdpr' },
+              { label: t('legalPrivacy'), href: '/legal/privacy' },
+              { label: t('legalTerms'),   href: '/legal/terms' },
+              { label: t('legalCookies'), href: '/legal/cookies' },
+              { label: t('legalGdpr'),    href: '/legal/gdpr' },
             ]}
           />
         </div>
@@ -128,11 +135,14 @@ export function LandingFooter() {
           style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
         >
           <p style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
-            &copy; 2026 Sentra. All rights reserved.
+            {t('copyright')}
           </p>
-          <p style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
-            Built for founders who move fast.
-          </p>
+          <div className="flex items-center gap-4">
+            <LocaleSwitcher />
+            <p style={{ fontSize: '0.8125rem', fontWeight: 300, color: '#888888' }}>
+              {t('footerTagline')}
+            </p>
+          </div>
         </div>
       </div>
     </footer>

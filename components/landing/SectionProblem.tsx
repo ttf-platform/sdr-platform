@@ -1,14 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-
-const tools = [
-  { label: 'Data tool', price: '$149/mo' },
-  { label: 'Enrichment', price: '$349/mo' },
-  { label: 'Sending platform', price: '$97/mo' },
-  { label: 'Multichannel seq.', price: '$79/mo' },
-  { label: 'Booking link', price: '$20/mo' },
-];
+import { useTranslations } from 'next-intl';
 
 // Subtle rotations, not cartoonishly chaotic
 const rotations = [-2, 1.5, -1, 2, -1.5];
@@ -19,6 +12,16 @@ const inView = {
 };
 
 export function SectionProblem() {
+  const t = useTranslations('landing.problem');
+
+  const tools = [
+    { label: t('tool0Label'), price: t('tool0Price') },
+    { label: t('tool1Label'), price: t('tool1Price') },
+    { label: t('tool2Label'), price: t('tool2Price') },
+    { label: t('tool3Label'), price: t('tool3Price') },
+    { label: t('tool4Label'), price: t('tool4Price') },
+  ];
+
   return (
     <section className="bg-[#f5f2ee] py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -121,18 +124,18 @@ export function SectionProblem() {
                     className="uppercase text-[#9a9a9a]"
                     style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}
                   >
-                    Total
+                    {t('totalLabel')}
                   </div>
-                  <div className="mt-1 text-2xl font-medium text-[#1a1a1a]">$694/mo</div>
+                  <div className="mt-1 text-2xl font-medium text-[#1a1a1a]">{t('totalValue')}</div>
                 </div>
                 <div className="text-right">
                   <div
                     className="uppercase text-[#9a9a9a]"
                     style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}
                   >
-                    Setup
+                    {t('setupLabel')}
                   </div>
-                  <div className="mt-1 text-2xl font-medium text-[#1a1a1a]">8–12 hours</div>
+                  <div className="mt-1 text-2xl font-medium text-[#1a1a1a]">{t('setupValue')}</div>
                 </div>
               </div>
             </div>
@@ -152,7 +155,7 @@ export function SectionProblem() {
               className="mb-5 font-bold uppercase text-[#2563eb]"
               style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
             >
-              The Problem
+              {t('eyebrow')}
             </p>
 
             {/* h2 — DM Sans 500, no Fraunces (Fraunces Budget Rule: spent on hero h1) */}
@@ -164,19 +167,16 @@ export function SectionProblem() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Outbound shouldn&apos;t take 5 tools to set up.
+              {t('headline')}
             </h2>
 
             {/* Body */}
             <div className="space-y-4" style={{ maxWidth: '65ch' }}>
               <p className="text-base leading-[1.5] text-[#4a4a5a]" style={{ fontWeight: 300 }}>
-                For most founders, cold outreach starts the same way. You buy a data tool. You add an
-                enrichment layer. You set up a sending platform with deliverability tooling. You glue in
-                a multichannel sequencer. You stitch a booking link at the end.
+                {t('body1')}
               </p>
               <p className="text-base leading-[1.5] text-[#4a4a5a]" style={{ fontWeight: 300 }}>
-                Five subscriptions. Eight hours of setup. A new ICP definition copied across each tool.
-                And every Monday morning, something is broken or out of sync.
+                {t('body2')}
               </p>
             </div>
 
@@ -186,8 +186,7 @@ export function SectionProblem() {
                 className="text-lg leading-[1.55] text-[#1a1a1a]"
                 style={{ fontWeight: 300, fontStyle: 'italic' }}
               >
-                It&apos;s the modern outbound stack — and it&apos;s why most founders give up on cold
-                outreach.
+                {t('pullquote')}
               </p>
             </blockquote>
           </motion.div>

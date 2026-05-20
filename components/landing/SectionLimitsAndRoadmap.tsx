@@ -1,52 +1,24 @@
 'use client';
 
 import { motion } from 'framer-motion';
-
-const limits = [
-  {
-    id: 'volume',
-    title: 'You want to send 10,000+ emails per day.',
-    body: "Sentra is built for quality, not volume. If your strategy is high-volume spray-and-pray, you'll outgrow our caps fast. Try Smartlead or Instantly Hypergrowth.",
-  },
-  {
-    id: 'team',
-    title: 'You manage a 20+ person SDR team.',
-    body: "Sentra is for solo founders and early-stage teams. If you have a full SDR org, you need Salesloft or Outreach: different category, different price.",
-  },
-  {
-    id: 'channels',
-    title: 'You need LinkedIn, WhatsApp, and voice today.',
-    body: "Sentra is email-first for V1. LinkedIn integration is on the roadmap for Q3 2026. WhatsApp and voice are not planned: they're separate problems.",
-  },
-  {
-    id: 'autonomous',
-    title: 'You want a fully autonomous AI.',
-    body: "Sentra drafts, but you approve. We don't ship sends-without-approval-by-default because that's how reputations get burned. AI you control is a feature, not a limitation.",
-  },
-];
-
-const roadmap = [
-  {
-    id: 'linkedin',
-    quarter: 'Q3 2026',
-    title: 'LinkedIn outreach',
-    body: 'Multi-account LinkedIn integrated into your campaigns. Sequencing across email and LinkedIn.',
-  },
-  {
-    id: 'insights',
-    quarter: 'Q4 2026',
-    title: 'Meeting Insights',
-    body: 'Pull call recordings from Fathom or Fireflies. Sentra summarizes outcomes and updates the deal status automatically.',
-  },
-  {
-    id: 'proposals',
-    quarter: '2027',
-    title: 'AI Proposal Drafts',
-    body: 'After the meeting, Sentra drafts the follow-up proposal based on what was discussed. You approve, you send. From cold to closed.',
-  },
-];
+import { useTranslations } from 'next-intl';
 
 export function SectionLimitsAndRoadmap() {
+  const t = useTranslations('landing.limitsAndRoadmap');
+
+  const limits = [
+    { id: 'volume',    title: t('limit0Title'), body: t('limit0Body') },
+    { id: 'team',      title: t('limit1Title'), body: t('limit1Body') },
+    { id: 'channels',  title: t('limit2Title'), body: t('limit2Body') },
+    { id: 'autonomous',title: t('limit3Title'), body: t('limit3Body') },
+  ];
+
+  const roadmap = [
+    { id: 'linkedin',  quarter: t('roadmap0Quarter'), title: t('roadmap0Title'), body: t('roadmap0Body') },
+    { id: 'insights',  quarter: t('roadmap1Quarter'), title: t('roadmap1Title'), body: t('roadmap1Body') },
+    { id: 'proposals', quarter: t('roadmap2Quarter'), title: t('roadmap2Title'), body: t('roadmap2Body') },
+  ];
+
   return (
     <section className="bg-[#f5f2ee] py-24 lg:py-32">
       <div className="mx-auto max-w-5xl px-6 lg:px-8">
@@ -63,7 +35,7 @@ export function SectionLimitsAndRoadmap() {
             className="mb-5 font-bold uppercase text-[#2563eb]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
-            Transparency
+            {t('eyebrow')}
           </p>
           <h2
             className="font-medium text-[#1a1a1a] mx-auto"
@@ -74,7 +46,7 @@ export function SectionLimitsAndRoadmap() {
               maxWidth: '44rem',
             }}
           >
-            What we don&apos;t do. And what&apos;s coming next.
+            {t('headline')}
           </h2>
         </motion.div>
 
@@ -89,7 +61,7 @@ export function SectionLimitsAndRoadmap() {
             className="mb-6 uppercase text-[#4a4a5a]"
             style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em' }}
           >
-            Not for you if
+            {t('limitsHeader')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
             {limits.map((item) => (
@@ -122,7 +94,7 @@ export function SectionLimitsAndRoadmap() {
             className="mb-6 uppercase text-[#2563eb]"
             style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em' }}
           >
-            What&apos;s coming next
+            {t('roadmapHeader')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {roadmap.map((item, i) => (
@@ -169,7 +141,7 @@ export function SectionLimitsAndRoadmap() {
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const, delay: 0.15 }}
         >
-          Roadmap is directional, not contractual: we ship when it&apos;s right, not when the calendar says so.
+          {t('disclaimer')}
         </motion.p>
 
       </div>
