@@ -20,12 +20,13 @@ const csvEmailArray = z
   .pipe(z.array(z.string().email()).max(200))
 
 // CSV UUIDs (optional, defaults to empty array)
+// Note: .transform(v => v ?? []) instead of .default([]) avoids Zod re-validating [] against z.string()
 const csvUuidArray = z
   .string()
   .transform(s => s.split(',').map(v => v.trim()).filter(Boolean))
   .pipe(z.array(z.string().uuid()).max(500))
   .optional()
-  .default([])
+  .transform(v => v ?? [])
 
 export const prospectsListQuerySchema = z.object({
   campaign_id: z.string().uuid().optional(),
