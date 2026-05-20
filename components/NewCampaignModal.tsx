@@ -54,6 +54,8 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         if (!p) return
         if (p.icp_description && !icpText) setIcpText(p.icp_description)
         if (p.product_description && !angle) setAngle(p.product_description)
+        if (p.value_proposition && !valueProp) setValueProp(p.value_proposition)
+        if (p.tone) setTone(p.tone.charAt(0).toUpperCase() + p.tone.slice(1))
       })
       .catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
