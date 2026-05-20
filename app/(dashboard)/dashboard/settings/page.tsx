@@ -650,13 +650,14 @@ export default function SettingsPage() {
             <div className="w-8 h-8 bg-[#2563eb] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
             <div>
               <div className="text-sm font-medium text-[#1a1a2e]">Prospect Credits</div>
-              <div className="text-xs text-[#8a7e6e]">0 / {ws?.credits ?? 100} prospect credits used this month</div>
+              <div className="text-xs text-[#8a7e6e]">
+                {({ starter: 200, pro: 500, power: 750 } as Record<string, number>)[ws?.plan_tier ?? ''] ?? 200} credits / month on your plan
+              </div>
             </div>
           </div>
-          <div className="w-full bg-[#f0ece6] rounded-full h-1.5 mb-1">
-            <div className="bg-[#2563eb] h-1.5 rounded-full" style={{ width: '0%' }} />
+          <div className="text-xs text-[#8a7e6e]">
+            {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · <a href="/dashboard/billing" className="text-[#2563eb] hover:underline">View usage →</a>
           </div>
-          <div className="text-xs text-[#8a7e6e]">{({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · {ws?.credits ?? 100} credits remaining</div>
         </div>
       </div>
 
