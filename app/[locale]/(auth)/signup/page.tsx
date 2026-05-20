@@ -1,6 +1,6 @@
 'use client'
 import { useState, Suspense } from 'react'
-import { useSearchParams, useParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { track } from '@/lib/track'
@@ -12,7 +12,6 @@ const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', po
 function SignupForm() {
   const t = useTranslations('signup')
   const searchParams = useSearchParams()
-  const { locale } = useParams<{ locale: string }>()
   const planParam = searchParams.get('plan') ?? 'power'
   const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'power'
 
@@ -48,7 +47,7 @@ function SignupForm() {
     }
     track('signup_completed', { plan })
     track('trial_started', { plan, auto: true })
-    window.location.href = `/${locale}/dashboard`
+    window.location.href = '/dashboard'
   }
 
   const steps = [t('step0'), t('step1'), t('step2'), t('step3')]

@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { createClient } from '@/lib/supabase/client'
@@ -10,7 +9,6 @@ const supabase = createClient()
 
 export default function LoginPage() {
   const t = useTranslations('login')
-  const { locale } = useParams<{ locale: string }>()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,7 +21,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
     track('login_completed')
-    window.location.href = `/${locale}/dashboard`
+    window.location.href = '/dashboard'
   }
 
   return (
