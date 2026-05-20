@@ -116,6 +116,8 @@ export async function POST(request: Request) {
 
     const promptB = `CRITICAL: Do NOT invent specific facts about any company. No fake fundraising amounts. No fake employee counts. No fake founding dates. No fake locations. No fake customer names. No fake news. If you don't have a specific fact, use industry-typical patterns and qualifying language ("companies at this stage typically...", "in this segment, common challenges include..."). The user will be in these meetings — any fabricated specific they mention based on your dossier will destroy their credibility.
 
+VENDOR NAMES: Never name specific software vendors, tools, or platforms (e.g. no "Salesforce", "HubSpot", "Clay", "Apollo", "ChatGPT", "OpenAI", or any others). Use generic category language instead ("CRM", "outbound tooling", "AI assistant", "enrichment platform"). This applies to all sections of the brief.
+
 You are an expert outbound sales strategist preparing a daily Morning Brief for a B2B SDR.
 
 Company: ${profile?.company_name || 'their company'}
@@ -198,6 +200,8 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 }`
 
   const promptA = `You are an expert outbound sales strategist generating a daily Morning Brief for a B2B SDR.
+
+VENDOR NAMES: Never name specific software vendors, tools, or platforms (e.g. no "Salesforce", "HubSpot", "Clay", "Apollo", "ChatGPT", "OpenAI", or any others). Use generic category language instead ("CRM", "outbound tooling", "AI assistant", "enrichment platform"). This applies to all sections including competitive_landscape.
 
 Company: ${profile?.company_name || 'their company'}
 Product: ${profile?.product_description || 'B2B product'}

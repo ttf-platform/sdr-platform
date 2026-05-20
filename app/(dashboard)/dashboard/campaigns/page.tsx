@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 import { ChooseTemplateModal } from '@/components/ChooseTemplateModal'
@@ -136,6 +137,7 @@ function AISuggestionCard({ s, onLaunch }: { s: AISuggestion; onLaunch: () => vo
 type Tab = 'campaigns' | 'suggestions'
 
 export default function CampaignsPage() {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab]           = useState<Tab>('campaigns')
   const [campaigns, setCampaigns]           = useState<Campaign[]>([])
   const [campaignsLoading, setCLoading]     = useState(true)
@@ -157,6 +159,11 @@ export default function CampaignsPage() {
         setCampaigns(c ?? [])
         setCLoading(false)
       })
+  }, [])
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') openChooseTemplate()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handleTabChange(tab: Tab) {

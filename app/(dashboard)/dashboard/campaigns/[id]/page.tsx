@@ -843,6 +843,14 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
               <div className="text-3xl mb-3">↩️</div>
               <p className="text-sm font-semibold text-[#1a1a2e] mb-1">No follow-ups yet</p>
               <p className="text-xs text-[#8a7e6e] mb-4">Add follow-ups to re-engage prospects who didn't reply.</p>
+              {(campaign?.prospects_count ?? 0) > 0 && (
+                <button
+                  onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
+                  className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold"
+                >
+                  ✨ Generate AI Drafts
+                </button>
+              )}
             </div>
           )}
 

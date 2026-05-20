@@ -139,7 +139,7 @@ export default function SettingsPage() {
       setUser(session.user)
       const { data: member } = await supabase
         .from('workspace_members')
-        .select('workspace_id, role, workspaces(name, plan, credits, seats_limit)')
+        .select('workspace_id, role, workspaces(name, plan_tier, subscription_status, credits, seats_limit)')
         .eq('user_id', session.user.id)
         .single()
       if (!member) return
@@ -414,7 +414,10 @@ export default function SettingsPage() {
           <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-[#2563eb]">{ws?.plan === 'trial' ? 'Free Trial' : ws?.plan}</div>
+                <div className="font-medium text-[#2563eb]">
+                  {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string, string>)[ws?.plan_tier] ?? ws?.plan_tier ?? 'Starter'}
+                  {ws?.subscription_status === 'trialing' ? ' — Free Trial' : ''}
+                </div>
                 <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
               </div>
               <button className="bg-[#2563eb] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</button>

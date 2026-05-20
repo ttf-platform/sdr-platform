@@ -4,7 +4,7 @@ import { z } from 'zod'
 // and is validated by the route handler (mode-specific logic preserved).
 export const prospectImportSchema = z.object({
   mode:        z.enum(['manual', 'paste', 'csv']),
-  campaign_id: z.string().uuid().optional(),
+  campaign_id: z.string().uuid().nullish(),
   data:        z.unknown(),
 })
 
