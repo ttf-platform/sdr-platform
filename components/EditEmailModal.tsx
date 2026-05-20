@@ -65,6 +65,9 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
   }, [])
 
   useEffect(() => {
+    setConfirmRegen(false)
+    setLoading(true)
+    setError('')
     fetch(`/api/prospect-emails/${emailId}`)
       .then(r => r.json())
       .then(d => {

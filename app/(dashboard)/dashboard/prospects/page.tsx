@@ -1139,7 +1139,7 @@ export default function ProspectsPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         selectedIds={[...selectedIds]}
-        totalCount={totalAll}
+        totalCount={Math.max(totalAll, total)}
         filteredCount={total}
         filters={{
           campaign_id: campaignFilter !== 'all' ? campaignFilter : undefined,

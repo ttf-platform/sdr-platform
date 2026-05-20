@@ -851,12 +851,12 @@ export default function PipelinePage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Pipeline</h1>
           <p className="text-sm text-[#8a7e6e]">Track leads from first touch to closed deal</p>
         </div>
-        <div className="flex gap-2 flex-wrap justify-end items-center">
+        <div className="flex gap-2 flex-wrap items-center">
           <button onClick={sync} disabled={syncing}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40 transition-colors flex items-center gap-1.5">
             {syncing ? '↻ Syncing…' : '↻ Sync'}
