@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { Link } from '@/i18n/routing'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 

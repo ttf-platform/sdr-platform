@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
+import { Link } from '@/i18n/routing';
 
 export function PricingSection() {
   const t = useTranslations('landing.pricing');
@@ -133,12 +134,12 @@ export function PricingSection() {
         <div className="mt-10 text-center">
           <p className="text-sm text-[#9a9a9a]">
             {t('footerNote')}{' '}
-            <a
+            <Link
               href="/pricing"
               className="text-[#4a4a5a] underline underline-offset-2 hover:text-[#1a1a1a] transition-colors"
             >
               {t('footerLink')}
-            </a>
+            </Link>
           </p>
         </div>
       </div>

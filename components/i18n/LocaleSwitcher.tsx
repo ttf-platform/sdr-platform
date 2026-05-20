@@ -12,6 +12,7 @@ export function LocaleSwitcher() {
   function switchLocale(next: string) {
     startTransition(() => {
       router.replace(pathname, { locale: next })
+      router.refresh()
     })
   }
 

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export default async function PricingPage({

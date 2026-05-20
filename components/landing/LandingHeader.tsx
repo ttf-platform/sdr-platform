@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
 import { LocaleSwitcher } from '@/components/i18n/LocaleSwitcher';
