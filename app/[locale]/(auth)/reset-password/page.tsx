@@ -1,41 +1,47 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
-import { createClient } from '@/lib/supabase/client'
-
-const supabase = createClient()
+import { createBrowserClient } from '@supabase/ssr'
 
 function ResetPasswordForm() {
   const t            = useTranslations('resetPassword')
   const searchParams = useSearchParams()
 
-  const [ready,    setReady]    = useState(false)
-  const [password, setPassword] = useState('')
-  const [confirm,  setConfirm]  = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [success,  setSuccess]  = useState(false)
-  const [error,    setError]    = useState('')
+  // Per-component client — avoids shared module-level session state
+  const supabase = useRef(
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+  ).current
+
+  const [sessionReady, setSessionReady] = useState(false)
+  const [password,     setPassword]     = useState('')
+  const [confirm,      setConfirm]      = useState('')
+  const [submitting,   setSubmitting]   = useState(false)
+  const [success,      setSuccess]      = useState(false)
+  const [error,        setError]        = useState('')
+  const verified = useRef(false)
 
   useEffect(() => {
+    if (verified.current) return  // StrictMode guard — only verify once
+    verified.current = true
+
     const token_hash = searchParams.get('token_hash')
     const type       = searchParams.get('type')
 
-    if (token_hash && type === 'recovery') {
-      supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
-        .then(({ error: err }) => {
-          if (err) setError(t('errorInvalidLink'))
-          else setReady(true)
-        })
+    if (!token_hash || type !== 'recovery') {
+      setError(t('errorInvalidLink'))
       return
     }
 
-    // Fallback: listen for PASSWORD_RECOVERY event (hash-based flow)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true)
-    })
-    return () => subscription.unsubscribe()
+    supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
+      .then(({ error: err }) => {
+        if (err) setError(t('errorInvalidLink'))
+        else     setSessionReady(true)
+      })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handle(e: React.FormEvent) {
@@ -43,9 +49,9 @@ function ResetPasswordForm() {
     setError('')
     if (password.length < 8) { setError(t('errorTooShort')); return }
     if (password !== confirm) { setError(t('errorMismatch')); return }
-    setLoading(true)
+    setSubmitting(true)
     const { error: err } = await supabase.auth.updateUser({ password })
-    setLoading(false)
+    setSubmitting(false)
     if (err) { setError(err.message); return }
     setSuccess(true)
   }
@@ -67,13 +73,20 @@ function ResetPasswordForm() {
 
   return (
     <div className="bg-white rounded-xl border border-[#e8e3dc] p-6 flex flex-col gap-4">
-      {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
-
-      {!ready && !error && (
-        <p className="text-sm text-[#8a7e6e] text-center">Verifying reset link…</p>
+      {error && (
+        <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
+          {error}
+          {error === t('errorInvalidLink') && (
+            <span> <Link href="/forgot-password" className="underline font-medium">Request a new link</Link>.</span>
+          )}
+        </div>
       )}
 
-      {ready && (
+      {!sessionReady && !error && (
+        <p className="text-sm text-[#8a7e6e] text-center py-2">Verifying reset link…</p>
+      )}
+
+      {sessionReady && (
         <form onSubmit={handle} className="flex flex-col gap-4">
           <div>
             <label className="sr-only" htmlFor="rp-password">{t('newPassword')}</label>
@@ -105,17 +118,19 @@ function ResetPasswordForm() {
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting || password.length < 8}
             className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
           >
-            {loading ? t('submitting') : t('submit')}
+            {submitting ? t('submitting') : t('submit')}
           </button>
         </form>
       )}
 
-      <p className="text-center text-xs text-[#8a7e6e]">
-        <Link href="/login" className="text-[#3b6bef] font-medium">{t('backToLogin')}</Link>
-      </p>
+      {!error && (
+        <p className="text-center text-xs text-[#8a7e6e]">
+          <Link href="/login" className="text-[#3b6bef] font-medium">{t('backToLogin')}</Link>
+        </p>
+      )}
     </div>
   )
 }
