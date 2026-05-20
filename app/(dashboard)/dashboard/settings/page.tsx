@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
 import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
+import { renderSignature } from '@/lib/signature'
 
 const supabase = createClient()
 
@@ -68,16 +69,11 @@ function SaveButton({ section, saving, saved, onSave, missing = [] }: {
   )
 }
 
-// Replaces signature template variables with current profile values for the live preview
 function previewSignature(
   template: string,
   name: string, userTitle: string, companyName: string, companyWebsite: string,
 ): string {
-  return template
-    .replace(/\{\{user_name\}\}/g,       name          || '')
-    .replace(/\{\{user_title\}\}/g,      userTitle     || '')
-    .replace(/\{\{company\}\}/g,         companyName   || '')
-    .replace(/\{\{company_website\}\}/g, companyWebsite || '')
+  return renderSignature(template, { user_name: name, user_title: userTitle, company: companyName, company_website: companyWebsite })
 }
 
 export default function SettingsPage() {
@@ -654,13 +650,13 @@ export default function SettingsPage() {
             <div className="w-8 h-8 bg-[#2563eb] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
             <div>
               <div className="text-sm font-medium text-[#1a1a2e]">Prospect Credits</div>
-              <div className="text-xs text-[#8a7e6e]">0 / 100 prospect credits used this month</div>
+              <div className="text-xs text-[#8a7e6e]">0 / {ws?.credits ?? 100} prospect credits used this month</div>
             </div>
           </div>
           <div className="w-full bg-[#f0ece6] rounded-full h-1.5 mb-1">
             <div className="bg-[#2563eb] h-1.5 rounded-full" style={{ width: '0%' }} />
           </div>
-          <div className="text-xs text-[#8a7e6e]">Starter plan · 100 credits remaining</div>
+          <div className="text-xs text-[#8a7e6e]">{({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · {ws?.credits ?? 100} credits remaining</div>
         </div>
       </div>
 
