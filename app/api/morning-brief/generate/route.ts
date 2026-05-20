@@ -193,9 +193,9 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
   "intro": "1-2 sentence intro",
   "today_focus": { "title": "specific action", "rationale": "why it matters today" },
   "market_trends": [
-    { "title": "...", "priority": "HIGH", "content": "detailed paragraph" },
-    { "title": "...", "priority": "HIGH", "content": "..." },
-    { "title": "...", "priority": "MED",  "content": "..." }
+    { "title": "...", "priority": "HIGH", "content": "2-3 sentence signal" },
+    { "title": "...", "priority": "HIGH", "content": "2-3 sentence signal" },
+    { "title": "...", "priority": "MED",  "content": "2-3 sentence signal" }
   ],
   "competitive_landscape": [
     { "competitor_type": "...", "what_they_do": "...", "positioning_opportunity": "..." },
@@ -235,6 +235,7 @@ Rules:
 - campaign_ideas: exactly 3 items, estimated_contacts must be a number
 - Be specific, use real industry signals, numbers, dates where relevant
 - No fluff — founder-grade quality, immediately actionable
+- Keep each field concise: market_trends content ≤ 3 sentences, campaign angle ≤ 2 sentences
 
 Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 
@@ -242,7 +243,7 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
   try {
     msgA = await client.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 2000,
+      max_tokens: 3000,
       messages:   [{ role: 'user', content: promptA }],
     })
   } catch (err: unknown) {
