@@ -7,6 +7,7 @@ import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
 import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
+import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 
 const supabase = createClient()
@@ -91,6 +92,7 @@ export default function SettingsPage() {
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
   const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string; persistent?: boolean } | null>(null)
   const [pendingIcpUpdates, setPendingIcpUpdates] = useState<Record<string, unknown> | null>(null)
+  const [showSendingPrefs, setShowSendingPrefs]   = useState(false)
 
   const pathname = usePathname()
   useEffect(() => { setToast(t => t?.persistent ? null : t) }, [pathname])
@@ -677,14 +679,34 @@ export default function SettingsPage() {
         </Link>
       </div>
 
+      {/* SENDING PREFERENCES */}
+      <div className="mt-6">
+        <SendingPreferencesPanel open={showSendingPrefs} onClose={() => setShowSendingPrefs(false)} />
+        {!showSendingPrefs && (
+          <div className={`${cardCls}`}>
+            <header className="flex items-center gap-2 mb-2">
+              <span className="text-xl" aria-hidden>⏱</span>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">Sending Preferences</h2>
+            </header>
+            <p className="text-sm text-[#4a4a5a] mb-4">Configure send days, time windows, and daily sending limits for your campaigns.</p>
+            <button
+              onClick={() => setShowSendingPrefs(true)}
+              className="inline-flex items-center gap-1 text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
+            >
+              Configure →
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* ADVANCED SETTINGS — full width */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-4`}>ADVANCED SETTINGS</div>
         {[
-          { title: 'API Keys',          desc: 'Programmatic access to your Sentra account' },
-          { title: 'Mailbox Rotation',  desc: 'Rotate between multiple sending mailboxes' },
-          { title: 'GDPR & Compliance', desc: 'Configure opt-in requirements and consent tracking' },
-          { title: 'Data Export',       desc: 'Export your campaigns, contacts, and analytics data' },
+          { title: 'API Keys',          desc: 'Programmatic access to your Sentra data for custom integrations — launching Q4 2026' },
+          { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability — launching Q3 2026' },
+          { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences — launching Q3 2026' },
+          { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV — launching Q3 2026' },
         ].map(item => (
           <div key={item.title} className="flex items-center justify-between py-3 border-b border-[#f0ece6] last:border-0">
             <div>

@@ -41,7 +41,7 @@ export default function ProfileQualityBadge({ profile, hideEditLink = false, cla
       </span>
       <span className="flex-1 text-sm text-[#6b5e4e] min-w-0 leading-snug">{subtext}</span>
       {!hideEditLink && (
-        <a href="/dashboard/settings" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline flex-shrink-0">
+        <a href="/dashboard/settings" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline flex-shrink-0" aria-label="Edit profile">
           Edit profile →
         </a>
       )}

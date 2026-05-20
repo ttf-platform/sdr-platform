@@ -43,6 +43,7 @@ export function AutoFillFromUrlButton({ websiteValue, onApply }: Props) {
         type="button"
         onClick={handleClick}
         disabled={loading || !websiteValue.trim()}
+        title={!websiteValue.trim() ? 'Enter your company website URL above to use auto-fill' : undefined}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
       >
         {loading ? (

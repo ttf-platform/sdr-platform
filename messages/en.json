@@ -472,5 +472,9 @@
   },
   "common": {
     "backHome": "Home"
+  },
+  "metadata": {
+    "siteTitle": "Sentra — Cold outreach that books meetings",
+    "siteDescription": "Sentra finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires."
   }
 }
