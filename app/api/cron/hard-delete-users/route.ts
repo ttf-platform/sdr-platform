@@ -6,8 +6,12 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function GET(req: Request) {
+  const secret = process.env.CRON_SECRET
+  if (!secret) {
+    return NextResponse.json({ error: 'Misconfigured: CRON_SECRET not set' }, { status: 500 })
+  }
   const authHeader = req.headers.get('authorization') ?? ''
-  const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`
+  const expected = `Bearer ${secret}`
   const provided = Buffer.from(authHeader)
   const expectedBuf = Buffer.from(expected)
   const valid = provided.length === expectedBuf.length &&
@@ -70,6 +74,8 @@ export async function GET(req: Request) {
     processed: results.length,
     success: results.filter(r => r.ok).length,
     failed: results.filter(r => !r.ok).length,
-    results,
+    // GDPR Article 5(1)(f): do not re-leak PII (email/user_id) of erased users in logs.
+    // Return only the deleted_users row UUID for error tracing.
+    errors: results.filter(r => !r.ok).map(({ id, error }) => ({ id, error })),
   })
 }
