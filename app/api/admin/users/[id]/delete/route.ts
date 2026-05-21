@@ -57,6 +57,23 @@ export async function POST(
     role: user.role,
   }
 
+  // 2.5 Idempotency guard: check if user is already soft-deleted pending
+  const { data: existing } = await sb
+    .from('deleted_users')
+    .select('id, scheduled_hard_delete_at')
+    .eq('user_id', user.id)
+    .is('hard_deleted_at', null)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    return NextResponse.json({
+      error: 'User is already pending hard-delete',
+      deleted_users_row_id: existing.id,
+      scheduled_hard_delete_at: existing.scheduled_hard_delete_at,
+    }, { status: 409 })
+  }
+
   // 3. Insert into deleted_users with 30-day grace
   const scheduledHardDeleteAt = new Date()
   scheduledHardDeleteAt.setDate(scheduledHardDeleteAt.getDate() + GRACE_PERIOD_DAYS)

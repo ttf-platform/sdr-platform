@@ -1,0 +1,25 @@
+=== BRIEF #2 SPRINT C RESULTS ===
+Date: Jeu 21 mai 2026 18:59:30 CEST
+
+=== TS check ===
+58
+
+=== Files modified ===
+ app/admin/users/_components/UsersListClient.tsx |  93 +++++-------
+ brief2-sprint-a-results.txt                     |  19 +++
+ components/ui/Modal.tsx                         | 191 ++++++++++++++++++++++++
+ 3 files changed, 247 insertions(+), 56 deletions(-)
+
+=== Push verification ===
+Local main:  3f6ad6cc2bd6eb34658b962e0d215e74a49f1ad5
+Remote main: 3f6ad6cc2bd6eb34658b962e0d215e74a49f1ad5
+
+=== origin/main last 5 ===
+3f6ad6cc Merge sprint-c-modal-accessibility: shared Modal wrapper + refactor
+2eb6f9f1 feat(ui): accessible Modal wrapper + refactor Delete user modal (Sprint C)
+65f851ef Merge sprint-security-cron-fixes: CRON_SECRET fail-closed + GDPR PII strip
+ae72287a fix(security): CRON_SECRET fail-closed + strip PII from GDPR cron response
+e6936de2 Merge branch 'sprint-techdebt-typedroutes-posthog-params' — Sprint B/3 tech debt: typedRoutes + PostHog + 42 params migrations
+
+=== GitHub URL ===
+https://github.com/ttf-platform/sdr-platform/commit/3f6ad6cc2bd6eb34658b962e0d215e74a49f1ad5
