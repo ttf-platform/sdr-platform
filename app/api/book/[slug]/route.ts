@@ -55,7 +55,8 @@ function getTzOffset(tz: string, dateStr: string): string {
   return m ? m[1] : '+00:00'
 }
 
-export async function GET(_: Request, { params }: { params: { slug: string } }) {
+export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
+  const params = await context.params
   const admin = createAdminClient()
   const { data: profile, error } = await getProfile(params.slug)
   if (error || !profile) return NextResponse.json({ error: 'Booking page not found' }, { status: 404 })
@@ -87,7 +88,8 @@ export async function GET(_: Request, { params }: { params: { slug: string } }) 
   })
 }
 
-export async function POST(request: Request, { params }: { params: { slug: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
+  const params = await context.params
   // TODO: rate limit (Sprint 11 with Upstash/Vercel KV)
   const admin = createAdminClient()
 

@@ -13,7 +13,8 @@ async function verifyOwnership(admin: ReturnType<typeof import('@/lib/supabase/a
   return ws === workspaceId
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string; step_id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string; step_id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
@@ -36,7 +37,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return NextResponse.json({ step })
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string; step_id: string } }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string; step_id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

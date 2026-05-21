@@ -12,11 +12,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
 
-interface RouteParams {
-  params: { id: string }
-}
-
-export async function POST(_req: Request, { params }: RouteParams) {
+export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const supabase = createClient()
 
   const { data: { user } } = await supabase.auth.getUser()

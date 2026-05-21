@@ -1,0 +1,80 @@
+=== BRIEF #4 RESULTS ===
+Date: Jeu 21 mai 2026 16:34:00 CEST
+
+=== A. Comment lib/anthropic.ts updated ===
+/**
+ * Centralized Anthropic SDK client (singleton).
+ *
+ * Created during Sprint Widget Help (Mar 2026) to consolidate inline
+ * `new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })` duplication.
+ *
+ * Migration complete — Sprint Tech Debt (May 2026):
+ *  - Routes using getAnthropicClient():
+ *    auto-fill, prospect-emails/[id]/regenerate, campaigns/suggest,
+ *    campaigns/[id]/steps/[step_id]/ai-write, morning-brief/generate
+ *  - Libs using getAnthropicClient():
+ *    bot-ai, draft-generation, ai-suggestions
+ *  - Type-only imports (no instantiation):
+ *    personalization, bug-reports, bot/message
+ *
+ * SDK upgraded from 0.20.0 to 0.97.1 in the same sprint.
+ *
+ * Why singleton:
+ *  - One source of truth for client config (timeouts, retries, defaults)
+ *  - Cheaper at runtime (single HTTP/2 connection pool reused)
+ *  - Easier to swap for a mock in tests
+ */
+
+import Anthropic from '@anthropic-ai/sdk';
+
+let _client: Anthropic | null = null;
+
+export function getAnthropicClient(): Anthropic {
+  if (_client) return _client;
+
+
+=== D-E. Push main verification ===
+Local main: 8102f0e1aa88b9b5d9204aede283eb60170164ee
+Remote main: 8102f0e1aa88b9b5d9204aede283eb60170164ee
+✅ MATCH — push confirmed
+
+=== E. origin/main last 5 commits ===
+8102f0e1 Merge sprint-tech-debt-sdk-upgrades: SDK upgrades + singletons migration
+58cabd62 chore(docs): update lib/anthropic.ts header to reflect completed migration
+4053483e feat: upgrade resend 3.2→6.12 + migrate 2 files to lib/email.ts singleton
+d8908780 feat: upgrade @anthropic-ai/sdk 0.20→0.97.1 + migrate 8 files to lib/anthropic.ts singleton
+3d83f487 Merge pull request #26 from ttf-platform/fix-reset-password-verifyotp
+
+=== F. GitHub URLs ===
+Merge commit: https://github.com/ttf-platform/sdr-platform/commit/8102f0e1aa88b9b5d9204aede283eb60170164ee
+Anthropic upgrade: https://github.com/ttf-platform/sdr-platform/commit/d8908780
+Resend upgrade: https://github.com/ttf-platform/sdr-platform/commit/4053483e
+
+=== G. Branches après cleanup ===
+  chore/add-web-design-guidelines-skill
+  chore/refresh-user-skills
+  cleanup-stripe-vestiges
+  feat-export-prospects-sprint-f
+  feat-fixes-sprint-d2a
+  feat-i18n-en-fr
+  feat-mobile-responsive-sprint-c
+  feat-stripe-change-plan-in-app
+  feat-stripe-portal-past-due-canceled
+  fix-3-tech-debt-mini-sprints
+
+=== H. Dev server boot ===
+
+> sdr-platform@0.1.0 dev
+> next dev
+
+ ⚠ `experimental.typedRoutes` has been moved to `typedRoutes`. Please update your next.config.js file accordingly.
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.25:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ✓ typedRoutes
+
+ ✓ Starting...
+ ✓ Ready in 1768ms
+

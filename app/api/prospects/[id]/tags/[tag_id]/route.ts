@@ -4,8 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string; tag_id: string } },
+  context: { params: Promise<{ id: string; tag_id: string }> },
 ) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

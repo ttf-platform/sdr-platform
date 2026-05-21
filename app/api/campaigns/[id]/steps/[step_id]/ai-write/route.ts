@@ -4,7 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignStepAiWriteSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 
-export async function POST(request: Request, { params }: { params: { id: string; step_id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string; step_id: string }> }) {
+  const params = await context.params
   const client = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response

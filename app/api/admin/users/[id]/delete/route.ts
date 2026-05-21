@@ -10,8 +10,9 @@ const BAN_DURATION_HOURS = '8760h' // 1 year — hard-deleted before this expire
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   const guard = await requireSentraAdminResponse()
   if (guard) return guard
 

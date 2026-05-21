@@ -19,13 +19,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getEmailProvider } from '@/lib/email-provider-adapter';
 
-interface RouteParams {
-  params: { id: string };
-}
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function POST(_request: Request, { params }: RouteParams) {
+export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const supabase = createClient();
 
   const {

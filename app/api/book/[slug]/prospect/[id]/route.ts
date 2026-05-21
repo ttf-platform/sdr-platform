@@ -3,8 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(
   _: Request,
-  { params }: { params: { slug: string; id: string } }
+  context: { params: Promise<{ slug: string; id: string }> }
 ) {
+  const params = await context.params
   const admin = createAdminClient()
 
   // Resolve workspace from booking slug

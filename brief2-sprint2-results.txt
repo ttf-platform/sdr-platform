@@ -1,0 +1,56 @@
+SPRINT 2 — BRIEF #2 BACKEND RESULTS
+=====================================
+Branch: sprint-admin-delete-user-gdpr
+Commit: 8d9b8f05
+
+FILES CREATED
+─────────────
+1. supabase/migrations/041_deleted_users.sql
+   - Table: deleted_users (id, user_id FK→auth.users SET NULL, email, original_user_data JSONB,
+     deleted_by FK→auth.users SET NULL, soft_deleted_at, scheduled_hard_delete_at, hard_deleted_at, reason)
+   - Indexes: scheduled (WHERE hard_deleted_at IS NULL), user_id (WHERE user_id IS NOT NULL), email
+   - RLS: ENABLED — policy USING(false) WITH CHECK(false) blocks all client access
+   - Service role only via admin route handlers
+
+2. app/api/admin/users/[id]/delete/route.ts
+   - POST /api/admin/users/[id]/delete
+   - Auth: requireSentraAdminResponse() + requireSentraAdmin()
+   - Steps: fetch user → snapshot JSONB → insert deleted_users → ban_duration 8760h → logAdminAction
+   - Grace period: GRACE_PERIOD_DAYS = 30
+   - Error rollback: if ban fails → delete snapshot row
+   - Audit: action_type 'user.soft_delete', metadata includes email + scheduled_hard_delete_at + reason
+
+3. app/api/cron/hard-delete-users/route.ts
+   - GET /api/cron/hard-delete-users
+   - Auth: timingSafeEqual(Bearer CRON_SECRET) — same pattern as trial-expiry
+   - runtime = 'nodejs', maxDuration = 60
+   - Fetches: deleted_users WHERE scheduled_hard_delete_at <= NOW() AND hard_deleted_at IS NULL
+   - Limit: 50 per run (safety cap)
+   - Per row: auth.admin.deleteUser → update hard_deleted_at + user_id=null (preserve audit)
+   - Returns: { ok, processed, success, failed, results[] }
+
+FILES MODIFIED
+──────────────
+4. vercel.json — added hard-delete-users cron entry
+   Schedule: "0 3 * * *" (3am UTC daily, 1h after trial-expiry at 2am)
+
+TYPESCRIPT CHECK
+────────────────
+TS errors: 102 (baseline 101 + 1 validator.ts pattern for new [id] route — pre-existing Next.js 15 issue, not our code)
+Zero errors in new files.
+
+DEV SERVER
+──────────
+Ready in 1757ms — no boot errors
+
+PENDING MANUAL STEPS
+─────────────────────
+1. Supabase Dashboard → SQL Editor → run 041_deleted_users.sql
+2. Vercel env: ensure CRON_SECRET is set (required for cron auth)
+3. Sprint 2 Brief #3: UI Delete button on admin users page + push origin + PR + merge
+
+COMMIT LOG (top 3)
+──────────────────
+8d9b8f05 feat(admin): GDPR soft-delete user with 30-day grace + hard-delete cron
+8102f0e1 Merge sprint-tech-debt-sdk-upgrades: SDK upgrades + singletons migration
+58cabd62 chore(docs): update lib/anthropic.ts header to reflect completed migration

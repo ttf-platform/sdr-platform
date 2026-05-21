@@ -13,8 +13,9 @@ function getTzOffset(tz: string, dateStr: string): string {
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } },
+  context: { params: Promise<{ slug: string }> },
 ) {
+  const params = await context.params
   const { searchParams } = new URL(request.url)
   const qp = Object.fromEntries(searchParams)
   const parsed = bookingAvailabilitySchema.safeParse(qp)

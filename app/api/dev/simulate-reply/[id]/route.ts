@@ -24,8 +24,9 @@ const MOCK_REPLIES = [
 
 export async function POST(
   _req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   if (process.env.NODE_ENV !== 'development') {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }

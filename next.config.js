@@ -10,9 +10,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
   images: {
     domains: ['localhost'],
     unoptimized: true,
