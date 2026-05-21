@@ -13,7 +13,7 @@
     "test:rls:gc": "node --experimental-strip-types __tests__/rls/gc.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.20.0",
+    "@anthropic-ai/sdk": "^0.97.1",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@types/papaparse": "^5.5.2",

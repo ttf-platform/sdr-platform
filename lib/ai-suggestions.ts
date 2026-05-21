@@ -1,9 +1,7 @@
 // Generates and persists AI campaign suggestions for a workspace.
 // Called by both the GET route (auto-refresh on empty) and the POST /refresh route.
-import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/anthropic'
 
 export interface AISuggestion {
   id: string
@@ -21,6 +19,7 @@ export interface AISuggestion {
 type GeneratedSuggestion = Omit<AISuggestion, 'id' | 'workspace_id' | 'created_at' | 'used_at'>
 
 export async function refreshAISuggestions(workspaceId: string): Promise<AISuggestion[]> {
+  const client = getAnthropicClient()
   const admin = createAdminClient()
 
   const { data: profile } = await admin

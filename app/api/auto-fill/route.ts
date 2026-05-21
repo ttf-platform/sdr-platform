@@ -1,10 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { scrapeWebsite } from '@/lib/website-scraper'
 import { mapCompanySize, mapUserCompanySize } from '@/lib/company-size-mapper'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/anthropic'
 
 // In-memory 30-second rate limit per workspace (resets on server restart — acceptable for this use case)
 const lastUsed = new Map<string, number>()
@@ -48,6 +46,7 @@ function validateExtracted(raw: Record<string, unknown>): Record<string, unknown
 }
 
 export async function POST(request: Request) {
+  const anthropic = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
