@@ -3,7 +3,8 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignUpdateSchema, badRequest } from '@/lib/schemas'
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
@@ -52,7 +53,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   })
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
@@ -76,7 +78,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   return NextResponse.json({ ok: true })
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

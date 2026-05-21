@@ -7,7 +7,8 @@ import {
 } from '@/lib/personalization'
 import { getAnthropicClient } from '@/lib/anthropic'
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const anthropic = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response

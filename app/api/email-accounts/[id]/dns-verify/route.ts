@@ -30,10 +30,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyAllDnsRecords } from '@/lib/dns-provider-detector';
 
-interface RouteParams {
-  params: { id: string };
-}
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface StoredDnsRecords {
@@ -49,7 +45,8 @@ function isValidRecord(r: { name?: string; value?: string } | undefined): r is {
   return !!r && typeof r.name === 'string' && typeof r.value === 'string';
 }
 
-export async function POST(_request: Request, { params }: RouteParams) {
+export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const supabase = createClient();
 
   // --- Auth ---

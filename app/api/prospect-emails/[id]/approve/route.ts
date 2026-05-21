@@ -5,7 +5,8 @@ import { getEmailProvider } from '@/lib/email-provider-adapter'
 
 const SEND_TIMEOUT_MS = 10_000
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

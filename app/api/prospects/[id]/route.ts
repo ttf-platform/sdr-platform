@@ -9,7 +9,8 @@ import { prospectUpdateSchema, badRequest } from '@/lib/schemas'
 // violation with no clean 409 path. TODO Sprint 17: dedicated /api/prospects/[id]/move-to-campaign.
 const PATCHABLE = ['status'] as const
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
@@ -25,7 +26,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ prospect })
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
@@ -78,7 +80,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return NextResponse.json({ prospect })
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

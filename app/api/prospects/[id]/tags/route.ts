@@ -3,7 +3,8 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { prospectTagAttachSchema, badRequest } from '@/lib/schemas'
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
@@ -30,7 +31,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ tags })
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
