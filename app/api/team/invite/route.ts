@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { getResendClient } from '@/lib/email'
 
 const schema = z.object({
   workspace_id: z.string().uuid(),
@@ -12,6 +10,7 @@ const schema = z.object({
 })
 
 export async function POST(request: Request) {
+  const resend = getResendClient()
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,12 +1,11 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignSuggestSchema, badRequest } from '@/lib/schemas'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/anthropic'
 
 export async function POST(request: Request) {
+  const client = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

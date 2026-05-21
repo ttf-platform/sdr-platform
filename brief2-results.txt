@@ -1,0 +1,70 @@
+=== BRIEF #2 RESULTS ===
+Date: Jeu 21 mai 2026 15:28:32 CEST
+
+=== A. Git branch ===
+sprint-tech-debt-sdk-upgrades
+
+=== B. personalization.ts verdict ===
+TYPE-ONLY: import Anthropic utilisé uniquement comme type pour paramètre 'client: Anthropic' (ligne 99). Remplacé 'import Anthropic' par 'import type Anthropic'. Aucun getAnthropicClient ajouté.
+
+=== C. Anthropic SDK version after upgrade ===
+    "@anthropic-ai/sdk": "^0.97.1",
+└── @anthropic-ai/sdk@0.97.1
+
+=== E. TS check (erreurs pré-existantes uniquement, 0 nouvelle) ===
+.next/types/validator.ts(423,31): error TS2344: Type 'typeof import("/Users/maxbm/sdr-platform/app/api/admin/bug-reports/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/bug-reports/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ ok: boolean; bugReport: { id: any; status: any; priority: any; }; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(450,31): error TS2344: Type 'typeof import("/Users/maxbm/sdr-platform/app/api/admin/conversations/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/conversations/[id]">'.
+  Types of property 'GET' are incompatible.
+    Type '(_req: Request, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ conversation: { user_email: string | null; id: any; workspace_id: any; ... 5 more ...; created_at: any; }; messages: { ...; }[]; escalations: { ...; }[]; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(477,31): error TS2344: Type 'typeof import("/Users/maxbm/sdr-platform/app/api/admin/escalations/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/escalations/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ ok: boolean; escalation: { id: any; status: any; }; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(495,31): error TS2344: Type 'typeof import("/Users/maxbm/sdr-platform/app/api/admin/feedback/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/feedback/[id]">'.
+  Types of property 'PATCH' are incompatible.
+    Type '(req: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ ok: boolean; feedback: { id: any; status: any; }; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(513,31): error TS2344: Type 'typeof import("/Users/maxbm/sdr-platform/app/api/admin/mailboxes/[id]/pause/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/mailboxes/[id]/pause">'.
+  Types of property 'POST' are incompatible.
+
+=== E. Grep 'new Anthropic' hors lib/anthropic.ts (0 ligne attendue) ===
+(aucun résultat — OK)
+(end of grep)
+
+=== G. Git log local ===
+d8908780 feat: upgrade @anthropic-ai/sdk 0.20→0.97.1 + migrate 8 files to lib/anthropic.ts singleton
+3d83f487 Merge pull request #26 from ttf-platform/fix-reset-password-verifyotp
+74a3557b fix(auth): verifyOtp before updateUser in /reset-password
+
+=== F. Dev server boot (first 20 lines) ===
+
+> sdr-platform@0.1.0 dev
+> next dev
+
+ ⚠ `experimental.typedRoutes` has been moved to `typedRoutes`. Please update your next.config.js file accordingly.
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.25:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ✓ typedRoutes
+
+ ✓ Starting...
+ ✓ Ready in 1830ms
+

@@ -1,11 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { calculateProfileScore } from '@/lib/profile-quality'
 import { billingGuard } from '@/lib/billing-guard'
 import { morningBriefGenerateSchema, badRequest } from '@/lib/schemas'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/anthropic'
 
 export const maxDuration = 60
 
@@ -26,6 +24,7 @@ function todayBoundsUTC(tz: string): { start: Date; end: Date; dateStr: string }
 }
 
 export async function POST(request: Request) {
+  const client = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

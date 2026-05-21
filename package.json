@@ -13,7 +13,7 @@
     "test:rls:gc": "node --experimental-strip-types __tests__/rls/gc.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.20.0",
+    "@anthropic-ai/sdk": "^0.97.1",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@types/papaparse": "^5.5.2",
@@ -31,7 +31,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.0",
-    "resend": "^3.2.0",
+    "resend": "^6.12.3",
     "stripe": "^14.25.0",
     "tailwind-merge": "^2.2.1",
     "xlsx": "^0.18.5",

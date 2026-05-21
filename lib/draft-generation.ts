@@ -1,13 +1,11 @@
 // Core campaign draft generation — shared by generate-drafts and regenerate-drafts routes.
-import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   renderTemplate, generateOpeningLine, assembleSmartBody,
   type ContactVars, type CampaignContext,
 } from '@/lib/personalization'
 import { renderSignature, appendSignature } from '@/lib/signature'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/anthropic'
 
 export interface GenerateResult {
   generated_count:   number
@@ -178,6 +176,7 @@ export async function generateDraftsForCampaign(
   workspaceId: string,
   mode: 'fast' | 'smart',
 ): Promise<GenerateResult | GenerateError> {
+  const anthropic = getAnthropicClient()
   const admin = createAdminClient()
 
   // 1. Campaign

@@ -1,15 +1,19 @@
 /**
  * Centralized Anthropic SDK client (singleton).
  *
- * Created during Sprint Widget Help to avoid yet another duplication of
- * `new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })` (already
- * repeated in 10 files across the codebase).
+ * Created during Sprint Widget Help (Mar 2026) to consolidate inline
+ * `new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })` duplication.
  *
- * Currently used by lib/bot-ai.ts only. The 10 pre-existing files
- * (auto-fill, inbox/draft, regenerate, icp/parse, campaigns/suggest,
- * ai-write, morning-brief, draft-generation, ai-suggestions, personalization)
- * will be migrated to this singleton in a dedicated post-launch refactor
- * sprint, alongside the SDK upgrade from 0.20.0 to 0.37+.
+ * Migration complete — Sprint Tech Debt (May 2026):
+ *  - Routes using getAnthropicClient():
+ *    auto-fill, prospect-emails/[id]/regenerate, campaigns/suggest,
+ *    campaigns/[id]/steps/[step_id]/ai-write, morning-brief/generate
+ *  - Libs using getAnthropicClient():
+ *    bot-ai, draft-generation, ai-suggestions
+ *  - Type-only imports (no instantiation):
+ *    personalization, bug-reports, bot/message
+ *
+ * SDK upgraded from 0.20.0 to 0.97.1 in the same sprint.
  *
  * Why singleton:
  *  - One source of truth for client config (timeouts, retries, defaults)
