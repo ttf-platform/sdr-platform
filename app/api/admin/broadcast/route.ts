@@ -2,13 +2,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireSentraAdminResponse as requireSentraAdmin } from '@/lib/admin-auth'
 import { logAdminAction } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 import { adminBroadcastSchema, badRequest } from '@/lib/schemas'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { getResendClient } from '@/lib/email'
 
 export async function POST(request: Request) {
+  const resend = getResendClient()
   const guard = await requireSentraAdmin()
   if (guard) return guard
 
