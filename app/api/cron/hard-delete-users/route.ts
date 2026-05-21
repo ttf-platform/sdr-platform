@@ -1,0 +1,75 @@
+import { NextResponse } from 'next/server'
+import { getAdminSupabaseClient } from '@/lib/supabase-admin'
+import { timingSafeEqual } from 'crypto'
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
+export async function GET(req: Request) {
+  const authHeader = req.headers.get('authorization') ?? ''
+  const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`
+  const provided = Buffer.from(authHeader)
+  const expectedBuf = Buffer.from(expected)
+  const valid = provided.length === expectedBuf.length &&
+    timingSafeEqual(provided, expectedBuf)
+  if (!valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const sb = getAdminSupabaseClient()
+
+  // Fetch users pending hard-delete
+  const { data: pending, error: selErr } = await sb
+    .from('deleted_users')
+    .select('id, user_id, email')
+    .lte('scheduled_hard_delete_at', new Date().toISOString())
+    .is('hard_deleted_at', null)
+    .not('user_id', 'is', null)
+    .limit(50) // Safety cap per cron run
+
+  if (selErr) {
+    return NextResponse.json({ error: selErr.message }, { status: 500 })
+  }
+
+  const results: Array<{ id: string; user_id: string; email: string; ok: boolean; error?: string }> = []
+
+  for (const row of pending ?? []) {
+    if (!row.user_id) continue
+    try {
+      // Hard delete user (cascade via ON DELETE CASCADE on workspaces, prospects, etc.)
+      const { error: delErr } = await sb.auth.admin.deleteUser(row.user_id)
+      if (delErr) {
+        results.push({ id: row.id, user_id: row.user_id, email: row.email, ok: false, error: delErr.message })
+        continue
+      }
+
+      // Mark hard_deleted_at + nullify user_id (preserve audit row)
+      const { error: updErr } = await sb
+        .from('deleted_users')
+        .update({ hard_deleted_at: new Date().toISOString(), user_id: null })
+        .eq('id', row.id)
+
+      if (updErr) {
+        results.push({ id: row.id, user_id: row.user_id, email: row.email, ok: false, error: `Update failed: ${updErr.message}` })
+      } else {
+        results.push({ id: row.id, user_id: row.user_id, email: row.email, ok: true })
+      }
+    } catch (err) {
+      results.push({
+        id: row.id,
+        user_id: row.user_id,
+        email: row.email,
+        ok: false,
+        error: err instanceof Error ? err.message : 'unknown',
+      })
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    processed: results.length,
+    success: results.filter(r => r.ok).length,
+    failed: results.filter(r => !r.ok).length,
+    results,
+  })
+}

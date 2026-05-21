@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { UserDetailDrawer } from './UserDetailDrawer';
 
 type UserRow = {
@@ -17,7 +17,9 @@ type UserRow = {
 
 type Pagination = { page: number; pageSize: number; total: number; totalPages: number };
 
-export function UsersListClient() {
+type Notification = { type: 'success' | 'error'; message: string };
+
+export function UsersListClient({ currentAdminId }: { currentAdminId: string }) {
   const [users, setUsers] = useState<UserRow[] | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [search, setSearch] = useState('');
@@ -26,6 +28,10 @@ export function UsersListClient() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [notification, setNotification] = useState<Notification | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
@@ -52,6 +58,57 @@ export function UsersListClient() {
 
   useEffect(() => { setPage(1); }, [debounced]);
 
+  // ESC to close delete modal
+  useEffect(() => {
+    if (!deleteTarget) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setDeleteTarget(null); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [deleteTarget]);
+
+  // Auto-focus confirm button when modal opens
+  useEffect(() => {
+    if (deleteTarget) confirmBtnRef.current?.focus();
+  }, [deleteTarget]);
+
+  // Auto-dismiss notification after 5s
+  useEffect(() => {
+    if (!notification) return;
+    const t = setTimeout(() => setNotification(null), 5000);
+    return () => clearTimeout(t);
+  }, [notification]);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteTarget.id}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setNotification({
+        type: 'success',
+        message: `${deleteTarget.email ?? 'User'} soft-deleted. Permanent removal scheduled for ${new Date(data.scheduled_hard_delete_at).toLocaleDateString()}.`,
+      });
+      setRefreshKey((k) => k + 1);
+      setDeleteTarget(null);
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: `Delete failed: ${err instanceof Error ? err.message : 'unknown'}`,
+      });
+      setDeleteTarget(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl p-8">
       <div className="mb-6 flex items-start justify-between">
@@ -69,6 +126,17 @@ export function UsersListClient() {
           className="w-72 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder:text-[#9a9a9a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
         />
       </div>
+
+      {notification && (
+        <div className={`mb-4 flex items-start justify-between rounded-md border px-4 py-3 text-sm ${
+          notification.type === 'success'
+            ? 'border-green-200 bg-green-50 text-green-800'
+            : 'border-red-200 bg-red-50 text-red-700'
+        }`}>
+          <span>{notification.message}</span>
+          <button type="button" onClick={() => setNotification(null)} className="ml-4 shrink-0 opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Failed to load: {error}</div>}
       {!error && users === null && <div className="rounded-lg border border-[#e8e3dc] bg-white p-8 text-center text-sm text-[#9a9a9a]">Loading…</div>}
@@ -89,6 +157,7 @@ export function UsersListClient() {
                   <Th>Status</Th>
                   <Th>Last sign in</Th>
                   <Th>Joined</Th>
+                  <Th><span className="sr-only">Actions</span></Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e3dc]">
@@ -102,6 +171,17 @@ export function UsersListClient() {
                     <Td>{u.suspended ? <Pill color="red">Suspended</Pill> : <Pill color="green">Active</Pill>}</Td>
                     <Td><span className="text-xs text-[#4a4a5a]">{u.last_sign_in_at ? formatRelative(u.last_sign_in_at) : 'never'}</span></Td>
                     <Td><span className="text-xs text-[#4a4a5a]">{formatRelative(u.created_at)}</span></Td>
+                    <Td>
+                      <button
+                        type="button"
+                        title="Soft-delete with 30-day grace period before permanent removal"
+                        disabled={u.id === currentAdminId}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(u); }}
+                        className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Delete
+                      </button>
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -131,6 +211,50 @@ export function UsersListClient() {
         onClose={() => setSelectedUserId(null)}
         onMutate={() => setRefreshKey((k) => k + 1)}
       />
+
+      {deleteTarget && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setDeleteTarget(null)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-modal-title"
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#e8e3dc] bg-white p-6 shadow-xl"
+          >
+            <h2 id="delete-modal-title" className="mb-1 text-base font-semibold text-[#1a1a1a]">Delete user?</h2>
+            <p className="mb-4 text-sm font-medium text-[#1a1a1a]">{deleteTarget.email}</p>
+            <p className="mb-4 text-sm leading-relaxed text-[#4a4a5a]">
+              The user will lose access immediately and be soft-deleted.
+              After 30 days, the account and all associated data (workspaces, prospects, campaigns) will be permanently deleted via daily cron.
+            </p>
+            <p className="mb-6 text-xs text-[#9a9a9a]">
+              This action can be reversed within the 30-day grace period only via Supabase Dashboard (manual unban).
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm text-[#4a4a5a] hover:bg-[#f5f2ee]"
+              >
+                Cancel
+              </button>
+              <button
+                ref={confirmBtnRef}
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? 'Deleting…' : 'Delete user'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
