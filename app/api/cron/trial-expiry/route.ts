@@ -5,8 +5,12 @@ import { timingSafeEqual } from 'crypto'
 export const runtime = 'nodejs'
 
 export async function GET(req: Request) {
+  const secret = process.env.CRON_SECRET
+  if (!secret) {
+    return NextResponse.json({ error: 'Misconfigured: CRON_SECRET not set' }, { status: 500 })
+  }
   const authHeader = req.headers.get('authorization') ?? ''
-  const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`
+  const expected = `Bearer ${secret}`
   const provided = Buffer.from(authHeader)
   const expectedBuf = Buffer.from(expected)
   const valid = provided.length === expectedBuf.length &&
