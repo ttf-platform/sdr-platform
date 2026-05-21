@@ -1,0 +1,19 @@
+=== BRIEF #2 SPRINT A FIX RESULTS ===
+Date: Jeu 21 mai 2026 18:12:09 CEST
+
+=== TS check ===
+58
+
+=== Push verification ===
+Local main:  65f851ef7abb2dc8f98beb8c2925da98c9fec850
+Remote main: 65f851ef7abb2dc8f98beb8c2925da98c9fec850
+
+=== origin/main last 5 ===
+65f851ef Merge sprint-security-cron-fixes: CRON_SECRET fail-closed + GDPR PII strip
+ae72287a fix(security): CRON_SECRET fail-closed + strip PII from GDPR cron response
+e6936de2 Merge branch 'sprint-techdebt-typedroutes-posthog-params' — Sprint B/3 tech debt: typedRoutes + PostHog + 42 params migrations
+420d7607 feat(tech-debt): typedRoutes + PostHog api_host + params Promise migration (42 routes) + stale ts-expect-error cleanup
+c5748798 Merge sprint-admin-delete-user-gdpr: GDPR soft-delete user
+
+=== GitHub URL ===
+https://github.com/ttf-platform/sdr-platform/commit/65f851ef7abb2dc8f98beb8c2925da98c9fec850

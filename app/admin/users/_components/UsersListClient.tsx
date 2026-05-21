@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { UserDetailDrawer } from './UserDetailDrawer';
+import { Modal } from '@/components/ui/Modal';
 
 type UserRow = {
   id: string;
@@ -57,19 +58,6 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
   }, [debounced, page, refreshKey]);
 
   useEffect(() => { setPage(1); }, [debounced]);
-
-  // ESC to close delete modal
-  useEffect(() => {
-    if (!deleteTarget) return;
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setDeleteTarget(null); }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [deleteTarget]);
-
-  // Auto-focus confirm button when modal opens
-  useEffect(() => {
-    if (deleteTarget) confirmBtnRef.current?.focus();
-  }, [deleteTarget]);
 
   // Auto-dismiss notification after 5s
   useEffect(() => {
@@ -212,49 +200,42 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
         onMutate={() => setRefreshKey((k) => k + 1)}
       />
 
-      {deleteTarget && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/40"
-            onClick={() => setDeleteTarget(null)}
-            aria-hidden="true"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-modal-title"
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#e8e3dc] bg-white p-6 shadow-xl"
-          >
-            <h2 id="delete-modal-title" className="mb-1 text-base font-semibold text-[#1a1a1a]">Delete user?</h2>
-            <p className="mb-4 text-sm font-medium text-[#1a1a1a]">{deleteTarget.email}</p>
-            <p className="mb-4 text-sm leading-relaxed text-[#4a4a5a]">
-              The user will lose access immediately and be soft-deleted.
-              After 30 days, the account and all associated data (workspaces, prospects, campaigns) will be permanently deleted via daily cron.
-            </p>
-            <p className="mb-6 text-xs text-[#9a9a9a]">
-              This action can be reversed within the 30-day grace period only via Supabase Dashboard (manual unban).
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm text-[#4a4a5a] hover:bg-[#f5f2ee]"
-              >
-                Cancel
-              </button>
-              <button
-                ref={confirmBtnRef}
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isDeleting ? 'Deleting…' : 'Delete user'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete user?"
+        description={deleteTarget?.email ?? undefined}
+        size="md"
+        initialFocusRef={confirmBtnRef}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm text-[#4a4a5a] hover:bg-[#f5f2ee]"
+            >
+              Cancel
+            </button>
+            <button
+              ref={confirmBtnRef}
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? 'Deleting…' : 'Delete user'}
+            </button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm leading-relaxed text-[#4a4a5a]">
+          The user will lose access immediately and be soft-deleted.
+          After 30 days, the account and all associated data (workspaces, prospects, campaigns) will be permanently deleted via daily cron.
+        </p>
+        <p className="text-xs text-[#9a9a9a]">
+          This action can be reversed within the 30-day grace period only via Supabase Dashboard (manual unban).
+        </p>
+      </Modal>
     </div>
   );
 }
