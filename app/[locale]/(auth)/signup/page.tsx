@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { track } from '@/lib/track'
+import { Turnstile } from '@marsidev/react-turnstile'
 
 const tones = ['professional', 'friendly', 'direct', 'casual'] as const
 type Tone = typeof tones[number]
@@ -19,6 +20,7 @@ function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [data, setData] = useState({ email: '', password: '', name: '', workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
 
   const toneLabels: Record<Tone, string> = {
     professional: t('toneProfessional'),
@@ -38,6 +40,7 @@ function SignupForm() {
         workspaceName: data.workspaceName, companyName: data.companyName,
         product: data.product, icp: data.icp, tone: data.tone,
         plan_tier: plan,
+        captchaToken,
       })
     }).then(r => r.json())
     if (!res.success) {
@@ -119,9 +122,18 @@ function SignupForm() {
                 <button key={tone} onClick={()=>setData({...data,tone})} className={"px-3 py-2 rounded-lg text-sm border " + (data.tone===tone ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{toneLabels[tone]}</button>
               ))}
             </div>
+            <div className="flex justify-center">
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onError={() => setCaptchaToken(null)}
+                onExpire={() => setCaptchaToken(null)}
+                options={{ theme: 'light' }}
+              />
+            </div>
             <div className="flex gap-2">
               <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
-              <button onClick={handleFinish} disabled={!data.icp||loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
+              <button onClick={handleFinish} disabled={!data.icp||loading||!captchaToken} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
             </div>
           </>)}
         </div>

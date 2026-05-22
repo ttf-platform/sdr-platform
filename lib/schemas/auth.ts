@@ -10,6 +10,7 @@ export const signupSchema = z.object({
   icp:           z.string().max(5000).optional(),
   tone:          z.string().max(50).optional(),
   plan_tier:     z.enum(['starter', 'pro', 'power']).optional(),
+  captchaToken:  z.string().min(1, 'captcha_required'),
 })
 
 export const loginSchema = z.object({
