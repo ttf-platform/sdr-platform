@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr'
 import { signupSchema } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
+import { verifyTurnstile } from '@/lib/turnstile'
 
 export async function POST(request: Request) {
   const rl = await rateLimitByIp(request, { limit: 5, window: '10 m', prefix: 'auth-signup' })
@@ -15,7 +16,20 @@ export async function POST(request: Request) {
   const parsed = signupSchema.safeParse(rawBody)
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload', issues: parsed.error.issues }, { status: 400 })
 
-  const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier } = parsed.data
+  const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier, captchaToken } = parsed.data
+
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+                || request.headers.get('x-real-ip')
+                || undefined
+  const captchaResult = await verifyTurnstile(captchaToken, clientIp)
+  if (!captchaResult.success) {
+    console.warn('[signup] CAPTCHA verification failed:', captchaResult.errorCodes)
+    return NextResponse.json(
+      { error: 'captcha_failed', errorCodes: captchaResult.errorCodes },
+      { status: 400 }
+    )
+  }
+
   const tier = plan_tier ?? 'power'
 
   const admin = createAdminClient()
