@@ -12,7 +12,7 @@
 CREATE TABLE IF NOT EXISTS signals (
   id                          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id                uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  created_by                  uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  created_by                  uuid REFERENCES auth.users(id) ON DELETE SET NULL,
 
   -- User-facing
   name                        text NOT NULL,
