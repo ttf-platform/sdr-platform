@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard, BarChart2, Globe, Shield } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard, BarChart2, Globe, Shield, Radio } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
@@ -64,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = [
     { href: '/dashboard',           label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone },
+    { href: '/dashboard/signals',   label: 'Signals',   icon: Radio },
     { href: '/dashboard/inbox',     label: 'Inbox',     icon: Mail },
     { href: '/dashboard/prospects', label: 'Prospects', icon: Users },
     { href: '/dashboard/pipeline',  label: 'Pipeline',  icon: TrendingUp },
