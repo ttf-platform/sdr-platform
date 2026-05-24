@@ -193,7 +193,6 @@ export function SignalCreateModal({
   // Modal title based on state
   function getTitle() {
     if (mode === null) return 'Create a new signal'
-    if (mode === 'template' && templateStep === 'pick') return 'Choose a template'
     if (mode === 'template' && templateStep === 'form') {
       const labels: Record<TemplateId, string> = {
         hiring_role: 'Hiring role signal',
@@ -212,32 +211,36 @@ export function SignalCreateModal({
     // ── Mode picker ──────────────────────────────────────────────────────────
     if (mode === null) {
       return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           <p className="text-sm text-[#8a7e6e]">How would you like to create your signal?</p>
 
-          {/* Template option */}
-          <button
-            onClick={() => setMode('template')}
-            className="text-left border border-[#e8e3dc] rounded-xl p-4 hover:border-[#3b6bef] hover:bg-[#f7f8ff] transition-colors group"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-base">🎯</span>
-              <span className="font-semibold text-sm text-[#1a1a2e] group-hover:text-[#3b6bef]">Use a template</span>
+          {/* Template section — 3 individually clickable cards */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm">🎯</span>
+              <div>
+                <p className="text-sm font-semibold text-[#1a1a2e]">Use a template</p>
+                <p className="text-xs text-[#8a7e6e]">Quick start with pre-built signals for common use cases</p>
+              </div>
             </div>
-            <p className="text-xs text-[#8a7e6e]">Quick start with pre-built signals for common use cases</p>
-            <div className="flex gap-2 mt-3 flex-wrap">
-              {[
-                { id: 'hiring_role', label: 'Hiring [role]', desc: 'Job postings for specific roles' },
-                { id: 'recent_funding', label: 'Recent funding', desc: 'Funding announcements' },
-                { id: 'tech_stack_change', label: 'Tech stack change', desc: 'Tools installed on websites' },
-              ].map(t => (
-                <div key={t.id} className="bg-[#f7f8ff] border border-[#dde6fd] rounded-lg px-3 py-2 flex-1 min-w-[120px]">
-                  <div className="text-xs font-semibold text-[#3b6bef] mb-0.5">{t.label}</div>
-                  <div className="text-[11px] text-[#8a7e6e]">{t.desc}</div>
-                </div>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { id: 'hiring_role' as TemplateId, emoji: '💼', label: 'Hiring [role]', desc: 'Job postings for specific roles' },
+                { id: 'recent_funding' as TemplateId, emoji: '💰', label: 'Recent funding', desc: 'Funding announcements at companies' },
+                { id: 'tech_stack_change' as TemplateId, emoji: '🔧', label: 'Tech stack change', desc: 'Tools installed on websites' },
+              ]).map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => selectTemplate(t.id)}
+                  className="text-left bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-3 hover:border-[#3b6bef] hover:bg-[#eef1fd] transition-colors"
+                >
+                  <div className="text-lg mb-1.5">{t.emoji}</div>
+                  <div className="text-xs font-semibold text-[#3b6bef] mb-1 leading-snug">{t.label}</div>
+                  <div className="text-[11px] text-[#8a7e6e] leading-snug">{t.desc}</div>
+                </button>
               ))}
             </div>
-          </button>
+          </div>
 
           {/* Custom option */}
           <button
@@ -258,31 +261,6 @@ export function SignalCreateModal({
               <span className="text-[#3b6bef] text-sm font-semibold">→</span>
             </div>
           </button>
-        </div>
-      )
-    }
-
-    // ── Template: pick ───────────────────────────────────────────────────────
-    if (mode === 'template' && templateStep === 'pick') {
-      return (
-        <div className="flex flex-col gap-3">
-          {[
-            { id: 'hiring_role' as TemplateId, emoji: '💼', label: 'Hiring [role]', desc: 'Detect companies actively hiring for a specific role — indicates growth, budget, or team expansion.' },
-            { id: 'recent_funding' as TemplateId, emoji: '💰', label: 'Recent funding', desc: 'Detect funding announcements (Seed, Series A/B/C+). Companies flush with cash have buying power.' },
-            { id: 'tech_stack_change' as TemplateId, emoji: '🔧', label: 'Tech stack change', desc: 'Detect when a company installs or removes a specific tool — indicates a shift in priorities.' },
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => selectTemplate(t.id)}
-              className="text-left border border-[#e8e3dc] rounded-xl p-4 hover:border-[#3b6bef] hover:bg-[#f7f8ff] transition-colors"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span>{t.emoji}</span>
-                <span className="font-semibold text-sm text-[#1a1a2e]">{t.label}</span>
-              </div>
-              <p className="text-xs text-[#8a7e6e] leading-relaxed">{t.desc}</p>
-            </button>
-          ))}
         </div>
       )
     }
@@ -454,15 +432,27 @@ export function SignalCreateModal({
         return (
           <div className="flex flex-col gap-4">
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-red-500 font-semibold text-sm">✗ This signal isn't feasible to monitor publicly</span>
-              </div>
-              <p className="text-xs text-red-600 leading-relaxed">{buildResult.note}</p>
+              <p className="text-red-500 font-semibold text-sm mb-2">✗ This signal isn&apos;t feasible to monitor publicly</p>
+              <p className="text-xs text-red-700 leading-relaxed">{buildResult.note}</p>
             </div>
-            <p className="text-xs text-[#8a7e6e] leading-relaxed">
-              Try describing a signal based on publicly observable events like job postings,
-              funding announcements, tech installations, or press releases.
-            </p>
+            <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-4">
+              <p className="text-xs font-semibold text-[#3b6bef] mb-2">Public observable events you could try instead:</p>
+              <ul className="space-y-1">
+                {[
+                  'Job postings (LinkedIn Jobs, careers pages)',
+                  'Funding announcements (press releases, Crunchbase)',
+                  'Tech stack changes (BuiltWith, job post mentions)',
+                  'Layoffs (layoffs.fyi, press coverage)',
+                  'Press mentions / PR coverage (news, Business Wire)',
+                  'Leadership changes (LinkedIn profile updates)',
+                ].map(item => (
+                  <li key={item} className="text-xs text-[#6b5e4e] flex items-start gap-1.5">
+                    <span className="text-[#3b6bef] mt-0.5 flex-shrink-0">·</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )
       }
@@ -539,17 +529,6 @@ export function SignalCreateModal({
   function renderFooter() {
     if (mode === null) return null
 
-    if (mode === 'template' && templateStep === 'pick') {
-      return (
-        <button
-          onClick={() => { setMode(null); setTemplateStep('pick') }}
-          className="border border-[#e8e3dc] text-[#6b5e4e] rounded-lg px-4 py-2 text-sm hover:bg-[#f7f4f0] transition-colors"
-        >
-          ← Back
-        </button>
-      )
-    }
-
     if (mode === 'template' && templateStep === 'form') {
       const canSave = signalName.trim().length > 0 && (
         selectedTemplate !== 'hiring_role' || roleText.trim().length > 0
@@ -559,7 +538,7 @@ export function SignalCreateModal({
       return (
         <div className="flex gap-3 w-full">
           <button
-            onClick={() => setTemplateStep('pick')}
+            onClick={() => { setMode(null); setTemplateStep('pick'); setSelectedTemplate(null) }}
             className="border border-[#e8e3dc] text-[#6b5e4e] rounded-lg px-4 py-2 text-sm hover:bg-[#f7f4f0] transition-colors"
           >
             ← Back
