@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import clsx from 'clsx'
 
 export interface ModalProps {
@@ -169,10 +170,17 @@ export function Modal({
         aria-labelledby={titleId.current}
         aria-describedby={description ? descId.current : undefined}
         className={clsx(
-          'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#e8e3dc] bg-white p-6 shadow-xl',
+          'relative fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#e8e3dc] bg-white p-6 shadow-xl',
           SIZE_CLASSES[size]
         )}
       >
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X size={18} />
+        </button>
         <h2 id={titleId.current} className="mb-1 text-base font-semibold text-[#1a1a1a]">
           {title}
         </h2>
