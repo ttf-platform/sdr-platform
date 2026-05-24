@@ -1,4 +1,5 @@
 export * from './auth'
+export * from './signals'
 export * from './campaigns'
 export * from './prospects'
 export * from './email-accounts'
