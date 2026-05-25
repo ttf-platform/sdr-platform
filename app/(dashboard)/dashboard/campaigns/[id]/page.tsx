@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
+import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
@@ -68,6 +69,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   type TabProspect = {
     id: string; email: string; status: string; source: string; added_at: string
     contacts: { first_name: string|null; last_name: string|null; company: string|null; title: string|null } | null
+    prospect_signals: [{ count: number }] | null
   }
   const [tabProspects, setTabProspects]               = useState<TabProspect[]>([])
   const [tabProspectsTotal, setTabProspectsTotal]     = useState(0)
@@ -78,6 +80,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [tabRefreshKey, setTabRefreshKey]             = useState(0)
   const [tabPage, setTabPage]                         = useState(1)
   const [tabPages, setTabPages]                       = useState(1)
+  const [drawerProspect, setDrawerProspect]           = useState<{ id: string; email: string; name?: string } | null>(null)
   const [selectedProspectIds, setSelectedProspectIds] = useState<Set<string>>(new Set())
   const [bulkDeletingProspects, setBulkDeletingProspects] = useState(false)
 
@@ -486,22 +489,29 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                       }}
                       className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
                   </th>
-                  {['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED'].map(h => (
+                  {['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED', 'SIGNALS'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {tabProspectsLoading ? (
-                  <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
                 ) : tabProspects.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center">
+                  <tr><td colSpan={7} className="px-4 py-12 text-center">
                     <div className="text-2xl mb-2">📋</div>
                     <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
                     <div className="text-xs text-[#8a7e6e]">Add prospects to start your campaign.</div>
                   </td></tr>
-                ) : tabProspects.map(p => (
-                  <tr key={p.id} className={`border-b border-[#f7f4f0] hover:bg-[#faf8f5] ${selectedProspectIds.has(p.id) ? 'bg-[#f5f7ff]' : ''}`}>
+                ) : tabProspects.map(p => {
+                  const sigCount = Array.isArray(p.prospect_signals) ? (p.prospect_signals[0]?.count ?? 0) : 0
+                  const prospectName = [p.contacts?.first_name, p.contacts?.last_name].filter(Boolean).join(' ') || undefined
+                  return (
+                  <tr
+                    key={p.id}
+                    onClick={() => setDrawerProspect({ id: p.id, email: p.email, name: prospectName })}
+                    className={`border-b border-[#f7f4f0] hover:bg-[#faf8f5] cursor-pointer ${selectedProspectIds.has(p.id) ? 'bg-[#f5f7ff]' : ''}`}
+                  >
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedProspectIds.has(p.id)}
                         onChange={() => setSelectedProspectIds(prev => {
@@ -529,8 +539,19 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     <td className="px-4 py-3 text-xs text-[#8a7e6e]">
                       {p.added_at ? new Date(p.added_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                     </td>
+                    <td className="px-4 py-3">
+                      {sigCount > 0 && (
+                        <span
+                          title="Click to see signal details"
+                          className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap"
+                        >
+                          📡 {sigCount} signal{sigCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -895,6 +916,16 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             setSteps(prev => prev.map(s => s.id === editingStep.id ? { ...s, ...updated } : s))
             setEditingStep(null)
           }}
+        />
+      )}
+
+      {drawerProspect && (
+        <ProspectSignalsDrawer
+          open={true}
+          onClose={() => setDrawerProspect(null)}
+          prospectId={drawerProspect.id}
+          prospectEmail={drawerProspect.email}
+          prospectName={drawerProspect.name}
         />
       )}
     </div>
