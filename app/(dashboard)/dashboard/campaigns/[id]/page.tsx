@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
+import { ApprovalQueueClient } from './_components/ApprovalQueueClient'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
@@ -56,7 +57,7 @@ function EmailStatusBadge({ status }: { status: string }) {
 export default function CampaignDetailPage({ params }: { params: { id: string } }) {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
-  const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence'>('overview')
+  const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence' | 'approval_queue'>('overview')
   const [loading, setLoading] = useState(true)
   const [generatingStep, setGeneratingStep] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -365,10 +366,11 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       {/* Tabs */}
       <div className="flex gap-1 my-5 p-1 bg-[#f0ece6] rounded-xl w-fit">
         {([
-          { key: 'overview',  label: 'Overview' },
-          { key: 'prospects', label: `Prospects (${tabProspectsTotal})` },
-          { key: 'emails',    label: `Emails (${emailsTotal})` },
-          { key: 'sequence',  label: `Follow-up Sequence (${followUpSteps.length})` },
+          { key: 'overview',       label: 'Overview' },
+          { key: 'prospects',      label: `Prospects (${tabProspectsTotal})` },
+          { key: 'emails',         label: `Emails (${emailsTotal})` },
+          { key: 'sequence',       label: `Follow-up Sequence (${followUpSteps.length})` },
+          { key: 'approval_queue', label: 'Approval Queue' },
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
@@ -902,6 +904,11 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Tab: Approval Queue ──────────────────────────────────────────────── */}
+      {tab === 'approval_queue' && (
+        <ApprovalQueueClient campaignId={params.id} />
       )}
 
       {/* EditFollowupModal — top-level so it works from any tab */}
