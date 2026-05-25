@@ -173,20 +173,42 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
         messages: [{ role: 'user', content: prospectContext }],
       })
 
-      const textBlock = completion.content.find(b => b.type === 'text')
-      if (!textBlock || textBlock.type !== 'text') {
+      // Claude with web_search tool may return multiple text blocks
+      // (thinking + tool_use + final answer). Iterate from last to first,
+      // parse each as JSON, take the first that parses.
+      const textBlocks = completion.content.filter(b => b.type === 'text') as Array<{ type: 'text'; text: string }>
+
+      if (textBlocks.length === 0) {
+        console.error('[signals/run] No text blocks in Claude response for prospect', prospect.id, JSON.stringify(completion.content))
         errors++
         results.push({ prospect_id: prospect.id, result: { error: 'No text response from Claude' } })
         continue
       }
 
-      let scanResult: ScanResult
-      try {
-        const cleaned = textBlock.text.replace(/```json\n?|```\n?/g, '').trim()
-        scanResult = JSON.parse(cleaned)
-      } catch {
+      let scanResult: ScanResult | null = null
+      let lastError: string | null = null
+
+      // Try last text block first (most likely to be the final JSON answer)
+      for (let i = textBlocks.length - 1; i >= 0; i--) {
+        const text = textBlocks[i].text
+        const cleaned = text.replace(/```json\n?|```\n?/g, '').trim()
+        // Quick heuristic: must start with { and end with }
+        if (!cleaned.startsWith('{') || !cleaned.endsWith('}')) continue
+        try {
+          scanResult = JSON.parse(cleaned)
+          break
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : 'JSON parse error'
+        }
+      }
+
+      if (!scanResult) {
+        console.error('[signals/run] No valid JSON in Claude response for prospect', prospect.id, '— text blocks:', JSON.stringify(textBlocks.map(b => b.text.slice(0, 200))))
         errors++
-        results.push({ prospect_id: prospect.id, result: { error: 'Invalid JSON from Claude' } })
+        results.push({
+          prospect_id: prospect.id,
+          result: { error: `Invalid JSON from Claude (tried ${textBlocks.length} text block(s)): ${lastError ?? 'no JSON-shaped block found'}` } as never,
+        })
         continue
       }
 
