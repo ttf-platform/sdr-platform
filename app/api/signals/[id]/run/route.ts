@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { signalRunSchema, badRequest } from '@/lib/schemas'
+import { checkScanLimits, logScanEvent, estimateCostUsd } from '@/lib/scan-limits'
 
 // Vercel maxDuration : 300s (5 min) — Pro plan limit.
 export const maxDuration = 300
@@ -107,7 +108,34 @@ export async function POST(request: Request, { params }: Params) {
     )
   }
 
-  // 4. Build system prompt from signal monitoring config
+  // V1 cap at 30 prospects per Run (Vercel maxDuration 300s constraint ~5-15s/prospect)
+  const CAP = 30
+  const prospectsToScan = prospects.slice(0, CAP)
+  const prospectCount = prospectsToScan.length
+
+  // 4. Silent limit check (monthly cap + 10-min rate limit)
+  const check = await checkScanLimits(guard.workspaceId, prospectCount)
+  if (!check.allowed) {
+    await logScanEvent({
+      workspaceId: guard.workspaceId,
+      signalId,
+      campaignId: campaign_id,
+      prospectCount,
+      matchesCount: 0,
+      status: 'queued',
+      blockReason: check.reason,
+    })
+    // Silent queue: return fake success with 0 matches — no Claude consumed
+    return NextResponse.json({
+      scanned: prospectCount,
+      matched: 0,
+      errors: 0,
+      skipped: Math.max(0, prospects.length - CAP),
+      results: [],
+    })
+  }
+
+  // 5. Build system prompt from signal monitoring config
   const monitoringConfig = (signal.monitoring_config ?? {}) as MonitoringConfig
 
   const systemPrompt = `You are a signal detector for outbound sales prospecting.
@@ -138,16 +166,13 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
   "note": "brief explanation of decision (1-2 sentences)"
 }`
 
-  // V1 cap at 30 prospects per Run (Vercel maxDuration 300s constraint ~5-15s/prospect)
-  // TODO V2: background job queue (Upstash/Inngest) for unlimited scale
-  const CAP = 30
-  const prospectsToScan = prospects.slice(0, CAP)
-
   const results: Array<{ prospect_id: string; result: ScanResult | { error: string } }> = []
   let matched = 0
   let errors = 0
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
 
-  // 5. Sequential per-prospect Claude calls to avoid Anthropic rate limits
+  // 6. Sequential per-prospect Claude calls to avoid Anthropic rate limits
   for (const prospect of prospectsToScan) {
     const contact = Array.isArray(prospect.contacts)
       ? prospect.contacts[0]
@@ -172,6 +197,10 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
         tools: [{ type: 'web_search_20250305', name: 'web_search' } as never],
         messages: [{ role: 'user', content: prospectContext }],
       })
+
+      // Accumulate token usage for cost tracking
+      totalInputTokens += completion.usage?.input_tokens ?? 0
+      totalOutputTokens += completion.usage?.output_tokens ?? 0
 
       // Claude with web_search tool may return multiple text blocks
       // (thinking + tool_use + final answer). Iterate from last to first,
@@ -247,7 +276,7 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
     }
   }
 
-  // 6. Update signal stats
+  // 7. Update signal stats
   await admin
     .from('signals')
     .update({
@@ -256,6 +285,19 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
     })
     .eq('id', signalId)
     .eq('workspace_id', guard.workspaceId)
+
+  // 8. Log scan event with cost data
+  await logScanEvent({
+    workspaceId: guard.workspaceId,
+    signalId,
+    campaignId: campaign_id,
+    prospectCount,
+    matchesCount: matched,
+    status: 'executed',
+    claudeInputTokens: totalInputTokens,
+    claudeOutputTokens: totalOutputTokens,
+    estimatedCostUsd: estimateCostUsd(totalInputTokens, totalOutputTokens),
+  })
 
   return NextResponse.json({
     scanned: prospectsToScan.length,
