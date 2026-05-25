@@ -46,7 +46,10 @@ export function AdminSidebar() {
           })}
         </ul>
       </nav>
-      <div className="border-t border-[#e8e3dc] p-3">
+      <div className="border-t border-[#e8e3dc] p-3 flex flex-col gap-0.5">
+        <a href="/status" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[#4a4a5a] transition-colors hover:bg-[#f5f2ee] hover:text-[#1a1a1a]">
+          <span className="text-base leading-none">🟢</span><span>System status</span>
+        </a>
         <Link href="/dashboard" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[#4a4a5a] transition-colors hover:bg-[#f5f2ee] hover:text-[#1a1a1a]">
           <span aria-hidden="true">←</span><span>Back to app</span>
         </Link>
