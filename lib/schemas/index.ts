@@ -19,6 +19,7 @@ export * from './prospect-emails'
 export * from './sending-preferences'
 export * from './bot'
 export * from './support'
+export * from './email-variants'
 
 import { NextResponse } from 'next/server'
 
