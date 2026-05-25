@@ -57,7 +57,7 @@ export async function GET(request: Request) {
   let query = admin
     .from('prospects')
     .select(
-      '*, contacts!contact_id(first_name, last_name, company, title, linkedin_url, website), campaigns(id, name)',
+      '*, contacts!contact_id(first_name, last_name, company, title, linkedin_url, website), campaigns(id, name), prospect_signals(count)',
       { count: 'exact' },
     )
     .eq('workspace_id', guard.workspaceId)
