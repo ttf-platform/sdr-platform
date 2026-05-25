@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Radio } from 'lucide-react'
 import { SignalCreateModal } from './_components/SignalCreateModal'
+import { RunSignalModal } from './_components/RunSignalModal'
 
 type Signal = {
   id: string
@@ -39,10 +41,12 @@ function SignalCard({
   signal,
   onToggle,
   onDelete,
+  onRunClick,
 }: {
   signal: Signal
   onToggle: (id: string, is_active: boolean) => void
   onDelete: (id: string) => void
+  onRunClick: (id: string, name: string) => void
 }) {
   const [toggling, setToggling] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -121,9 +125,10 @@ function SignalCard({
       {/* Actions */}
       <div className="flex items-center gap-2 pt-1 border-t border-[#f0ece6]">
         <button
-          disabled
-          title="Coming in next sprint"
-          className="flex items-center gap-1.5 text-xs text-[#8a7e6e] border border-[#e8e3dc] rounded-lg px-3 py-1.5 opacity-50 cursor-not-allowed"
+          onClick={() => onRunClick(signal.id, signal.name)}
+          disabled={!signal.is_active}
+          title={signal.is_active ? undefined : 'Activate the signal to run it on a campaign.'}
+          className="flex items-center gap-1.5 text-xs text-[#3b6bef] border border-[#dde6fd] rounded-lg px-3 py-1.5 hover:bg-[#f0f4ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:text-[#8a7e6e] disabled:border-[#e8e3dc] disabled:hover:bg-transparent"
         >
           ▶ Run on a campaign
         </button>
@@ -142,11 +147,13 @@ function SignalCard({
 }
 
 export default function SignalsPage() {
+  const router = useRouter()
   const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [runModalSignal, setRunModalSignal] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     fetch('/api/signals')
@@ -216,6 +223,7 @@ export default function SignalsPage() {
               signal={s}
               onToggle={handleToggle}
               onDelete={id => setDeleteTarget(id)}
+              onRunClick={(id, name) => setRunModalSignal({ id, name })}
             />
           ))}
         </div>
@@ -254,6 +262,16 @@ export default function SignalsPage() {
         onClose={() => setModalOpen(false)}
         onCreated={handleCreated}
       />
+
+      {runModalSignal && (
+        <RunSignalModal
+          isOpen={true}
+          onClose={() => setRunModalSignal(null)}
+          signalId={runModalSignal.id}
+          signalName={runModalSignal.name}
+          onComplete={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }
