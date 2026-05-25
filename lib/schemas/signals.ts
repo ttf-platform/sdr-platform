@@ -48,3 +48,14 @@ export const signalsListQuerySchema = z.object({
 export const buildPromptSchema = z.object({
   description: z.string().min(20).max(2000),
 })
+
+// ============================================================================
+// Manual Run request payload
+// ============================================================================
+export const signalRunSchema = z.object({
+  campaign_id: z.string().uuid(),
+  prospect_ids: z.array(z.string().uuid()).optional(),
+  // If prospect_ids omitted, scan ALL prospects in the campaign (capped at 30 in handler)
+})
+
+export type SignalRunInput = z.infer<typeof signalRunSchema>
