@@ -6,12 +6,21 @@ import {
   type ContactVars,
 } from '@/lib/personalization'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
   const anthropic = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   const body  = await request.json()
   const admin = createAdminClient()

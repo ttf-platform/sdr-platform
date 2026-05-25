@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 export const maxDuration = 300
 
@@ -22,6 +23,14 @@ export async function POST(_request: Request, { params }: Params) {
   const { id: prospectId } = await params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   const admin = createAdminClient()
 

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 const TONE_INSTRUCTIONS: Record<string, string> = {
   professional: 'Be formal and professional.',
@@ -18,6 +19,14 @@ const schema = z.object({
 export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   let body: unknown
   try { body = await request.json() }

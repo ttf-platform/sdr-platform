@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { billingGuard } from '@/lib/billing-guard'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 const schema = z.object({
   description: z.string().min(1).max(5000),
@@ -10,6 +11,14 @@ const schema = z.object({
 export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   let body: unknown
   try { body = await request.json() }

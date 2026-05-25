@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { buildPromptSchema, badRequest } from '@/lib/schemas'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 // POST /api/signals/build-prompt
 // Input  : { description: "Companies in B2B SaaS that recently lost their Head of Sales" }
@@ -14,6 +15,14 @@ import { buildPromptSchema, badRequest } from '@/lib/schemas'
 export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   let rawBody: unknown
   try { rawBody = await request.json() }

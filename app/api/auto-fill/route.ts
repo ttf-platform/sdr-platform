@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 import { scrapeWebsite } from '@/lib/website-scraper'
 import { mapCompanySize, mapUserCompanySize } from '@/lib/company-size-mapper'
 import { getAnthropicClient } from '@/lib/anthropic'
@@ -49,6 +50,14 @@ export async function POST(request: Request) {
   const anthropic = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   // Rate limit
   const now  = Date.now()

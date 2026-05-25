@@ -4,6 +4,7 @@ import { calculateProfileScore } from '@/lib/profile-quality'
 import { billingGuard } from '@/lib/billing-guard'
 import { morningBriefGenerateSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 export const maxDuration = 60
 
@@ -27,6 +28,14 @@ export async function POST(request: Request) {
   const client = getAnthropicClient()
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   // workspace_id from body is validated as UUID but the authoritative value always
   // comes from billingGuard — prevents IDOR where body workspace_id != auth user's workspace.

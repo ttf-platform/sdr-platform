@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { signalRunSchema, badRequest } from '@/lib/schemas'
 import { checkScanLimits, logScanEvent, estimateCostUsd } from '@/lib/scan-limits'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 // Vercel maxDuration : 300s (5 min) — Pro plan limit.
 export const maxDuration = 300
@@ -38,6 +39,14 @@ export async function POST(request: Request, { params }: Params) {
   const { id: signalId } = await params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const aiCheck = await checkAiRateLimit(guard.workspaceId)
+  if (!aiCheck.allowed) {
+    return NextResponse.json(
+      { error: 'AI rate limit exceeded for this workspace. Try again in a moment.', remaining: aiCheck.remaining, retry_after_ms: aiCheck.resetMs },
+      { status: 429, headers: { 'Retry-After': Math.ceil(aiCheck.resetMs / 1000).toString() } }
+    )
+  }
 
   let body: unknown
   try {
