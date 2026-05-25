@@ -1,0 +1,175 @@
+import { NextResponse } from 'next/server'
+import { billingGuard } from '@/lib/billing-guard'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getAnthropicClient } from '@/lib/anthropic'
+
+export const maxDuration = 300
+
+type Params = { params: Promise<{ id: string }> }
+
+// POST /api/prospects/[id]/generate-personalized
+//
+// For this prospect:
+// 1. Fetch active signals detected (prospect_signals + signals join)
+// 2. Fetch campaign sequence steps (campaign_steps for this prospect's campaign)
+// 3. For each step, Claude generates a personalized variant (subject + body)
+//    with intro paragraph contextualized to signal_data.
+// 4. Upsert prospect_email_variants (status='draft').
+//
+// If 0 signals: returns { generated: 0, message: '...' }
+// If 0 steps: returns 400
+export async function POST(_request: Request, { params }: Params) {
+  const { id: prospectId } = await params
+  const guard = await billingGuard()
+  if (guard.blocked) return guard.response
+
+  const admin = createAdminClient()
+
+  // 1. Verify prospect + fetch with contact + campaign info
+  const { data: prospect, error: prospectError } = await admin
+    .from('prospects')
+    .select(`
+      id, email, campaign_id,
+      contacts!contact_id(first_name, last_name, company, title, linkedin_url, website)
+    `)
+    .eq('id', prospectId)
+    .eq('workspace_id', guard.workspaceId)
+    .single()
+
+  if (prospectError || !prospect) {
+    return NextResponse.json({ error: 'Prospect not found' }, { status: 404 })
+  }
+
+  // 2. Fetch active signals for this prospect (with signal metadata)
+  const { data: signals, error: signalsError } = await admin
+    .from('prospect_signals')
+    .select(`
+      id, signal_id, signal_data, source_url, detected_at,
+      signals!signal_id(id, name, description)
+    `)
+    .eq('prospect_id', prospectId)
+    .eq('workspace_id', guard.workspaceId)
+
+  if (signalsError) {
+    return NextResponse.json({ error: signalsError.message }, { status: 500 })
+  }
+
+  if (!signals || signals.length === 0) {
+    return NextResponse.json({
+      generated: 0,
+      message: 'No signals detected on this prospect to personalize from',
+    })
+  }
+
+  // 3. Fetch campaign steps (sequence template), ordered by step_order
+  const { data: steps, error: stepsError } = await admin
+    .from('campaign_steps')
+    .select('id, step_order, step_type, subject, body, delay_days')
+    .eq('campaign_id', prospect.campaign_id)
+    .order('step_order', { ascending: true })
+
+  if (stepsError) {
+    return NextResponse.json({ error: stepsError.message }, { status: 500 })
+  }
+
+  if (!steps || steps.length === 0) {
+    return NextResponse.json({ error: 'No sequence steps found for this campaign' }, { status: 400 })
+  }
+
+  // 4. Build context shared across all step calls
+  const contact = Array.isArray(prospect.contacts) ? prospect.contacts[0] : prospect.contacts
+  const signalsContext = signals.map(s => {
+    const sig = Array.isArray(s.signals) ? s.signals[0] : s.signals
+    return `- ${sig?.name ?? 'Signal'}: ${JSON.stringify(s.signal_data)} (source: ${s.source_url ?? 'n/a'})`
+  }).join('\n')
+
+  const variantsGenerated: Array<{ step_id: string; step_order: number; subject: string }> = []
+  const errors: string[] = []
+
+  // 5. Sequential per-step Claude calls
+  for (const step of steps) {
+    const systemPrompt = `You are an outbound email personalization expert.
+
+Your job: take a template email and personalize ONLY the intro paragraph (first 1-2 sentences) based on detected signals about the prospect's company. Keep the rest of the body unchanged in tone and structure.
+
+CRITICAL RULES (anti-fabrication):
+- The intro MUST reference the signal as factual context. NEVER fabricate details not in signal_data.
+- Do NOT invent specific quotes, numbers, dates, or events not present in signal_data.
+- The intro should feel natural and conversational, not robotic.
+- Preserve the original CTA, value prop, and signature exactly.
+- Subject may be slightly adjusted to reference the signal context (max 80 chars).
+- Output strict JSON only: { "subject": "...", "body": "..." }. No markdown wrapper.
+
+CONTEXT:
+Prospect: ${contact?.first_name ?? ''} ${contact?.last_name ?? ''} — ${contact?.title ?? '?'} @ ${contact?.company ?? '?'}
+
+Detected signals:
+${signalsContext}
+
+Original template (to personalize):
+SUBJECT: ${step.subject}
+BODY:
+${step.body}`
+
+    try {
+      const completion = await getAnthropicClient().messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: 'Generate the personalized variant.' }],
+      })
+
+      // Iterate from last text block to first (same pattern as signals/run)
+      const textBlocks = completion.content.filter(b => b.type === 'text') as Array<{ type: 'text'; text: string }>
+      let parsed: { subject: string; body: string } | null = null
+      for (let i = textBlocks.length - 1; i >= 0; i--) {
+        const cleaned = textBlocks[i].text.replace(/```json\n?|```\n?/g, '').trim()
+        if (!cleaned.startsWith('{') || !cleaned.endsWith('}')) continue
+        try {
+          parsed = JSON.parse(cleaned)
+          break
+        } catch { /* try next block */ }
+      }
+
+      if (!parsed?.subject || !parsed?.body) {
+        errors.push(`Step ${step.step_order}: Invalid JSON from Claude`)
+        continue
+      }
+
+      // Upsert — UNIQUE(prospect_id, campaign_step_id) handles re-generation
+      const { error: upsertError } = await admin
+        .from('prospect_email_variants')
+        .upsert(
+          {
+            prospect_id: prospectId,
+            campaign_step_id: step.id,
+            workspace_id: guard.workspaceId,
+            subject: parsed.subject,
+            body: parsed.body,
+            signal_ids: signals.map(s => s.signal_id),
+            template_subject: step.subject,
+            template_body: step.body,
+            status: 'draft',
+            generated_at: new Date().toISOString(),
+          },
+          { onConflict: 'prospect_id,campaign_step_id' }
+        )
+
+      if (upsertError) {
+        errors.push(`Step ${step.step_order}: ${upsertError.message}`)
+        continue
+      }
+
+      variantsGenerated.push({ step_id: step.id, step_order: step.step_order, subject: parsed.subject })
+    } catch (err) {
+      errors.push(`Step ${step.step_order}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }
+
+  return NextResponse.json({
+    generated: variantsGenerated.length,
+    total_steps: steps.length,
+    errors: errors.length,
+    error_details: errors,
+  })
+}
