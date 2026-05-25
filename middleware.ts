@@ -78,7 +78,10 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Pass through (skip i18n routing for API paths)
+  }
+
+  // === API PASS-THROUGH — all /api/* skip i18n routing (rate-limited or exempt) ===
+  if (pathname.startsWith('/api/')) {
     const response = NextResponse.next()
     response.headers.set('Content-Security-Policy', CSP_HEADER)
     return response
