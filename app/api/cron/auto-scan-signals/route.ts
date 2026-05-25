@@ -129,13 +129,19 @@ export async function GET(request: Request) {
               .join('\n')
 
             const resend = getResendClient()
-            await resend.emails.send({
+            const sendResult = await resend.emails.send({
               from: FROM_ADDRESS,
               to: ownerEmail,
               subject: `${workspaceNewMatches} new signal match${workspaceNewMatches > 1 ? 'es' : ''} detected on Sentra`,
               text: `Sentra detected new signals on your campaigns overnight.\n\n${campaignLines}\n\nOpen the Approval Queue to generate personalized emails for these prospects:\nhttps://sentra.app/dashboard\n\n--\nSentra background monitoring`,
             })
-            stats.notifications_sent++
+            if (sendResult.error) {
+              const msg = `ws=${workspace.id} Resend rejected: ${sendResult.error.message ?? JSON.stringify(sendResult.error)}`
+              console.error('[cron/auto-scan-signals]', msg)
+              stats.errors.push(msg)
+            } else {
+              stats.notifications_sent++
+            }
           }
         }
       } catch (err) {
