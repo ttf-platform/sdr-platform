@@ -74,6 +74,13 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
+  // === STATUS — public utility page, bypass i18n (no locale prefix needed) ===
+  if (pathname === '/status') {
+    const response = NextResponse.next()
+    response.headers.set('Content-Security-Policy', CSP_HEADER)
+    return response
+  }
+
   // === PUBLIC PAGES — i18n locale routing ===
   const response = handleI18nRouting(request)
   response.headers.set('Content-Security-Policy', CSP_HEADER)
