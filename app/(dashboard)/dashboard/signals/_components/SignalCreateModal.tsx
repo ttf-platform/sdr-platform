@@ -92,6 +92,8 @@ export function SignalCreateModal({
 
   function selectTemplate(tpl: TemplateId) {
     setSelectedTemplate(tpl)
+    setMode('template')
+    setTemplateStep('form')
     const defaultNames: Record<TemplateId, string> = {
       hiring_role:       'Hiring [role]',
       recent_funding:    'Recent funding',
