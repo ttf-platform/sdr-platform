@@ -3,6 +3,7 @@ import { routing } from './i18n/routing'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { globalRateLimit, writeRateLimit } from '@/lib/ratelimit'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -28,6 +29,60 @@ const handleI18nRouting = createMiddleware(routing)
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // === API RATE LIMITING — global per-IP + write per-IP ===
+  // Exempt: /api/health (UptimeRobot polling), /api/cron/* (CRON_SECRET auth)
+  if (
+    pathname.startsWith('/api/') &&
+    !pathname.startsWith('/api/health') &&
+    !pathname.startsWith('/api/cron/')
+  ) {
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      request.headers.get('x-real-ip') ??
+      '127.0.0.1'
+
+    const global = await globalRateLimit.limit(ip)
+    if (!global.success) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Try again in a moment.' }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': global.limit.toString(),
+            'X-RateLimit-Remaining': global.remaining.toString(),
+            'X-RateLimit-Reset': global.reset.toString(),
+            'Retry-After': Math.ceil((global.reset - Date.now()) / 1000).toString(),
+          },
+        }
+      )
+    }
+
+    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method)) {
+      const write = await writeRateLimit.limit(ip)
+      if (!write.success) {
+        return new Response(
+          JSON.stringify({ error: 'Write rate limit exceeded. Try again in a moment.' }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': write.limit.toString(),
+              'X-RateLimit-Remaining': write.remaining.toString(),
+              'X-RateLimit-Reset': write.reset.toString(),
+              'Retry-After': Math.ceil((write.reset - Date.now()) / 1000).toString(),
+            },
+          }
+        )
+      }
+    }
+
+    // Pass through (skip i18n routing for API paths)
+    const response = NextResponse.next()
+    response.headers.set('Content-Security-Policy', CSP_HEADER)
+    return response
+  }
 
   // === AUTH GUARD — /dashboard/** (unchanged) ===
   if (pathname.startsWith('/dashboard')) {
@@ -89,6 +144,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|ingest|_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
+    // Include /api/* for rate limiting; keep existing exclusions for static assets
+    '/((?!ingest|_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
   ],
 }
