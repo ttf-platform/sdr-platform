@@ -157,7 +157,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Include /api/* for rate limiting; keep existing exclusions for static assets
-    '/((?!ingest|_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
+    // Exclude _next internals and any path with a file extension (static assets in /public)
+    '/((?!ingest|_next|.*\\.[\\w]+).*)',
   ],
 }
