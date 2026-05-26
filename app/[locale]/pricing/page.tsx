@@ -96,7 +96,7 @@ export default async function PricingPage({
       <section className="pb-16 px-6">
         <div className="max-w-5xl mx-auto">
           <p className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider text-center mb-6">{t('soloPlansLabel')}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 items-start">
             {PLANS.map(p => (
               <div key={p.id} className={`rounded-2xl border p-6 relative ${p.popular ? 'bg-[#1a1a2e] border-[#1a1a2e]' : 'bg-white border-[#e8e3dc]'}`}>
                 {p.popular && (

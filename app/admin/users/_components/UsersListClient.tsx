@@ -136,7 +136,7 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
       )}
       {!error && users && users.length > 0 && (
         <>
-          <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
+          <div className="overflow-x-auto overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
             <table className="w-full">
               <thead className="border-b border-[#e8e3dc] bg-[#f5f2ee]">
                 <tr>

@@ -326,8 +326,8 @@ function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Dea
   const SortIcon = ({ col }: { col: string }) => (
     <span className="ml-1 text-gray-300">{sortCol === col ? (sortAsc ? '↑' : '↓') : '↕'}</span>
   )
-  const TH = ({ col, label }: { col: string; label: string }) => (
-    <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+  const TH = ({ col, label, hidden }: { col: string; label: string; hidden?: boolean }) => (
+    <th className={`border border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 cursor-pointer hover:bg-gray-100 whitespace-nowrap${hidden ? ' hidden md:table-cell' : ''}`}
       onClick={() => toggleSort(col)}>
       {label}<SortIcon col={col} />
     </th>
@@ -339,12 +339,12 @@ function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Dea
         <thead>
           <tr>
             <TH col="contact_first_name" label="Lead" />
-            <TH col="contact_company"    label="Company" />
+            <TH col="contact_company"    label="Company"       hidden />
             <TH col="stage"              label="Stage" />
             <TH col="amount"             label="Amount" />
-            <TH col="campaign_name"      label="Source" />
-            <TH col="stage_changed_at"   label="Days in stage" />
-            <TH col="created_at"         label="Created" />
+            <TH col="campaign_name"      label="Source"        hidden />
+            <TH col="stage_changed_at"   label="Days in stage" hidden />
+            <TH col="created_at"         label="Created"       hidden />
           </tr>
         </thead>
         <tbody>
@@ -352,7 +352,7 @@ function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Dea
             <tr key={deal.id} className="hover:bg-[#faf8f5] cursor-pointer"
               onClick={() => onRowClick(deal)}>
               <td className="border border-gray-200 px-4 py-3 text-sm font-medium text-gray-900">{displayName(deal)}</td>
-              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600">{deal.contact_company || '—'}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600 hidden md:table-cell">{deal.contact_company || '—'}</td>
               <td className="border border-gray-200 px-4 py-3">
                 <span className="text-xs px-2 py-1 rounded-full font-medium text-white"
                   style={{ backgroundColor: STAGE_COLORS[deal.stage as StageKey] }}>
@@ -360,13 +360,13 @@ function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Dea
                 </span>
               </td>
               <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">{fmtAmount(deal.amount) ?? '—'}</td>
-              <td className="border border-gray-200 px-4 py-3">
+              <td className="border border-gray-200 px-4 py-3 hidden md:table-cell">
                 {deal.campaign_name
                   ? <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{deal.campaign_name}</span>
                   : <span className="text-xs text-gray-400">Manual</span>}
               </td>
-              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600">{daysInStage(deal.stage_changed_at)}d</td>
-              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-400 whitespace-nowrap">{fmtDate(deal.created_at)}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600 hidden md:table-cell">{daysInStage(deal.stage_changed_at)}d</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-400 whitespace-nowrap hidden md:table-cell">{fmtDate(deal.created_at)}</td>
             </tr>
           ))}
           {sorted.length === 0 && (

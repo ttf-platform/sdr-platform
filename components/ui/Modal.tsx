@@ -170,7 +170,7 @@ export function Modal({
         aria-labelledby={titleId.current}
         aria-describedby={description ? descId.current : undefined}
         className={clsx(
-          'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#e8e3dc] bg-white p-6 shadow-xl',
+          'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#e8e3dc] bg-white p-4 sm:p-6 shadow-xl max-h-[calc(100vh-2rem)] overflow-y-auto',
           SIZE_CLASSES[size]
         )}
       >

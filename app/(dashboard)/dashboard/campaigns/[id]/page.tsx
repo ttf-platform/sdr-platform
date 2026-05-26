@@ -386,7 +386,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             <span>🚀</span>
             <span>Sending and scheduling will be available soon. For now, you can review and approve all your drafts.</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {[
               { label: 'Prospects', value: campaign.prospects_count },
               { label: 'Sent',      value: campaign.sent_count },
@@ -474,7 +474,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           </div>
 
-          <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
+          <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-x-auto overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#f0ece6]">
@@ -491,8 +491,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                       }}
                       className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
                   </th>
-                  {['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED', 'SIGNALS'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{h}</th>
+                  {(['NAME', 'EMAIL', 'STATUS', 'SOURCE', 'ADDED', 'SIGNALS'] as const).map(h => (
+                    <th key={h} className={`text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider${['SOURCE','SIGNALS'].includes(h) ? ' hidden md:table-cell' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -533,7 +533,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                         {p.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
                         {{ manual: 'Manual', paste: 'Paste', csv_import: 'CSV', ai_discover: 'AI' }[p.source] ?? p.source}
                       </span>
@@ -541,7 +541,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     <td className="px-4 py-3 text-xs text-[#8a7e6e]">
                       {p.added_at ? new Date(p.added_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       {sigCount > 0 && (
                         <span
                           title="Click to see signal details"
@@ -569,8 +569,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           )}
 
           {selectedProspectIds.size > 0 && (
-            <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
-              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4 max-w-[calc(100vw-2rem)]">
                 <span className="text-sm font-medium">{selectedProspectIds.size} selected</span>
                 <button onClick={() => setSelectedProspectIds(new Set())}
                   className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
@@ -789,8 +789,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
           {/* Bulk sticky bar */}
           {selectedEmailIds.size > 0 && (
-            <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
-              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3 max-w-[calc(100vw-2rem)]">
                 <span className="text-sm font-medium">{selectedEmailIds.size} selected</span>
                 <button onClick={() => setSelectedEmailIds(new Set())}
                   className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>

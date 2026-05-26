@@ -38,7 +38,7 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
   return (
     <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col hover:border-[#c8d4e8] transition-colors">
       <div className="flex items-start justify-between mb-2">
-        <h3 className="font-bold text-[#1a1a2e] text-base leading-tight flex-1 pr-2">{c.name}</h3>
+        <h3 className="font-bold text-[#1a1a2e] text-base leading-tight flex-1 pr-2 line-clamp-2">{c.name}</h3>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-500'}`}>
             {c.status}
@@ -46,7 +46,7 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(v => !v)}
-              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[#f0ece6] text-[#8a7e6e] hover:text-[#1a1a2e] transition-colors text-lg leading-none"
+              className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-[#f0ece6] text-[#8a7e6e] hover:text-[#1a1a2e] transition-colors text-lg leading-none"
               aria-label="Campaign options"
             >
               ···
@@ -291,7 +291,7 @@ export default function CampaignsPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {campaigns.map(c => (
               <CampaignCard key={c.id} c={c} onDelete={id => setDeleteTarget(campaigns.find(x => x.id === id) ?? null)} />
             ))}
@@ -339,7 +339,7 @@ export default function CampaignsPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {suggestions.map(s => (
                 <AISuggestionCard key={s.id} s={s} onLaunch={() => handleLaunchFromAI(s)} />
               ))}
