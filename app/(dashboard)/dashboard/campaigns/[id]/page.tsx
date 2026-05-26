@@ -570,10 +570,12 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
           {selectedProspectIds.size > 0 && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4 max-w-[calc(100vw-2rem)]">
-                <span className="text-sm font-medium">{selectedProspectIds.size} selected</span>
-                <button onClick={() => setSelectedProspectIds(new Set())}
-                  className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 max-w-[calc(100vw-2rem)]">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium">{selectedProspectIds.size} selected</span>
+                  <button onClick={() => setSelectedProspectIds(new Set())}
+                    className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+                </div>
                 <button onClick={bulkDeleteProspects} disabled={bulkDeletingProspects}
                   className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
                   {bulkDeletingProspects ? 'Removing…' : 'Remove'}
@@ -790,22 +792,26 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           {/* Bulk sticky bar */}
           {selectedEmailIds.size > 0 && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3 max-w-[calc(100vw-2rem)]">
-                <span className="text-sm font-medium">{selectedEmailIds.size} selected</span>
-                <button onClick={() => setSelectedEmailIds(new Set())}
-                  className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
-                <button onClick={bulkApproveEmails} disabled={bulkApprovingEmails}
-                  className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
-                  {bulkApprovingEmails ? 'Approving…' : 'Approve all'}
-                </button>
-                <button onClick={bulkRejectEmails} disabled={bulkRejectingEmails}
-                  className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
-                  {bulkRejectingEmails ? 'Rejecting…' : 'Reject all'}
-                </button>
-                <button onClick={bulkDeleteEmails} disabled={bulkDeletingEmails}
-                  className="border border-white/20 text-white/80 hover:text-white text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
-                  {bulkDeletingEmails ? 'Deleting…' : 'Delete'}
-                </button>
+              <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 max-w-[calc(100vw-2rem)]">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium">{selectedEmailIds.size} selected</span>
+                  <button onClick={() => setSelectedEmailIds(new Set())}
+                    className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={bulkApproveEmails} disabled={bulkApprovingEmails}
+                    className="bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                    {bulkApprovingEmails ? 'Approving…' : 'Approve all'}
+                  </button>
+                  <button onClick={bulkRejectEmails} disabled={bulkRejectingEmails}
+                    className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                    {bulkRejectingEmails ? 'Rejecting…' : 'Reject all'}
+                  </button>
+                  <button onClick={bulkDeleteEmails} disabled={bulkDeletingEmails}
+                    className="border border-white/20 text-white/80 hover:text-white text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                    {bulkDeletingEmails ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
