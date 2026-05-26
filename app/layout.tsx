@@ -46,6 +46,7 @@ export const metadata: Metadata = {
       'All-in-one outbound for founders and first sales hires. Setup in under an hour.',
   },
   robots: { index: true, follow: true },
+  manifest: '/manifest.webmanifest',
 }
 
 export default function RootLayout({
