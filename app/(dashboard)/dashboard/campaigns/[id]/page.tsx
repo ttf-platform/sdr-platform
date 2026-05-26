@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
 import { ApprovalQueueClient } from './_components/ApprovalQueueClient'
@@ -55,7 +55,8 @@ function EmailStatusBadge({ status }: { status: string }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cls}`}>{label}</span>
 }
 
-export default function CampaignDetailPage({ params }: { params: { id: string } }) {
+export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence' | 'approval_queue'>('overview')
@@ -108,24 +109,24 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   // Eager counts at mount
   useEffect(() => {
-    fetch(`/api/prospects?campaign_id=${params.id}&limit=1`)
+    fetch(`/api/prospects?campaign_id=${id}&limit=1`)
       .then(r => r.json())
       .then(d => { if (d.total > 0) setTabProspectsTotal(d.total) })
       .catch(() => {})
-  }, [params.id])
+  }, [id])
 
   useEffect(() => {
-    fetch(`/api/prospect-emails?campaign_id=${params.id}&step_order=0&limit=1`)
+    fetch(`/api/prospect-emails?campaign_id=${id}&step_order=0&limit=1`)
       .then(r => r.json())
       .then(d => { if (d.total > 0) setEmailsTotal(d.total) })
       .catch(() => {})
-  }, [params.id])
+  }, [id])
 
   useEffect(() => {
     if (tab !== 'prospects') return
     setTabProspectsLoading(true)
     setTabProspectsTotal(0)
-    fetch(`/api/prospects?campaign_id=${params.id}&limit=50&page=${tabPage}&sort=newest`)
+    fetch(`/api/prospects?campaign_id=${id}&limit=50&page=${tabPage}&sort=newest`)
       .then(r => r.json())
       .then(d => {
         const prox = d.prospects ?? []
@@ -134,13 +135,13 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         setTabPages(d.pages ?? 1)
         setTabProspectsLoading(false)
       })
-  }, [tab, params.id, tabRefreshKey, tabPage])
+  }, [tab, id, tabRefreshKey, tabPage])
 
   useEffect(() => {
     if (tab !== 'emails') return
     setEmailsLoading(true)
     const statusParam = emailsFilter !== 'all' ? `&status=${emailsFilter}` : ''
-    fetch(`/api/prospect-emails?campaign_id=${params.id}&step_order=0&limit=50&page=${emailsPage}${statusParam}`)
+    fetch(`/api/prospect-emails?campaign_id=${id}&step_order=0&limit=50&page=${emailsPage}${statusParam}`)
       .then(r => r.json())
       .then(d => {
         setEmailDrafts(d.emails ?? [])
@@ -153,7 +154,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         setEmailsLoading(false)
       })
       .catch(() => setEmailsLoading(false))
-  }, [tab, params.id, emailsFilter, emailsPage, emailsRefreshKey])
+  }, [tab, id, emailsFilter, emailsPage, emailsRefreshKey])
 
   function onProspectImported(_res: ImportResult) {
     setTabRefreshKey(k => k + 1)
@@ -270,7 +271,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   }
 
   useEffect(() => {
-    fetch(`/api/campaigns/${params.id}`)
+    fetch(`/api/campaigns/${id}`)
       .then(r => r.json())
       .then(({ campaign: c, steps: s }) => {
         if (c) {
@@ -282,18 +283,18 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
         setSteps(s ?? [])
         setLoading(false)
       })
-  }, [params.id])
+  }, [id])
 
   async function updateStep(id: string, patch: Partial<Step>) {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
-    await fetch(`/api/campaigns/${params.id}/steps/${id}`, {
+    await fetch(`/api/campaigns/${id}/steps/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
     })
   }
 
   async function aiWriteStep(id: string) {
     setGeneratingStep(id)
-    const res = await fetch(`/api/campaigns/${params.id}/steps/${id}/ai-write`, {
+    const res = await fetch(`/api/campaigns/${id}/steps/${id}/ai-write`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     }).then(r => r.json())
     if (res.step) setSteps(prev => prev.map(s => s.id === id ? { ...s, ...res.step } : s))
@@ -301,21 +302,21 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   }
 
   async function addFollowUp() {
-    const res = await fetch(`/api/campaigns/${params.id}/steps`, {
+    const res = await fetch(`/api/campaigns/${id}/steps`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     }).then(r => r.json())
     if (res.step) setSteps(prev => [...prev, res.step])
   }
 
   async function removeStep(id: string) {
-    await fetch(`/api/campaigns/${params.id}/steps/${id}`, { method: 'DELETE' })
+    await fetch(`/api/campaigns/${id}/steps/${id}`, { method: 'DELETE' })
     setSteps(prev => prev.filter(s => s.id !== id))
   }
 
   async function generateMissingDrafts() {
     if (!campaign) return
     setGeneratingMissing(true)
-    await fetch(`/api/campaigns/${params.id}/generate-drafts`, {
+    await fetch(`/api/campaigns/${id}/generate-drafts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: campaign.personalization_mode ?? 'fast' }),
@@ -326,7 +327,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   async function patchStopSetting(patch: Partial<typeof stopSettings>) {
     setStopSettings(s => ({ ...s, ...patch }))
-    await fetch(`/api/campaigns/${params.id}`, {
+    await fetch(`/api/campaigns/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     })
@@ -334,7 +335,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   async function saveCampaignEdit() {
     setSaving(true)
-    const res = await fetch(`/api/campaigns/${params.id}`, {
+    const res = await fetch(`/api/campaigns/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm),
     }).then(r => r.json())
     if (res.campaign) setCampaign(res.campaign)
@@ -636,8 +637,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {prospectModal === 'csv'    && <ImportCSVModal campaignId={params.id} campaignName={campaign?.name} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
-          {prospectModal === 'manual' && <ManualAddModal campaignId={params.id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
+          {prospectModal === 'csv'    && <ImportCSVModal campaignId={id} campaignName={campaign?.name} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
+          {prospectModal === 'manual' && <ManualAddModal campaignId={id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
         </div>
       )}
 
@@ -852,7 +853,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           {/* Generate/Regenerate modal */}
           {showGenerateDraftsModal && (
             <GenerateDraftsModal
-              campaignId={params.id}
+              campaignId={id}
               prospectCount={tabProspectsTotal}
               defaultMode={campaign.personalization_mode ?? undefined}
               includeBookingLink={campaign.include_booking_link_initial ?? false}
@@ -947,7 +948,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
       {/* ── Tab: Approval Queue ──────────────────────────────────────────────── */}
       {tab === 'approval_queue' && (
-        <ApprovalQueueClient campaignId={params.id} />
+        <ApprovalQueueClient campaignId={id} />
       )}
 
       {/* EditFollowupModal — top-level so it works from any tab */}
@@ -956,7 +957,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
           step={editingStep}
           onClose={() => setEditingStep(null)}
           onSave={async updated => {
-            await fetch(`/api/campaigns/${params.id}/steps/${editingStep.id}`, {
+            await fetch(`/api/campaigns/${id}/steps/${editingStep.id}`, {
               method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated),
             })
             setSteps(prev => prev.map(s => s.id === editingStep.id ? { ...s, ...updated } : s))

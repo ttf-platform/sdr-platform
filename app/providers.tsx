@@ -6,8 +6,7 @@ import { isAnalyticsAllowed } from '@/lib/cookie-consent'
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && isAnalyticsAllowed()) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-    api_host: '/ingest',
-    ui_host: 'https://eu.posthog.com',
+    api_host: 'https://eu.i.posthog.com',
     person_profiles: 'identified_only',
     capture_pageview: true,
     capture_pageleave: true,

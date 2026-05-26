@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
@@ -104,7 +104,8 @@ function fmtConfirm(utcIso: string, tz: string, locale: string): { date: string;
   }
 }
 
-export default function BookPage({ params }: { params: { slug: string } }) {
+export default function BookPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params)
   const t = useTranslations('book')
   const locale = useLocale()
 
@@ -149,7 +150,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
   })
 
   useEffect(() => {
-    fetch(`/api/book/${params.slug}`)
+    fetch(`/api/book/${slug}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) { setNotFound(true); return }
@@ -159,31 +160,31 @@ export default function BookPage({ params }: { params: { slug: string } }) {
         if ((d.meeting_durations?.length ?? 0) <= 1) setStep('datetime')
       })
       .catch(() => setNotFound(true))
-  }, [params.slug])
+  }, [slug])
 
   // Prefill form from ?prospect=uuid
   useEffect(() => {
     if (typeof window === 'undefined') return
     const prospectId = new URLSearchParams(window.location.search).get('prospect')
     if (!prospectId) return
-    fetch(`/api/book/${params.slug}/prospect/${prospectId}`)
+    fetch(`/api/book/${slug}/prospect/${prospectId}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) return
         setForm(f => ({ ...f, name: d.name || f.name, email: d.email || f.email, company: d.company || f.company }))
       })
       .catch(() => {/* silently ignore */})
-  }, [params.slug])
+  }, [slug])
 
   // Fetch busy ranges when date, prospect TZ, or data changes
   useEffect(() => {
     if (!selDateStr || !data) { setBusyRanges([]); return }
     const tz = encodeURIComponent(prospectTz)
-    fetch(`/api/book/${params.slug}/availability?date=${selDateStr}&prospect_tz=${tz}`)
+    fetch(`/api/book/${slug}/availability?date=${selDateStr}&prospect_tz=${tz}`)
       .then(r => r.json())
       .then(d => setBusyRanges(d.busy ?? []))
       .catch(() => setBusyRanges([]))
-  }, [selDateStr, prospectTz, params.slug, data])
+  }, [selDateStr, prospectTz, slug, data])
 
   const buffer = data?.buffer_minutes ?? 0
 
@@ -214,7 +215,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
     const m    = timeParts.find(p => p.type === 'minute')?.value   ?? '00'
     const time = `${h}:${m}`
 
-    const res = await fetch(`/api/book/${params.slug}`, {
+    const res = await fetch(`/api/book/${slug}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
