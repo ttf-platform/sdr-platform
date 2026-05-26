@@ -15,6 +15,7 @@ import { CreateTagModal } from '@/components/CreateTagModal'
 import { NoteItem } from '@/components/NoteItem'
 import { TagFilterDropdown } from '@/components/TagFilterDropdown'
 import { ExportProspectsModal } from '@/components/ExportProspectsModal'
+import { Spinner } from '@/components/ui/Spinner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LifecycleCounts = {
@@ -301,7 +302,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
 
         {!detail ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="w-5 h-5 border-2 border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin" />
+            <Spinner size="sm" />
           </div>
         ) : (
           <div className="p-5 flex flex-col gap-5">

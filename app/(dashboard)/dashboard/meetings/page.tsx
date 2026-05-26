@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Spinner } from '@/components/ui/Spinner'
 
 const supabase = createClient()
 
@@ -241,8 +242,8 @@ export default function MeetingsPage() {
       {/* Meeting list */}
       {view === 'list' && (
         loading ? (
-          <div className="bg-white border border-[#e8e3dc] rounded-xl p-8 text-center">
-            <p className="text-sm text-[#8a7e6e]">Loading...</p>
+          <div className="bg-white border border-[#e8e3dc] rounded-xl p-8 flex justify-center">
+            <Spinner />
           </div>
         ) : meetings.length === 0 ? (
           <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Radio } from 'lucide-react'
 import { SignalCreateModal } from './_components/SignalCreateModal'
 import { RunSignalModal } from './_components/RunSignalModal'
+import { SpinnerWithText } from '@/components/ui/Spinner'
 
 type Signal = {
   id: string
@@ -200,7 +201,7 @@ export default function SignalsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading signals…</div>
+        <div className="py-10 flex justify-center"><SpinnerWithText text="Loading signals…" /></div>
       ) : signals.length === 0 ? (
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
           <div className="text-3xl mb-3">📡</div>

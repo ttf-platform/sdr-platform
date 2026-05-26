@@ -7,6 +7,7 @@ import { ChooseTemplateModal } from '@/components/ChooseTemplateModal'
 import { NewCampaignModal } from '@/components/NewCampaignModal'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 import type { AISuggestion } from '@/lib/ai-suggestions'
+import { SpinnerWithText } from '@/components/ui/Spinner'
 
 interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
@@ -274,7 +275,7 @@ export default function CampaignsPage() {
       {/* Tab: My Campaigns */}
       {activeTab === 'campaigns' && (
         campaignsLoading ? (
-          <div className="text-sm text-[#8a7e6e] py-10 text-center">Loading campaigns…</div>
+          <div className="py-10 flex justify-center"><SpinnerWithText text="Loading campaigns…" /></div>
         ) : campaigns.length === 0 ? (
           <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
             <div className="text-3xl mb-3">✨</div>

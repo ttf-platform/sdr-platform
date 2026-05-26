@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { Tooltip } from '@/components/Tooltip'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Deal = {
@@ -158,7 +159,9 @@ function ClosedDealsModal({ stage, deals, onClose, onDealClick }: {
         </div>
         <div className="overflow-y-auto flex-1">
           {filtered.length === 0 ? (
-            <div className="py-10 text-center text-sm text-gray-400">No deals found</div>
+            <div className="p-4">
+              <EmptyState icon="📋" title="No deals found" description="Add a prospect to a campaign to start tracking deals here." />
+            </div>
           ) : filtered.map(deal => (
             <div key={deal.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50">
               <div className="flex-1 min-w-0">
