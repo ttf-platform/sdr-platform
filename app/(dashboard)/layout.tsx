@@ -213,14 +213,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — always in DOM, CSS transform controls open/close */}
       {menuOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-[#1a1a1a]/40 md:hidden"
-            onClick={() => setMenuOpen(false)}
-          />
-          <div id="mobile-drawer" className="fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2rem))] bg-white overflow-y-auto md:hidden shadow-xl flex flex-col">
+        <div
+          className="fixed inset-0 z-40 bg-[#1a1a1a]/40 md:hidden"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+      <div
+        id="mobile-drawer"
+        className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2rem))] bg-white overflow-y-auto md:hidden shadow-xl flex flex-col transition-transform duration-300 ease-out ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
             {/* Drawer header */}
             <div className="flex items-center justify-between px-4 h-12 border-b border-[#e8e3dc] flex-shrink-0">
               <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
@@ -317,8 +320,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <TrialBadge />
             </div>
           </div>
-        </>
-      )}
 
       <main className="max-w-7xl mx-auto px-6 py-6">
         {children}

@@ -925,11 +925,13 @@ export default function ProspectsPage() {
       {/* Filter bar */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-4 mb-4 flex flex-col gap-3">
 
-        {/* Row 1: search · campaigns · sources · [spacer] · sort */}
+        {/* Row 1: search (full width) */}
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+          className="w-full border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]"
+          placeholder="Search by name, email, company…" />
+
+        {/* Row 2: filter dropdowns + sort — wrap on mobile */}
         <div className="flex flex-wrap gap-2">
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-            className="flex-1 max-w-2xl border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]"
-            placeholder="Search by name, email, company…" />
           <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
             <option value="all">Campaigns</option>
@@ -942,7 +944,6 @@ export default function ProspectsPage() {
             <option value="paste">Paste</option>
             <option value="csv_import">CSV</option>
           </select>
-          <div className="flex-1" />
           <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
             <option value="newest">Newest</option>
@@ -952,8 +953,8 @@ export default function ProspectsPage() {
           </select>
         </div>
 
-        {/* Row 2: status pills · tags */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Row 3: status pills · tags */}
+        <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
           <button onClick={() => { setStatusFilters(new Set()); setPage(1) }}
             className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilters.size === 0 ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
             All
@@ -1099,18 +1100,22 @@ export default function ProspectsPage() {
       {/* Bulk select sticky bar */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-          <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4 max-w-[calc(100vw-2rem)]">
-            <span className="text-sm font-medium">{selectedIds.size} selected</span>
-            <button onClick={() => setSelectedIds(new Set())}
-              className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
-            <button onClick={() => setShowExport(true)}
-              className="bg-[#3b6bef] hover:bg-[#2a5adf] text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">
-              <span aria-hidden="true">⬇</span> Export ({selectedIds.size})
-            </button>
-            <button onClick={bulkDelete} disabled={bulkDeleting}
-              className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
-              {bulkDeleting ? 'Deleting…' : 'Delete'}
-            </button>
+          <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 max-w-[calc(100vw-2rem)]">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">{selectedIds.size} selected</span>
+              <button onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowExport(true)}
+                className="bg-[#3b6bef] hover:bg-[#2a5adf] text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">
+                <span aria-hidden="true">⬇</span> Export ({selectedIds.size})
+              </button>
+              <button onClick={bulkDelete} disabled={bulkDeleting}
+                className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
+                {bulkDeleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
