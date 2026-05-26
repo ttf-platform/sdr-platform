@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { ThreadItem } from '@/app/api/inbox/messages/[id]/thread/route'
+import { Spinner } from '@/components/ui/Spinner'
 
 const supabase = createClient()
 
@@ -316,7 +317,7 @@ export default function InboxPage() {
         {/* Message list — hidden on mobile when detail selected */}
         <div className={`md:w-80 md:flex-shrink-0 w-full bg-white border border-[#e8e3dc] rounded-xl overflow-y-auto ${selected ? 'hidden md:flex md:flex-col' : 'flex flex-col'}`}>
           {loading ? (
-            <div className="p-8 text-center text-sm text-[#8a7e6e]">Loading...</div>
+            <div className="p-8 flex justify-center"><Spinner /></div>
           ) : error ? (
             <div className="p-8 text-center text-sm text-red-500">{error}</div>
           ) : filtered.length === 0 ? (
