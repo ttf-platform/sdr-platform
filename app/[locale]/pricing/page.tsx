@@ -1,5 +1,28 @@
+import type { Metadata } from 'next'
 import { Link } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+
+export const metadata: Metadata = {
+  title: 'Pricing — Sentra',
+  description: 'All plans include sourcing, writing, sending, deliverability, follow-ups, and meeting booking. Start free for 14 days — no credit card required.',
+  metadataBase: new URL('https://sentra.app'),
+  alternates: {
+    canonical: '/pricing',
+    languages: { en: '/en/pricing', fr: '/fr/pricing' },
+  },
+  openGraph: {
+    title: 'Pricing — Sentra',
+    description: 'Pick a plan. Start free. No surprises. From $149/mo — all plans include sourcing, writing, sending, and meeting booking.',
+    url: 'https://sentra.app/pricing',
+    siteName: 'Sentra',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pricing — Sentra',
+    description: 'Pick a plan. Start free. No surprises. From $149/mo.',
+  },
+}
 
 export default async function PricingPage({
   params,

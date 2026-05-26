@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Fraunces } from 'next/font/google';
 import { setRequestLocale } from 'next-intl/server';
 import { LandingHeader } from '@/components/landing/LandingHeader';
@@ -13,6 +14,28 @@ import { SectionLimitsAndRoadmap } from '@/components/landing/SectionLimitsAndRo
 import { SectionFAQ } from '@/components/landing/SectionFAQ';
 import { SectionFinalCTA } from '@/components/landing/SectionFinalCTA';
 import { LandingFooter } from '@/components/landing/LandingFooter';
+
+export const metadata: Metadata = {
+  title: 'Sentra — Cold outreach that books meetings',
+  description: 'Sentra finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
+  metadataBase: new URL('https://sentra.app'),
+  alternates: {
+    canonical: '/',
+    languages: { en: '/en', fr: '/fr' },
+  },
+  openGraph: {
+    title: 'Sentra — Cold outreach that books meetings',
+    description: 'Sentra finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
+    url: 'https://sentra.app',
+    siteName: 'Sentra',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Sentra — Cold outreach that books meetings',
+    description: 'Your first hire. Without the headcount. Sentra finds your buyers, writes the emails, books the meetings.',
+  },
+}
 
 const fraunces = Fraunces({
   subsets: ['latin'],
