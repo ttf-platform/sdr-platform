@@ -47,6 +47,7 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   manifest: '/manifest.webmanifest',
+  icons: { icon: '/icon.svg' },
 }
 
 export default function RootLayout({
