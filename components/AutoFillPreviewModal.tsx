@@ -102,16 +102,16 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
       onClick={e => { if (e.target === e.currentTarget) onCancel() }}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[calc(100vh-2rem)] flex flex-col">
 
         {/* Header */}
-        <div className="p-5 border-b border-[#f0ece6] shrink-0">
+        <div className="p-4 sm:p-5 border-b border-[#f0ece6] shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-[#1a1a2e]">✨ Here&apos;s what we found</h2>
               <p className="text-xs text-[#8a7e6e] mt-0.5 truncate max-w-sm">{url}</p>
             </div>
-            <button onClick={onCancel} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none shrink-0">✕</button>
+            <button onClick={onCancel} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none shrink-0">✕</button>
           </div>
           <p className="text-xs text-[#6b5e4e] mt-2">
             Review and edit before applying. Uncheck any field you don&apos;t want to fill.

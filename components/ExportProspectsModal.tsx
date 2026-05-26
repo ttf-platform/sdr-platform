@@ -170,7 +170,7 @@ export function ExportProspectsModal({ isOpen, onClose, selectedIds, totalCount,
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-modal-title"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col gap-5 p-6 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col gap-5 p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto"
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -179,7 +179,7 @@ export function ExportProspectsModal({ isOpen, onClose, selectedIds, totalCount,
           <button
             onClick={onClose}
             aria-label="Close export dialog"
-            className="text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none"
+            className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none"
           >
             ×
           </button>

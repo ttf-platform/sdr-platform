@@ -296,10 +296,10 @@ export default function MeetingsPage() {
       {/* ── Create meeting modal ─────────────────────────────────────────── */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-[#1a1a2e]">Create meeting</h2>
-              <button onClick={() => setShowCreate(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e]">✕</button>
+              <button onClick={() => setShowCreate(false)} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e]">✕</button>
             </div>
             <form onSubmit={createMeeting} className="flex flex-col gap-3">
               {createErr && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{createErr}</div>}

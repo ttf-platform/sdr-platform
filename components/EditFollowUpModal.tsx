@@ -82,13 +82,13 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={e => { if (e.target === e.currentTarget && !saving) onClose() }}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[calc(100vh-2rem)]">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-[#f0ece6] shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#f0ece6] shrink-0">
           <h2 className="text-base font-bold text-[#1a1a2e]">Edit follow-up</h2>
           <button onClick={onClose} disabled={saving}
-            className="text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none disabled:opacity-40">✕</button>
+            className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none disabled:opacity-40">✕</button>
         </div>
 
         {/* Body */}

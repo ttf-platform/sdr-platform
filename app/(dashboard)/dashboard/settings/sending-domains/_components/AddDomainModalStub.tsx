@@ -33,7 +33,7 @@ export function AddDomainModalStub({
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-domain-title"
-        className="relative z-50 w-full max-w-lg rounded-lg border border-[#e8e3dc] bg-white p-8 shadow-xl"
+        className="relative z-50 w-full max-w-lg rounded-lg border border-[#e8e3dc] bg-white p-6 sm:p-8 shadow-xl max-h-[calc(100vh-2rem)] overflow-y-auto"
       >
         <h2
           id="add-domain-title"

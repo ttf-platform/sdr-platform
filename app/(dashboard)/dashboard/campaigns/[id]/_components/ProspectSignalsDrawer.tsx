@@ -94,7 +94,7 @@ export function ProspectSignalsDrawer({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-gray-400 hover:text-gray-600 transition-colors mt-1"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X size={20} />
           </button>
