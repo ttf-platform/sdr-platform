@@ -62,12 +62,12 @@ export default function RootLayout({
         {supabaseUrl && <link rel="preconnect" href={supabaseUrl} />}
         <link rel="dns-prefetch" href="https://eu.i.posthog.com" />
         <link rel="dns-prefetch" href="https://challenges.cloudflare.com" />
-      </head>
-      <body className={dmSans.className}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
+      </head>
+      <body className={dmSans.className}>
         <PHProvider>
           <UTMCapture />
           {children}

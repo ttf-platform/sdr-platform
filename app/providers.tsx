@@ -4,7 +4,7 @@ import posthog from 'posthog-js'
 import { PostHogProvider } from 'posthog-js/react'
 import { isAnalyticsAllowed } from '@/lib/cookie-consent'
 
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && isAnalyticsAllowed()) {
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_POSTHOG_KEY && isAnalyticsAllowed()) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
     api_host: 'https://eu.i.posthog.com',
     person_profiles: 'identified_only',
