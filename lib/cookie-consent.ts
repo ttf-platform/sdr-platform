@@ -15,7 +15,8 @@ export function getConsent(): ConsentValue {
 
 export function setConsent(value: 'accepted' | 'rejected'): void {
   if (typeof document === 'undefined') return
-  document.cookie = `${COOKIE_NAME}=${value}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax; Secure`
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
+  document.cookie = `${COOKIE_NAME}=${value}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax${isSecure ? '; Secure' : ''}`
 }
 
 export function hasConsentBeenGiven(): boolean {
