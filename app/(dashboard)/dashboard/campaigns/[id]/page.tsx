@@ -6,6 +6,7 @@ import { ApprovalQueueClient } from './_components/ApprovalQueueClient'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
+import { CampaignProspectMobileCard } from './_components/CampaignProspectMobileCard'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -476,7 +477,8 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             </div>
           </div>
 
-          <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-x-auto overflow-hidden">
+          {/* Desktop table sm+ */}
+          <div className="hidden sm:block bg-white border border-[#e8e3dc] rounded-xl overflow-x-auto overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#f0ece6]">
@@ -558,6 +560,35 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card list — <sm */}
+          <div className="block sm:hidden space-y-2">
+            {tabProspectsLoading ? (
+              <div className="py-10 text-center text-sm text-[#8a7e6e]">Loading…</div>
+            ) : tabProspects.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="text-2xl mb-2">📋</div>
+                <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
+                <div className="text-xs text-[#8a7e6e]">Add prospects to start your campaign.</div>
+              </div>
+            ) : tabProspects.map(p => {
+              const prospectName = [p.contacts?.first_name, p.contacts?.last_name].filter(Boolean).join(' ') || undefined
+              return (
+                <CampaignProspectMobileCard
+                  key={p.id}
+                  prospect={p}
+                  isSelected={selectedProspectIds.has(p.id)}
+                  onToggleSelect={e => {
+                    e.stopPropagation()
+                    setSelectedProspectIds(prev => {
+                      const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n
+                    })
+                  }}
+                  onClick={() => setDrawerProspect({ id: p.id, email: p.email, name: prospectName })}
+                />
+              )
+            })}
           </div>
 
           {tabPages > 1 && (
