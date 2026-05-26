@@ -101,7 +101,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
   if (generating) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-5 sm:p-8 text-center max-h-[calc(100vh-2rem)] overflow-y-auto">
           <div className="text-3xl mb-4">✨</div>
           <h2 className="text-base font-bold text-[#1a1a2e] mb-4">
             {mode === 'smart' ? 'Sentra AI is personalizing your emails…' : 'Generating emails…'}
@@ -132,15 +132,15 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
-        <div className="flex items-center justify-between p-5 border-b border-[#f0ece6]">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#f0ece6]">
           <h2 className="text-base font-bold text-[#1a1a2e]">
             {isRegenerate ? 'Regenerate emails' : 'Generate emails'} for {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
           </h2>
-          <button onClick={onClose} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none">✕</button>
+          <button onClick={onClose} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none">✕</button>
         </div>
 
-        <div className="p-5 flex flex-col gap-4">
+        <div className="p-4 sm:p-5 flex flex-col gap-4">
           {isRegenerate && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
               <span className="shrink-0 mt-0.5">⚠️</span>

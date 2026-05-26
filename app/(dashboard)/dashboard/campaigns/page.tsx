@@ -351,7 +351,7 @@ export default function CampaignsPage() {
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">Delete campaign?</h2>
             <p className="text-sm text-[#8a7e6e] mb-6">
               <span className="font-semibold text-[#1a1a2e]">{deleteTarget.name}</span> and all its steps will be permanently deleted. This cannot be undone.

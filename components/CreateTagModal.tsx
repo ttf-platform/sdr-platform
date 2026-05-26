@@ -57,7 +57,7 @@ export function CreateTagModal({ initialLabel, prospectId, onCreated, onClose }:
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <h3 className="text-base font-bold text-[#1a1a2e] mb-4">Create tag</h3>
 
         <div className="mb-4">
@@ -96,7 +96,7 @@ export function CreateTagModal({ initialLabel, prospectId, onCreated, onClose }:
 
         <div className="flex gap-2">
           <button onClick={onClose} disabled={saving}
-            className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm disabled:opacity-40">
+            className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 p-2 text-sm disabled:opacity-40">
             Cancel
           </button>
           <button onClick={handleCreate} disabled={saving || !label.trim()}

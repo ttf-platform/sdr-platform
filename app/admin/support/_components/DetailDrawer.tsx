@@ -48,7 +48,7 @@ function Header({ type, onClose }: { type: SelectedItem['type']; onClose: () => 
   return (
     <div className="flex items-center justify-between border-b border-[#e8e3dc] px-5 py-4">
       <h2 className="text-base font-semibold text-[#1a1a1a]">{titleMap[type]}</h2>
-      <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1 text-[#4a4a5a] hover:bg-[#f5f2ee] hover:text-[#1a1a1a]">
+      <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-2 text-[#4a4a5a] hover:bg-[#f5f2ee] hover:text-[#1a1a1a]">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="4" y1="4" x2="14" y2="14" /><line x1="14" y1="4" x2="4" y2="14" />
         </svg>

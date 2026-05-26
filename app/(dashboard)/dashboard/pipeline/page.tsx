@@ -552,7 +552,7 @@ function CloseModal({ deal, targetStage, onCancel, onConfirm }: {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <h2 className="text-lg font-bold text-gray-900 mb-1">
           {isWon ? '🎉 Close as Won' : '❌ Close as Lost'}
         </h2>
@@ -653,11 +653,11 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
         {/* Header — no tooltip here, it lives on the page next to the button */}
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-900">Add Lead</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700">✕</button>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700">✕</button>
         </div>
 
         {/* Contact search */}

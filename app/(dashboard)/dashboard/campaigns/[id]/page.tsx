@@ -619,7 +619,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
           {showRemoveAll && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
                 <h2 className="text-base font-bold text-[#1a1a2e] mb-2">Remove all prospects?</h2>
                 <p className="text-sm text-[#6b5e4e] mb-5">
                   This will permanently delete all {tabProspectsTotal.toLocaleString()} prospects from this campaign. This cannot be undone.
