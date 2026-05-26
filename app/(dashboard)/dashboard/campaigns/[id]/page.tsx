@@ -363,20 +363,22 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
       {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg mt-3 mb-2">{error}</div>}
 
-      {/* Tabs */}
-      <div className="flex gap-1 my-5 p-1 bg-[#f0ece6] rounded-xl w-fit">
-        {([
-          { key: 'overview',       label: 'Overview' },
-          { key: 'prospects',      label: `Prospects (${tabProspectsTotal})` },
-          { key: 'emails',         label: `Emails (${emailsTotal})` },
-          { key: 'sequence',       label: `Follow-up Sequence (${followUpSteps.length})` },
-          { key: 'approval_queue', label: 'Approval Queue' },
-        ] as const).map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs — overflow-x-auto contains scroll to this strip only */}
+      <div className="overflow-x-auto -mx-6 px-6 my-5">
+        <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl w-fit">
+          {([
+            { key: 'overview',       label: 'Overview' },
+            { key: 'prospects',      label: `Prospects (${tabProspectsTotal})` },
+            { key: 'emails',         label: `Emails (${emailsTotal})` },
+            { key: 'sequence',       label: `Follow-up Sequence (${followUpSteps.length})` },
+            { key: 'approval_queue', label: 'Approval Queue' },
+          ] as const).map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Tab: Overview ────────────────────────────────────────────────────── */}
