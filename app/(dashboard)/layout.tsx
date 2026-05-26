@@ -165,7 +165,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Mobile burger */}
           <button
             type="button"
-            className="md:hidden ml-auto p-2 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+            className="md:hidden ml-auto p-3 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={menuOpen}
@@ -220,7 +220,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="fixed inset-0 z-40 bg-[#1a1a1a]/40 md:hidden"
             onClick={() => setMenuOpen(false)}
           />
-          <div id="mobile-drawer" className="fixed inset-y-0 left-0 z-50 w-72 bg-white overflow-y-auto md:hidden shadow-xl flex flex-col">
+          <div id="mobile-drawer" className="fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2rem))] bg-white overflow-y-auto md:hidden shadow-xl flex flex-col">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-4 h-12 border-b border-[#e8e3dc] flex-shrink-0">
               <Link href="/dashboard" onClick={() => setMenuOpen(false)}>

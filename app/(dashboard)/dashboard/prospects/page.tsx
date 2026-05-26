@@ -926,7 +926,7 @@ export default function ProspectsPage() {
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-4 mb-4 flex flex-col gap-3">
 
         {/* Row 1: search · campaigns · sources · [spacer] · sort */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-2">
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
             className="flex-1 max-w-2xl border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]"
             placeholder="Search by name, email, company…" />
@@ -1008,8 +1008,8 @@ export default function ProspectsPage() {
                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
                   className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
               </th>
-              {['NAME', 'COMPANY', 'EMAIL', 'CAMPAIGNS', 'LIFECYCLE', 'TAGS', 'SOURCE', 'ADDED'].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider whitespace-nowrap">{h}</th>
+              {(['NAME', 'COMPANY', 'EMAIL', 'CAMPAIGNS', 'LIFECYCLE', 'TAGS', 'SOURCE', 'ADDED'] as const).map(h => (
+                <th key={h} className={`text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider whitespace-nowrap${['COMPANY','LIFECYCLE','TAGS','SOURCE'].includes(h) ? ' hidden md:table-cell' : ''}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -1037,7 +1037,7 @@ export default function ProspectsPage() {
                   </div>
                   {c.title && <div className="text-xs text-[#8a7e6e]">{c.title}</div>}
                 </td>
-                <td className="px-4 py-3 text-sm text-[#4a4a5a]">{c.company || '—'}</td>
+                <td className="px-4 py-3 text-sm text-[#4a4a5a] hidden md:table-cell">{c.company || '—'}</td>
                 <td className="px-4 py-3 text-sm text-[#8a7e6e]">{c.email}</td>
                 <td className="px-4 py-3">
                   {c.campaigns_count === 0 ? (
@@ -1052,13 +1052,13 @@ export default function ProspectsPage() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 hidden md:table-cell">
                   {c.campaigns_count === 0
                     ? <span className="text-xs text-[#b0a898]">—</span>
                     : <LifecycleCountsCell counts={c.lifecycle_counts} total={c.campaigns_count} />
                   }
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 hidden md:table-cell">
                   {c.tags.length === 0 ? (
                     <span className="text-xs text-[#b0a898]">—</span>
                   ) : (
@@ -1072,7 +1072,7 @@ export default function ProspectsPage() {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 hidden md:table-cell">
                   <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
                     {SOURCE_LABEL[c.primary_source ?? ''] ?? c.primary_source ?? '—'}
                   </span>
@@ -1098,8 +1098,8 @@ export default function ProspectsPage() {
 
       {/* Bulk select sticky bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pb-6 pointer-events-none">
-          <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-4 max-w-[calc(100vw-2rem)]">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
             <button onClick={() => setSelectedIds(new Set())}
               className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>

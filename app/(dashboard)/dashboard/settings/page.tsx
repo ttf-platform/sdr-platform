@@ -361,7 +361,7 @@ export default function SettingsPage() {
       {profileLoaded && <>
 
       {/* Row 1: Account + Plan */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 items-stretch">
 
         {/* ACCOUNT */}
         <div className={cardCls}>
@@ -421,7 +421,7 @@ export default function SettingsPage() {
               <Link href="/dashboard/billing" className="bg-[#2563eb] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
             <div className="border border-[#e8e3dc] rounded-xl p-3">
               <div className="text-xl font-bold text-[#1a1a2e]">{campaignCount}</div>
               <div className="text-xs text-[#8a7e6e] mt-1">Campaigns</div>

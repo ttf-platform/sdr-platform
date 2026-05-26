@@ -86,7 +86,7 @@ function SignalCard({
             <button
               onClick={() => setMenuOpen(v => !v)}
               onBlur={() => setTimeout(() => setMenuOpen(false), 150)}
-              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[#f0ece6] text-[#8a7e6e] hover:text-[#1a1a2e] transition-colors text-lg leading-none"
+              className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-[#f0ece6] text-[#8a7e6e] hover:text-[#1a1a2e] transition-colors text-lg leading-none"
               aria-label="Signal options"
             >
               ···

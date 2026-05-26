@@ -6,7 +6,7 @@ export function CohortsTable({ cohorts }: { cohorts: Cohort[] }) {
   if (cohorts.length === 0) return <p className="text-sm text-[#9a9a9a]">No cohort data.</p>;
 
   return (
-    <div className="overflow-hidden rounded-md border border-[#e8e3dc]">
+    <div className="overflow-x-auto overflow-hidden rounded-md border border-[#e8e3dc]">
       <table className="w-full">
         <thead className="border-b border-[#e8e3dc] bg-[#f5f2ee]">
           <tr>

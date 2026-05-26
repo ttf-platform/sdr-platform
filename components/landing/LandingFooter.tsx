@@ -46,7 +46,7 @@ export function LandingFooter() {
         className="mx-auto max-w-6xl px-6 lg:px-8 py-16 lg:py-20"
         style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
       >
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:gap-12">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-8 lg:gap-12">
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
