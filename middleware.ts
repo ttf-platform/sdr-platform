@@ -26,7 +26,10 @@ const CSP_HEADER = [
 ].join('; ')
 
 function applySecurityHeaders(res: { headers: { set: (name: string, value: string) => void } }): void {
-  res.headers.set('Content-Security-Policy', CSP_HEADER)
+  // Skip CSP in dev to allow Next.js HMR WebSocket (ws://localhost) and dev tools
+  if (!isDev) {
+    res.headers.set('Content-Security-Policy', CSP_HEADER)
+  }
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self)')
   res.headers.set('X-DNS-Prefetch-Control', 'on')
   res.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
@@ -148,7 +151,7 @@ export async function middleware(request: NextRequest) {
 
   // === PUBLIC PAGES — i18n locale routing ===
   const response = handleI18nRouting(request)
-  response.headers.set('Content-Security-Policy', CSP_HEADER)
+  applySecurityHeaders(response)
   return response
 }
 
