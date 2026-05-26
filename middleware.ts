@@ -25,6 +25,13 @@ const CSP_HEADER = [
   ...(isDev ? [] : ["upgrade-insecure-requests"]),
 ].join('; ')
 
+function applySecurityHeaders(res: { headers: { set: (name: string, value: string) => void } }): void {
+  res.headers.set('Content-Security-Policy', CSP_HEADER)
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self)')
+  res.headers.set('X-DNS-Prefetch-Control', 'on')
+  res.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
+}
+
 const handleI18nRouting = createMiddleware(routing)
 
 export async function middleware(request: NextRequest) {
@@ -83,7 +90,7 @@ export async function middleware(request: NextRequest) {
   // === API PASS-THROUGH — all /api/* skip i18n routing (rate-limited or exempt) ===
   if (pathname.startsWith('/api/')) {
     const response = NextResponse.next()
-    response.headers.set('Content-Security-Policy', CSP_HEADER)
+    applySecurityHeaders(response)
     return response
   }
 
@@ -117,25 +124,25 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone()
       url.pathname = '/en/login'
       const redirect = NextResponse.redirect(url)
-      redirect.headers.set('Content-Security-Policy', CSP_HEADER)
+      applySecurityHeaders(redirect)
       return redirect
     }
 
-    supabaseResponse.headers.set('Content-Security-Policy', CSP_HEADER)
+    applySecurityHeaders(supabaseResponse)
     return supabaseResponse
   }
 
   // === ADMIN — pass through, has server-side guards ===
   if (pathname.startsWith('/admin')) {
     const response = NextResponse.next()
-    response.headers.set('Content-Security-Policy', CSP_HEADER)
+    applySecurityHeaders(response)
     return response
   }
 
   // === STATUS — public utility page, bypass i18n (no locale prefix needed) ===
   if (pathname === '/status') {
     const response = NextResponse.next()
-    response.headers.set('Content-Security-Policy', CSP_HEADER)
+    applySecurityHeaders(response)
     return response
   }
 
