@@ -14,6 +14,16 @@ const dmSans = DM_Sans({
 
 const BASE_URL = 'https://sentra.app'
 
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Sentra',
+  url: BASE_URL,
+  description: 'Cold outreach that books meetings. All-in-one outbound for founders and first sales hires.',
+  logo: `${BASE_URL}/icon.svg`,
+  sameAs: [],
+}
+
 export const metadata: Metadata = {
   title: 'Sentra — Cold outreach that books meetings',
   description:
@@ -43,9 +53,20 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
+
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {supabaseUrl && <link rel="preconnect" href={supabaseUrl} />}
+        <link rel="dns-prefetch" href="https://eu.i.posthog.com" />
+        <link rel="dns-prefetch" href="https://challenges.cloudflare.com" />
+      </head>
       <body className={dmSans.className}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
         <PHProvider>
           <UTMCapture />
           {children}
