@@ -16,6 +16,7 @@ import { NoteItem } from '@/components/NoteItem'
 import { TagFilterDropdown } from '@/components/TagFilterDropdown'
 import { ExportProspectsModal } from '@/components/ExportProspectsModal'
 import { Spinner } from '@/components/ui/Spinner'
+import { ProspectMobileCard } from './_components/ProspectMobileCard'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LifecycleCounts = {
@@ -999,8 +1000,8 @@ export default function ProspectsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden mb-4">
+      {/* Table — desktop sm+ */}
+      <div className="hidden sm:block bg-white border border-[#e8e3dc] rounded-xl overflow-hidden mb-4">
         <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -1084,6 +1085,27 @@ export default function ProspectsPage() {
           </tbody>
         </table>
         </div>
+      </div>
+
+      {/* Mobile card list — <sm */}
+      <div className="block sm:hidden space-y-2 mb-4">
+        {loading ? (
+          <div className="py-12 text-center text-sm text-[#8a7e6e]">Loading…</div>
+        ) : contacts.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="text-2xl mb-2">📋</div>
+            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
+            <div className="text-xs text-[#8a7e6e]">Import a CSV or add prospects manually to get started.</div>
+          </div>
+        ) : contacts.map(c => (
+          <ProspectMobileCard
+            key={c.id}
+            contact={c}
+            isSelected={selectedIds.has(c.id)}
+            onToggleSelect={e => { e.stopPropagation(); toggleOne(c.id) }}
+            onClick={() => setSelectedPanel(c.id)}
+          />
+        ))}
       </div>
 
       {/* Pagination */}
