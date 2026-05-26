@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import posthog from 'posthog-js'
+import { isAnalyticsAllowed } from '@/lib/cookie-consent'
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const
 const STORAGE_KEY = 'sentra_utm'
@@ -27,10 +28,12 @@ export function UTMCapture() {
       } catch {
         // localStorage may fail in private mode, ignore
       }
-      try {
-        posthog.register(utm)
-      } catch (err) {
-        console.warn('[posthog] UTM register failed:', err)
+      if (isAnalyticsAllowed()) {
+        try {
+          posthog.register(utm)
+        } catch (err) {
+          console.warn('[posthog] UTM register failed:', err)
+        }
       }
     } else {
       try {
@@ -39,7 +42,7 @@ export function UTMCapture() {
           const stored: UtmRecord = JSON.parse(raw)
           if (Date.now() - stored.captured_at < TTL_MS) {
             const { captured_at, ...savedUtm } = stored
-            if (Object.keys(savedUtm).length > 0) {
+            if (Object.keys(savedUtm).length > 0 && isAnalyticsAllowed()) {
               posthog.register(savedUtm)
             }
           } else {
