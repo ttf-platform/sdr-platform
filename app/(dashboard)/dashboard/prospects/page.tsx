@@ -63,7 +63,7 @@ type Campaign = { id: string; name: string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SOURCE_LABEL: Record<string, string> = {
-  manual: 'Manual', paste: 'Paste', csv_import: 'CSV',
+  manual: 'Manual', paste: 'Paste', csv_import: 'CSV', sample: 'Demo',
 }
 
 const COMPANY_SIZES  = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
@@ -1075,9 +1075,15 @@ export default function ProspectsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell">
-                  <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
-                    {SOURCE_LABEL[c.primary_source ?? ''] ?? c.primary_source ?? '—'}
-                  </span>
+                  {c.primary_source === 'sample' ? (
+                    <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
+                      Demo
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
+                      {SOURCE_LABEL[c.primary_source ?? ''] ?? c.primary_source ?? '—'}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-xs text-[#8a7e6e] whitespace-nowrap">{fmtDate(c.added_at)}</td>
               </tr>

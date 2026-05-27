@@ -14,6 +14,7 @@ type Signal = {
   source_type: 'template' | 'custom'
   template_id: string | null
   is_active: boolean
+  is_sample: boolean
   total_matches_count: number
   last_run_at: string | null
   created_at: string
@@ -73,6 +74,11 @@ function SignalCard({
           <h3 className="font-bold text-[#1a1a2e] text-sm leading-snug truncate">{signal.name}</h3>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {signal.is_sample && (
+            <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide whitespace-nowrap">
+              Demo
+            </span>
+          )}
           {signal.is_active ? (
             <span className="bg-green-50 text-green-600 border border-green-200 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
               Active

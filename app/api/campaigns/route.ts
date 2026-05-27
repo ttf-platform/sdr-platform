@@ -11,7 +11,7 @@ export async function GET() {
 
   const [{ data: rawCampaigns, error }, { data: prospectRows }] = await Promise.all([
     admin.from('campaigns')
-      .select('id, name, status, target_persona, angle, value_prop, cta, prospects_count, sent_count, opened_count, replied_count, meeting_count, smart_stop_on_reply, smart_stop_on_bounce, created_at')
+      .select('id, name, status, target_persona, angle, value_prop, cta, prospects_count, sent_count, opened_count, replied_count, meeting_count, smart_stop_on_reply, smart_stop_on_bounce, is_sample, created_at')
       .eq('workspace_id', guard.workspaceId)
       .order('created_at', { ascending: false }),
     admin.from('prospects')

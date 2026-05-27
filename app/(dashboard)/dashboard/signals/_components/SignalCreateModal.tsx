@@ -9,6 +9,7 @@ type Signal = {
   source_type: 'template' | 'custom'
   template_id: string | null
   is_active: boolean
+  is_sample: boolean
   total_matches_count: number
   last_run_at: string | null
   created_at: string

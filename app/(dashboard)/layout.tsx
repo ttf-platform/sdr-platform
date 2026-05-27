@@ -14,6 +14,7 @@ import { OnboardingProgressProvider } from '@/lib/hooks/useOnboardingProgress'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
+import { SampleDataBanner } from '@/components/onboarding/SampleDataBanner'
 
 const supabase = createClient()
 
@@ -327,6 +328,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <TrialBadge />
             </div>
           </div>
+
+      <SampleDataBanner />
 
       <main className="max-w-7xl mx-auto px-6 py-6">
         {children}
