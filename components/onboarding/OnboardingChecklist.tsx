@@ -44,19 +44,19 @@ const STEPS: ChecklistStep[] = [
     key: 'prospects_added',
     title: 'Add your prospects',
     description: 'CSV, Clay, or Signal-matched',
-    href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns',
+    href: () => '/dashboard/campaigns',
   },
   {
     key: 'variants_reviewed',
     title: 'Review AI emails',
     description: 'Approval Queue — validate before send',
-    href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns',
+    href: () => '/dashboard/campaigns',
   },
   {
     key: 'campaign_launched',
     title: 'Launch campaign',
     description: 'Send today — no waiting period',
-    href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns',
+    href: () => '/dashboard/campaigns',
   },
 ]
 

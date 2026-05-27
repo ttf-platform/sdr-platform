@@ -12,6 +12,7 @@ import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
 import { Toaster } from 'sonner'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
+import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
 
 const supabase = createClient()
 
@@ -331,6 +332,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <FloatingHelpButton />
       <OnboardingProvider />
       <OnboardingChecklist />
+      <ResumeOnboardingButton />
       <Toaster
         position="bottom-right"
         toastOptions={{
