@@ -10,6 +10,7 @@ import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
 import { PostHogIdentify } from '@/components/PostHogIdentify'
 import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
 import { Toaster } from 'sonner'
+import { OnboardingProgressProvider } from '@/lib/hooks/useOnboardingProgress'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
@@ -90,6 +91,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 
   return (
+    <OnboardingProgressProvider>
     <div className="min-h-screen bg-[#f5f2ee]">
       <PostHogIdentify />
 
@@ -346,5 +348,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }}
       />
     </div>
+    </OnboardingProgressProvider>
   )
 }

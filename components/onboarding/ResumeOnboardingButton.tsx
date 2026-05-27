@@ -4,27 +4,18 @@ import { motion } from 'framer-motion'
 import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 
 export function ResumeOnboardingButton() {
-  const { data, loading, refetch } = useOnboardingProgress()
+  const { data, loading, resumeChecklist } = useOnboardingProgress()
 
   if (loading || !data) return null
   if (!data.stored.checklist_dismissed) return null
   if (data.progress_percent === 100) return null
-
-  async function handleResume() {
-    await fetch('/api/onboarding/progress', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checklist_dismissed: false }),
-    })
-    await refetch()
-  }
 
   return (
     <motion.button
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.3 }}
-      onClick={handleResume}
+      onClick={resumeChecklist}
       className="fixed bottom-6 left-6 z-40 flex items-center gap-2 bg-white border border-[#e5e0d6] rounded-full shadow-lg hover:shadow-xl hover:border-[#3b6bef] px-4 py-2.5 transition-all group"
       aria-label="Resume onboarding"
     >

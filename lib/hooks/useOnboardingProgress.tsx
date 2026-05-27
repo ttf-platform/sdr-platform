@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
+import type { ReactNode } from 'react'
 
 export interface OnboardingCompletions {
   icp_configured: boolean
@@ -51,7 +52,18 @@ const STEP_KEYS: StepKey[] = [
   'campaign_launched',
 ]
 
-export function useOnboardingProgress() {
+interface OnboardingContextValue {
+  data: OnboardingProgressData | null
+  loading: boolean
+  recentlyCompleted: StepKey | null
+  refetch: () => Promise<void>
+  dismissChecklist: () => Promise<void>
+  resumeChecklist: () => Promise<void>
+}
+
+const OnboardingContext = createContext<OnboardingContextValue | undefined>(undefined)
+
+export function OnboardingProgressProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingProgressData | null>(null)
   const [loading, setLoading] = useState(true)
   const [recentlyCompleted, setRecentlyCompleted] = useState<StepKey | null>(null)
@@ -64,7 +76,6 @@ export function useOnboardingProgress() {
       if (!res.ok) return
       const json: OnboardingProgressData = await res.json()
 
-      // Detect false → true transitions — skip last_campaign_id (not a step)
       if (previousCompletions.current) {
         for (const key of STEP_KEYS) {
           const wasIncomplete = !previousCompletions.current[key]
@@ -89,7 +100,6 @@ export function useOnboardingProgress() {
     }
   }
 
-  // Initial fetch + re-fetch on every route change
   useEffect(() => {
     fetchProgress()
   }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -105,5 +115,26 @@ export function useOnboardingProgress() {
     )
   }
 
-  return { data, loading, recentlyCompleted, refetch: fetchProgress, dismissChecklist }
+  async function resumeChecklist() {
+    await fetch('/api/onboarding/progress', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checklist_dismissed: false }),
+    })
+    setData(prev =>
+      prev ? { ...prev, stored: { ...prev.stored, checklist_dismissed: false } } : prev
+    )
+  }
+
+  return (
+    <OnboardingContext.Provider value={{ data, loading, recentlyCompleted, refetch: fetchProgress, dismissChecklist, resumeChecklist }}>
+      {children}
+    </OnboardingContext.Provider>
+  )
+}
+
+export function useOnboardingProgress() {
+  const ctx = useContext(OnboardingContext)
+  if (!ctx) throw new Error('useOnboardingProgress must be used within OnboardingProgressProvider')
+  return ctx
 }
