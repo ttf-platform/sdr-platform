@@ -162,6 +162,7 @@ export const BOT_TOOLS: Anthropic.Messages.Tool[] = [
       },
       required: ['reason', 'summary'],
     },
+    cache_control: { type: 'ephemeral' },
   },
 ];
 
@@ -483,7 +484,7 @@ export async function sendBotMessage(
     const response = await client.messages.create({
       model: BOT_MODEL,
       max_tokens: MAX_TOKENS_PER_TURN,
-      system: BOT_SYSTEM_PROMPT,
+      system: [{ type: 'text', text: BOT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       tools: BOT_TOOLS,
       messages,
     });
