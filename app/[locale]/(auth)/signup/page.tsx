@@ -44,7 +44,7 @@ function SignupForm() {
       })
     }).then(r => r.json())
     if (!res.success) {
-      setError(res.error || t('somethingWentWrong'))
+      setError(res.message || res.error || t('somethingWentWrong'))
       setLoading(false)
       return
     }
@@ -79,7 +79,18 @@ function SignupForm() {
           <p className="text-sm text-[#8a7e6e]">{steps[step]}</p>
         </div>
         <div className="bg-white rounded-xl border border-[#e8e3dc] p-6 flex flex-col gap-4">
-          {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg">
+              {error}
+              {error.toLowerCase().includes('already exists') && (
+                <div className="mt-2">
+                  <Link href="/login" className="font-semibold text-red-600 underline">
+                    {t('signIn')} instead →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
           {step === 0 && (
             <form onSubmit={e => { e.preventDefault(); if (data.email && data.password && data.name) setStep(1) }} className="contents">
               <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step0Title')}</h2>
