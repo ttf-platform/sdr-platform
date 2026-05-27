@@ -64,27 +64,33 @@ export function Tooltip({ content, children, placement = 'top' }: Props) {
       {show && content && typeof document !== 'undefined' && createPortal(
         <div
           style={{
-            position:       'absolute',
-            top:            pos.top,
-            left:           pos.left,
-            transform:      finalTransform,
-            zIndex:         9999,
+            position:        'absolute',
+            top:             pos.top,
+            left:            pos.left,
+            transform:       finalTransform,
+            zIndex:          9999,
             backgroundColor: '#ffffff',
-            color:          '#1a1a2e',
-            border:         '1px solid #e5e0d6',
-            fontSize:       '12px',
-            lineHeight:     '1.5',
-            padding:        '8px 12px',
-            borderRadius:   '8px',
-            boxShadow:      '0 4px 12px rgba(0,0,0,0.08)',
-            width:          '320px',
-            whiteSpace:     'normal',
-            wordBreak:      'normal',
-            overflowWrap:   'break-word',
-            pointerEvents:  'none',
+            color:           '#1a1a2e',
+            border:          '1px solid #e5e0d6',
+            borderLeft:      '4px solid #3b6bef',
+            fontSize:        '12px',
+            lineHeight:      '1.6',
+            borderRadius:    '8px',
+            boxShadow:       '0 8px 24px rgba(0,0,0,0.1)',
+            width:           '300px',
+            whiteSpace:      'normal',
+            wordBreak:       'normal',
+            overflowWrap:    'break-word',
+            pointerEvents:   'none',
+            overflow:        'hidden',
           }}
         >
-          {content}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px' }}>
+            <svg style={{ width: '13px', height: '13px', color: '#3b6bef', flexShrink: 0, marginTop: '1px' }} viewBox="0 0 20 20" fill="#3b6bef" aria-hidden="true">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span>{content}</span>
+          </div>
         </div>,
         document.body,
       )}

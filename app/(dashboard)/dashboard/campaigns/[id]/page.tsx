@@ -374,22 +374,29 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             { key: 'prospects',      label: `Prospects (${tabProspectsTotal})` },
             { key: 'emails',         label: `Emails (${emailsTotal})` },
             { key: 'sequence',       label: `Follow-up Sequence (${followUpSteps.length})` },
-            { key: 'approval_queue', label: 'Approval Queue', tooltip: 'Every AI-generated email is reviewed by you before sending. No surprises — you control what goes out.' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
-              {'tooltip' in t ? (
-                <span className="inline-flex items-center gap-1">
-                  {t.label}
-                  <Tooltip content={t.tooltip} placement="bottom">
-                    <svg className="w-3 h-3 opacity-60" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </Tooltip>
-                </span>
-              ) : t.label}
+              {t.label}
             </button>
           ))}
+          {/* Approval Queue — sibling layout: tab button + info icon to avoid nested interaction */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => setTab('approval_queue')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${tab === 'approval_queue' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
+              Approval Queue
+              {(campaign?.drafts_count ?? 0) > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold rounded-full bg-[#3b6bef] text-white leading-none">
+                  {campaign!.drafts_count}
+                </span>
+              )}
+            </button>
+            <Tooltip content="Every AI-generated email is reviewed by you before sending. No surprises — you control what goes out." placement="bottom">
+              <svg className="w-3.5 h-3.5 text-[#b0a898] hover:text-[#3b6bef] transition-colors cursor-help" viewBox="0 0 20 20" fill="currentColor" aria-label="About Approval Queue">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
