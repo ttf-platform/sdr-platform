@@ -13,7 +13,7 @@ import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
   prospects_count: number; sent_count: number; replied_count: number; meeting_count: number
-  created_at: string
+  is_sample: boolean; created_at: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -41,6 +41,11 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
       <div className="flex items-start justify-between mb-2">
         <h3 className="font-bold text-[#1a1a2e] text-base leading-tight flex-1 pr-2 line-clamp-2">{c.name}</h3>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {c.is_sample && (
+            <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide whitespace-nowrap">
+              Demo
+            </span>
+          )}
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-500'}`}>
             {c.status}
           </span>

@@ -19,13 +19,26 @@ interface WelcomeModalProps {
 }
 
 export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
-  const [isOpen,      setIsOpen]      = useState(true)
-  const [submitting,  setSubmitting]  = useState(false)
+  const [isOpen,          setIsOpen]          = useState(true)
+  const [submitting,      setSubmitting]       = useState(false)
+  const [loadingSample,   setLoadingSample]    = useState(false)
 
   async function handleClose() {
     setSubmitting(true)
     await onDismiss()
     setIsOpen(false)
+  }
+
+  async function handleTrySample() {
+    setLoadingSample(true)
+    try {
+      await fetch('/api/onboarding/load-sample-data', { method: 'POST' })
+      await onDismiss()
+      setIsOpen(false)
+      window.location.reload()
+    } catch {
+      setLoadingSample(false)
+    }
   }
 
   return (
@@ -37,13 +50,22 @@ export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
       description="Your AI sales agent is ready. Here's your 7-step setup — 15 minutes to your first campaign."
       closeOnBackdropClick={false}
       footer={
-        <button
-          onClick={handleClose}
-          disabled={submitting}
-          className="w-full bg-[#1a1a2e] hover:bg-[#2a2a3e] text-white font-semibold py-3 px-6 rounded-lg text-sm transition-colors disabled:opacity-50"
-        >
-          {submitting ? 'Loading…' : "Let's go →"}
-        </button>
+        <div className="flex flex-col gap-2 w-full">
+          <button
+            onClick={handleClose}
+            disabled={submitting || loadingSample}
+            className="w-full bg-[#1a1a2e] hover:bg-[#2a2a3e] text-white font-semibold py-3 px-6 rounded-lg text-sm transition-colors disabled:opacity-50"
+          >
+            {submitting ? 'Loading…' : "Let's go →"}
+          </button>
+          <button
+            onClick={handleTrySample}
+            disabled={submitting || loadingSample}
+            className="w-full border border-[#e8e3dc] bg-white hover:bg-[#f7f4f0] text-[#6b5e4e] font-medium py-2.5 px-6 rounded-lg text-sm transition-colors disabled:opacity-50"
+          >
+            {loadingSample ? 'Loading sample data…' : 'Try with sample data first →'}
+          </button>
+        </div>
       }
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
