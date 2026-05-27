@@ -9,6 +9,8 @@ import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
 import { PostHogIdentify } from '@/components/PostHogIdentify'
 import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
+import { Toaster } from 'sonner'
+import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 
 const supabase = createClient()
 
@@ -326,6 +328,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       <FloatingHelpButton />
+      <OnboardingProvider />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#ffffff',
+            border: '1px solid #e8e3dc',
+            color: '#1a1a2e',
+            borderRadius: '8px',
+            fontSize: '14px',
+          },
+        }}
+      />
     </div>
   )
 }
