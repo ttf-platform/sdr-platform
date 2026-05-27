@@ -9,27 +9,13 @@ export async function DELETE() {
   const admin = createAdminClient()
   const { workspaceId } = guard
 
-  // Delete in FK order: variants → emails → prospects → contacts → campaigns/signals
+  // Delete in FK order: children before parents
   await admin.from('prospect_email_variants').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
   await admin.from('prospect_emails').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
-
-  // Get sample prospect IDs to clean contacts
-  const { data: sampleProspects } = await admin
-    .from('prospects')
-    .select('id, contact_id')
-    .eq('workspace_id', workspaceId)
-    .eq('is_sample', true)
-
-  if (sampleProspects && sampleProspects.length > 0) {
-    const prospectIds = sampleProspects.map(p => p.id)
-    const contactIds  = sampleProspects.map(p => p.contact_id).filter(Boolean)
-
-    await admin.from('prospects').delete().in('id', prospectIds)
-    if (contactIds.length > 0) {
-      await admin.from('contacts').delete().eq('workspace_id', workspaceId).in('id', contactIds)
-    }
-  }
-
+  await admin.from('prospects').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
+  await admin.from('contacts').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
+  // campaign_steps has no workspace_id column; filter by is_sample only
+  await admin.from('campaign_steps').delete().eq('is_sample', true)
   await admin.from('campaigns').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
   await admin.from('signals').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
 

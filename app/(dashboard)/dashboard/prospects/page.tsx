@@ -32,6 +32,7 @@ type Contact = {
   company: string | null; title: string | null
   linkedin_url: string | null; website: string | null
   added_at: string
+  is_sample: boolean
   campaigns_count: number
   lifecycle_counts: LifecycleCounts
   primary_status: string
@@ -1075,7 +1076,7 @@ export default function ProspectsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell">
-                  {c.primary_source === 'sample' ? (
+                  {c.is_sample ? (
                     <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
                       Demo
                     </span>

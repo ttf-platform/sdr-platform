@@ -41,11 +41,12 @@ export async function POST() {
     .single()
 
   if (campaignErr || !campaign) {
+    console.error('[load-sample-data] Failed to insert campaign:', campaignErr)
     return NextResponse.json({ error: 'Failed to create sample campaign' }, { status: 500 })
   }
 
   // Insert sample campaign step
-  const { data: step } = await admin
+  const { data: step, error: stepErr } = await admin
     .from('campaign_steps')
     .insert({
       campaign_id: campaign.id,
@@ -53,21 +54,26 @@ export async function POST() {
       step_type:   'email',
       subject:     'Deploying faster at {{company}}?',
       delay_days:  0,
+      is_sample:   true,
     })
     .select()
     .single()
 
+  if (stepErr) {
+    console.error('[load-sample-data] Failed to insert campaign step:', stepErr)
+  }
+
   // Insert 5 sample contacts + prospects
   const sampleContacts = [
-    { first_name: 'James',   last_name: 'Harrington', company: 'Streamline HQ',    title: 'CTO',                email: 'james.harrington@streamlinehq.demo' },
-    { first_name: 'Priya',   last_name: 'Mehta',      company: 'Cloudbase Labs',   title: 'VP Engineering',     email: 'priya.mehta@cloudbaselabs.demo' },
-    { first_name: 'Marcus',  last_name: 'Weber',      company: 'Nexflow Systems',  title: 'Head of Engineering', email: 'marcus.weber@nexflowsystems.demo' },
-    { first_name: 'Sofia',   last_name: 'Reyes',      company: 'Pivotly',          title: 'CTO',                email: 'sofia.reyes@pivotly.demo' },
-    { first_name: 'Daniel',  last_name: 'Kim',        company: 'BuildStack AI',    title: 'VP Engineering',     email: 'daniel.kim@buildstackai.demo' },
+    { first_name: 'James',  last_name: 'Harrington', company: 'Streamline HQ',   title: 'CTO',                 email: 'james.harrington@streamlinehq.demo' },
+    { first_name: 'Priya',  last_name: 'Mehta',      company: 'Cloudbase Labs',  title: 'VP Engineering',      email: 'priya.mehta@cloudbaselabs.demo' },
+    { first_name: 'Marcus', last_name: 'Weber',      company: 'Nexflow Systems', title: 'Head of Engineering', email: 'marcus.weber@nexflowsystems.demo' },
+    { first_name: 'Sofia',  last_name: 'Reyes',      company: 'Pivotly',         title: 'CTO',                 email: 'sofia.reyes@pivotly.demo' },
+    { first_name: 'Daniel', last_name: 'Kim',         company: 'BuildStack AI',   title: 'VP Engineering',      email: 'daniel.kim@buildstackai.demo' },
   ]
 
   for (const c of sampleContacts) {
-    const { data: contact } = await admin
+    const { data: contact, error: contactErr } = await admin
       .from('contacts')
       .insert({
         workspace_id: workspaceId,
@@ -76,65 +82,81 @@ export async function POST() {
         company:      c.company,
         title:        c.title,
         email:        c.email,
+        is_sample:    true,
       })
       .select()
       .single()
 
-    if (contact) {
-      const { data: prospect } = await admin
-        .from('prospects')
-        .insert({
-          workspace_id: workspaceId,
-          campaign_id:  campaign.id,
-          contact_id:   contact.id,
-          email:        c.email,
-          status:       'pending',
-          source:       'sample',
-          is_sample:    true,
-        })
-        .select()
-        .single()
+    if (contactErr || !contact) {
+      console.error('[load-sample-data] Failed to insert contact:', contactErr)
+      continue
+    }
 
-      // Insert a sample email variant for approval queue
-      if (prospect && step) {
-        await admin
-          .from('prospect_email_variants')
-          .insert({
-            workspace_id:      workspaceId,
-            prospect_id:       prospect.id,
-            campaign_step_id:  step.id,
-            subject:           `Deploying faster at ${c.company}?`,
-            body:              `Hi ${c.first_name},\n\nI noticed ${c.company} has been scaling the engineering team rapidly. When deployment cycles start slowing down growth, it's usually the pipeline that's the bottleneck — not the team.\n\nWe help engineering leaders like you cut deploy time from hours to minutes without changing your existing stack.\n\nWould a 15-minute call next week be worth it to see if there's a fit?\n\nBest,\n[Your name]`,
-            status:            'draft',
-            is_sample:         true,
-          })
-      }
+    const { data: prospect, error: prospectErr } = await admin
+      .from('prospects')
+      .insert({
+        workspace_id: workspaceId,
+        campaign_id:  campaign.id,
+        contact_id:   contact.id,
+        email:        c.email,
+        status:       'pending',
+        source:       'sample',
+        is_sample:    true,
+      })
+      .select()
+      .single()
+
+    if (prospectErr || !prospect) {
+      console.error('[load-sample-data] Failed to insert prospect:', prospectErr)
+      continue
+    }
+
+    if (!step) continue
+
+    const { error: variantErr } = await admin
+      .from('prospect_email_variants')
+      .insert({
+        workspace_id:     workspaceId,
+        prospect_id:      prospect.id,
+        campaign_step_id: step.id,
+        subject:          `Deploying faster at ${c.company}?`,
+        body:             `Hi ${c.first_name},\n\nI noticed ${c.company} has been scaling the engineering team rapidly. When deployment cycles start slowing down growth, it's usually the pipeline that's the bottleneck — not the team.\n\nWe help engineering leaders like you cut deploy time from hours to minutes without changing your existing stack.\n\nWould a 15-minute call next week be worth it to see if there's a fit?\n\nBest,\n[Your name]`,
+        status:           'draft',
+        is_sample:        true,
+      })
+
+    if (variantErr) {
+      console.error('[load-sample-data] Failed to insert variant:', variantErr)
     }
   }
 
   // Insert 2 sample signals
-  await admin
+  const { error: signalsErr } = await admin
     .from('signals')
     .insert([
       {
-        workspace_id:     workspaceId,
-        name:             'SaaS companies hiring backend engineers (Demo)',
-        source_type:      'template',
-        template_id:      'hiring_role',
+        workspace_id:      workspaceId,
+        name:              'SaaS companies hiring backend engineers (Demo)',
+        source_type:       'template',
+        template_id:       'hiring_role',
         monitoring_config: { role_keywords: ['backend engineer', 'software engineer', 'platform engineer'] },
-        is_active:        false,
-        is_sample:        true,
+        is_active:         false,
+        is_sample:         true,
       },
       {
-        workspace_id:     workspaceId,
-        name:             'Series A/B SaaS funding rounds (Demo)',
-        source_type:      'template',
-        template_id:      'recent_funding',
+        workspace_id:      workspaceId,
+        name:              'Series A/B SaaS funding rounds (Demo)',
+        source_type:       'template',
+        template_id:       'recent_funding',
         monitoring_config: { funding_rounds: ['Series A', 'Series B'], industries: ['SaaS', 'B2B Software'] },
-        is_active:        false,
-        is_sample:        true,
+        is_active:         false,
+        is_sample:         true,
       },
     ])
+
+  if (signalsErr) {
+    console.error('[load-sample-data] Failed to insert signals:', signalsErr)
+  }
 
   // Set try_mirvo_mode in onboarding_state
   const { data: ws } = await admin

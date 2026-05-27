@@ -14,7 +14,7 @@ export function SampleDataBanner() {
     setClearing(true)
     try {
       await fetch('/api/onboarding/clear-sample-data', { method: 'DELETE' })
-      window.location.reload()
+      window.location.href = '/dashboard'
     } catch {
       setClearing(false)
     }
