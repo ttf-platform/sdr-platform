@@ -1,5 +1,6 @@
 'use client'
 import { use, useEffect, useState } from 'react'
+import { Tooltip } from '@/components/Tooltip'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
 import { ApprovalQueueClient } from './_components/ApprovalQueueClient'
@@ -373,11 +374,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             { key: 'prospects',      label: `Prospects (${tabProspectsTotal})` },
             { key: 'emails',         label: `Emails (${emailsTotal})` },
             { key: 'sequence',       label: `Follow-up Sequence (${followUpSteps.length})` },
-            { key: 'approval_queue', label: 'Approval Queue' },
+            { key: 'approval_queue', label: 'Approval Queue', tooltip: 'Every AI-generated email is reviewed by you before sending. No surprises — you control what goes out.' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
-              {t.label}
+              {'tooltip' in t ? (
+                <Tooltip content={t.tooltip} placement="top">{t.label}</Tooltip>
+              ) : t.label}
             </button>
           ))}
         </div>

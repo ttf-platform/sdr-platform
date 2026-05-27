@@ -10,6 +10,7 @@
 import Link from 'next/link';
 import { EmptyState } from './EmptyState';
 import { SendingDomainCard, type EmailAccount } from './SendingDomainCard';
+import { Tooltip, InfoIcon } from './Tooltip';
 
 export function SendingDomainsClient({
   accounts,
@@ -28,6 +29,9 @@ export function SendingDomainsClient({
               <h2 className="text-xs font-semibold uppercase tracking-wider text-[#1a1a1a]">
                 Sending domain
               </h2>
+              <Tooltip content="Configure your domain for long-term deliverability. Mirvo sends immediately via managed infrastructure — your domain config improves reputation over time." placement="top">
+                <InfoIcon />
+              </Tooltip>
             </div>
             <Link
               href="/dashboard/settings/sending-domains/new"

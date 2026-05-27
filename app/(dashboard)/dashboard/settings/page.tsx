@@ -20,7 +20,7 @@ const WORKSPACE_TIMEZONES = [
   'Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC',
 ]
 
-const PRODUCT_TOOLTIP      = 'These defaults auto-fill every new campaign you create — you can override any field per campaign at launch.'
+const PRODUCT_TOOLTIP      = 'Your ICP and product details are used by Mirvo AI to personalize every email. The more precise, the higher your reply rate. These defaults auto-fill every new campaign.'
 const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From field. Defaults to Your name (Account) if empty. Use this to display a more formal name (e.g. 'Robert Smith' instead of 'Bob')."
 
 const DEFAULT_SIGNATURE = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
