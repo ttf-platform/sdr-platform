@@ -36,32 +36,36 @@ async function detectCompletions(workspaceId: string) {
       .eq('workspace_id', workspaceId)
       .eq('setup_status', 'verified'),
 
-    // Step 4 — Campaign created
+    // Step 4 — Campaign created (exclude demo/sample campaigns)
     admin
       .from('campaigns')
       .select('id', { count: 'exact' })
       .eq('workspace_id', workspaceId)
+      .eq('is_sample', false)
       .order('created_at', { ascending: false })
       .limit(1),
 
-    // Step 5 — At least 1 prospect added
+    // Step 5 — At least 1 prospect added (exclude demo/sample prospects)
     admin
       .from('prospects')
       .select('*', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId),
+      .eq('workspace_id', workspaceId)
+      .eq('is_sample', false),
 
-    // Step 6 — At least 1 email draft approved
+    // Step 6 — At least 1 email draft approved (exclude demo/sample emails)
     admin
       .from('prospect_emails')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
+      .eq('is_sample', false)
       .eq('status', 'approved'),
 
-    // Step 7 — Campaign launched (status = active)
+    // Step 7 — Campaign launched (status = active, exclude demo/sample campaigns)
     admin
       .from('campaigns')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
+      .eq('is_sample', false)
       .eq('status', 'active'),
   ])
 

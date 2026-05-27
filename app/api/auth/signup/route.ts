@@ -58,9 +58,18 @@ export async function POST(request: Request) {
   const { data: signupData, error: signupError } = await supabase.auth.signUp({
     email, password, options: { data: { full_name: name } }
   })
-  if (signupError) return respond({ error: signupError.message }, 400)
+  if (signupError) {
+    const isExisting =
+      signupError.message?.toLowerCase().includes('already registered') ||
+      signupError.message?.toLowerCase().includes('already exists') ||
+      (signupError as any).code === 'user_already_exists'
+    if (isExisting) {
+      return respond({ success: false, error: 'email_exists', message: 'An account with this email already exists. Please sign in instead.' }, 400)
+    }
+    return respond({ success: false, error: 'signup_failed', message: signupError.message }, 400)
+  }
   if (!signupData.user || signupData.user.identities?.length === 0) {
-    return respond({ error: 'An account with this email already exists.' }, 400)
+    return respond({ success: false, error: 'email_exists', message: 'An account with this email already exists. Please sign in instead.' }, 400)
   }
 
   await admin.auth.admin.updateUserById(signupData.user.id, { email_confirm: true })

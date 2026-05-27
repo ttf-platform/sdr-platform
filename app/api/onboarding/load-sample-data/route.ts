@@ -51,8 +51,9 @@ export async function POST() {
     .insert({
       campaign_id: campaign.id,
       step_order:  0,
-      step_type:   'email',
+      step_type:   'initial',
       subject:     'Deploying faster at {{company}}?',
+      body:        'Hi {{first_name}},\n\nI noticed {{company}} has been scaling the engineering team rapidly. When deployment cycles start slowing down growth, it\'s usually the pipeline that\'s the bottleneck — not the team.\n\nWe help engineering leaders like you cut deploy time from hours to minutes without changing your existing stack.\n\nWould a 15-minute call next week be worth it to see if there\'s a fit?\n\nBest,\n[Your name]',
       delay_days:  0,
       is_sample:   true,
     })
@@ -99,8 +100,8 @@ export async function POST() {
         campaign_id:  campaign.id,
         contact_id:   contact.id,
         email:        c.email,
-        status:       'pending',
-        source:       'sample',
+        status:       'found',
+        source:       'manual',
         is_sample:    true,
       })
       .select()
