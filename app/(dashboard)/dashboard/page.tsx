@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 
 type CampaignRow = {
   id: string; name: string; status: string
@@ -39,6 +40,7 @@ const STATUS_CLS: Record<string, string> = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashStats | null>(null)
   const [blocked, setBlocked] = useState(false)
+  const { data: onboarding } = useOnboardingProgress()
 
   useEffect(() => {
     fetch('/api/dashboard/stats')
@@ -70,6 +72,30 @@ export default function DashboardPage() {
           + New Campaign
         </Link>
       </div>
+
+      {/* Onboarding welcome card — visible while setup is in progress */}
+      {onboarding && onboarding.progress_percent < 100 && (
+        <div className="mb-6 p-5 bg-[#f5f2ee] rounded-xl border border-[#e5e0d6]">
+          <div className="flex items-start gap-4">
+            <div className="text-2xl shrink-0">👋</div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold text-[#1a1a2e]">Welcome to Mirvo</h2>
+              <p className="text-sm text-[#6b5e4e] mt-0.5">
+                {onboarding.steps_completed} of {onboarding.total_steps} setup steps done — first emails can send today.
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-[#e5e0d6] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#3b6bef] transition-all duration-700 ease-out"
+                    style={{ width: `${onboarding.progress_percent}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-[#1a1a2e] shrink-0">{onboarding.progress_percent}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
