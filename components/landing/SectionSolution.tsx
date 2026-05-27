@@ -158,7 +158,7 @@ export function SectionSolution() {
             </svg>
           </div>
 
-          {/* Sentra card — scale-up on enter + border pulse 1x */}
+          {/* Mirvo card — scale-up on enter + border pulse 1x */}
           <motion.div
             ref={cardRef}
             className="rounded-lg bg-white px-8 py-8"
@@ -192,7 +192,7 @@ export function SectionSolution() {
                 <span className="text-white text-sm font-bold">S</span>
               </div>
               <div>
-                <div className="text-2xl font-medium text-[#1a1a1a]">Sentra</div>
+                <div className="text-2xl font-medium text-[#1a1a1a]">Mirvo</div>
                 <div className="text-sm text-[#4a4a5a]" style={{ fontWeight: 300 }}>
                   {t('cardTagline')}
                 </div>

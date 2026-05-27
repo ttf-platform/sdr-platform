@@ -16,24 +16,24 @@ import { SectionFinalCTA } from '@/components/landing/SectionFinalCTA';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 
 export const metadata: Metadata = {
-  title: 'Sentra — Cold outreach that books meetings',
-  description: 'Sentra finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Mirvo — Cold outreach that books meetings',
+  description: 'Mirvo finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: {
     canonical: '/',
     languages: { en: '/en', fr: '/fr' },
   },
   openGraph: {
-    title: 'Sentra — Cold outreach that books meetings',
-    description: 'Sentra finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
-    url: 'https://sentra.app',
-    siteName: 'Sentra',
+    title: 'Mirvo — Cold outreach that books meetings',
+    description: 'Mirvo finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
+    url: 'https://mirvo.ai',
+    siteName: 'Mirvo',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Sentra — Cold outreach that books meetings',
-    description: 'Your first hire. Without the headcount. Sentra finds your buyers, writes the emails, books the meetings.',
+    title: 'Mirvo — Cold outreach that books meetings',
+    description: 'Your first hire. Without the headcount. Mirvo finds your buyers, writes the emails, books the meetings.',
   },
 }
 
@@ -49,12 +49,12 @@ const fraunces = Fraunces({
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'Sentra',
+  name: 'Mirvo',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'All-in-one outbound platform for founders. Sentra finds your buyers, writes the email, and books the meeting.',
-  url: 'https://sentra.app',
+    'All-in-one outbound platform for founders. Mirvo finds your buyers, writes the email, and books the meeting.',
+  url: 'https://mirvo.ai',
   offers: {
     '@type': 'AggregateOffer',
     priceCurrency: 'USD',

@@ -294,9 +294,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               {isSentraAdmin && (
                 <>
-                  <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Sentra Staff</p>
+                  <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Mirvo Staff</p>
                   <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#2563eb] font-medium hover:bg-[#f5f2ee]">
-                    <Shield size={16} /> Sentra Admin
+                    <Shield size={16} /> Mirvo Admin
                   </Link>
                 </>
               )}

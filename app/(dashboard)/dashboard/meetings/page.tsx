@@ -52,7 +52,7 @@ export default function MeetingsPage() {
   const [user, setUser]         = useState<any>(null)
   const [bookingSlug, setBookingSlug] = useState('')
   const [copied, setCopied]     = useState(false)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sentra.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mirvo.ai'
 
   // Modals
   const [showScheduler, setShowScheduler] = useState(false)

@@ -4,9 +4,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Sentra',
-  description: 'How Sentra collects, uses, and protects your personal data.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Privacy Policy — Mirvo',
+  description: 'How Mirvo collects, uses, and protects your personal data.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/legal/privacy' },
 }
 
@@ -41,14 +41,14 @@ export default async function PrivacyPage({
         {/* Introduction */}
         <section>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            This Privacy Policy describes how Sentra (<strong style={{ color: '#1a1a1a' }}>[Sentra SAS — corporate entity to be incorporated, Address TBD, France]</strong>) collects, uses, and protects your personal data when you use the Sentra platform.
+            This Privacy Policy describes how Mirvo (<strong style={{ color: '#1a1a1a' }}>[Mirvo SAS — corporate entity to be incorporated, Address TBD, France]</strong>) collects, uses, and protects your personal data when you use the Mirvo platform.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra plays two roles under GDPR: we act as <strong style={{ color: '#1a1a1a' }}>data controller</strong> for the personal data of our own users (account holders, subscribers), and as <strong style={{ color: '#1a1a1a' }}>data processor</strong> for the contact data that users import into the platform (prospects, email recipients). For questions about the processing of your prospects&apos; data, see our{' '}
+            Mirvo plays two roles under GDPR: we act as <strong style={{ color: '#1a1a1a' }}>data controller</strong> for the personal data of our own users (account holders, subscribers), and as <strong style={{ color: '#1a1a1a' }}>data processor</strong> for the contact data that users import into the platform (prospects, email recipients). For questions about the processing of your prospects&apos; data, see our{' '}
             <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra&apos;s supervisory authority under GDPR is the Commission Nationale de l&apos;Informatique et des Libertés (<strong style={{ color: '#1a1a1a' }}>CNIL</strong>), France.
+            Mirvo&apos;s supervisory authority under GDPR is the Commission Nationale de l&apos;Informatique et des Libertés (<strong style={{ color: '#1a1a1a' }}>CNIL</strong>), France.
           </p>
         </section>
 
@@ -61,12 +61,12 @@ export default async function PrivacyPage({
             {[
               ['Personal Data', 'Any information relating to an identified or identifiable natural person.'],
               ['Data Subject', 'The individual whose personal data is being processed.'],
-              ['User / Subscriber', 'An individual or organization that has created a Sentra account.'],
+              ['User / Subscriber', 'An individual or organization that has created a Mirvo account.'],
               ['Data Controller', 'The entity that determines the purposes and means of processing.'],
               ['Data Processor', 'The entity that processes personal data on behalf of the Data Controller.'],
               ['Processing', 'Any operation performed on personal data (collection, storage, use, transmission, deletion, etc.).'],
-              ['Sub-processor', 'A third party engaged by Sentra to process personal data on its behalf.'],
-              ['Service', 'The Sentra B2B outbound platform, including all features accessible via sentra.app.'],
+              ['Sub-processor', 'A third party engaged by Mirvo to process personal data on its behalf.'],
+              ['Service', 'The Mirvo B2B outbound platform, including all features accessible via mirvo.ai.'],
             ].map(([term, def]) => (
               <div key={term as string} className="flex gap-3">
                 <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
@@ -100,7 +100,7 @@ export default async function PrivacyPage({
             <div>
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Payment data</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Payment processing is handled by our payment processor. Sentra does not store or have access to your full card details — we only receive a payment confirmation, subscription status, and billing metadata.
+                Payment processing is handled by our payment processor. Mirvo does not store or have access to your full card details — we only receive a payment confirmation, subscription status, and billing metadata.
               </p>
             </div>
 
@@ -178,10 +178,10 @@ export default async function PrivacyPage({
         {/* Section 5 — AI Usage */}
         <section id="ai-usage">
           <h2 className="mb-4 tracking-tight" style={{ fontSize: '1.375rem', fontWeight: 500, color: '#1a1a1a' }}>
-            5. AI usage at Sentra
+            5. AI usage at Mirvo
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra uses AI to help sales teams work more effectively. This section explains exactly how AI is used and what our commitments are.
+            Mirvo uses AI to help sales teams work more effectively. This section explains exactly how AI is used and what our commitments are.
           </p>
 
           <div className="mt-6 space-y-5">
@@ -200,21 +200,21 @@ export default async function PrivacyPage({
             <div>
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Anti-fabrication commitment</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Sentra&apos;s AI does not invent prospect information beyond what is provided in your imported data. We do not generate fictitious job titles, fictitious company details, or fabricate prospect signals not present in your source data. AI output is grounded in the information you supply.
+                Mirvo&apos;s AI does not invent prospect information beyond what is provided in your imported data. We do not generate fictitious job titles, fictitious company details, or fabricate prospect signals not present in your source data. AI output is grounded in the information you supply.
               </p>
             </div>
 
             <div>
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>No training on customer data</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Customer data processed through Sentra is not used to train AI models. We work exclusively with enterprise-grade AI providers who provide contractual no-training-on-customer-data guarantees. Your campaigns, prospects, and email content are yours and are not used to improve AI models.
+                Customer data processed through Mirvo is not used to train AI models. We work exclusively with enterprise-grade AI providers who provide contractual no-training-on-customer-data guarantees. Your campaigns, prospects, and email content are yours and are not used to improve AI models.
               </p>
             </div>
 
             <div>
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>EU AI Act transparency</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Sentra qualifies as a Limited Risk AI system under the EU AI Act (Regulation (EU) 2024/1689) and complies with the applicable transparency obligations. Users are informed when they are interacting with AI-generated content or AI-powered features within the product.
+                Mirvo qualifies as a Limited Risk AI system under the EU AI Act (Regulation (EU) 2024/1689) and complies with the applicable transparency obligations. Users are informed when they are interacting with AI-generated content or AI-powered features within the product.
               </p>
             </div>
 
@@ -228,7 +228,7 @@ export default async function PrivacyPage({
             <div>
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>AI provider transparency</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
-                Sentra works with enterprise-grade AI providers under the EU-US Data Privacy Framework (DPF) and Standard Contractual Clauses (SCCs). A full list of AI sub-processors is available in our{' '}
+                Mirvo works with enterprise-grade AI providers under the EU-US Data Privacy Framework (DPF) and Standard Contractual Clauses (SCCs). A full list of AI sub-processors is available in our{' '}
                 <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
               </p>
             </div>
@@ -258,8 +258,8 @@ export default async function PrivacyPage({
             A complete list of sub-processors with full names, locations, and data transfer mechanisms (DPF/SCCs) is available in our{' '}
             <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>
             {' '}or by contacting{' '}
-            <a href="mailto:privacy@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              privacy@sentra.app
+            <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              privacy@mirvo.ai
             </a>.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
@@ -311,8 +311,8 @@ export default async function PrivacyPage({
           </h2>
           <p className="mb-5 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Under GDPR, you have the following rights regarding your personal data. To exercise any of them, email{' '}
-            <a href="mailto:privacy@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              privacy@sentra.app
+            <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              privacy@mirvo.ai
             </a>
             . We will respond within 30 days as required by law.
           </p>
@@ -325,7 +325,7 @@ export default async function PrivacyPage({
               ['Right to restriction (Art. 18)', 'To restrict how we use your data while a dispute is being resolved.'],
               ['Right to data portability (Art. 20)', 'To receive your data in a machine-readable format for transfer to another service.'],
               ['Right to object (Art. 21)', 'To object to processing based on legitimate interest or for direct marketing.'],
-              ['Automated decision-making (Art. 22)', 'Sentra does not make solely automated decisions with legal or similarly significant effects. AI features are decision-support tools; humans make final decisions.'],
+              ['Automated decision-making (Art. 22)', 'Mirvo does not make solely automated decisions with legal or similarly significant effects. AI features are decision-support tools; humans make final decisions.'],
             ].map(([right, desc]) => (
               <div key={right as string} className="flex gap-3">
                 <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
@@ -347,7 +347,7 @@ export default async function PrivacyPage({
             9. International data transfers
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra applies a hybrid data residency approach:
+            Mirvo applies a hybrid data residency approach:
           </p>
           <ul className="mt-4 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
@@ -371,7 +371,7 @@ export default async function PrivacyPage({
             10. Security
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra implements technical and organizational security measures including TLS 1.3 encryption in transit, AES-256 encryption at rest, Row-Level Security multi-tenant isolation, hardened HTTP security headers, and automated security review on every code change.
+            Mirvo implements technical and organizational security measures including TLS 1.3 encryption in transit, AES-256 encryption at rest, Row-Level Security multi-tenant isolation, hardened HTTP security headers, and automated security review on every code change.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             For a complete description of our security measures, see our{' '}
@@ -400,12 +400,12 @@ export default async function PrivacyPage({
           <div className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <p className="leading-relaxed">
               Privacy and data protection inquiries:{' '}
-              <a href="mailto:privacy@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-                privacy@sentra.app
+              <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+                privacy@mirvo.ai
               </a>
             </p>
             <p className="leading-relaxed">
-              Postal: <span style={{ color: '#1a1a1a' }}>[Sentra SAS, Address TBD, France]</span>
+              Postal: <span style={{ color: '#1a1a1a' }}>[Mirvo SAS, Address TBD, France]</span>
             </p>
             <p className="leading-relaxed">
               CNIL (supervisory authority):{' '}

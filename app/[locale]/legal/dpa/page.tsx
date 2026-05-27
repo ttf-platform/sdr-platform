@@ -4,9 +4,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
-  title: 'Data Processing Addendum — Sentra',
-  description: 'Sentra Data Processing Addendum (DPA): sub-processors, GDPR compliance, SCCs, and data protection obligations.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Data Processing Addendum — Mirvo',
+  description: 'Mirvo Data Processing Addendum (DPA): sub-processors, GDPR compliance, SCCs, and data protection obligations.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/legal/dpa' },
 }
 
@@ -52,7 +52,7 @@ export default async function DpaPage({
             Preamble
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            This Data Processing Addendum (&ldquo;DPA&rdquo;) forms part of the Terms of Service between the User (&ldquo;Data Controller&rdquo;) and Sentra (<strong style={{ color: '#1a1a1a' }}>[Sentra SAS — corporate entity to be incorporated, Address TBD, France]</strong>) (&ldquo;Data Processor&rdquo;).
+            This Data Processing Addendum (&ldquo;DPA&rdquo;) forms part of the Terms of Service between the User (&ldquo;Data Controller&rdquo;) and Mirvo (<strong style={{ color: '#1a1a1a' }}>[Mirvo SAS — corporate entity to be incorporated, Address TBD, France]</strong>) (&ldquo;Data Processor&rdquo;).
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             This DPA applies when the User is established in the EU/EEA, UK, or Switzerland, or when they process personal data of data subjects in those territories — which is the case for any User conducting GDPR-regulated outbound campaigns.
@@ -71,8 +71,8 @@ export default async function DpaPage({
           <div className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             {[
               ['Data Controller', 'The entity (User/Subscriber) that determines the purposes and means of processing personal data.'],
-              ['Data Processor', 'Sentra, processing personal data on behalf of the Data Controller.'],
-              ['Sub-processor', 'A third party engaged by Sentra to process personal data in connection with the Service.'],
+              ['Data Processor', 'Mirvo, processing personal data on behalf of the Data Controller.'],
+              ['Sub-processor', 'A third party engaged by Mirvo to process personal data in connection with the Service.'],
               ['Personal Data Breach', 'A breach of security leading to accidental or unlawful destruction, loss, alteration, or unauthorized disclosure of or access to personal data.'],
               ['SCCs', 'Standard Contractual Clauses approved by Commission Implementing Decision (EU) 2021/914 of 4 June 2021.'],
               ['DPF', 'EU-US Data Privacy Framework, recognized as adequate under GDPR for transfers to participating US organizations.'],
@@ -92,15 +92,15 @@ export default async function DpaPage({
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>User = Data Controller</strong> for the prospect contact data imported into Sentra. The User determines who to contact, for what purpose, and is responsible for having a valid legal basis (e.g., legitimate interest for B2B outbound).</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>User = Data Controller</strong> for the prospect contact data imported into Mirvo. The User determines who to contact, for what purpose, and is responsible for having a valid legal basis (e.g., legitimate interest for B2B outbound).</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Sentra = Data Processor</strong> for that contact data. Sentra processes it only to deliver the Service — email generation, campaign management, deliverability monitoring — and for no other purpose.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Mirvo = Data Processor</strong> for that contact data. Mirvo processes it only to deliver the Service — email generation, campaign management, deliverability monitoring — and for no other purpose.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Sentra = Data Controller</strong> for subscriber account data (name, email, billing information) — governed by the{' '}
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Mirvo = Data Controller</strong> for subscriber account data (name, email, billing information) — governed by the{' '}
                 <Link href="/legal/privacy" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Privacy Policy</Link>.
               </span>
             </li>
@@ -112,7 +112,7 @@ export default async function DpaPage({
             3. Processing description
           </h2>
           <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            In accordance with GDPR Article 28(3), the following describes the processing carried out by Sentra on behalf of the User:
+            In accordance with GDPR Article 28(3), the following describes the processing carried out by Mirvo on behalf of the User:
           </p>
           <div className="space-y-4">
             {[
@@ -139,7 +139,7 @@ export default async function DpaPage({
             4. Sub-processors
           </h2>
           <p className="mb-5 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra engages the following sub-processors to deliver the Service. By agreeing to these Terms, you grant general authorization for Sentra to engage sub-processors, subject to the notification obligations below.
+            Mirvo engages the following sub-processors to deliver the Service. By agreeing to these Terms, you grant general authorization for Mirvo to engage sub-processors, subject to the notification obligations below.
           </p>
 
           <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden', overflowX: 'auto' }}>
@@ -176,10 +176,10 @@ export default async function DpaPage({
 
           <div className="mt-5 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <p className="leading-relaxed">
-              Sentra will notify Users by email at least <strong style={{ color: '#1a1a1a' }}>30 days</strong> before adding a new sub-processor. Users may object within that period. If the objection cannot be resolved, the User may terminate the Subscription with a pro-rata refund of unused portions.
+              Mirvo will notify Users by email at least <strong style={{ color: '#1a1a1a' }}>30 days</strong> before adding a new sub-processor. Users may object within that period. If the objection cannot be resolved, the User may terminate the Subscription with a pro-rata refund of unused portions.
             </p>
             <p className="leading-relaxed">
-              Sentra remains liable for the acts and omissions of all sub-processors as if they were Sentra&apos;s own.
+              Mirvo remains liable for the acts and omissions of all sub-processors as if they were Mirvo&apos;s own.
             </p>
           </div>
         </section>
@@ -189,7 +189,7 @@ export default async function DpaPage({
             5. Security measures
           </h2>
           <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra implements the following technical and organizational security measures in accordance with GDPR Article 32:
+            Mirvo implements the following technical and organizational security measures in accordance with GDPR Article 32:
           </p>
           <ul className="space-y-2" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             {[
@@ -217,7 +217,7 @@ export default async function DpaPage({
             6. Data subject rights assistance
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra will assist the User in responding to data subject requests (access, erasure, portability, objection) insofar as the relevant data is within Sentra&apos;s systems and technically accessible.
+            Mirvo will assist the User in responding to data subject requests (access, erasure, portability, objection) insofar as the relevant data is within Mirvo&apos;s systems and technically accessible.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             The User, as Data Controller, is responsible for verifying the identity of the requesting data subject and for assessing the legitimacy of each request before acting on it.
@@ -231,7 +231,7 @@ export default async function DpaPage({
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed">Sentra will notify the affected User within <strong style={{ color: '#1a1a1a' }}>48 hours</strong> of becoming aware of a Personal Data Breach involving that User&apos;s data.</span>
+              <span className="leading-relaxed">Mirvo will notify the affected User within <strong style={{ color: '#1a1a1a' }}>48 hours</strong> of becoming aware of a Personal Data Breach involving that User&apos;s data.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
@@ -249,7 +249,7 @@ export default async function DpaPage({
             8. International transfers
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            For transfers of personal data from the EU/EEA/UK to third countries (primarily the USA), Sentra applies Standard Contractual Clauses approved by Commission Implementing Decision (EU) 2021/914, Module 2 (Controller to Processor), as the primary transfer mechanism.
+            For transfers of personal data from the EU/EEA/UK to third countries (primarily the USA), Mirvo applies Standard Contractual Clauses approved by Commission Implementing Decision (EU) 2021/914, Module 2 (Controller to Processor), as the primary transfer mechanism.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             The full text of the SCCs is available at:{' '}
@@ -264,7 +264,7 @@ export default async function DpaPage({
             </a>
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            For sub-processors participating in the EU-US Data Privacy Framework (DPF), transfers to those sub-processors rely on the DPF adequacy decision in addition to SCCs. Sentra conducts Transfer Impact Assessments for all US-based sub-processors and applies supplementary measures including data minimization, contractual safeguards, and access logging.
+            For sub-processors participating in the EU-US Data Privacy Framework (DPF), transfers to those sub-processors rely on the DPF adequacy decision in addition to SCCs. Mirvo conducts Transfer Impact Assessments for all US-based sub-processors and applies supplementary measures including data minimization, contractual safeguards, and access logging.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Sub-processors located in the EU (Supabase — Frankfurt; PostHog — EU project) do not involve cross-border transfers of personal data.
@@ -276,10 +276,10 @@ export default async function DpaPage({
             9. Audit rights
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra makes available the information necessary to demonstrate compliance with GDPR Article 28, including this DPA, relevant certifications, and security documentation.
+            Mirvo makes available the information necessary to demonstrate compliance with GDPR Article 28, including this DPA, relevant certifications, and security documentation.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Users may request an information-based audit no more than once per calendar year (unless mandated by a regulatory authority). Requests require 30 days&apos; advance notice and are subject to confidentiality obligations. Sentra may decline on-site audits and instead provide documented evidence of compliance.
+            Users may request an information-based audit no more than once per calendar year (unless mandated by a regulatory authority). Requests require 30 days&apos; advance notice and are subject to confidentiality obligations. Mirvo may decline on-site audits and instead provide documented evidence of compliance.
           </p>
         </section>
 
@@ -288,7 +288,7 @@ export default async function DpaPage({
             10. Termination of DPA
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            This DPA remains in effect for the duration of the Subscription. Upon termination of the Subscription, Sentra will, at the User&apos;s election, either return or permanently delete all User personal data within 30 days — unless retention is required by applicable law.
+            This DPA remains in effect for the duration of the Subscription. Upon termination of the Subscription, Mirvo will, at the User&apos;s election, either return or permanently delete all User personal data within 30 days — unless retention is required by applicable law.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Database backups containing User data will be purged within 7 days following the standard backup rotation schedule. Payment records may be retained for up to 10 years as required by French accounting law.
@@ -301,11 +301,11 @@ export default async function DpaPage({
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             DPA-related inquiries:{' '}
-            <a href="mailto:privacy@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              privacy@sentra.app
+            <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              privacy@mirvo.ai
             </a>
             <br />
-            Postal: <span style={{ color: '#1a1a1a' }}>[Sentra SAS, Address TBD, France]</span>
+            Postal: <span style={{ color: '#1a1a1a' }}>[Mirvo SAS, Address TBD, France]</span>
           </p>
         </section>
 

@@ -3,9 +3,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
-  title: 'Cookie Policy — Sentra',
-  description: 'How Sentra uses cookies and how to manage them.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Cookie Policy — Mirvo',
+  description: 'How Mirvo uses cookies and how to manage them.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/legal/cookies' },
 }
 
@@ -45,13 +45,13 @@ export default async function CookiesPage({
             What are cookies?
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Cookies are small text files stored on your device by your browser when you visit a website. They help websites remember your preferences, keep you logged in, and understand how the product is being used. Sentra uses cookies sparingly — only what is necessary to operate the service and improve it.
+            Cookies are small text files stored on your device by your browser when you visit a website. They help websites remember your preferences, keep you logged in, and understand how the product is being used. Mirvo uses cookies sparingly — only what is necessary to operate the service and improve it.
           </p>
         </section>
 
         <section>
           <p className="mb-10 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra uses three categories of cookies. We do not use advertising cookies or data broker integrations — no ad networks, no retargeting pixels.
+            Mirvo uses three categories of cookies. We do not use advertising cookies or data broker integrations — no ad networks, no retargeting pixels.
           </p>
         </section>
 
@@ -69,7 +69,7 @@ export default async function CookiesPage({
             </span>
           </h2>
           <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            These cookies are strictly necessary for the service to function. You cannot opt out of them without losing access to Sentra.
+            These cookies are strictly necessary for the service to function. You cannot opt out of them without losing access to Mirvo.
           </p>
           <div style={{ border: '1px solid #e8e3dc', borderRadius: '8px', overflow: 'hidden', overflowX: 'auto' }}>
             <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse', minWidth: '440px' }}>
@@ -156,7 +156,7 @@ export default async function CookiesPage({
             </span>
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra does not use advertising cookies, retargeting pixels, or third-party marketing trackers. No data is shared with ad networks.
+            Mirvo does not use advertising cookies, retargeting pixels, or third-party marketing trackers. No data is shared with ad networks.
           </p>
         </section>
 
@@ -168,7 +168,7 @@ export default async function CookiesPage({
             Managing cookies
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            You can clear or block cookies from your browser settings at any time. Note that clearing authentication cookies will log you out of Sentra. Most modern browsers allow you to block third-party cookies by default without affecting first-party session cookies.
+            You can clear or block cookies from your browser settings at any time. Note that clearing authentication cookies will log you out of Mirvo. Most modern browsers allow you to block third-party cookies by default without affecting first-party session cookies.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             To opt out of analytics cookies, you can use a browser extension that blocks analytics scripts (e.g., uBlock Origin). A dedicated cookie preferences panel will be added in a future update.
@@ -193,7 +193,7 @@ export default async function CookiesPage({
             >
               Stripe&apos;s privacy policy
             </a>
-            . No other third-party cookies are set by Sentra.
+            . No other third-party cookies are set by Mirvo.
           </p>
         </section>
 
@@ -219,11 +219,11 @@ export default async function CookiesPage({
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Email us at{' '}
             <a
-              href="mailto:privacy@sentra.app"
+              href="mailto:privacy@mirvo.ai"
               className="transition-opacity hover:opacity-70"
               style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}
             >
-              privacy@sentra.app
+              privacy@mirvo.ai
             </a>
             .
           </p>

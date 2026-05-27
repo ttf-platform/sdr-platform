@@ -7,7 +7,7 @@ import { timingSafeEqual } from 'crypto'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-const FROM_ADDRESS = 'Sentra <onboarding@resend.dev>'
+const FROM_ADDRESS = 'Mirvo <onboarding@resend.dev>'
 const AUTO_SCAN_PROSPECT_CAP = 10
 
 // GET /api/cron/auto-scan-signals
@@ -132,8 +132,8 @@ export async function GET(request: Request) {
             const sendResult = await resend.emails.send({
               from: FROM_ADDRESS,
               to: ownerEmail,
-              subject: `${workspaceNewMatches} new signal match${workspaceNewMatches > 1 ? 'es' : ''} detected on Sentra`,
-              text: `Sentra detected new signals on your campaigns overnight.\n\n${campaignLines}\n\nOpen the Approval Queue to generate personalized emails for these prospects:\nhttps://sentra.app/dashboard\n\n--\nSentra background monitoring`,
+              subject: `${workspaceNewMatches} new signal match${workspaceNewMatches > 1 ? 'es' : ''} detected on Mirvo`,
+              text: `Mirvo detected new signals on your campaigns overnight.\n\n${campaignLines}\n\nOpen the Approval Queue to generate personalized emails for these prospects:\nhttps://mirvo.ai/dashboard\n\n--\nMirvo background monitoring`,
             })
             if (sendResult.error) {
               const msg = `ws=${workspace.id} Resend rejected: ${sendResult.error.message ?? JSON.stringify(sendResult.error)}`

@@ -43,7 +43,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
   const signatureRef   = useRef<string>('')
   const workspaceIdRef = useRef<string | null>(null)
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mirvo.ai'
 
   useEffect(() => {
     fetch('/api/workspace-profile')
@@ -222,7 +222,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
               {isSmartStep0 && (
                 <div className="flex items-center gap-2 text-xs text-[#3b6bef] bg-[#eef1fd] rounded-lg px-3 py-2">
                   <span>✨</span>
-                  <span>This email was personalized by Sentra AI</span>
+                  <span>This email was personalized by Mirvo AI</span>
                 </div>
               )}
 

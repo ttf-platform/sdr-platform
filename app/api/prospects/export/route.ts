@@ -257,14 +257,14 @@ export async function GET(req: NextRequest) {
     const csv = Papa.unparse(safeRows)
     fileBuffer  = Buffer.from('\uFEFF' + csv, 'utf-8') // BOM for Excel UTF-8
     contentType = 'text/csv; charset=utf-8'
-    filename    = `sentra-prospects-${dateStr}.csv`
+    filename    = `mirvo-prospects-${dateStr}.csv`
   } else {
     const wb  = XLSX.utils.book_new()
     const ws  = XLSX.utils.json_to_sheet(safeRows)
     XLSX.utils.book_append_sheet(wb, ws, 'Prospects')
     fileBuffer  = Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }))
     contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    filename    = `sentra-prospects-${dateStr}.xlsx`
+    filename    = `mirvo-prospects-${dateStr}.xlsx`
   }
 
   // ── 9. Audit log (fire-and-forget, don't block response) ─────────────────────
@@ -294,7 +294,7 @@ function buildEmptyExport(format: 'csv' | 'xlsx'): NextResponse {
     return new NextResponse(Buffer.from('\uFEFFemail,first_name,last_name,company,title,status,tags,added_at\n', 'utf-8') as unknown as BodyInit, {
       headers: {
         'Content-Type':        'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="sentra-prospects-${dateStr}.csv"`,
+        'Content-Disposition': `attachment; filename="mirvo-prospects-${dateStr}.csv"`,
       },
     })
   }
@@ -304,7 +304,7 @@ function buildEmptyExport(format: 'csv' | 'xlsx'): NextResponse {
   return new NextResponse(buf as unknown as BodyInit, {
     headers: {
       'Content-Type':        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="sentra-prospects-${dateStr}.xlsx"`,
+      'Content-Disposition': `attachment; filename="mirvo-prospects-${dateStr}.xlsx"`,
     },
   })
 }

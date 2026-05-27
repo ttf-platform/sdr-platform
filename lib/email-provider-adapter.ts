@@ -115,7 +115,7 @@ export class MockEmailProvider implements IEmailProvider {
         spf: {
           type: 'TXT',
           name: '@',
-          value: `v=spf1 include:_spf.mail.sentra.app include:_spf.${params.domain} ~all`,
+          value: `v=spf1 include:_spf.mail.mirvo.ai include:_spf.${params.domain} ~all`,
         },
         dkim: {
           type: 'TXT',
@@ -131,7 +131,7 @@ export class MockEmailProvider implements IEmailProvider {
         customReturnPath: {
           type: 'CNAME',
           name: `mail.${params.domain}`,
-          value: 'return-path.mail.sentra.app',
+          value: 'return-path.mail.mirvo.ai',
         },
       },
     };

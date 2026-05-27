@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/admin/', '/dashboard/', '/_next/'],
       },
     ],
-    sitemap: 'https://sentra.app/sitemap.xml',
-    host: 'https://sentra.app',
+    sitemap: 'https://mirvo.ai/sitemap.xml',
+    host: 'https://mirvo.ai',
   }
 }

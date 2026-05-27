@@ -281,7 +281,7 @@ export default function CampaignsPage() {
             <div className="text-3xl mb-3">✨</div>
             <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No campaigns yet</h2>
             <p className="text-sm text-[#8a7e6e] mb-6 max-w-xs mx-auto">
-              Create your first campaign — Sentra AI will write a personalized email sequence tailored to your ICP.
+              Create your first campaign — Mirvo AI will write a personalized email sequence tailored to your ICP.
             </p>
             <button
               onClick={openChooseTemplate}
@@ -306,7 +306,7 @@ export default function CampaignsPage() {
             <div>
               <h2 className="text-base font-bold text-[#1a1a2e]">✨ AI-Suggested Campaigns</h2>
               <p className="text-xs text-[#8a7e6e] mt-0.5">
-                Sentra analyzes your ICP and product to suggest high-converting campaign strategies.
+                Mirvo analyzes your ICP and product to suggest high-converting campaign strategies.
               </p>
             </div>
             <button

@@ -32,7 +32,7 @@ export function LandingHeader() {
             <div className="h-7 w-7 rounded-md bg-[#2563eb] flex items-center justify-center shadow-sm">
               <span className="text-white text-xs font-bold tracking-tight">S</span>
             </div>
-            <span className="text-base font-semibold text-[#1a1a1a]" translate="no">Sentra</span>
+            <span className="text-base font-semibold text-[#1a1a1a]" translate="no">Mirvo</span>
           </Link>
 
           {/* Desktop nav */}

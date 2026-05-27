@@ -72,7 +72,7 @@ export function LandingFooter() {
                 style={{ fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.01em' }}
                 translate="no"
               >
-                Sentra
+                Mirvo
               </span>
             </div>
             <p
@@ -113,7 +113,7 @@ export function LandingFooter() {
               { label: t('companyAbout'),   href: '/about' },
               { label: t('companyBlog'),    href: '/blog' },
               { label: t('companyCareers'), href: '/careers' },
-              { label: t('companyContact'), href: 'mailto:hello@sentra.so' },
+              { label: t('companyContact'), href: 'mailto:hello@mirvo.ai' },
             ]}
           />
 

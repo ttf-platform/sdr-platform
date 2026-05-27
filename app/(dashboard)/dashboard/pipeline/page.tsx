@@ -56,7 +56,7 @@ const KPI_TOOLTIPS = {
   meetingsThisWeek: 'Meetings scheduled between Monday and Sunday of the current week.',
   totalCaWon:       'Sum of amounts on all Closed Won deals (USD).',
 }
-const ADD_LEAD_TOOLTIP = 'Add a lead manually — for opportunities not coming from a Sentra campaign (e.g. inbound leads, networking, referrals).'
+const ADD_LEAD_TOOLTIP = 'Add a lead manually — for opportunities not coming from a Mirvo campaign (e.g. inbound leads, networking, referrals).'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function daysInStage(iso: string) {

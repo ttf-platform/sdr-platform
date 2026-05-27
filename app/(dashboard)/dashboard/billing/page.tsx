@@ -141,7 +141,7 @@ export default function BillingPage() {
       {/* Checkout result banner */}
       {checkoutResult === 'success' && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-5 text-sm text-green-700 font-medium">
-          ✓ Subscription activated! Welcome to Sentra.
+          ✓ Subscription activated! Welcome to Mirvo.
         </div>
       )}
       {checkoutResult === 'cancel' && (

@@ -157,7 +157,7 @@ export function RunSignalModal({ isOpen, onClose, signalId, signalName, onComple
               <li>📡 Signal: <span className="font-medium text-[#1a1a2e]">{signalName}</span></li>
               <li>🎯 Campaign: <span className="font-medium text-[#1a1a2e]">{selectedCampaign?.name}</span></li>
               <li>⏱ Estimated time: 30 – 80 seconds</li>
-              <li>🤖 Sentra AI will scan up to 30 prospects per Run (V1 limit)</li>
+              <li>🤖 Mirvo AI will scan up to 30 prospects per Run (V1 limit)</li>
               <li>💰 AI cost is included in your plan</li>
             </ul>
           </div>
@@ -184,7 +184,7 @@ export function RunSignalModal({ isOpen, onClose, signalId, signalName, onComple
         <div className="flex flex-col items-center gap-4 py-8">
           <div className="w-12 h-12 border-4 border-[#dde6fd] border-t-[#3b6bef] rounded-full animate-spin" />
           <div className="text-center">
-            <p className="text-sm font-semibold text-[#1a1a2e]">Sentra AI is scanning your prospects…</p>
+            <p className="text-sm font-semibold text-[#1a1a2e]">Mirvo AI is scanning your prospects…</p>
             <p className="text-xs text-[#8a7e6e] mt-1">Elapsed: {elapsedSec}s</p>
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700 text-center max-w-sm">

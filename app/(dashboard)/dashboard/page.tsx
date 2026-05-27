@@ -153,7 +153,7 @@ export default function DashboardPage() {
             <div className="text-5xl mb-4">🚀</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to launch your first campaign?</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Sentra AI helps you craft personalized emails for every prospect in your ICP.
+              Mirvo AI helps you craft personalized emails for every prospect in your ICP.
             </p>
             <Link href="/dashboard/campaigns"
               className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors inline-block">

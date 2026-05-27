@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     await resend.emails.send({
       from: process.env.FROM_ADDRESS ?? 'onboarding@resend.dev',
       to: adminEmail,
-      subject: `Sentra daily Claude cost > $${COST_THRESHOLD_USD}: $${totalCost.toFixed(2)}`,
+      subject: `Mirvo daily Claude cost > $${COST_THRESHOLD_USD}: $${totalCost.toFixed(2)}`,
       text: `Daily Claude scan cost for ${yesterday.toISOString().slice(0, 10)}: $${totalCost.toFixed(2)} (threshold $${COST_THRESHOLD_USD}).\n\nTop 5 workspaces by cost:\n${topWorkspaces}\n\nReview signal_scan_events table to investigate.`,
     })
   }

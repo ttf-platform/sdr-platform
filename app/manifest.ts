@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Sentra',
-    short_name: 'Sentra',
+    name: 'Mirvo',
+    short_name: 'Mirvo',
     description: 'Cold outreach that books meetings. All-in-one outbound for founders.',
     start_url: '/',
     scope: '/',

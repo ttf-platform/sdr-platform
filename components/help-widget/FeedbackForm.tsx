@@ -67,7 +67,7 @@ export function FeedbackForm({ onBack, onClose }: Props) {
           </svg>
         </div>
         <div className="text-base font-semibold text-[#1a1a2e] mb-1">Thanks for the feedback!</div>
-        <div className="text-sm text-[#8a7e6e] mb-6">We read every submission and use it to improve Sentra.</div>
+        <div className="text-sm text-[#8a7e6e] mb-6">We read every submission and use it to improve Mirvo.</div>
         <button
           onClick={onClose}
           className="px-5 py-2 bg-[#3b6bef] text-white rounded-xl text-sm font-medium hover:bg-[#2a5bdf] transition-colors"

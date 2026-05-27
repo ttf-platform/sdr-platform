@@ -53,10 +53,10 @@ export async function POST(request: Request) {
   })
 
   await resend.emails.send({
-    from: 'Sentra <hello@sentra.app>',
+    from: 'Mirvo <hello@mirvo.ai>',
     to: email,
-    subject: 'You have been invited to a Sentra workspace',
-    html: `<p>You have been invited to join a workspace on Sentra.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${token}">Accept invitation</a></p>`,
+    subject: 'You have been invited to a Mirvo workspace',
+    html: `<p>You have been invited to join a workspace on Mirvo.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${token}">Accept invitation</a></p>`,
   })
 
   return NextResponse.json({ success: true })

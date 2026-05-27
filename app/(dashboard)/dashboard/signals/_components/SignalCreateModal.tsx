@@ -118,7 +118,7 @@ export function SignalCreateModal({
       setPreviewDescription(res.suggested_description ?? '')
       setCustomStep('preview')
     } catch {
-      setError('Failed to connect to Sentra AI. Please try again.')
+      setError('Failed to connect to Mirvo AI. Please try again.')
       setCustomStep('describe')
     }
   }
@@ -255,7 +255,7 @@ export function SignalCreateModal({
                   <span className="text-base">✨</span>
                   <span className="font-semibold text-sm text-[#1a1a2e] group-hover:text-[#3b6bef]">Custom signal</span>
                   <span className="bg-[#eef1fd] text-[#3b6bef] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#dde6fd]">
-                    Sentra AI
+                    Mirvo AI
                   </span>
                 </div>
                 <p className="text-xs text-[#8a7e6e]">Describe in plain English what to monitor</p>
@@ -422,7 +422,7 @@ export function SignalCreateModal({
       return (
         <div className="py-8 text-center flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#3b6bef] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-medium text-[#1a1a2e]">Sentra AI is analyzing your signal…</p>
+          <p className="text-sm font-medium text-[#1a1a2e]">Mirvo AI is analyzing your signal…</p>
           <p className="text-xs text-[#8a7e6e]">Checking feasibility and generating monitoring config</p>
         </div>
       )

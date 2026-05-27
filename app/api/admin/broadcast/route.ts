@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   await admin.from('broadcast_messages').insert({ subject, body, target, recipient_count: emails.length, sent_at: new Date().toISOString() })
   const htmlBody = body.split(String.fromCharCode(10)).join('<br>')
   for (const email of emails) {
-    await resend.emails.send({ from: 'Sentra <hello@sentra.app>', to: email as string, subject, html: htmlBody })
+    await resend.emails.send({ from: 'Mirvo <hello@mirvo.ai>', to: email as string, subject, html: htmlBody })
   }
 
   const { data: { user } } = await createClient().auth.getUser()

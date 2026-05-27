@@ -200,7 +200,7 @@ export async function generateDraftsForCampaign(
   const bookingSlug   = (profile as any)?.booking_slug as string | null | undefined
   const bookingConfig = ((profile as any)?.booking_config ?? {}) as Record<string, unknown>
   const bookingEnabled = bookingConfig.enabled !== false
-  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mirvo.ai'
   const bookingUrl     = bookingSlug && bookingEnabled ? `${appUrl}/book/${bookingSlug}` : null
   const meetingDuration: number = ((bookingConfig.meeting_durations as number[] | undefined)?.[0]) ?? 30
 

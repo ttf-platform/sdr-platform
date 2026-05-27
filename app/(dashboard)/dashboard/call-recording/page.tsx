@@ -52,7 +52,7 @@ export default function CallRecordingPage() {
       summary: 'The prospect showed interest in the product but raised concerns about pricing and implementation timeline.',
       objections: ['Price too high compared to current solution', 'Implementation timeline unclear', 'Need buy-in from IT team'],
       next_steps: ['Send detailed pricing proposal', 'Schedule technical demo with IT', 'Follow up in 3 days'],
-      proposal: 'Following our conversation, I wanted to send you a summary of how Sentra can help your team achieve a 3x improvement in outbound efficiency...'
+      proposal: 'Following our conversation, I wanted to send you a summary of how Mirvo can help your team achieve a 3x improvement in outbound efficiency...'
     }
     await supabase.from('call_recordings').update({ report: mockReport }).eq('id', rec.id)
     setRecordings(prev => prev.map(r => r.id === rec.id ? {...r, report: mockReport} : r))

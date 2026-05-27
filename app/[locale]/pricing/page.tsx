@@ -3,23 +3,23 @@ import { Link } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const metadata: Metadata = {
-  title: 'Pricing — Sentra',
+  title: 'Pricing — Mirvo',
   description: 'All plans include sourcing, writing, sending, deliverability, follow-ups, and meeting booking. Start free for 14 days — no credit card required.',
-  metadataBase: new URL('https://sentra.app'),
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: {
     canonical: '/pricing',
     languages: { en: '/en/pricing', fr: '/fr/pricing' },
   },
   openGraph: {
-    title: 'Pricing — Sentra',
+    title: 'Pricing — Mirvo',
     description: 'Pick a plan. Start free. No surprises. From $149/mo — all plans include sourcing, writing, sending, and meeting booking.',
-    url: 'https://sentra.app/pricing',
-    siteName: 'Sentra',
+    url: 'https://mirvo.ai/pricing',
+    siteName: 'Mirvo',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pricing — Sentra',
+    title: 'Pricing — Mirvo',
     description: 'Pick a plan. Start free. No surprises. From $149/mo.',
   },
 }
@@ -70,7 +70,7 @@ export default async function PricingPage({
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[#f0ece6]">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="font-bold text-[#1a1a2e] text-xl tracking-tight" translate="no">
-            Sen<span className="text-[#3b6bef]">tra</span>
+            Mir<span className="text-[#3b6bef]">vo</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="inline-flex items-center min-h-[44px] text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]">{t('navLogin')}</Link>
