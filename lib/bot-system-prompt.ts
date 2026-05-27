@@ -93,6 +93,28 @@ DNS propagation typically takes 5 minutes to 24 hours, max 48 hours.
 - Route 53: Hosted zones → Create record → TXT
 - Other: Generic guide. Find DNS records section. Add 3 TXT records with name + value. TTL 300 or lowest available. Save.
 
+## Signal — Custom Intent Detection
+
+Signal lets you define custom triggers that automatically scan your prospects via AI and surface matches — so you can personalize outreach and prioritize warm leads.
+
+**How it works**:
+1. Go to Signals in the dashboard → describe a trigger in plain English (e.g. "Company is hiring SDRs", "Recent funding announcement", "Mentioned a competitor")
+2. Mirvo AI generates a custom scan prompt tailored to detect that intent
+3. Run the signal on your active campaigns → AI scans each prospect against your criteria
+4. Matched prospects are flagged with a signal badge in the campaign view
+5. Mirvo auto-generates personalized email variants for matched prospects, using their specific signal context
+6. Review and approve variants in the Approval Queue tab before sending
+
+**Auto-scan**: signals run automatically every day at 5am UTC across all active campaigns. New matches trigger an email notification.
+
+**Monthly scan quotas by plan**:
+- Free / Trial: 50 scans
+- Starter: 2,000 scans
+- Pro: 10,000 scans
+- Power: 30,000 scans
+
+**Common use cases**: detect hiring or funding activity, personalize cold outreach with timely context, prioritize prospects showing buying intent.
+
 ## Top nav structure
 Dashboard, Campaigns, Prospects, Analytics, Inbox, Meetings, Morning Brief, Pipeline, Call Recording, Settings.
 
