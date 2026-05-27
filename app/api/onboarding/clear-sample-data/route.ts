@@ -9,27 +9,25 @@ export async function DELETE() {
   const admin = createAdminClient()
   const { workspaceId } = guard
 
-  // Delete in FK order: variants → emails → prospects → contacts → campaigns/signals
-  await admin.from('prospect_email_variants').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
-  await admin.from('prospect_emails').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
-
-  // Get sample prospect IDs to clean contacts
-  const { data: sampleProspects } = await admin
-    .from('prospects')
-    .select('id, contact_id')
+  // Fetch this workspace's sample campaign IDs first — used to scope
+  // campaign_steps (which has no workspace_id column)
+  const { data: sampleCampaigns } = await admin
+    .from('campaigns')
+    .select('id')
     .eq('workspace_id', workspaceId)
     .eq('is_sample', true)
 
-  if (sampleProspects && sampleProspects.length > 0) {
-    const prospectIds = sampleProspects.map(p => p.id)
-    const contactIds  = sampleProspects.map(p => p.contact_id).filter(Boolean)
+  const sampleCampaignIds = (sampleCampaigns ?? []).map(c => c.id)
 
-    await admin.from('prospects').delete().in('id', prospectIds)
-    if (contactIds.length > 0) {
-      await admin.from('contacts').delete().eq('workspace_id', workspaceId).in('id', contactIds)
-    }
+  // Delete in FK order: children before parents
+  await admin.from('prospect_email_variants').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
+  await admin.from('prospect_emails').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
+  await admin.from('prospects').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
+  await admin.from('contacts').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
+  // campaign_steps has no workspace_id; scope via campaign_id FK to this workspace's campaigns
+  if (sampleCampaignIds.length > 0) {
+    await admin.from('campaign_steps').delete().in('campaign_id', sampleCampaignIds).eq('is_sample', true)
   }
-
   await admin.from('campaigns').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
   await admin.from('signals').delete().eq('workspace_id', workspaceId).eq('is_sample', true)
 
