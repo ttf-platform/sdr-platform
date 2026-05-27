@@ -94,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex items-center px-4 h-12">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-1 mr-6 flex-shrink-0">
-            <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#2563eb]">tra</span></span>
+            <span className="font-bold text-[#1a1a2e] text-lg">Mir<span className="text-[#3b6bef]">vo</span></span>
           </Link>
 
           {/* Desktop nav — 6 entries */}
@@ -227,7 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Drawer header */}
             <div className="flex items-center justify-between px-4 h-12 border-b border-[#e8e3dc] flex-shrink-0">
               <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
-                <span className="font-bold text-[#1a1a2e] text-lg">Sen<span className="text-[#2563eb]">tra</span></span>
+                <span className="font-bold text-[#1a1a2e] text-lg">Mir<span className="text-[#3b6bef]">vo</span></span>
               </Link>
               <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" className="text-[#6b5e4e] p-1.5 text-lg leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] rounded"><span aria-hidden="true">✕</span></button>
             </div>

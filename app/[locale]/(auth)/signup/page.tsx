@@ -63,7 +63,7 @@ function SignupForm() {
             <div className="w-8 h-8 bg-[#1a1a2e] rounded-lg flex items-center justify-center">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-            <span className="text-lg font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
+            <span className="text-lg font-bold text-[#1a1a2e]">Mir<span className="text-[#3b6bef]">vo</span></span>
           </div>
           <div className="inline-flex items-center gap-1.5 bg-[#eef1fd] border border-[#dde6fd] text-[#3b6bef] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
             ✦ {t('trialBadge', { plan: PLAN_LABELS[plan] })}
