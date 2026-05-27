@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Radio } from 'lucide-react'
+import { Tooltip } from '@/components/Tooltip'
 import { SignalCreateModal } from './_components/SignalCreateModal'
 import { RunSignalModal } from './_components/RunSignalModal'
 import { SpinnerWithText } from '@/components/ui/Spinner'
@@ -188,7 +189,14 @@ export default function SignalsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Signals</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-[#1a1a2e]">Signals</h1>
+            <Tooltip content="Signals auto-detect prospects ready to buy (funding, hiring, tech changes). Mirvo scans daily at 5am UTC and generates personalized variants for every matched prospect." placement="bottom">
+              <svg className="w-4 h-4 text-[#8a7e6e] cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </Tooltip>
+          </div>
           <p className="text-sm text-[#8a7e6e]">Monitor intent signals to find warm prospects automatically</p>
         </div>
         <button

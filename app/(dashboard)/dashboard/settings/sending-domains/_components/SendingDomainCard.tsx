@@ -88,7 +88,9 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
             <h3 className="truncate text-sm font-semibold text-[#1a1a1a]">
               {account.email_address}
             </h3>
-            <StatusPill variant={warmupPill.variant}>{warmupPill.label}</StatusPill>
+            <Tooltip content="Warmup runs in parallel while you start sending. Volume ramps up daily for max deliverability — track progress in Settings." placement="top">
+              <StatusPill variant={warmupPill.variant}>{warmupPill.label}</StatusPill>
+            </Tooltip>
           </div>
           <p className="text-xs text-[#4a4a5a]">
             Sender name: <span className="text-[#1a1a1a]">{account.sender_name}</span>
