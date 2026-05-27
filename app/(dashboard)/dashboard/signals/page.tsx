@@ -206,8 +206,8 @@ export default function SignalsPage() {
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
           <div className="text-3xl mb-3">📡</div>
           <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No signals yet</h2>
-          <p className="text-sm text-[#8a7e6e] mb-6 max-w-xs mx-auto">
-            Create a signal to start detecting warm prospects based on public intent events.
+          <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
+            Signals detect prospects ready to buy — funding rounds, hiring activity, competitor mentions, growth events. Mirvo scans daily at 5am UTC and auto-generates personalized email variants for every match.
           </p>
           <button
             onClick={() => setModalOpen(true)}

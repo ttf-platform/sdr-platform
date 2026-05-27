@@ -8,6 +8,7 @@ import { NewCampaignModal } from '@/components/NewCampaignModal'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 import type { AISuggestion } from '@/lib/ai-suggestions'
 import { SpinnerWithText } from '@/components/ui/Spinner'
+import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 
 interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
@@ -139,6 +140,7 @@ type Tab = 'campaigns' | 'suggestions'
 
 export default function CampaignsPage() {
   const searchParams = useSearchParams()
+  const { data: onboarding } = useOnboardingProgress()
   const [activeTab, setActiveTab]           = useState<Tab>('campaigns')
   const [campaigns, setCampaigns]           = useState<Campaign[]>([])
   const [campaignsLoading, setCLoading]     = useState(true)
@@ -279,9 +281,9 @@ export default function CampaignsPage() {
         ) : campaigns.length === 0 ? (
           <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
             <div className="text-3xl mb-3">✨</div>
-            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No campaigns yet</h2>
-            <p className="text-sm text-[#8a7e6e] mb-6 max-w-xs mx-auto">
-              Create your first campaign — Mirvo AI will write a personalized email sequence tailored to your ICP.
+            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">Your first campaign</h2>
+            <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
+              Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today via managed infrastructure.
             </p>
             <button
               onClick={openChooseTemplate}
@@ -289,6 +291,11 @@ export default function CampaignsPage() {
             >
               + New Campaign
             </button>
+            {onboarding && !onboarding.completions.icp_configured && (
+              <p className="text-xs text-[#8a7e6e] mt-4">
+                💡 <Link href="/dashboard/settings#icp" className="underline hover:text-[#3b6bef] transition-colors">Configure your ICP first</Link> for higher-quality personalization
+              </p>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">

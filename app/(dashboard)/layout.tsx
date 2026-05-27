@@ -11,6 +11,7 @@ import { PostHogIdentify } from '@/components/PostHogIdentify'
 import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
 import { Toaster } from 'sonner'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 
 const supabase = createClient()
 
@@ -329,6 +330,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <FloatingHelpButton />
       <OnboardingProvider />
+      <OnboardingChecklist />
       <Toaster
         position="bottom-right"
         toastOptions={{

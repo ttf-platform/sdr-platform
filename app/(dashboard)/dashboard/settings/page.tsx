@@ -590,8 +590,8 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* PRODUCT */}
-        <div className={cardCls}>
+        {/* PRODUCT — id="icp" for onboarding checklist deeplink */}
+        <div id="icp" className={cardCls}>
           <div className="flex items-center gap-1.5 mb-4">
             <span className={sectionHd}>PRODUCT</span>
             <Tooltip content={PRODUCT_TOOLTIP}>
