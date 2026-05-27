@@ -163,13 +163,13 @@ export function Step1Domain({
         <Field
           label="Domain to send from"
           required
-          hint="The domain you'll use as From address (e.g. getsentra.com)"
+          hint="The domain you'll use as From address (e.g. getmirvo.com)"
         >
           <input
             type="text"
             value={domain}
             onChange={(e) => setDomain(e.target.value.trim())}
-            placeholder="getsentra.com"
+            placeholder="getmirvo.com"
             className={`w-full rounded-md border bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
               domain && !domainValid ? 'border-red-500' : 'border-[#e8e3dc]'
             }`}
@@ -191,7 +191,7 @@ export function Step1Domain({
               setEmailAddress(e.target.value);
               setEmailManuallyEdited(true);
             }}
-            placeholder="outreach@getsentra.com"
+            placeholder="outreach@getmirvo.com"
             className={`w-full rounded-md border bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
               emailAddress && !emailValid ? 'border-red-500' : 'border-[#e8e3dc]'
             }`}
@@ -212,7 +212,7 @@ export function Step1Domain({
             type="text"
             value={senderName}
             onChange={(e) => setSenderName(e.target.value)}
-            placeholder="Cyrus from Sentra"
+            placeholder="Cyrus from Mirvo"
             maxLength={100}
             className={`w-full rounded-md border bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
               senderName && !senderNameValid ? 'border-red-500' : 'border-[#e8e3dc]'
@@ -255,7 +255,7 @@ export function Step1Domain({
 
       <div className="mt-6 flex items-center justify-between">
         <a
-          href="mailto:support@sentra.app?subject=DNS%20setup%20help"
+          href="mailto:support@mirvo.ai?subject=DNS%20setup%20help"
           className="text-xs text-[#4a4a5a] underline hover:text-[#1a1a1a]"
         >
           Need help with DNS setup?

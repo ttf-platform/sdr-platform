@@ -5,15 +5,15 @@ import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 
 export const metadata: Metadata = {
-  title: 'Contact — Sentra',
-  description: 'Get in touch with the Sentra team.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Contact — Mirvo',
+  description: 'Get in touch with the Mirvo team.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/contact' },
   openGraph: {
-    title: 'Contact — Sentra',
-    description: 'Get in touch with the Sentra team.',
-    url: 'https://sentra.app/contact',
-    siteName: 'Sentra',
+    title: 'Contact — Mirvo',
+    description: 'Get in touch with the Mirvo team.',
+    url: 'https://mirvo.ai/contact',
+    siteName: 'Mirvo',
     type: 'website',
   },
 }
@@ -69,7 +69,7 @@ export default async function ContactPage({
               {t('emailLabel')}
             </p>
             <a
-              href="mailto:hello@sentra.so"
+              href="mailto:hello@mirvo.ai"
               className="transition-opacity hover:opacity-70 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
               style={{
                 fontSize: '1.25rem',
@@ -79,7 +79,7 @@ export default async function ContactPage({
                 minHeight: '44px',
               }}
             >
-              hello@sentra.so
+              hello@mirvo.ai
             </a>
           </div>
 

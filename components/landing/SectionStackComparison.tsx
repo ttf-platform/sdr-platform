@@ -79,7 +79,7 @@ export function SectionStackComparison() {
           </p>
         </motion.div>
 
-        {/* 3-card grid — Sentra last on mobile (source order), right on desktop */}
+        {/* 3-card grid — Mirvo last on mobile (source order), right on desktop */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8 items-start">
 
           {/* Card 1 — Assemble a stack */}
@@ -194,7 +194,7 @@ export function SectionStackComparison() {
             />
           </motion.article>
 
-          {/* Card 3 — Sentra (Featured) */}
+          {/* Card 3 — Mirvo (Featured) */}
           <motion.article
             className="rounded-lg p-8 lg:scale-[1.02]"
             style={{

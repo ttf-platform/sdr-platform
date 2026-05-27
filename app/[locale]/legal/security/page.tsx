@@ -3,9 +3,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
 export const metadata: Metadata = {
-  title: 'Security — Sentra',
-  description: 'How Sentra protects your data: encryption, access controls, infrastructure, and incident response.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Security — Mirvo',
+  description: 'How Mirvo protects your data: encryption, access controls, infrastructure, and incident response.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/legal/security' },
 }
 
@@ -45,7 +45,7 @@ export default async function SecurityPage({
             Our commitment
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra is built for sales teams that handle sensitive business contact data. We take that responsibility seriously. This page describes the technical and organizational measures we have in place to protect your data. We aim to be transparent about what we do — and what we don&apos;t yet have in place.
+            Mirvo is built for sales teams that handle sensitive business contact data. We take that responsibility seriously. This page describes the technical and organizational measures we have in place to protect your data. We aim to be transparent about what we do — and what we don&apos;t yet have in place.
           </p>
         </section>
 
@@ -93,7 +93,7 @@ export default async function SecurityPage({
             Security headers
           </h2>
           <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Every Sentra response includes a hardened set of HTTP security headers:
+            Every Mirvo response includes a hardened set of HTTP security headers:
           </p>
           <ul className="space-y-2" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             {[
@@ -132,11 +132,11 @@ export default async function SecurityPage({
             Infrastructure providers
           </h2>
           <p className="mb-6 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra is built on a carefully selected set of infrastructure providers. We describe them by category here. A complete list with names, locations, and data transfer frameworks (DPF/SCCs) is available in our{' '}
+            Mirvo is built on a carefully selected set of infrastructure providers. We describe them by category here. A complete list with names, locations, and data transfer frameworks (DPF/SCCs) is available in our{' '}
             <a href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</a>
             {' '}or by contacting{' '}
-            <a href="mailto:privacy@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              privacy@sentra.app
+            <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              privacy@mirvo.ai
             </a>.
           </p>
 
@@ -169,7 +169,7 @@ export default async function SecurityPage({
             Data residency
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra follows a hybrid data residency model:
+            Mirvo follows a hybrid data residency model:
           </p>
           <ul className="mt-4 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
@@ -194,7 +194,7 @@ export default async function SecurityPage({
             Incident response
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            In the event of a security incident affecting personal data, Sentra follows a structured response process:
+            In the event of a security incident affecting personal data, Mirvo follows a structured response process:
           </p>
           <ul className="mt-4 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
@@ -207,13 +207,13 @@ export default async function SecurityPage({
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed">A post-mortem describing the incident, its scope, and remediation steps will be published at <InlineCode>status.sentra.app</InlineCode> (coming soon) for material incidents.</span>
+              <span className="leading-relaxed">A post-mortem describing the incident, its scope, and remediation steps will be published at <InlineCode>status.mirvo.ai</InlineCode> (coming soon) for material incidents.</span>
             </li>
           </ul>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             To report a suspected security issue, email{' '}
-            <a href="mailto:security@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              security@sentra.app
+            <a href="mailto:security@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              security@mirvo.ai
             </a>
             . We treat all security reports seriously and aim to respond within 24 hours.
           </p>
@@ -227,7 +227,7 @@ export default async function SecurityPage({
             Roadmap
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra is committed to obtaining SOC 2 Type II certification as we scale. We have not yet set a public timeline for this. We will update this page when certification milestones are reached.
+            Mirvo is committed to obtaining SOC 2 Type II certification as we scale. We have not yet set a public timeline for this. We will update this page when certification milestones are reached.
           </p>
         </section>
 
@@ -240,13 +240,13 @@ export default async function SecurityPage({
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Security questions:{' '}
-            <a href="mailto:security@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              security@sentra.app
+            <a href="mailto:security@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              security@mirvo.ai
             </a>
             <br />
             Privacy and data questions:{' '}
-            <a href="mailto:privacy@sentra.app" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-              privacy@sentra.app
+            <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              privacy@mirvo.ai
             </a>
           </p>
         </section>

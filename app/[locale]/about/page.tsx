@@ -5,15 +5,15 @@ import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 
 export const metadata: Metadata = {
-  title: 'About — Sentra',
-  description: 'Sentra builds autonomous cold outreach that books meetings, not noise.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'About — Mirvo',
+  description: 'Mirvo builds autonomous cold outreach that books meetings, not noise.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/about' },
   openGraph: {
-    title: 'About — Sentra',
-    description: 'Sentra builds autonomous cold outreach that books meetings, not noise.',
-    url: 'https://sentra.app/about',
-    siteName: 'Sentra',
+    title: 'About — Mirvo',
+    description: 'Mirvo builds autonomous cold outreach that books meetings, not noise.',
+    url: 'https://mirvo.ai/about',
+    siteName: 'Mirvo',
     type: 'website',
   },
 }

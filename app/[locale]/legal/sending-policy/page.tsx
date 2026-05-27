@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const metadata: Metadata = {
-  title: 'Sending Policy — Sentra',
-  description: 'Sentra sending policy: your responsibilities as a data controller, email requirements, and prohibited content.',
-  metadataBase: new URL('https://sentra.app'),
+  title: 'Sending Policy — Mirvo',
+  description: 'Mirvo sending policy: your responsibilities as a data controller, email requirements, and prohibited content.',
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/legal/sending-policy' },
 }
 
@@ -44,13 +44,13 @@ export default async function SendingPolicyPage({
             Your role as data controller
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            When you import contacts into Sentra, you are the <strong style={{ color: '#1a1a1a' }}>data controller</strong>. Sentra acts solely as a data processor — we provide the technical infrastructure to run your campaigns, but we do not own or control your contact data.
+            When you import contacts into Mirvo, you are the <strong style={{ color: '#1a1a1a' }}>data controller</strong>. Mirvo acts solely as a data processor — we provide the technical infrastructure to run your campaigns, but we do not own or control your contact data.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             As data controller, you are responsible for ensuring your outbound complies with applicable law in your recipients&apos; jurisdictions — including CAN-SPAM (US), GDPR (EU), PECR (UK), and CASL (Canada). Before sending, you must have a valid legal basis: legitimate interest for B2B prospecting is the most common, but it requires a genuine, documented justification.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra is designed exclusively for B2B outbound. Using it to contact consumers is a violation of this policy and applicable data protection law.
+            Mirvo is designed exclusively for B2B outbound. Using it to contact consumers is a violation of this policy and applicable data protection law.
           </p>
         </section>
 
@@ -62,16 +62,16 @@ export default async function SendingPolicyPage({
             Mandatory email requirements
           </h2>
           <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Every email sent through Sentra must meet the following requirements. Some are enforced automatically; others are your responsibility.
+            Every email sent through Mirvo must meet the following requirements. Some are enforced automatically; others are your responsibility.
           </p>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Unsubscribe link.</strong> Each email must include a clear opt-out mechanism. Sentra inserts one automatically — do not remove or obfuscate it.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Unsubscribe link.</strong> Each email must include a clear opt-out mechanism. Mirvo inserts one automatically — do not remove or obfuscate it.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>List-Unsubscribe header.</strong> One-click unsubscribe for Gmail and Outlook is handled automatically by Sentra.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>List-Unsubscribe header.</strong> One-click unsubscribe for Gmail and Outlook is handled automatically by Mirvo.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
@@ -79,7 +79,7 @@ export default async function SendingPolicyPage({
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Auto-stop on opt-out replies.</strong> Sentra automatically stops sending to any contact who replies with &ldquo;stop&rdquo;, &ldquo;unsubscribe&rdquo;, &ldquo;remove me&rdquo;, &ldquo;not interested&rdquo;, or equivalent.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Auto-stop on opt-out replies.</strong> Mirvo automatically stops sending to any contact who replies with &ldquo;stop&rdquo;, &ldquo;unsubscribe&rdquo;, &ldquo;remove me&rdquo;, &ldquo;not interested&rdquo;, or equivalent.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
@@ -100,7 +100,7 @@ export default async function SendingPolicyPage({
             Prohibited content
           </h2>
           <p className="mb-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            The following content may not be sent through Sentra under any circumstances:
+            The following content may not be sent through Mirvo under any circumstances:
           </p>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
@@ -121,7 +121,7 @@ export default async function SendingPolicyPage({
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>B2C outreach.</strong> Sentra is a B2B tool. Emailing consumers (individuals acting outside a professional capacity) is prohibited.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>B2C outreach.</strong> Mirvo is a B2B tool. Emailing consumers (individuals acting outside a professional capacity) is prohibited.</span>
             </li>
           </ul>
         </section>
@@ -134,7 +134,7 @@ export default async function SendingPolicyPage({
             Enforcement
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            Sentra monitors aggregate sending metrics including complaint rates, bounce rates, and unsubscribe patterns. Accounts showing patterns consistent with spam will be suspended immediately, without prior notice.
+            Mirvo monitors aggregate sending metrics including complaint rates, bounce rates, and unsubscribe patterns. Accounts showing patterns consistent with spam will be suspended immediately, without prior notice.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Suspension due to a sending policy violation does not entitle you to a refund for the unused portion of your subscription. Repeated or severe violations may result in permanent account termination and reporting to relevant authorities.
@@ -152,13 +152,13 @@ export default async function SendingPolicyPage({
             Reporting abuse
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            If you have received an email sent through Sentra that you believe violates this policy, please report it to{' '}
+            If you have received an email sent through Mirvo that you believe violates this policy, please report it to{' '}
             <a
-              href="mailto:abuse@sentra.app"
+              href="mailto:abuse@mirvo.ai"
               className="transition-opacity hover:opacity-70"
               style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}
             >
-              abuse@sentra.app
+              abuse@mirvo.ai
             </a>
             . Include the email headers if possible. We respond to all abuse reports within 72 hours and take enforcement action where warranted.
           </p>

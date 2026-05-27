@@ -4,7 +4,7 @@
  * Generates DNS records (SPF/DKIM/DMARC/return-path) for a sending domain.
  *
  * Phase 1 (Mock): returns plausible but fake records using our shared
- *   sentra.app pool. The user must publish these in their DNS registrar.
+ *   mirvo.ai pool. The user must publish these in their DNS registrar.
  *   The dns-verify route then checks actual DNS resolution.
  *
  * Phase 2 (Instantly): replace the body of generateDnsRecords() with a call
@@ -44,11 +44,11 @@ export function generateDnsRecords(domain: string): GeneratedDnsRecords {
     spf: {
       type: 'TXT',
       name: '@',
-      value: `v=spf1 include:_spf.mail.sentra.app include:_spf.${domain} ~all`,
+      value: `v=spf1 include:_spf.mail.mirvo.ai include:_spf.${domain} ~all`,
     },
     dkim: {
       type: 'TXT',
-      name: `sentra._domainkey.${domain}`,
+      name: `mirvo._domainkey.${domain}`,
       value: `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQ${randomBase64(180)}`,
     },
     dmarc: {
@@ -59,7 +59,7 @@ export function generateDnsRecords(domain: string): GeneratedDnsRecords {
     customReturnPath: {
       type: 'CNAME',
       name: `mail.${domain}`,
-      value: 'return-path.mail.sentra.app',
+      value: 'return-path.mail.mirvo.ai',
     },
   };
 }

@@ -480,7 +480,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           })()}
         </div>
 
-        <p className="text-center mt-6 text-xs text-[#8a7e6e]">{t('poweredBy')} <span className="font-semibold">Sentra</span></p>
+        <p className="text-center mt-6 text-xs text-[#8a7e6e]">{t('poweredBy')} <span className="font-semibold">Mirvo</span></p>
       </div>
     </div>
   )

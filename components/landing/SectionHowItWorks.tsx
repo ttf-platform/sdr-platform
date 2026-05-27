@@ -66,7 +66,7 @@ function CalendarVisual() {
         <div className="text-[10px] text-white" style={{ opacity: 0.8 }}>30 min · Discovery call</div>
       </div>
       <div className="mt-3 text-[11px] font-bold text-[#2563eb]" style={{ letterSpacing: '0.06em' }}>
-        ✓ Booked by Sentra
+        ✓ Booked by Mirvo
       </div>
     </div>
   );

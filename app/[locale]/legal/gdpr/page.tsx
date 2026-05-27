@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const metadata: Metadata = {
-  title: 'GDPR Rights — Sentra',
+  title: 'GDPR Rights — Mirvo',
   description: 'Your rights under GDPR and how to exercise them.',
-  metadataBase: new URL('https://sentra.app'),
+  metadataBase: new URL('https://mirvo.ai'),
   alternates: { canonical: '/legal/gdpr' },
 }
 
@@ -37,7 +37,7 @@ export default async function GdprPage({
             Right of access (Art. 15)
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
-            You can request a full export of all personal data Sentra holds about you, including account details, workspace content, and usage logs.
+            You can request a full export of all personal data Mirvo holds about you, including account details, workspace content, and usage logs.
           </p>
         </section>
 
@@ -84,11 +84,11 @@ export default async function GdprPage({
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Email us at{' '}
             <a
-              href="mailto:privacy@sentra.app"
+              href="mailto:privacy@mirvo.ai"
               className="transition-opacity hover:opacity-70"
               style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}
             >
-              privacy@sentra.app
+              privacy@mirvo.ai
             </a>{' '}
             with the subject line &ldquo;GDPR Request&rdquo; and we will respond within 30 days, as required by law.
           </p>

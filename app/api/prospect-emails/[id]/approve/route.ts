@@ -64,7 +64,7 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
       inboxId: emailAccount?.provider_inbox_id ?? 'mock_inbox_default',
       to: prospect?.email ?? '',
       toName: [prospect?.first_name, prospect?.last_name].filter(Boolean).join(' ') || undefined,
-      fromName: emailAccount?.sender_name ?? 'Sentra',
+      fromName: emailAccount?.sender_name ?? 'Mirvo',
       subject: pe.subject,
       body: pe.body,
       campaignId: pe.campaign_step_id,

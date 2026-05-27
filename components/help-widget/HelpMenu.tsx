@@ -43,7 +43,7 @@ export function HelpMenu({ onClose, onChat, onBug, onFeedback }: Props) {
       {/* Blue gradient header */}
       <div className="bg-gradient-to-br from-[#3b6bef] to-[#2952c9] px-5 py-5 flex items-start justify-between">
         <div>
-          <div className="text-white font-bold text-base">Sentra Help</div>
+          <div className="text-white font-bold text-base">Mirvo Help</div>
           <div className="text-blue-100 text-xs mt-0.5">How can we help you today?</div>
         </div>
         <button onClick={onClose} className="text-blue-200 hover:text-white transition-colors mt-0.5">

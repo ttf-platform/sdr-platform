@@ -139,7 +139,7 @@ export function SectionFAQ() {
         >
           {t('closing')}{' '}
           <a
-            href="mailto:hello@sentra.so"
+            href="mailto:hello@mirvo.ai"
             className="text-[#2563eb] underline underline-offset-2"
             style={{ fontWeight: 500 }}
           >

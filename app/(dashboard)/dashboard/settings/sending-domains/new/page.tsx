@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/server';
 import { SendingDomainWizard } from '../_components/wizard/SendingDomainWizard';
 
 export const metadata = {
-  title: 'Add sending domain · Sentra',
+  title: 'Add sending domain · Mirvo',
 };
 
 export default async function NewSendingDomainPage() {

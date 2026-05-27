@@ -667,7 +667,7 @@ export default function SettingsPage() {
           <span className="text-xl" aria-hidden>📬</span>
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">Sending domains</h2>
         </header>
-        <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Sentra warm it up while you send from day one.</p>
+        <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Mirvo warm it up while you send from day one.</p>
         <Link
           href="/dashboard/settings/sending-domains"
           className="inline-flex items-center gap-1 text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
@@ -700,7 +700,7 @@ export default function SettingsPage() {
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-4`}>ADVANCED SETTINGS</div>
         {[
-          { title: 'API Keys',          desc: 'Programmatic access to your Sentra data for custom integrations — launching Q4 2026' },
+          { title: 'API Keys',          desc: 'Programmatic access to your Mirvo data for custom integrations — launching Q4 2026' },
           { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability — launching Q3 2026' },
           { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences — launching Q3 2026' },
           { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV — launching Q3 2026' },

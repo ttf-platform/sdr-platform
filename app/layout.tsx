@@ -12,12 +12,12 @@ const dmSans = DM_Sans({
   preload: true,
 })
 
-const BASE_URL = 'https://sentra.app'
+const BASE_URL = 'https://mirvo.ai'
 
 const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'Sentra',
+  name: 'Mirvo',
   url: BASE_URL,
   description: 'Cold outreach that books meetings. All-in-one outbound for founders and first sales hires.',
   logo: `${BASE_URL}/icon.svg`,
@@ -25,23 +25,23 @@ const organizationJsonLd = {
 }
 
 export const metadata: Metadata = {
-  title: 'Sentra — Cold outreach that books meetings',
+  title: 'Mirvo — Cold outreach that books meetings',
   description:
-    'Sentra finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires.',
+    'Mirvo finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires.',
   metadataBase: new URL(BASE_URL),
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Sentra — Cold outreach that books meetings',
+    title: 'Mirvo — Cold outreach that books meetings',
     description:
-      'Sentra finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires.',
+      'Mirvo finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires.',
     url: `${BASE_URL}/`,
-    siteName: 'Sentra',
+    siteName: 'Mirvo',
     type: 'website',
     locale: 'en_US',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Sentra — Cold outreach that books meetings',
+    title: 'Mirvo — Cold outreach that books meetings',
     description:
       'All-in-one outbound for founders and first sales hires. Setup in under an hour.',
   },

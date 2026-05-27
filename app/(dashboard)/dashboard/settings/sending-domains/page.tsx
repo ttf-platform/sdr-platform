@@ -12,7 +12,7 @@ import { SendingDomainsClient } from './_components/SendingDomainsClient';
 import type { EmailAccount } from './_components/SendingDomainCard';
 
 export const metadata = {
-  title: 'Sending domains · Sentra',
+  title: 'Sending domains · Mirvo',
 };
 
 export default async function SendingDomainsPage() {

@@ -104,7 +104,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-5 sm:p-8 text-center max-h-[calc(100vh-2rem)] overflow-y-auto">
           <div className="text-3xl mb-4">✨</div>
           <h2 className="text-base font-bold text-[#1a1a2e] mb-4">
-            {mode === 'smart' ? 'Sentra AI is personalizing your emails…' : 'Generating emails…'}
+            {mode === 'smart' ? 'Mirvo AI is personalizing your emails…' : 'Generating emails…'}
           </h2>
 
           <div className="w-full bg-[#f0ece6] rounded-full h-2 mb-3">

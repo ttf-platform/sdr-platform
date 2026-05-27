@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sentra.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mirvo.ai'
 
 export async function POST() {
   if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })

@@ -114,7 +114,7 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#e8e3dc] bg-[#faf8f5] flex items-center justify-between">
         <div>
-          <div className="text-xs font-semibold text-[#1a1a1a]">Sentra activity</div>
+          <div className="text-xs font-semibold text-[#1a1a1a]">Mirvo activity</div>
           <div className="text-[10px] text-[#9a9a9a] mt-0.5">Running now</div>
         </div>
         <AnimatePresence mode="wait">

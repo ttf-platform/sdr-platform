@@ -59,16 +59,16 @@ const PROVIDER_DISPLAY: Record<
   Exclude<DnsProvider, 'unknown'>,
   { name: string; guide: string }
 > = {
-  cloudflare:     { name: 'Cloudflare',     guide: 'https://docs.sentra.app/dns/cloudflare' },
-  ovh:            { name: 'OVH',            guide: 'https://docs.sentra.app/dns/ovh' },
-  gandi:          { name: 'Gandi',          guide: 'https://docs.sentra.app/dns/gandi' },
-  namecheap:      { name: 'Namecheap',      guide: 'https://docs.sentra.app/dns/namecheap' },
-  godaddy:        { name: 'GoDaddy',        guide: 'https://docs.sentra.app/dns/godaddy' },
-  route53:        { name: 'AWS Route 53',   guide: 'https://docs.sentra.app/dns/route53' },
-  google_domains: { name: 'Google Domains', guide: 'https://docs.sentra.app/dns/google-domains' },
-  squarespace:    { name: 'Squarespace',    guide: 'https://docs.sentra.app/dns/squarespace' },
-  hover:          { name: 'Hover',          guide: 'https://docs.sentra.app/dns/hover' },
-  porkbun:        { name: 'Porkbun',        guide: 'https://docs.sentra.app/dns/porkbun' },
+  cloudflare:     { name: 'Cloudflare',     guide: 'https://docs.mirvo.ai/dns/cloudflare' },
+  ovh:            { name: 'OVH',            guide: 'https://docs.mirvo.ai/dns/ovh' },
+  gandi:          { name: 'Gandi',          guide: 'https://docs.mirvo.ai/dns/gandi' },
+  namecheap:      { name: 'Namecheap',      guide: 'https://docs.mirvo.ai/dns/namecheap' },
+  godaddy:        { name: 'GoDaddy',        guide: 'https://docs.mirvo.ai/dns/godaddy' },
+  route53:        { name: 'AWS Route 53',   guide: 'https://docs.mirvo.ai/dns/route53' },
+  google_domains: { name: 'Google Domains', guide: 'https://docs.mirvo.ai/dns/google-domains' },
+  squarespace:    { name: 'Squarespace',    guide: 'https://docs.mirvo.ai/dns/squarespace' },
+  hover:          { name: 'Hover',          guide: 'https://docs.mirvo.ai/dns/hover' },
+  porkbun:        { name: 'Porkbun',        guide: 'https://docs.mirvo.ai/dns/porkbun' },
 };
 
 /**
@@ -92,7 +92,7 @@ export async function detectDnsProvider(
     return {
       provider: 'unknown',
       displayName: 'your DNS provider',
-      guideUrl: 'https://docs.sentra.app/dns/generic',
+      guideUrl: 'https://docs.mirvo.ai/dns/generic',
       nameservers: [],
     };
   }
@@ -115,7 +115,7 @@ export async function detectDnsProvider(
   return {
     provider: 'unknown',
     displayName: 'your DNS provider',
-    guideUrl: 'https://docs.sentra.app/dns/generic',
+    guideUrl: 'https://docs.mirvo.ai/dns/generic',
     nameservers,
   };
 }

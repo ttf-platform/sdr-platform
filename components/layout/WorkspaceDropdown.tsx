@@ -7,7 +7,7 @@ import { BarChart2, Sun, Phone, Globe, Settings, Users, CreditCard, ChevronDown,
 type Props = {
   planTier: string
   role: string
-  isSentraAdmin: boolean
+  isMirvoAdmin: boolean
   hasCallRecording: boolean
   hasLinkedIn: boolean
   pathname: string
@@ -48,7 +48,7 @@ function NavItem({ href, icon: Icon, label, color = '#1a1a1a', active, onClose }
   )
 }
 
-export function WorkspaceDropdown({ planTier, role, isSentraAdmin, hasCallRecording, hasLinkedIn, pathname }: Props) {
+export function WorkspaceDropdown({ planTier, role, isMirvoAdmin, hasCallRecording, hasLinkedIn, pathname }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -119,11 +119,11 @@ export function WorkspaceDropdown({ planTier, role, isSentraAdmin, hasCallRecord
             <NavItem href="/dashboard/admin" icon={Shield} label="Workspace Admin" color="#2563eb" active={isActive('/dashboard/admin')} onClose={close} />
           )}
 
-          {isSentraAdmin && (
+          {isMirvoAdmin && (
             <>
               <Divider />
-              <SectionHeader label="Sentra Staff" />
-              <NavItem href="/admin" icon={Shield} label="Sentra Admin" color="#2563eb" active={isActive('/admin')} onClose={close} />
+              <SectionHeader label="Mirvo Staff" />
+              <NavItem href="/admin" icon={Shield} label="Mirvo Admin" color="#2563eb" active={isActive('/admin')} onClose={close} />
             </>
           )}
         </div>

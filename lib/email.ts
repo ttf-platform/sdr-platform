@@ -1,9 +1,9 @@
 import { Resend } from 'resend';
 import { getAdminNotificationEmail } from './admin-settings';
 
-const FROM_ADDRESS = 'Sentra <onboarding@resend.dev>';
-// TODO pre-launch: verify sentra.app on https://resend.com/domains, then set:
-// const FROM_ADDRESS = 'Sentra <hello@sentra.app>';
+const FROM_ADDRESS = 'Mirvo <onboarding@resend.dev>';
+// TODO pre-launch: verify mirvo.ai on https://resend.com/domains, then set:
+// const FROM_ADDRESS = 'Mirvo <hello@mirvo.ai>';
 
 let _client: Resend | null = null;
 
@@ -47,7 +47,7 @@ export async function sendAdminEscalationEmail(params: {
   <h3 style="color: #1a1a1a; margin: 24px 0 8px 0;">Summary</h3>
   <p style="color: #1a1a1a; line-height: 1.6; margin: 0 0 24px 0;">${escapeHtml(params.summary)}</p>
   <a href="${adminLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open in Support Center →</a>
-  <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Sentra · Sent because you're the configured admin notification email.</p>
+  <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Mirvo · Sent because you're the configured admin notification email.</p>
 </div>
 `.trim();
 
@@ -56,7 +56,7 @@ export async function sendAdminEscalationEmail(params: {
     await resend.emails.send({
       from: FROM_ADDRESS,
       to: adminEmail,
-      subject: `[Sentra Support] New escalation — ${params.reason}`,
+      subject: `[Mirvo Support] New escalation — ${params.reason}`,
       html,
     });
     return { ok: true };
@@ -97,7 +97,7 @@ export async function sendAdminBugReportEmail(params: {
     await resend.emails.send({
       from: FROM_ADDRESS,
       to: adminEmail,
-      subject: `[Sentra Support] ${params.priority.toUpperCase()} bug — ${params.title}`,
+      subject: `[Mirvo Support] ${params.priority.toUpperCase()} bug — ${params.title}`,
       html,
     });
     return { ok: true };

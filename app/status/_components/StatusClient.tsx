@@ -89,7 +89,7 @@ export function StatusClient() {
 
       <p className="text-xs text-[#8a7e6e] text-center">
         If you&apos;re experiencing issues not shown here, contact{' '}
-        <a href="mailto:hello@sentra.app" className="text-[#3b6bef] hover:underline">hello@sentra.app</a>
+        <a href="mailto:hello@mirvo.ai" className="text-[#3b6bef] hover:underline">hello@mirvo.ai</a>
       </p>
       {lastRefresh && (
         <p className="text-xs text-[#8a7e6e] text-center">

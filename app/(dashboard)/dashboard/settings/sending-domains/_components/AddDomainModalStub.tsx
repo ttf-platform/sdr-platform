@@ -44,7 +44,7 @@ export function AddDomainModalStub({
         <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">
           The 3-step DNS wizard is coming next. We'll guide you through domain
           input, DNS records publication with provider-specific instructions,
-          and verification — all without leaving Sentra.
+          and verification — all without leaving Mirvo.
         </p>
 
         <div className="flex justify-end">

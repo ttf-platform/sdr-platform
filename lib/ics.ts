@@ -54,11 +54,11 @@ export function generateICS(m: ICSMeeting): string {
   const rows  = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Sentra//Meetings//EN',
+    'PRODID:-//Mirvo//Meetings//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:REQUEST',
     'BEGIN:VEVENT',
-    `UID:${m.id}@sentra.app`,
+    `UID:${m.id}@mirvo.ai`,
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(start)}`,
     `DTEND:${fmt(end)}`,

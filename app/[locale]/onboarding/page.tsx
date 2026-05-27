@@ -67,7 +67,7 @@ export default function OnboardingPage() {
             <div className="w-8 h-8 bg-[#1a1a2e] rounded-lg flex items-center justify-center">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-            <span className="text-lg font-bold text-[#1a1a2e]">Sen<span className="text-[#3b6bef]">tra</span></span>
+            <span className="text-lg font-bold text-[#1a1a2e]">Mir<span className="text-[#3b6bef]">vo</span></span>
           </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             {steps.map((s, i) => (
@@ -117,7 +117,7 @@ export default function OnboardingPage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-                <button onClick={handleFinish} disabled={!data.icp || loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? 'Setting up...' : 'Launch Sentra →'}</button>
+                <button onClick={handleFinish} disabled={!data.icp || loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? 'Setting up...' : 'Launch Mirvo →'}</button>
               </div>
             </div>
           )}

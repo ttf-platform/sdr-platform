@@ -19,7 +19,7 @@ export function AdminSidebar() {
     <aside className="flex w-60 flex-col border-r border-[#e8e3dc] bg-white">
       <div className="border-b border-[#e8e3dc] px-5 py-4">
         <Link href="/admin" className="block">
-          <div className="text-base font-semibold text-[#1a1a1a]">Sentra Admin</div>
+          <div className="text-base font-semibold text-[#1a1a1a]">Mirvo Admin</div>
           <div className="mt-0.5 text-xs text-[#9a9a9a]">Platform back-office</div>
         </Link>
       </div>

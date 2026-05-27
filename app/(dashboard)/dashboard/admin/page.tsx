@@ -126,7 +126,7 @@ export default function AdminPage() {
               <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Subject</label>
               <input value={broadcast.subject} onChange={e => setBroadcast({...broadcast, subject: e.target.value})}
                 className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]"
-                placeholder="Important update about Sentra..." />
+                placeholder="Important update about Mirvo..." />
             </div>
             <div>
               <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Message</label>

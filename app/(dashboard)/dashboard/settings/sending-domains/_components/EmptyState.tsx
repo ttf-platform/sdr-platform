@@ -3,7 +3,7 @@
  *
  * Visual identity inherits from Firstsend (header CAPS + emoji 📬, card
  * layout with light beige background, blue CTA). Copy is rewritten to
- * emphasize Sentra's Day-1-sending promise (warmup runs in background).
+ * emphasize Mirvo's Day-1-sending promise (warmup runs in background).
  */
 
 import Link from 'next/link';
