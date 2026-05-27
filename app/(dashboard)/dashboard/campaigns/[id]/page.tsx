@@ -22,6 +22,7 @@ interface Campaign {
   personalization_mode: 'fast' | 'smart' | null
   include_booking_link_initial: boolean
   drafts_count: number
+  pending_drafts_count: number
 }
 type EmailDraft = {
   id: string; subject: string; body: string
@@ -383,13 +384,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           {/* Approval Queue — sibling layout: tab button + info icon to avoid nested interaction */}
           <div className="flex items-center gap-0.5">
             <button onClick={() => setTab('approval_queue')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${tab === 'approval_queue' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
-              Approval Queue
-              {(campaign?.drafts_count ?? 0) > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold rounded-full bg-[#3b6bef] text-white leading-none">
-                  {campaign!.drafts_count}
-                </span>
-              )}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === 'approval_queue' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
+              Approval Queue ({campaign?.pending_drafts_count ?? 0})
             </button>
             <Tooltip content="Every AI-generated email is reviewed by you before sending. No surprises — you control what goes out." placement="bottom">
               <svg className="w-3.5 h-3.5 text-[#b0a898] hover:text-[#3b6bef] transition-colors cursor-help" viewBox="0 0 20 20" fill="currentColor" aria-label="About Approval Queue">
