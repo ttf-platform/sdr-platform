@@ -47,8 +47,10 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     }
   }
 
+  const pending_drafts_count = (by_status['draft'] ?? 0) + (by_status['edited'] ?? 0)
+
   return NextResponse.json({
-    campaign: { ...campaign, prospects_count: prospectsCount ?? 0, drafts_count, by_status },
+    campaign: { ...campaign, prospects_count: prospectsCount ?? 0, drafts_count, pending_drafts_count, by_status },
     steps: steps ?? [],
   })
 }
