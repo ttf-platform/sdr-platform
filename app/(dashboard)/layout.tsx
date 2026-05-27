@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [isSentraAdmin, setIsSentraAdmin] = useState(false)
-  const avatarRef = useRef<HTMLButtonElement>(null)
+  const avatarRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
 
   useEffect(() => {
@@ -131,18 +131,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
             <TrialBadge />
             {/* Avatar */}
-            <button
-              ref={avatarRef}
-              className="relative flex items-center gap-1.5 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
-              onClick={() => setAvatarOpen(!avatarOpen)}
-              aria-label="Account menu"
-              aria-haspopup="true"
-              aria-expanded={avatarOpen}
-            >
-              <div className="w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center text-white text-xs font-bold">
-                {initials}
-              </div>
-              <span className="text-sm font-medium text-[#1a1a2e] hidden lg:inline">{firstName}</span>
+            <div ref={avatarRef} className="relative">
+              <button
+                className="flex items-center gap-1.5 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+                onClick={() => setAvatarOpen(!avatarOpen)}
+                aria-label="Account menu"
+                aria-haspopup="true"
+                aria-expanded={avatarOpen}
+              >
+                <div className="w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center text-white text-xs font-bold">
+                  {initials}
+                </div>
+                <span className="text-sm font-medium text-[#1a1a2e] hidden lg:inline">{firstName}</span>
+              </button>
               {avatarOpen && (
                 <div className="absolute right-0 top-9 w-52 bg-white border border-[#e8e3dc] rounded-xl shadow-lg overflow-hidden z-50">
                   <div className="px-4 py-3 border-b border-[#f0ece6]">
@@ -165,7 +166,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                 </div>
               )}
-            </button>
+            </div>
           </div>
 
           {/* Mobile burger */}

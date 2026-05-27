@@ -379,7 +379,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${tab === t.key ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e] hover:text-[#4a4a5a]'}`}>
               {'tooltip' in t ? (
-                <Tooltip content={t.tooltip} placement="top">{t.label}</Tooltip>
+                <span className="inline-flex items-center gap-1">
+                  {t.label}
+                  <Tooltip content={t.tooltip} placement="bottom">
+                    <svg className="w-3 h-3 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </Tooltip>
+                </span>
               ) : t.label}
             </button>
           ))}

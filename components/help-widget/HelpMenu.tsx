@@ -1,5 +1,7 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+
 interface Props {
   onClose: () => void
   onChat: () => void
@@ -38,6 +40,7 @@ function MenuItem({
 }
 
 export function HelpMenu({ onClose, onChat, onBug, onFeedback }: Props) {
+  const router = useRouter()
   return (
     <>
       {/* Blue gradient header */}
@@ -56,7 +59,7 @@ export function HelpMenu({ onClose, onChat, onBug, onFeedback }: Props) {
       {/* Menu items */}
       <div className="flex-1 overflow-y-auto">
         <MenuItem
-          onClick={() => window.open('/help', '_blank')}
+          onClick={() => { onClose(); router.push('/help') }}
           icon={
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <rect x="2" y="2" width="14" height="14" rx="2" stroke="#3b6bef" strokeWidth="1.5"/>
