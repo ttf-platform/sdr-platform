@@ -297,7 +297,7 @@
     "signals": {
       "eyebrow": "The unfair advantage",
       "headline": "Describe what a buyer looks like. Mirvo watches for it every night.",
-      "body": "Tell Mirvo the trigger that turns a company into a buyer — in plain English. Every night it checks your prospects against that signal, flags the ones that match, and drafts the email ready for your approval. No RevOps hire. No data tools to wire together.",
+      "body": "Tell Mirvo the trigger that turns a company into a buyer, in plain English. Every night it checks your prospects against that signal, flags the ones that match, and drafts the email ready for your approval. No RevOps hire. No data tools to wire together.",
       "visualSignalLabel": "Your signal",
       "visualSignalExample": "“Companies that just raised a Series A”",
       "visualScan": "Scanned last night",
@@ -308,11 +308,11 @@
       "visualApprove": "Approve",
       "beat0Title": "Describe it",
       "beat0Body": "“Companies that just raised a Series A.” “Teams hiring their first sales rep.” Write the trigger like you’d say it out loud.",
-      "beat1Title": "Mirvo watches — nightly",
+      "beat1Title": "Mirvo watches, nightly",
       "beat1Body": "Every night, Mirvo scans your prospects against your signal. You wake up to the matches, not the busywork.",
       "beat2Title": "Reach out at the perfect moment",
       "beat2Body": "Each match arrives with a tailored email already drafted. You approve, it sends. Timing does the rest.",
-      "close": "Doing this by hand means a RevOps hire and a stack of subscriptions. Mirvo does it from one sentence — while you sleep."
+      "close": "Doing this by hand means a RevOps hire and a stack of subscriptions. Mirvo does it from one sentence, while you sleep."
     }
   },
   "about": {

@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -11,14 +11,16 @@ function SignalsVisual({
   signalLabel: string; signalExample: string; scan: string; matches: string;
   company: string; meta: string; drafted: string; approve: string;
 }) {
+  const reduced = useReducedMotion() ?? false;
+
   return (
     <motion.div
       className="mx-auto max-w-md rounded-lg bg-white border border-[#e8e3dc] p-5"
       style={{ boxShadow: '0 10px 40px rgba(37,99,235,0.10)' }}
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.5, ease }}
+      transition={reduced ? { duration: 0 } : { duration: 0.5, ease }}
       aria-hidden="true"
     >
       <div className="uppercase text-[#2563eb] mb-2" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}>
@@ -39,7 +41,7 @@ function SignalsVisual({
       <div className="mt-3 rounded-md bg-[#f5f2ee] border border-[#e8e3dc] px-3 py-2.5 flex items-center justify-between">
         <div className="min-w-0">
           <div className="text-[12px] font-medium text-[#1a1a1a] truncate">{company}</div>
-          <div className="text-[10px] text-[#9a9a9a]">{meta}</div>
+          <div className="text-[11px] text-[#6b6b7b]">{meta}</div>
         </div>
         <span className="flex-shrink-0 ml-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[#2563eb]">
           {drafted}
@@ -60,6 +62,7 @@ function SignalsVisual({
 
 export function SectionSignals() {
   const t = useTranslations('landing.signals');
+  const reduced = useReducedMotion() ?? false;
 
   const beats = [
     { index: '01', title: t('beat0Title'), body: t('beat0Body') },
@@ -68,20 +71,20 @@ export function SectionSignals() {
   ];
 
   return (
-    <section id="signals" className="bg-[#faf8f5] py-24 lg:py-32">
+    <section id="signals" aria-labelledby="signals-heading" className="bg-[#faf8f5] py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
         <motion.div
           className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.45, ease }}
+          transition={reduced ? { duration: 0 } : { duration: 0.45, ease }}
         >
           <p className="mb-5 font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
             {t('eyebrow')}
           </p>
-          <h2 className="mb-4 font-medium text-[#1a1a1a] mx-auto" style={{ fontSize: 'clamp(1.875rem, 4vw, 2.5rem)', lineHeight: 1.1, letterSpacing: '-0.01em', maxWidth: '36rem' }}>
+          <h2 id="signals-heading" className="mb-4 font-medium text-[#1a1a1a] mx-auto" style={{ fontSize: 'clamp(1.875rem, 4vw, 2.5rem)', lineHeight: 1.1, letterSpacing: '-0.01em', maxWidth: '36rem' }}>
             {t('headline')}
           </h2>
           <p className="text-base leading-[1.5] text-[#4a4a5a] mx-auto" style={{ fontWeight: 300, maxWidth: '42rem' }}>
@@ -104,10 +107,10 @@ export function SectionSignals() {
           {beats.map((beat, i) => (
             <motion.div
               key={beat.index}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.45, ease, delay: i * 0.1 }}
+              transition={reduced ? { duration: 0 } : { duration: 0.45, ease, delay: i * 0.1 }}
             >
               <div className="mb-3 font-medium uppercase text-[#2563eb]" style={{ fontSize: '13px', letterSpacing: '0.06em' }}>
                 {beat.index}
@@ -115,7 +118,7 @@ export function SectionSignals() {
               <h3 className="mb-2 font-medium text-[#1a1a1a]" style={{ fontSize: '1.125rem', lineHeight: 1.3 }}>
                 {beat.title}
               </h3>
-              <p className="text-[0.9375rem] leading-[1.5] text-[#4a4a5a]" style={{ fontWeight: 300 }}>
+              <p className="text-base leading-[1.5] text-[#4a4a5a]" style={{ fontWeight: 300 }}>
                 {beat.body}
               </p>
             </motion.div>
@@ -125,10 +128,10 @@ export function SectionSignals() {
         <motion.p
           className="mt-16 text-center mx-auto text-base text-[#4a4a5a]"
           style={{ fontWeight: 300, fontStyle: 'italic', maxWidth: '42rem', lineHeight: 1.6 }}
-          initial={{ opacity: 0 }}
+          initial={{ opacity: reduced ? 1 : 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.45, ease, delay: 0.1 }}
+          transition={reduced ? { duration: 0 } : { duration: 0.45, ease, delay: 0.1 }}
         >
           {t('close')}
         </motion.p>
