@@ -52,7 +52,7 @@ Trois largeurs uniquement, choisies selon le contenu :
 Fond app          : #f5f2ee (beige)
 Fond cards        : #ffffff
 Borders neutres   : #e8e3dc
-Accent primaire   : #3b6bef (blue, CTAs principaux)
+Accent primaire   : #2563eb (blue, CTAs principaux)
 Accent secondaire : bleu Tailwind blue-50/600 pour eyebrows et liens
 Texte primaire    : #1a1a1a (slate-900 équivalent)
 Texte secondaire  : #4a4a5a (slate-600 équivalent)
@@ -60,7 +60,7 @@ Texte secondaire  : #4a4a5a (slate-600 équivalent)
 
 **Règles** :
 - Light theme uniquement (Sentra ne supporte pas dark mode)
-- CTAs principaux : `bg-[#3b6bef] text-white`
+- CTAs principaux : `bg-[#2563eb] text-white`
 - Liens inline : `text-blue-600 hover:underline`
 - Pas de couleurs hors palette sans validation
 
@@ -212,7 +212,7 @@ Avec Playwright MCP, ouvre [URL prod ou localhost:3000/route] et prends un scree
 Vérifie :
 - Largeur canonique correcte (max-w-2xl/3xl/7xl)
 - Status badges respectent le pattern pill (bg/text/border, pas texte seul)
-- Couleurs cohérentes avec la palette (#f5f2ee fond, #3b6bef CTAs)
+- Couleurs cohérentes avec la palette (#f5f2ee fond, #2563eb CTAs)
 - Pas de débordement responsive
 ```
 
@@ -252,7 +252,7 @@ Verdict : 0 erreur attendue, sinon corriger avant clôture.
 - Largeur custom non justifiée (`max-w-[840px]`)
 - Status indicator en texte coloré seul (sans pill)
 - Tooltip sans Portal (peut être clippé par parent)
-- CTA sans `bg-[#3b6bef]` (ou variant validé)
+- CTA sans `bg-[#2563eb]` (ou variant validé)
 - Mention vendor (Claude, Clay, etc.) dans l'UI user-facing
 - Persistance silencieuse en cours d'édition (sans Save explicite)
 - Dark mode (non supporté)
