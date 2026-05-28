@@ -33,7 +33,7 @@ export const runtime = 'nodejs';
 type Priority = 'low' | 'medium' | 'high' | 'critical';
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

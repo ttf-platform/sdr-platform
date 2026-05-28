@@ -24,7 +24,7 @@ import { feedbackSchema, badRequest } from '@/lib/schemas';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

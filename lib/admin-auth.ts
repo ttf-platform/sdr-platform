@@ -26,7 +26,7 @@ export function isAdminEmail(email: string | null | undefined): boolean {
  * if they are a Sentra admin, throws otherwise.
  */
 export async function requireSentraAdmin(): Promise<{ id: string; email: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

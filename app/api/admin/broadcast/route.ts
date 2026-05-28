@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     await resend.emails.send({ from: 'Mirvo <hello@mirvo.ai>', to: email as string, subject, html: htmlBody })
   }
 
-  const { data: { user } } = await createClient().auth.getUser()
+  const { data: { user } } = await (await createClient()).auth.getUser()
   await logAdminAction({
     admin_id:    user!.id,
     action_type: 'broadcast_sent',
