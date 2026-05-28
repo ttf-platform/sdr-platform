@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { setConsent, hasConsentBeenGiven } from '@/lib/cookie-consent'
+import { initPostHogIfAllowed } from '@/app/providers'
 
 export function CookieConsentBanner() {
   const [visible, setVisible] = useState(false)
@@ -13,7 +14,7 @@ export function CookieConsentBanner() {
   function handleAccept() {
     setConsent('accepted')
     setVisible(false)
-    window.location.reload()
+    initPostHogIfAllowed()
   }
 
   function handleReject() {
