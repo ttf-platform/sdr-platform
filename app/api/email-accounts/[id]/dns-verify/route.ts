@@ -47,7 +47,7 @@ function isValidRecord(r: { name?: string; value?: string } | undefined): r is {
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // --- Auth ---
   const {

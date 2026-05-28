@@ -17,7 +17,7 @@ export const metadata = {
 };
 
 export default async function SendingDomainsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

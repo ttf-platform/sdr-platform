@@ -7,7 +7,7 @@ export async function billingGuard(): Promise<
   { blocked: true; response: ReturnType<typeof NextResponse.json> } |
   { blocked: false; workspaceId: string; userId: string }
 > {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { blocked: true, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }

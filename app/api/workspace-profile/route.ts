@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { workspaceBookingProfileSchema, badRequest } from '@/lib/schemas'
 
 async function getWorkspaceId() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { user: null, workspaceId: null, supabase }
   const { data: member } = await supabase

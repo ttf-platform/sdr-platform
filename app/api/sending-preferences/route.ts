@@ -4,7 +4,7 @@ import { DEFAULT_SENDING_PREFS } from "@/lib/types/sending-prefs";
 import { sendingPreferencesSchema, badRequest } from "@/lib/schemas";
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

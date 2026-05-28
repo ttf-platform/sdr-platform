@@ -22,7 +22,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

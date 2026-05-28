@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   await admin.from('workspaces').update({ credits: amount, is_free_granted: true }).eq('id', member.workspace_id)
   await admin.from('credit_history').insert({ workspace_id: member.workspace_id, amount, reason })
 
-  const { data: { user } } = await createClient().auth.getUser()
+  const { data: { user } } = await (await createClient()).auth.getUser()
   await logAdminAction({
     admin_id:    user!.id,
     action_type: 'credits_granted',

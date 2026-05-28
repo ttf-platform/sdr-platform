@@ -4,7 +4,7 @@ import { generateICS } from '@/lib/ics'
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

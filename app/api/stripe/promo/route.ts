@@ -8,7 +8,7 @@ import { stripePromoSchema, badRequest } from '@/lib/schemas'
 export async function POST(request: Request) {
   if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

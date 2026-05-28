@@ -14,7 +14,7 @@ import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
 
 export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
