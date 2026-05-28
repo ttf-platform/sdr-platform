@@ -7,6 +7,7 @@ import { TrustBand } from '@/components/landing/TrustBand';
 import { SectionProblem } from '@/components/landing/SectionProblem';
 import { SectionSolution } from '@/components/landing/SectionSolution';
 import { SectionHowItWorks } from '@/components/landing/SectionHowItWorks';
+import { SectionSignals } from '@/components/landing/SectionSignals';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { SectionStackComparison } from '@/components/landing/SectionStackComparison';
 import { SectionBuiltForFounders } from '@/components/landing/SectionBuiltForFounders';
@@ -90,6 +91,7 @@ export default async function LandingPage({
         <SectionProblem />
         <SectionSolution />
         <SectionHowItWorks />
+        <SectionSignals />
         <PricingSection />
         <SectionStackComparison />
         <SectionBuiltForFounders />
