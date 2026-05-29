@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/auto-scan-signals",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-emails",
+      "schedule": "0 10 * * *"
     }
   ]
 }
