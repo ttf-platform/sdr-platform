@@ -1,0 +1,68 @@
+---
+title: Mailbox warmup explained
+description: Why traditional warmup takes weeks, how Mirvo bypasses it, and what you can actually send on day one.
+slug: mailbox-warmup-explained
+category: sending-infrastructure
+order: 5
+last_updated: 2026-05-29
+---
+
+# Mailbox warmup explained
+
+Traditional cold email tools tell you to wait two to four weeks before sending real emails. Mirvo doesn't. This article explains why, and what you can actually send from day one.
+
+## Why traditional warmup exists
+
+Email service providers judge sender reputation by behavior patterns. A fresh domain or mailbox that suddenly sends 500 emails per day looks like a spammer. To build reputation gradually, traditional tools warm up a mailbox by sending increasing volumes of low-risk emails (often to their own warmup network) over several weeks.
+
+The problem: you sign up, set everything up, and then wait. No outbound for 2-4 weeks.
+
+## How Mirvo handles it differently
+
+Mirvo sends through a managed deliverability infrastructure: a pool of pre-warmed mailboxes and domains with established reputation. When you connect your mailbox, your outbound traffic goes through that pool, not directly from a cold mailbox.
+
+Your real inbox stays clean. Recipients see your domain in the reply-to and signature. Your sending reputation builds over time on the infrastructure side, invisibly to you.
+
+This means:
+
+- No waiting period
+- First emails can go out within an hour of completing setup
+- Volume ramps up progressively in the background (low in week 1, full capacity by week 4+)
+- You don't manage any of this
+
+<Callout type="info">
+Your first campaign may process slowly if you launch with a large prospect list on day one. Start with 20-50 prospects for your first batch to let the infrastructure establish a pattern for your account.
+</Callout>
+
+## What "warmup progress" means in your dashboard
+
+You'll see a warmup status indicator under **Settings, Mailboxes**. It shows where you are in the ramp-up period.
+
+- **Warming (0-30%):** Send volume limited. Drafts approved go into a queue and are sent progressively.
+- **Building (30-70%):** Normal volume available. Most campaigns run without delay.
+- **Ready (70-100%):** Full sending capacity. No restrictions.
+
+[SCREENSHOT: Mailbox status page showing warmup progress bar at different stages]
+
+The ramp happens automatically. You don't need to do anything.
+
+## What you can send on day one
+
+All of these work immediately:
+
+- Single emails via Approval Queue
+- Test drafts to yourself
+- Small campaigns (under 50 prospects)
+
+Large campaigns (200+ prospects, multiple follow-up steps) work better once warmup is above 50%.
+
+## Custom domain warmup
+
+If you add a custom sending domain, a separate warmup period applies to that domain. Plan on 2-4 weeks before running high-volume campaigns from a fresh custom domain.
+
+<Callout type="tip">
+Run your first campaigns through Mirvo's shared infrastructure while your custom domain warms up. Switch campaigns to your custom domain once it hits "Ready" status.
+</Callout>
+
+- [Adding a sending domain](/help/adding-a-sending-domain)
+- [Why emails go to spam](/help/why-emails-go-to-spam)

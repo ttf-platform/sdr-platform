@@ -1,0 +1,93 @@
+---
+title: Creating custom signals
+description: How to build a Signal from scratch, configure conditions, and test it before attaching to a campaign.
+slug: creating-custom-signals
+category: signals
+order: 13
+last_updated: 2026-05-29
+---
+
+# Creating custom signals
+
+This article covers building a Signal from scratch. If you want to understand what Signals are first, start with [What are Signals?](/help/what-are-signals).
+
+## When to create a custom Signal
+
+The built-in Signals (funding, hiring, news) cover the most common triggers. Create a custom Signal when:
+
+- You're watching for something specific to your ICP (e.g., "VP of Sales at a company using Salesforce who just posted about pipeline problems")
+- You want to combine multiple conditions (e.g., hiring AND recent funding)
+- You're targeting a narrow niche where the built-in signals produce too much noise
+
+## Step 1. Open the Signal builder
+
+Go to **Signals** in the sidebar, then click **New Signal**.
+
+[SCREENSHOT: Signals list page with "New Signal" button highlighted]
+
+## Step 2. Name your Signal
+
+Names are internal only. Be specific: "Series A + hiring SDRs" is more useful than "growth signal."
+
+## Step 3. Choose a signal source
+
+Sources determine what data the Signal scans:
+
+| Source | What it scans |
+|---|---|
+| Web activity | Company news, press mentions, blog posts |
+| Job postings | Open roles by title, keyword, department |
+| Funding events | New rounds by stage, size, or investor |
+| LinkedIn activity | Posts, job changes (requires LinkedIn connection) |
+
+Select one or more sources. Each source adds to the potential match surface.
+
+<Callout type="info">
+Source availability depends on your plan. Check Settings, Billing to see which sources are active for your workspace.
+</Callout>
+
+## Step 4. Set conditions
+
+Conditions filter the raw signal events down to the ones you care about.
+
+**Keyword conditions:** The signal fires when a scanned document contains these terms. Separate terms with commas for OR logic. Use "must contain all" toggle for AND logic.
+
+Examples:
+- `sales enablement, revenue operations` (fires if either appears)
+- Must contain all: `CRM` + `implementation` (fires only when both appear)
+
+**Role filter:** Narrow by the prospect's title. The signal only fires for prospects whose role matches.
+
+**Company conditions:** Filter by company size, stage, or industry. Useful when you want the trigger to be relevant only for a specific company profile.
+
+[SCREENSHOT: Signal condition builder showing keyword field, role filter, and company conditions panel]
+
+## Step 5. Preview matches
+
+Before saving, click **Preview matches**. This shows you recent events that would have matched your conditions, pulled from the last 30 days of data.
+
+Check:
+- Are these the kind of companies you actually want to reach?
+- Are there false positives? (matches that look right but aren't)
+
+If the preview is empty, your conditions may be too narrow. If it's full of irrelevant results, tighten the keyword or add a role filter.
+
+## Step 6. Save and attach
+
+Save the Signal. Then attach it to a campaign in the campaign wizard under "Buying signal targeting."
+
+<Callout type="tip">
+A Signal you've never attached to a campaign still runs its scans nightly. It just doesn't produce drafts. You can attach it later and the matching history is preserved.
+</Callout>
+
+## Editing a Signal later
+
+Go to **Signals, [your signal], Edit conditions** to modify conditions at any time. Changes take effect on the next nightly scan.
+
+Signal edits don't retroactively change existing drafts in the Approval Queue.
+
+## Where to go next
+
+- [What are Signals?](/help/what-are-signals): the optional precision layer explained
+- [Auto-scan and Approval Queue](/help/auto-scan-and-approval-queue): how matches become drafts
+- [Create your first campaign](/help/create-your-first-campaign): attaching a Signal in the campaign wizard

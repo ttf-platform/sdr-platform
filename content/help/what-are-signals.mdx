@@ -1,0 +1,84 @@
+---
+title: What are Signals?
+description: Signals are optional intent detectors that fire drafts on buying moments. This article explains what they are, when to use them, and when not to.
+slug: what-are-signals
+category: signals
+order: 6
+last_updated: 2026-05-29
+---
+
+# What are Signals?
+
+Signals are optional, custom intent detectors. They watch for specific events that suggest a prospect is more likely to buy right now, then trigger a draft at that moment.
+
+This article explains what Signals are, what they can detect, and when using them (or skipping them) makes sense.
+
+## The core idea
+
+Timing matters in cold email. Reaching a VP of Sales the week they post a LinkedIn message about needing more pipeline is very different from reaching them on a random Tuesday.
+
+Signals let you define the exact event that matters for your ICP, then automate the response. When the event fires, Mirvo drafts a personalized email referencing that context.
+
+## Signals are optional
+
+<Callout type="info">
+Without any Signals, Mirvo drafts emails for every prospect in your campaign. Signals add a precision layer on top, they don't replace the base workflow. Most users run their first campaigns without Signals, then add them after learning what triggers replies.
+</Callout>
+
+If you have a target list and want to reach everyone on it, you don't need a Signal. Launch the campaign, approve the drafts, done.
+
+Signals are the right tool when you want to reach prospects only at the right moment, and you know what that moment looks like.
+
+## What Signals can detect
+
+| Signal type | Example |
+|---|---|
+| Hiring | A target company posts a job for "SDR" or "Head of Sales" |
+| Funding | A prospect raises a Series A or Series B |
+| Competitor mention | A prospect posts about a competitor product or switching tools |
+| Tech stack change | A prospect's company adopts a new tool in your category |
+| Leadership change | A new VP of Sales joins a target account |
+| Product launch | A prospect launches a new product or enters a new market |
+| Web mention | A prospect mentions a specific pain point publicly |
+| News coverage | A prospect is featured in press around a topic you address |
+
+You can combine conditions (hiring SDR AND Series A raised) for higher precision.
+
+## How Signals integrate with a campaign
+
+When you add a Signal to a campaign:
+
+1. Mirvo scans for matching events every night
+2. When a match fires on a prospect already in your campaign's scope, a draft is queued
+3. The draft references the signal context in the email body
+4. It lands in your Approval Queue like any other draft
+
+Prospects in your campaign who never trigger the Signal don't get a draft from it. That's by design: the Signal is a qualifier, not a replacement for your prospect list.
+
+[SCREENSHOT: Signals library page showing a list of active signals with match counts]
+
+[SCREENSHOT: Signal detail page showing recent matches and the trigger conditions]
+
+## When to use Signals
+
+Use Signals when:
+
+- You have a specific buying trigger you know predicts purchase intent
+- You want to reach a prospect at a specific moment rather than at any time
+- You're targeting high-value accounts where timing matters more than volume
+
+## When to skip Signals
+
+Skip Signals when:
+
+- You're just getting started and want to learn what messaging resonates first
+- Your buyers don't have obvious external buying signals
+- Your campaign is time-sensitive and you need to reach everyone now
+
+You can always add a Signal to an existing campaign later.
+
+## Next steps
+
+- [Creating custom signals](/help/creating-custom-signals): building your own signal conditions
+- [Auto-scan and Approval Queue](/help/auto-scan-and-approval-queue): how the nightly scan works
+- [Create your first campaign](/help/create-your-first-campaign): putting it all together

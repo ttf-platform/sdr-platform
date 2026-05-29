@@ -1,0 +1,80 @@
+---
+title: Auto-scan and Approval Queue
+description: How Mirvo's nightly scan turns signal matches into drafts in your Approval Queue, and what controls the timing.
+slug: auto-scan-and-approval-queue
+category: signals
+order: 14
+last_updated: 2026-05-29
+---
+
+# Auto-scan and Approval Queue
+
+When a Signal fires, Mirvo moves from detection to draft automatically. This article explains the full pipeline: from scan to draft to queue.
+
+## The pipeline
+
+```
+Nightly scan → Signal match → Draft generated → Approval Queue
+```
+
+Each step happens without you doing anything. You only act at the last step: approving or rejecting the draft.
+
+## When scans run
+
+Signals scan nightly, typically between 2am-6am UTC. Each scan processes all active Signals in your workspace.
+
+The scan cadence means there's a natural lag. If a prospect posts something at 3pm, it won't surface until the next morning's scan.
+
+[SCREENSHOT: Signal detail page showing "Last scanned" timestamp and match count]
+
+## What triggers a draft
+
+A match is created when:
+
+1. A prospect in a campaign scope matches the Signal condition
+2. The same prospect hasn't already been matched by this Signal in the last 30 days (deduplication)
+3. The prospect hasn't already been sent through the email sequence
+
+All three conditions must be true. If a prospect already has an active sequence, the Signal match is logged but no draft is generated.
+
+## Draft generation
+
+After a match, the AI generates a draft using:
+
+- The prospect's data
+- Your Master ICP
+- The matched signal event (what happened, when, why it was flagged)
+
+The signal context is included in the draft to make the first sentence grounded in a real, recent event.
+
+<Callout type="tip">
+In the Approval Queue, expand a draft to see the Signal context panel. It shows the matched event that triggered the draft. Check it before approving — if the match looks off, reject and the signal deduplication window prevents a re-match for 30 days.
+</Callout>
+
+## Appearance in the queue
+
+Signal-triggered drafts appear in the Approval Queue like any other draft, with one addition: a Signal badge showing which Signal triggered the draft.
+
+You can filter the queue to show only signal-triggered drafts:
+
+**Approval Queue, Filters, Signal: [your signal name]**
+
+[SCREENSHOT: Approval Queue filtered to show only signal-triggered drafts with Signal badge visible]
+
+## Volume and pacing
+
+If a signal fires for 50 prospects in one scan, 50 drafts arrive in the queue the same morning. This is expected behavior, not a bug.
+
+If that volume is too high, tighten your Signal conditions (narrower keywords, role filter, company stage) to reduce the match rate. You can also pause a campaign temporarily to stop draft generation.
+
+## Campaigns without signals
+
+Campaigns without Signals generate drafts for all prospects immediately after launch. Drafts appear in the queue within minutes to an hour depending on queue depth.
+
+Campaigns with Signals only generate drafts when a match occurs. Prospects can sit in scope for weeks without a draft if no signal fires for them.
+
+## Where to go next
+
+- [Creating custom signals](/help/creating-custom-signals): building Signal conditions
+- [Approval Queue workflow](/help/approval-queue-workflow): reviewing and approving drafts
+- [What are Signals?](/help/what-are-signals): the optional precision layer explained

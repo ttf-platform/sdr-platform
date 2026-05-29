@@ -1,0 +1,79 @@
+---
+title: Create your first campaign
+description: Step-by-step walkthrough for creating and launching a Mirvo campaign, from naming to first drafts in the queue.
+slug: create-your-first-campaign
+category: campaigns
+order: 7
+last_updated: 2026-05-29
+---
+
+# Create your first campaign
+
+This article walks through creating and launching a campaign end to end. Prerequisite: your Master ICP is filled in and at least one mailbox is connected.
+
+## Step 1. Open the campaign wizard
+
+Click **Campaigns, New campaign** in the sidebar. The wizard opens.
+
+[SCREENSHOT: Campaigns list page with "New campaign" button highlighted]
+
+## Step 2. Name your campaign
+
+Pick a name that describes the target and angle. You'll reference this when reading Approval Queue drafts.
+
+Good examples: "Series A SaaS founders Q3" or "CHRO at healthcare 500-2000 emp."
+
+## Step 3. Select your prospects
+
+Two options:
+
+**Import:** Upload a CSV or paste rows. Required columns: email, first_name, company. Additional columns (role, industry, etc.) become available to the AI as personalization context.
+
+**Search:** Use Mirvo's prospect database. Filter by role, industry, company size, geography, and tech stack. Add results to the campaign directly.
+
+You can combine both: import your own list and add searched prospects to the same campaign.
+
+<Callout type="tip">
+For your first campaign, start with 20-50 prospects. Smaller batches let you calibrate the ICP and review drafts before scaling.
+</Callout>
+
+[SCREENSHOT: Prospect selection step showing Import and Search tabs with filters open]
+
+## Step 4. Configure your email sequence
+
+Add the first email, then optional follow-up steps.
+
+- **First email:** Mirvo drafts this using your ICP and prospect data. You approve before it sends.
+- **Follow-ups:** Set the delay (e.g., 3 days, 7 days) and tone guidance per step. Mirvo drafts each follow-up in context of the previous email.
+- **Sequence length:** 1-5 steps. Most effective campaigns use 2-3 steps.
+
+[SCREENSHOT: Sequence builder showing first email and two follow-up steps with delay settings]
+
+## Step 5. (Optional) Add a Signal
+
+Under "Buying signal targeting," click **Add Signal**. Choose an existing Signal or create a new one.
+
+Without a Signal, Mirvo drafts for every prospect in the campaign immediately.
+
+With a Signal, drafts are generated only when a prospect in scope matches the Signal condition. Other prospects in scope get no draft until the signal fires, or if you also run the campaign without signal targeting.
+
+[SCREENSHOT: Signal selection dropdown in campaign wizard with "Skip for now" option visible]
+
+## Step 6. Review and launch
+
+The summary screen shows your prospect count, sequence steps, and Signal configuration. Click **Launch campaign**.
+
+Mirvo begins processing prospects. For campaigns without signals, drafts appear in the Approval Queue within minutes to an hour depending on queue depth.
+
+[SCREENSHOT: Campaign summary confirmation screen before launch]
+
+## After launch
+
+Check your **Approval Queue** to find the first drafts. Read them, edit if needed, and approve.
+
+Nothing sends until you approve. You stay in control of every email.
+
+- [Approval Queue workflow](/help/approval-queue-workflow): reviewing and approving drafts
+- [Picking your prospects](/help/picking-your-prospects): CSV import and search in depth
+- [What are Signals?](/help/what-are-signals): the optional precision layer
+- [Launch campaign checklist](/help/launch-campaign-checklist): pre-launch sanity check

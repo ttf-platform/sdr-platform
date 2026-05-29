@@ -1,0 +1,97 @@
+---
+title: Linking your mailbox
+description: How to connect Gmail or Outlook to Mirvo via OAuth, what permissions are requested and why, and how to reconnect if disconnected.
+slug: linking-your-mailbox
+category: getting-started
+order: 19
+last_updated: 2026-05-29
+---
+
+# Linking your mailbox
+
+Mirvo sends approved emails through your own mailbox. This keeps the From address as you, not a shared sending pool. This article covers connecting and maintaining your mailbox connection.
+
+## What "linking" means
+
+Mirvo connects to your mailbox via OAuth, the same standard used by calendar apps and productivity tools. You authorize Mirvo to send on your behalf. No password is shared.
+
+When a draft is approved, Mirvo uses this authorization to dispatch the email from your address.
+
+## Supported providers
+
+- **Gmail** (personal and Google Workspace)
+- **Outlook** (personal and Microsoft 365)
+
+Other providers are not supported.
+
+## Connecting your mailbox
+
+<Steps>
+1. Go to **Settings, Mailboxes**
+2. Click **Add mailbox**
+3. Choose Gmail or Outlook
+4. Complete the OAuth consent screen in the popup
+5. Grant all requested permissions (see below)
+6. The popup redirects back to Mirvo. The mailbox appears as "Active"
+</Steps>
+
+[SCREENSHOT: Settings Mailboxes page showing Add mailbox button and connected mailbox with Active status badge]
+
+## Permissions requested
+
+Mirvo requests the minimum permissions needed to send email:
+
+| Permission | Why |
+|---|---|
+| Send email on your behalf | Dispatches approved drafts from your address |
+| Read email metadata | Detects replies to Mirvo-sent emails |
+| Manage labels (Gmail) | Marks Mirvo-sent threads for reply tracking |
+
+Mirvo does not request access to read your inbox contents, contacts, or calendar.
+
+<Callout type="info">
+If your organization's IT policy restricts third-party app access, you may need IT to allowlist Mirvo before the OAuth flow completes. See the troubleshooting section below.
+</Callout>
+
+## Adding multiple mailboxes
+
+You can connect more than one mailbox. Go to Settings, Mailboxes, Add mailbox. Each campaign selects which mailbox sends its emails.
+
+Use cases for multiple mailboxes:
+- Different segments get email from different team members
+- You're running campaigns in parallel and want to distribute send volume
+
+## If your mailbox disconnects
+
+Mailboxes disconnect when you change your account password, revoke app access in Google/Microsoft settings, or when the OAuth token expires (typically after 6-12 months of inactivity).
+
+To reconnect:
+
+<Steps>
+1. Go to **Settings, Mailboxes**
+2. Click the disconnected mailbox (shows "Disconnected" or "Reconnect required")
+3. Click **Reconnect** and complete the OAuth flow again
+</Steps>
+
+Campaigns pause automatically when their mailbox disconnects. They resume as soon as the mailbox is reconnected.
+
+## Troubleshooting
+
+**OAuth popup closes without completing:**
+- Don't close the popup until it redirects back to Mirvo
+- Disable popup blockers for mirvo.ai temporarily
+
+**Gmail: "This app hasn't been verified" warning:**
+- Click "Advanced" then "Go to Mirvo (unsafe)" on the Google warning screen. This warning appears for OAuth apps that haven't gone through Google's verification program and is a UX issue, not a security risk.
+
+**Gmail: Google Workspace admin has blocked third-party app access:**
+- Ask your admin to allowlist Mirvo's OAuth app, or use a personal Google account for testing
+
+**Outlook: OAuth fails silently:**
+- Often caused by conditional access policies requiring MFA in a specific flow. Use a mailbox not behind strict conditional access, or ask IT to add an exception.
+
+## Where to go next
+
+- [7-step setup](/help/7-step-setup): full onboarding checklist
+- [Adding a sending domain](/help/adding-a-sending-domain): custom domain for sending
+- [Troubleshooting common issues](/help/troubleshooting): OAuth troubleshooting Q&A

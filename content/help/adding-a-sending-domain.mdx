@@ -1,0 +1,72 @@
+---
+title: Adding a sending domain
+description: How to connect a custom sending domain, configure DNS, and troubleshoot verification issues.
+slug: adding-a-sending-domain
+category: sending-infrastructure
+order: 4
+last_updated: 2026-05-29
+---
+
+# Adding a sending domain
+
+By default, Mirvo sends from a shared sending domain with managed reputation. That works from day one and requires zero setup.
+
+For better long-term deliverability and brand consistency, connect a custom domain you own. Emails sent from your own domain build your reputation over time, and recipients see your brand in the From header.
+
+## The 3-step wizard
+
+Go to **Settings, Sending Domains, Add domain**. The wizard guides you through three steps.
+
+### Step 1. Enter your domain
+
+Type the domain you want to send from (e.g., `outreach.yourdomain.com`). Using a subdomain (not your root domain) is recommended: it isolates outbound reputation from your main domain.
+
+[SCREENSHOT: Step 1 of the wizard, domain input field, with annotation showing subdomain recommendation]
+
+### Step 2. Add DNS records
+
+Mirvo generates three DNS records: SPF, DKIM, and DMARC. Copy them to your DNS provider.
+
+| Record type | What it does |
+|---|---|
+| SPF (TXT) | Authorizes Mirvo's servers to send on behalf of your domain |
+| DKIM (CNAME or TXT) | Cryptographic signature proving emails weren't tampered with |
+| DMARC (TXT) | Policy telling receiving servers what to do with failures |
+
+**Cloudflare:** DNS, Add record. Select the type (TXT or CNAME), paste name and value.
+
+**GoDaddy:** DNS Management, Add. Select type, paste fields.
+
+**Namecheap:** Advanced DNS, Add New Record. Select type, paste.
+
+**Route 53:** Hosted Zones, your domain, Create record. Select type, paste.
+
+<Callout type="warning">
+DNS propagation takes up to 48 hours, though usually under 2 hours. Mirvo checks periodically and will notify you once verification passes.
+</Callout>
+
+[SCREENSHOT: DNS records table in wizard with copy buttons, showing SPF/DKIM/DMARC rows]
+
+### Step 3. Verify
+
+Click **Check DNS**. Mirvo queries your DNS records. When all three are detected, your domain is verified and active.
+
+[SCREENSHOT: Step 3 verification screen showing green checkmarks on all three records]
+
+## Troubleshooting
+
+**"SPF record not found":** Make sure you added the record as type TXT (not A or CNAME). If you already have an SPF record for the domain, merge the Mirvo include into your existing record rather than adding a second one.
+
+**"DKIM not detected":** Some DNS providers add a trailing dot to CNAMEs automatically. If verification fails, try adding or removing the trailing dot from the record name.
+
+**"DMARC missing":** Add the DMARC record as-is. If you have an existing DMARC record for your root domain, the subdomain inherits it, so you may not need a separate one.
+
+**Records look correct but still failing:** Wait 30 minutes and retry. DNS propagation sometimes takes longer through certain providers.
+
+## After verification
+
+Your domain appears as "Active" in Settings, Sending Domains. New campaigns use it automatically. You can set a different domain per campaign if you have multiple.
+
+- [7-step setup walkthrough](/help/7-step-setup)
+- [Mailbox warmup explained](/help/mailbox-warmup-explained)
+- [Why emails go to spam](/help/why-emails-go-to-spam)

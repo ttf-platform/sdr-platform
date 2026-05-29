@@ -1,0 +1,80 @@
+---
+title: Launch campaign checklist
+description: Pre-launch checklist to run before activating any campaign. Catches the common mistakes before they reach a prospect's inbox.
+slug: launch-campaign-checklist
+category: approval-sending
+order: 16
+last_updated: 2026-05-29
+---
+
+# Launch campaign checklist
+
+Run this before launching any campaign. Most issues that produce poor results or deliverability problems are visible before the first email sends.
+
+## Checklist
+
+### Mailbox
+
+- [ ] At least one mailbox is connected and shows "Active" in Settings, Mailboxes
+- [ ] The mailbox is not disconnected or awaiting reconnection
+- [ ] If using a custom sending domain: SPF, DKIM, and DMARC records are verified
+
+### Master ICP
+
+- [ ] ICP has a "Who you sell to" section with role, company stage, and size
+- [ ] Pain section names a specific problem, not a category ("pipeline visibility" not "sales problems")
+- [ ] Tone of voice section has at least one sentence with an example
+- [ ] ICP was reviewed in the last 30 days
+
+<Callout type="tip">
+The ICP is the most common source of generic drafts. If you haven't read it recently, open it before launching. Bad ICP + good prospects = mediocre drafts.
+</Callout>
+
+### Prospects
+
+- [ ] At least 5 prospects added to the campaign
+- [ ] Prospects have role and company data, not just email + name
+- [ ] No obvious duplicates (same email, same company with different names)
+- [ ] If CSV: import completed with no failed rows
+
+### Sequence
+
+- [ ] First email step is configured
+- [ ] Follow-up delays are set intentionally (3-7 days between steps is typical)
+- [ ] Sequence has no more than 5 steps
+- [ ] CTA in the first email is a soft ask, not "book a call"
+
+### Signal (if using one)
+
+- [ ] Signal is active and not paused
+- [ ] Signal conditions were previewed and match the right kind of events
+- [ ] You understand that without a signal match, no drafts generate
+
+### Approval Queue
+
+- [ ] Approval Queue is not filtered to a different campaign (would hide new drafts)
+- [ ] You have time to review drafts within 24h of launch
+
+---
+
+## After launch
+
+When drafts appear in the queue:
+
+1. Read the first 3-5 before bulk approving. Check that the AI is hitting the right angle.
+2. If all drafts look off on the same dimension (same wrong pain, same generic opener), pause the campaign and fix the ICP before approving.
+3. If individual drafts look off, edit or reject those specifically. Don't pause the whole campaign for isolated misses.
+
+## Common launch mistakes
+
+**Launching with only email + first name.** The AI has almost nothing to personalize. Add role, industry, and company stage at minimum. Better: add a "notes" column with one line about why each prospect is in the list.
+
+**Using the same ICP for every campaign.** Different campaigns often target different segments. Create a campaign-level ICP override (under campaign settings) rather than broadening your Master ICP.
+
+**Not reviewing the first batch.** Approving 50 drafts without reading any is how generic emails go out at scale. Review the first batch before it gets too large to audit.
+
+## Where to go next
+
+- [Approval Queue workflow](/help/approval-queue-workflow): reviewing and approving drafts
+- [Create your first campaign](/help/create-your-first-campaign): campaign wizard walkthrough
+- [Your Master ICP](/help/master-icp): improving the core input

@@ -1,9 +1,12 @@
 // @ts-check
 const createNextIntlPlugin = require('next-intl/plugin')
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
+const createMDX = require('@next/mdx')
+const withMDX = createMDX({ extension: /\.mdx?$/ })
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  pageExtensions: ['ts', 'tsx', 'mdx'],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -39,4 +42,4 @@ const nextConfig = {
   },
 }
 
-module.exports = withNextIntl(nextConfig)
+module.exports = withNextIntl(withMDX(nextConfig))
