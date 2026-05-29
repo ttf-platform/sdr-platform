@@ -7,10 +7,12 @@ export function Screenshot({
   src,
   alt,
   caption,
+  placeholder,
 }: {
-  src: string
+  src?: string
   alt: string
   caption?: string
+  placeholder?: boolean
 }) {
   const [zoomed, setZoomed] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -26,6 +28,17 @@ export function Screenshot({
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [zoomed])
+
+  if (placeholder || !src) {
+    return (
+      <figure className="my-6 overflow-hidden rounded-xl border-2 border-dashed border-[#e8e3dc] bg-[#faf8f5] px-6 py-10 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#2563eb] mb-3">
+          Screenshot coming soon
+        </p>
+        <p className="text-sm text-[#6b5e4e]">{caption ?? alt}</p>
+      </figure>
+    )
+  }
 
   return (
     <>
