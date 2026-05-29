@@ -32,7 +32,7 @@ export function LocaleSwitcher() {
             (isPending ? 'opacity-50 cursor-wait ' : '') +
             (l === locale
               ? 'text-[#1a1a1a] bg-[#e8e3dc]'
-              : 'text-[#8a7e6e] hover:text-[#1a1a1a]')
+              : 'text-[#6b5e4e] hover:text-[#1a1a1a]')
           }
         >
           {l.toUpperCase()}
