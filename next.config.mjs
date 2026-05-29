@@ -1,8 +1,16 @@
 // @ts-check
-const createNextIntlPlugin = require('next-intl/plugin')
+import createNextIntlPlugin from 'next-intl/plugin'
+import createMDX from '@next/mdx'
+import remarkFrontmatter from 'remark-frontmatter'
+import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
+
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
-const createMDX = require('@next/mdx')
-const withMDX = createMDX({ extension: /\.mdx?$/ })
+const withMDX = createMDX({
+  extension: /\.mdx?$/,
+  options: {
+    remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter],
+  },
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -42,4 +50,4 @@ const nextConfig = {
   },
 }
 
-module.exports = withNextIntl(withMDX(nextConfig))
+export default withNextIntl(withMDX(nextConfig))
