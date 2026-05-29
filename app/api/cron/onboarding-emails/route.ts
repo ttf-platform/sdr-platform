@@ -31,40 +31,42 @@ export async function GET(request: Request) {
     errors: [] as string[],
   }
 
-  // 1. All workspaces
+  // 1. All workspaces with their owner (via workspace_members role='owner')
   const { data: workspaces, error: wsErr } = await supa
     .from('workspaces')
-    .select('id, name, owner_user_id, subscription_status')
+    .select('id, name, subscription_status, workspace_members!inner(user_id, role)')
+    .eq('workspace_members.role', 'owner')
 
   if (wsErr || !workspaces) {
     return NextResponse.json({ error: wsErr?.message ?? 'failed to fetch workspaces' }, { status: 500 })
   }
 
-  // 2. All auth users (service role can access auth schema)
-  const { data: usersData, error: usersErr } = await supa
-    .schema('auth')
-    .from('users')
-    .select('id, email, created_at, raw_user_meta_data')
+  // 2. All auth users via admin SDK (service role)
+  const { data: { users: authUsers }, error: usersErr } = await supa.auth.admin.listUsers({ perPage: 1000 })
 
-  if (usersErr || !usersData) {
-    return NextResponse.json({ error: usersErr?.message ?? 'failed to fetch auth users' }, { status: 500 })
+  if (usersErr) {
+    return NextResponse.json({ error: usersErr.message ?? 'failed to fetch auth users' }, { status: 500 })
   }
 
   const userMap = new Map<string, { email: string; createdAt: Date; firstName: string | null }>(
-    usersData.map((u: { id: string; email: string; created_at: string; raw_user_meta_data: Record<string, unknown> | null }) => [
+    authUsers.map((u) => [
       u.id,
       {
-        email: u.email,
+        email: u.email ?? '',
         createdAt: new Date(u.created_at),
-        firstName: (u.raw_user_meta_data?.first_name as string | null) ?? null,
+        firstName: (u.user_metadata?.first_name as string | null) ?? null,
       },
     ])
   )
 
-  // 3. Already-sent idempotency set
-  const { data: sentRows } = await supa
+  // 3. Already-sent idempotency set — fail-closed if table missing
+  const { data: sentRows, error: sentErr } = await supa
     .from('onboarding_emails')
     .select('workspace_id, day_offset')
+
+  if (sentErr) {
+    return NextResponse.json({ error: `Failed to query idempotency table: ${sentErr.message}` }, { status: 500 })
+  }
 
   const sentSet = new Set<string>(
     (sentRows ?? []).map((r: { workspace_id: string; day_offset: number }) => `${r.workspace_id}:${r.day_offset}`)
@@ -73,7 +75,10 @@ export async function GET(request: Request) {
   const now = Date.now()
 
   for (const ws of workspaces) {
-    const user = userMap.get(ws.owner_user_id)
+    const members = ws.workspace_members as { user_id: string; role: string }[] | null
+    const ownerUserId = members?.[0]?.user_id
+    if (!ownerUserId) continue
+    const user = userMap.get(ownerUserId)
     if (!user?.email) continue
 
     const daysSinceSignup = Math.floor((now - user.createdAt.getTime()) / (86_400 * 1_000))
