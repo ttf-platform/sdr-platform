@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { generateICS } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
 import { bookingCreateSchema, badRequest } from '@/lib/schemas'
+import { rateLimitByIp } from '@/lib/rate-limit'
 
 // Auto-advance (or create) a deal when a meeting is booked.
 // Meeting booked is a hard factual signal — always advances UNLESS deal is
@@ -90,7 +91,8 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   const params = await context.params
-  // TODO: rate limit (Sprint 11 with Upstash/Vercel KV)
+  const rl = await rateLimitByIp(request, { limit: 10, window: '10 m', prefix: 'booking-create' })
+  if (!rl.allowed) return rl.response
   const admin = createAdminClient()
 
   let rawBody: unknown
