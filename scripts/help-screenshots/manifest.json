@@ -1,0 +1,352 @@
+[
+  {
+    "article_slug": "7-step-setup",
+    "index": 1,
+    "alt": "Settings, Mailboxes page with \"Add mailbox\" button highlighted, showing Gmail and Outlook options",
+    "caption": "Settings, Mailboxes page with \"Add mailbox\" button highlighted, showing Gmail and Outlook options",
+    "file": "7-step-setup-1.png",
+    "target_url": "/dashboard/settings",
+    "state_required": "mailbox-connected",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "7-step-setup",
+    "index": 2,
+    "alt": "Master ICP form with example values filled in",
+    "caption": "Master ICP form with example values filled in",
+    "file": "7-step-setup-2.png",
+    "target_url": "/dashboard/settings",
+    "state_required": "master-icp-filled",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "7-step-setup",
+    "index": 3,
+    "alt": "Sending Domains 3-step wizard, showing DNS records to add",
+    "caption": "Sending Domains 3-step wizard, showing DNS records to add",
+    "file": "7-step-setup-3.png",
+    "target_url": "/dashboard/settings/sending-domains/new",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "7-step-setup",
+    "index": 4,
+    "alt": "Prospects page with toggle between \"Import\" and \"Search\" tabs",
+    "caption": "Prospects page with toggle between \"Import\" and \"Search\" tabs",
+    "file": "7-step-setup-4.png",
+    "target_url": "/dashboard/prospects",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "7-step-setup",
+    "index": 5,
+    "alt": "Campaign creation form with prospect selection, sequence steps, and optional Signal section",
+    "caption": "Campaign creation form with prospect selection, sequence steps, and optional Signal section",
+    "file": "7-step-setup-5.png",
+    "target_url": "/dashboard/campaigns/new",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "7-step-setup",
+    "index": 6,
+    "alt": "Approval Queue with a draft email expanded, showing AI-generated personalization and edit/approve buttons",
+    "caption": "Approval Queue with a draft email expanded, showing AI-generated personalization and edit/approve buttons",
+    "file": "7-step-setup-6.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "7-step-setup",
+    "index": 7,
+    "alt": "Mirvo inbox with replies sorted by intent category, showing positive/objection/OOO labels",
+    "caption": "Mirvo inbox with replies sorted by intent category, showing positive/objection/OOO labels",
+    "file": "7-step-setup-7.png",
+    "target_url": "/dashboard/inbox",
+    "state_required": "replies-received",
+    "skip_reason": "intent-sorted reply inbox not fully built"
+  },
+  {
+    "article_slug": "adding-a-sending-domain",
+    "index": 1,
+    "alt": "Step 1 of the wizard, domain input field, with annotation showing subdomain recommendation",
+    "caption": "Step 1 of the wizard, domain input field, with annotation showing subdomain recommendation",
+    "file": "adding-a-sending-domain-1.png",
+    "target_url": "/dashboard/settings/sending-domains/new",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "adding-a-sending-domain",
+    "index": 2,
+    "alt": "DNS records table in wizard with copy buttons, showing SPF/DKIM/DMARC rows",
+    "caption": "DNS records table in wizard with copy buttons, showing SPF/DKIM/DMARC rows",
+    "file": "adding-a-sending-domain-2.png",
+    "target_url": "/dashboard/settings/sending-domains/new",
+    "state_required": "domain-wizard-step-2",
+    "skip_reason": "wizard step 2 requires completing step 1 form \u2014 multi-step state not reproducible at page load"
+  },
+  {
+    "article_slug": "adding-a-sending-domain",
+    "index": 3,
+    "alt": "Step 3 verification screen showing green checkmarks on all three records",
+    "caption": "Step 3 verification screen showing green checkmarks on all three records",
+    "file": "adding-a-sending-domain-3.png",
+    "target_url": "/dashboard/settings/sending-domains",
+    "state_required": "none",
+    "skip_reason": "verification checkmarks require real DNS propagation"
+  },
+  {
+    "article_slug": "approval-queue-workflow",
+    "index": 1,
+    "alt": "Approval Queue list view showing multiple drafts with campaign labels and timestamps",
+    "caption": "Approval Queue list view showing multiple drafts with campaign labels and timestamps",
+    "file": "approval-queue-workflow-1.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "approval-queue-workflow",
+    "index": 2,
+    "alt": "Draft expanded view with subject, body, and signal context panel open",
+    "caption": "Draft expanded view with subject, body, and signal context panel open",
+    "file": "approval-queue-workflow-2.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "approval-queue-workflow",
+    "index": 3,
+    "alt": "Bulk selection with checkboxes checked and bulk action bar at bottom showing Approve All, Reject All options",
+    "caption": "Bulk selection with checkboxes checked and bulk action bar at bottom showing Approve All, Reject All options",
+    "file": "approval-queue-workflow-3.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "auto-scan-and-approval-queue",
+    "index": 1,
+    "alt": "Signal detail page showing \"Last scanned\" timestamp and match count",
+    "caption": "Signal detail page showing \"Last scanned\" timestamp and match count",
+    "file": "auto-scan-and-approval-queue-1.png",
+    "target_url": "/dashboard/signals",
+    "state_required": "signals-seeded",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "auto-scan-and-approval-queue",
+    "index": 2,
+    "alt": "Approval Queue filtered to show only signal-triggered drafts with Signal badge visible",
+    "caption": "Approval Queue filtered to show only signal-triggered drafts with Signal badge visible",
+    "file": "auto-scan-and-approval-queue-2.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "create-your-first-campaign",
+    "index": 1,
+    "alt": "Campaigns list page with \"New campaign\" button highlighted",
+    "caption": "Campaigns list page with \"New campaign\" button highlighted",
+    "file": "create-your-first-campaign-1.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "create-your-first-campaign",
+    "index": 2,
+    "alt": "Prospect selection step showing Import and Search tabs with filters open",
+    "caption": "Prospect selection step showing Import and Search tabs with filters open",
+    "file": "create-your-first-campaign-2.png",
+    "target_url": "/dashboard/campaigns/new",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "create-your-first-campaign",
+    "index": 3,
+    "alt": "Sequence builder showing first email and two follow-up steps with delay settings",
+    "caption": "Sequence builder showing first email and two follow-up steps with delay settings",
+    "file": "create-your-first-campaign-3.png",
+    "target_url": "/dashboard/campaigns/new",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "create-your-first-campaign",
+    "index": 4,
+    "alt": "Signal selection dropdown in campaign wizard with \"Skip for now\" option visible",
+    "caption": "Signal selection dropdown in campaign wizard with \"Skip for now\" option visible",
+    "file": "create-your-first-campaign-4.png",
+    "target_url": "/dashboard/campaigns/new",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "create-your-first-campaign",
+    "index": 5,
+    "alt": "Campaign summary confirmation screen before launch",
+    "caption": "Campaign summary confirmation screen before launch",
+    "file": "create-your-first-campaign-5.png",
+    "target_url": "/dashboard/campaigns/new",
+    "state_required": "none",
+    "skip_reason": "multi-step wizard \u2014 final summary requires completing prior steps in same session"
+  },
+  {
+    "article_slug": "creating-custom-signals",
+    "index": 1,
+    "alt": "Signals list page with \"New Signal\" button highlighted",
+    "caption": "Signals list page with \"New Signal\" button highlighted",
+    "file": "creating-custom-signals-1.png",
+    "target_url": "/dashboard/signals",
+    "state_required": "signals-seeded",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "creating-custom-signals",
+    "index": 2,
+    "alt": "Signal condition builder showing keyword field, role filter, and company conditions panel",
+    "caption": "Signal condition builder showing keyword field, role filter, and company conditions panel",
+    "file": "creating-custom-signals-2.png",
+    "target_url": "/dashboard/signals",
+    "state_required": "signals-seeded",
+    "skip_reason": "signal condition editor is a detail view requiring signal ID in URL"
+  },
+  {
+    "article_slug": "editing-ai-variants",
+    "index": 1,
+    "alt": "Draft in edit mode with cursor in the body text, auto-save indicator visible",
+    "caption": "Draft in edit mode with cursor in the body text, auto-save indicator visible",
+    "file": "editing-ai-variants-1.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "how-ai-writes-personalized-emails",
+    "index": 1,
+    "alt": "Draft email with annotations showing which part came from prospect data, ICP, and signal context",
+    "caption": "Draft email with annotations showing which part came from prospect data, ICP, and signal context",
+    "file": "how-ai-writes-personalized-emails-1.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": "annotated overlay not a native UI element"
+  },
+  {
+    "article_slug": "linking-your-mailbox",
+    "index": 1,
+    "alt": "Settings Mailboxes page showing Add mailbox button and connected mailbox with Active status badge",
+    "caption": "Settings Mailboxes page showing Add mailbox button and connected mailbox with Active status badge",
+    "file": "linking-your-mailbox-1.png",
+    "target_url": "/dashboard/settings",
+    "state_required": "mailbox-connected",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "mailbox-warmup-explained",
+    "index": 1,
+    "alt": "Mailbox status page showing warmup progress bar at different stages",
+    "caption": "Mailbox status page showing warmup progress bar at different stages",
+    "file": "mailbox-warmup-explained-1.png",
+    "target_url": "/dashboard/settings",
+    "state_required": "mailbox-connected",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "master-icp",
+    "index": 1,
+    "alt": "Master ICP form with the three sections filled in with concrete examples",
+    "caption": "Master ICP form with the three sections filled in with concrete examples",
+    "file": "master-icp-1.png",
+    "target_url": "/dashboard/settings",
+    "state_required": "master-icp-filled",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "picking-your-prospects",
+    "index": 1,
+    "alt": "CSV import step showing column mapping preview with green checkmarks on required columns",
+    "caption": "CSV import step showing column mapping preview with green checkmarks on required columns",
+    "file": "picking-your-prospects-1.png",
+    "target_url": "/dashboard/prospects",
+    "state_required": "none",
+    "skip_reason": "CSV import preview is a modal/dialog state not capturable at static page load"
+  },
+  {
+    "article_slug": "picking-your-prospects",
+    "index": 2,
+    "alt": "Prospect search interface with filters panel open and results list",
+    "caption": "Prospect search interface with filters panel open and results list",
+    "file": "picking-your-prospects-2.png",
+    "target_url": "/dashboard/prospects",
+    "state_required": "none",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "quotas-explained",
+    "index": 1,
+    "alt": "Settings Billing page showing three usage bars with percentages and reset dates",
+    "caption": "Settings Billing page showing three usage bars with percentages and reset dates",
+    "file": "quotas-explained-1.png",
+    "target_url": "/dashboard/billing",
+    "state_required": "billing-usage-mid",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "reading-your-reply-inbox",
+    "index": 1,
+    "alt": "Mirvo inbox with sorted replies showing intent category badges in different colors",
+    "caption": "Mirvo inbox with sorted replies showing intent category badges in different colors",
+    "file": "reading-your-reply-inbox-1.png",
+    "target_url": "/dashboard/inbox",
+    "state_required": "replies-received",
+    "skip_reason": "intent-sorted inbox not fully built"
+  },
+  {
+    "article_slug": "reading-your-reply-inbox",
+    "index": 2,
+    "alt": "Expanded reply thread showing prospect message, original sent email below, and prospect details panel on the right",
+    "caption": "Expanded reply thread showing prospect message, original sent email below, and prospect details panel on the right",
+    "file": "reading-your-reply-inbox-2.png",
+    "target_url": "/dashboard/inbox",
+    "state_required": "replies-received",
+    "skip_reason": "expanded reply thread requires seeded reply data and click interaction"
+  },
+  {
+    "article_slug": "subject-line-best-practices",
+    "index": 1,
+    "alt": "Approval Queue draft with subject line field selected for editing",
+    "caption": "Approval Queue draft with subject line field selected for editing",
+    "file": "subject-line-best-practices-1.png",
+    "target_url": "/dashboard/campaigns",
+    "state_required": "campaign-launched-with-drafts",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "what-are-signals",
+    "index": 1,
+    "alt": "Signals library page showing a list of active signals with match counts",
+    "caption": "Signals library page showing a list of active signals with match counts",
+    "file": "what-are-signals-1.png",
+    "target_url": "/dashboard/signals",
+    "state_required": "signals-seeded",
+    "skip_reason": ""
+  },
+  {
+    "article_slug": "what-are-signals",
+    "index": 2,
+    "alt": "Signal detail page showing recent matches and the trigger conditions",
+    "caption": "Signal detail page showing recent matches and the trigger conditions",
+    "file": "what-are-signals-2.png",
+    "target_url": "/dashboard/signals",
+    "state_required": "signals-seeded",
+    "skip_reason": "signal detail page requires signal ID in URL"
+  }
+]
