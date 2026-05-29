@@ -10,7 +10,12 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:rls": "vitest run __tests__/rls",
-    "test:rls:gc": "node --experimental-strip-types __tests__/rls/gc.ts"
+    "test:rls:gc": "node --experimental-strip-types __tests__/rls/gc.ts",
+    "help:inventory": "npx tsx scripts/help-screenshots/inventory.ts",
+    "help:seed": "npx tsx scripts/help-screenshots/seed.ts",
+    "help:capture": "npx tsx scripts/help-screenshots/capture.ts",
+    "help:replace": "python3 scripts/help-screenshots/replace.py",
+    "help:all": "npm run help:seed && npm run help:capture && npm run help:replace"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
@@ -57,6 +62,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^8",
     "eslint-config-next": "^15.3.9",
+    "playwright": "^1.60.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
