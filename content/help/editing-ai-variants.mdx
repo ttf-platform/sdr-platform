@@ -1,0 +1,77 @@
+---
+title: Editing AI variants
+description: How to edit, regenerate, and guide AI drafts. What the AI learns from your edits over time.
+slug: editing-ai-variants
+category: approval-sending
+order: 15
+last_updated: 2026-05-29
+---
+
+# Editing AI variants
+
+The Approval Queue lets you edit every draft before it sends. This article covers how editing works and how to use it effectively.
+
+## Inline editing
+
+Click anywhere in the subject line or body to edit. No modal, no separate editor. Changes save automatically as you type.
+
+Common edits:
+- Shorten a long opening sentence
+- Replace a generic pain reference with something you know is specific to this prospect
+- Adjust the CTA tone
+- Fix a factual detail the AI got wrong (job title, company name variant)
+
+[SCREENSHOT: Draft in edit mode with cursor in the body text, auto-save indicator visible]
+
+## What to look for in a draft
+
+Before editing, read the draft as if you were the prospect receiving it. Ask:
+
+- **First sentence:** Is it specific? Does it reference something real about this person or company?
+- **Pain angle:** Is the problem named something this person actually cares about, given their role and stage?
+- **Tone:** Matches your ICP's tone setting? Not too formal, not too casual?
+- **Length:** Under 120 words for the first email?
+- **CTA:** Is the ask appropriate for a first touch? Avoid "book a call" in the first email.
+
+If yes to all five, approve it as-is. If two or more are off, consider regenerating instead of editing.
+
+## Regenerating
+
+Click **Regenerate** to discard the current draft and request a new one. The AI re-drafts using the same context (prospect data + ICP + signal event).
+
+Regenerate when:
+- The approach is fundamentally wrong (wrong angle, wrong pain)
+- Multiple edits would be needed
+- The draft contains a factual error in the company/role reference
+
+Regenerate does not change the underlying ICP or signal. If the same problem recurs in the regenerated draft, the issue is in the ICP, not the draft.
+
+<Callout type="info">
+Regenerated drafts use the same prospect context. If that context is thin (e.g., prospect has only email + name), the AI has less to work with and regenerating may produce a similar result. Add more prospect data to improve the floor.
+</Callout>
+
+## How the AI learns from edits
+
+Edits you make in the Approval Queue are observed across the campaign. Consistent edits in a specific direction, for example always removing a certain phrase, always adjusting the CTA format, are applied to future drafts for that campaign.
+
+This learning is campaign-scoped. Changes you consistently make in Campaign A don't affect Campaign B.
+
+The learning is gradual. One edit doesn't change anything. A pattern across 5+ drafts starts to shift future output.
+
+## Editing follow-up steps
+
+Follow-up emails in a sequence can also be edited in the queue. The AI writes each follow-up in context of the previous email in the thread. Edits to the first email are taken into account when generating follow-up drafts.
+
+If you heavily edit the first email, the follow-up may reference the original version rather than your edits. Regenerate the follow-up if the thread context looks wrong.
+
+## Bulk editing
+
+The Approval Queue doesn't support bulk text edits. Bulk actions are approve-all or reject-all only.
+
+If you need to make the same edit across all drafts for a campaign, the better path is to update your Master ICP (for persistent changes) or update the campaign's tone guidance (for campaign-scoped changes).
+
+## Where to go next
+
+- [Approval Queue workflow](/help/approval-queue-workflow): the full daily review flow
+- [How AI writes personalized emails](/help/how-ai-writes-personalized-emails): what goes into each draft
+- [Your Master ICP](/help/master-icp): fixing issues at the source

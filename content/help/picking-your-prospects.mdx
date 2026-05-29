@@ -1,0 +1,106 @@
+---
+title: Picking your prospects
+description: How to import prospects via CSV, search Mirvo's database, and combine both. Required columns, enrichment, and list quality.
+slug: picking-your-prospects
+category: getting-started
+order: 20
+last_updated: 2026-05-29
+---
+
+# Picking your prospects
+
+Every campaign needs a prospect list. You can import your own, search Mirvo's database, or do both. This article covers all three paths.
+
+## Option 1: Import via CSV
+
+Upload a spreadsheet of prospects you already have. This is the fastest path and doesn't consume Prospect Credits.
+
+### Required columns
+
+Your CSV must include these column headers (case-insensitive):
+
+| Column | Example |
+|---|---|
+| `email` | sarah@acme.com |
+| `first_name` | Sarah |
+| `company` | Acme Corp |
+
+Missing any of these three will fail the import.
+
+### Optional columns (recommended)
+
+Every additional column you include becomes personalization context for the AI. More context produces more specific drafts.
+
+Useful columns:
+- `last_name` (for formal-tone campaigns)
+- `role` or `title` (VP of Sales, Head of Revenue Ops)
+- `industry` (SaaS, Healthcare, Fintech)
+- `company_size` (50-200, Series A)
+- `linkedin_url` (for manual reference)
+- `notes` (one sentence about why this person is in your list)
+
+<Callout type="tip">
+The `notes` column has the highest impact per character. "Just hired 3 SDRs and posted about pipeline visibility issues" gives the AI more to work with than any other field.
+</Callout>
+
+### How to import
+
+<Steps>
+1. In the campaign wizard, click **Import**
+2. Upload your CSV or paste rows directly
+3. Mirvo shows a preview: column mapping and row count
+4. Resolve any row errors (missing email, malformed addresses)
+5. Confirm the import
+</Steps>
+
+[SCREENSHOT: CSV import step showing column mapping preview with green checkmarks on required columns]
+
+### Common CSV errors
+
+- **Missing required columns:** Add `email`, `first_name`, `company` headers
+- **Encoding issues:** Save as UTF-8 before uploading. Excel often saves in a different encoding by default
+- **Extra spaces in email addresses:** Clean these before import (or Mirvo's validation catches them)
+- **Special characters in headers:** Remove parentheses, slashes, and spaces from column names
+
+Download the import template from the import dialog for a guaranteed-working format.
+
+## Option 2: Search Mirvo's database
+
+Mirvo's prospect database lets you find prospects by role, company attributes, and tech stack. Results are added directly to a campaign.
+
+Each prospect you add from search costs one Prospect Credit.
+
+### Search filters
+
+- **Role/title:** "VP of Sales", "Head of RevOps", "CRO"
+- **Industry:** SaaS, Healthcare, E-commerce, etc.
+- **Company size:** employee range (1-50, 50-200, etc.)
+- **Company stage:** Seed, Series A, Series B, Series C+, Public
+- **Geography:** Country, state/region
+- **Tech stack:** Companies using specific tools (Salesforce, HubSpot, etc.)
+
+[SCREENSHOT: Prospect search interface with filters panel open and results list]
+
+### Saving a search
+
+After setting filters, save the search as a "Prospect List" for reuse across campaigns. Saved searches don't re-run automatically. You add results to a campaign manually.
+
+## Option 3: Combine both
+
+You can import a CSV and add searched prospects to the same campaign. They're treated identically once in the campaign.
+
+Useful when: you have a core list from a conference or your CRM and want to supplement it with searched prospects that match the same profile.
+
+## Prospect quality vs. quantity
+
+A smaller, well-researched list produces better results than a large generic one.
+
+- 50 prospects with role + notes fields often outperform 500 with name + email only
+- Start with 20-50 for a new campaign, validate the ICP and draft quality, then scale
+- Remove prospects who've bounced or unsubscribed from other campaigns (Mirvo handles bounce tracking automatically)
+
+## Where to go next
+
+- [Create your first campaign](/help/create-your-first-campaign): campaign wizard walkthrough
+- [Quotas explained](/help/quotas-explained): how Prospect Credits and lifetime limits work
+- [Troubleshooting common issues](/help/troubleshooting): CSV import errors Q&A

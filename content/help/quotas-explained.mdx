@@ -1,0 +1,95 @@
+---
+title: Quotas explained
+description: How Mirvo's three caps work, when they reset, and what to do when you're running low.
+slug: quotas-explained
+category: billing
+order: 18
+last_updated: 2026-05-29
+---
+
+# Quotas explained
+
+Mirvo has three distinct caps. They track different things and reset on different schedules. This article explains each one.
+
+{/* LIMITS_DATA */}
+
+## The three caps
+
+### Lifetime prospects
+
+**What it counts:** Every unique prospect ever added to your workspace, whether imported via CSV, pasted, or added from search.
+
+**When it resets:** Never. Lifetime means lifetime. Once a prospect is counted, they count forever, even if you delete them from all campaigns or remove them from your workspace entirely.
+
+**Why it exists:** This cap reflects the cost of prospect data enrichment and storage. The number of prospects you've ever processed is the unit.
+
+**Watch for:** If you're importing large lists frequently, this fills faster than expected. Don't import prospects you don't plan to use. Quality over quantity.
+
+### Emails per month
+
+**What it counts:** Every approved email that leaves Mirvo, including first emails and all follow-up steps.
+
+**When it resets:** The 1st of each calendar month, regardless of when your billing cycle started.
+
+**Why it exists:** Email sending infrastructure has direct per-message costs. This cap aligns usage with plan tier.
+
+**Watch for:** If you're running multiple high-volume campaigns simultaneously, this can deplete faster than expected. Check Settings, Billing to see month-to-date usage.
+
+<Callout type="info">
+Emails in the Approval Queue don't count toward the monthly cap until they're approved and sent. Drafts sitting in the queue don't cost anything.
+</Callout>
+
+### Prospect Credits per month
+
+**What it counts:** Credits used when you search Mirvo's prospect database and add results to a campaign. Each result you add costs one credit.
+
+**When it resets:** The 1st of each calendar month.
+
+**Why it exists:** Prospect database lookups have a per-record cost from the underlying data provider.
+
+**Important:** Prospect Credits only apply to Mirvo's built-in search. Importing your own list via CSV or paste does not consume credits.
+
+{/* /LIMITS_DATA */}
+
+## Checking your current usage
+
+Go to **Settings, Billing**. The usage panel shows:
+
+- Lifetime prospects: used / plan limit
+- Emails this month: used / monthly limit, resets in X days
+- Prospect Credits this month: used / monthly limit
+
+[SCREENSHOT: Settings Billing page showing three usage bars with percentages and reset dates]
+
+## What happens when you hit a cap
+
+**Lifetime prospects cap reached:** You can no longer add new prospects (import or search). Existing campaigns with already-imported prospects continue to run. To add more, upgrade your plan.
+
+**Monthly email cap reached:** New approvals are queued but held. Emails resume sending on the 1st when the cap resets. Alternatively, upgrade your plan for a higher monthly limit.
+
+**Prospect Credits exhausted:** Prospect database search is disabled for the month. Importing via CSV still works. Credits reset on the 1st.
+
+## Upgrading your plan
+
+Go to **Settings, Billing, Change plan**. Upgrades take effect immediately. The higher limits apply from the moment of upgrade, not from the next billing cycle.
+
+- [Plans and pricing](/help/plans-pricing): plan comparison and pricing details
+
+## Frequently asked questions
+
+**Does removing a prospect from a campaign free up my lifetime quota?**
+
+No. Lifetime prospects count all unique prospects ever added, regardless of current campaign status.
+
+**If I import the same email address twice, does it count twice?**
+
+No. Duplicate email addresses in imports are deduplicated. The lifetime prospect count tracks unique email addresses.
+
+**Do follow-up emails cost the same as first emails?**
+
+Yes. Each sent email, whether step 1 or step 3 in a sequence, counts as one email toward the monthly cap.
+
+## Where to go next
+
+- [Plans and pricing](/help/plans-pricing): plan tiers and what's included
+- [Picking your prospects](/help/picking-your-prospects): importing vs. searching for prospects

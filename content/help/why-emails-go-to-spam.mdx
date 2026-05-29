@@ -1,0 +1,89 @@
+---
+title: Why emails go to spam
+description: The real reasons cold emails land in spam and what you can control. Deliverability explained without the mystification.
+slug: why-emails-go-to-spam
+category: sending-infrastructure
+order: 17
+last_updated: 2026-05-29
+---
+
+# Why emails go to spam
+
+Cold email deliverability is often mystified. This article covers what actually determines placement, in order of impact.
+
+## The factors, ranked
+
+### 1. Domain reputation (highest impact)
+
+Your sending domain's reputation is the primary signal spam filters use. A new domain with no history sends worse than an established one.
+
+Mirvo manages domain warmup and reputation automatically. You don't need to worry about this unless you're using a custom domain you bring yourself. If you are: see [Adding a sending domain](/help/adding-a-sending-domain).
+
+### 2. Authentication records
+
+SPF, DKIM, and DMARC are DNS records that prove you're authorized to send from your domain. Missing or broken records are an immediate red flag for receiving mail servers.
+
+Check: Settings, Sending Domain, Verify records. All three should show green.
+
+### 3. Content signals
+
+Spam filters read email content. High-signal content issues:
+
+- Spam trigger words in the subject line or body (`free`, `guaranteed`, `limited time offer`)
+- High link density: more than 2 links in a short email
+- HTML-heavy formatting or large images
+- Attachments in cold email (almost always filtered)
+
+Plain text or minimal HTML consistently outperforms designed emails for cold outbound. Mirvo's templates use minimal formatting by design.
+
+### 4. Sending volume and patterns
+
+Sending 500 emails in one hour from a new domain triggers volume-based filters. Mirvo paces sends automatically within your plan's monthly limit.
+
+Don't try to blast a large list all at once by approving hundreds of drafts simultaneously. Approve in batches of 20-50 and let the send queue process them.
+
+### 5. Engagement signals
+
+Spam filters are influenced by what recipients do with your emails: opens, replies, and marked-as-spam. High spam complaints (more than 0.1%) damage domain reputation.
+
+You can't control what any individual does, but you can reduce complaint risk:
+
+- Only send to real, opted-in or genuinely targeted prospects (not scraped lists)
+- Keep lists clean: remove bounces immediately
+
+### 6. Recipient server policies
+
+Some corporate email servers are aggressive regardless of your reputation. Financial services, healthcare, and government IT environments often have strict policies that filter cold email by default.
+
+This is not fully controllable. If a specific domain consistently goes to spam for legitimate-looking emails, it may be their server policy.
+
+## What Mirvo handles automatically
+
+- Domain warmup and reputation management
+- Send pacing within your plan limits
+- Bounce processing and list hygiene
+- DKIM signing on Mirvo's sending infrastructure
+
+## What you control
+
+- Authentication records if using a custom domain
+- Email content (subject line, body, links, formatting)
+- List quality (role accuracy, active prospects)
+- Approval cadence (don't batch-approve hundreds at once)
+
+<Callout type="info">
+If your emails are landing in spam at a higher-than-normal rate, check in this order: authentication records, subject line, link density, list quality. Most issues trace to one of these four.
+</Callout>
+
+## If a specific email landed in spam
+
+1. Check the subject line against the spam trigger word list: [Subject line best practices](/help/subject-line-best-practices)
+2. Check the body for links: count them. More than 2 is risky.
+3. Check if the recipient's domain has known strict filters (financial, healthcare, government)
+4. If your custom domain is new: the domain reputation is still being established
+
+## Where to go next
+
+- [Adding a sending domain](/help/adding-a-sending-domain): custom domain setup and DNS
+- [Subject line best practices](/help/subject-line-best-practices): content and subject guidance
+- [Troubleshooting common issues](/help/troubleshooting): quick Q&A

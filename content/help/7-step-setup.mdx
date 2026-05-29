@@ -1,0 +1,112 @@
+---
+title: 7-step setup walkthrough
+description: The master onboarding doc. Each step takes under 5 minutes. Total active time around 20 minutes.
+slug: 7-step-setup
+category: getting-started
+order: 2
+last_updated: 2026-05-29
+---
+
+# 7-step setup walkthrough
+
+This is the master onboarding doc. Each step has its own deep-dive article where useful. The walkthrough below is the recommended order.
+
+Total active time: around 20 minutes. First drafts can appear in your Approval Queue within an hour of completing step 6.
+
+<Callout type="info">
+Already signed in? Open your [dashboard](/dashboard) and follow along. The onboarding checklist in the top-right tracks your progress.
+</Callout>
+
+## Step 1. Link your sending mailbox
+
+Click **Settings, Mailboxes, Add mailbox**. Choose Gmail or Outlook and complete the OAuth flow. This takes about 30 seconds.
+
+Your real inbox stays separate from Mirvo's outbound traffic. Replies land in Mirvo's inbox, not your personal inbox.
+
+[SCREENSHOT: Settings, Mailboxes page with "Add mailbox" button highlighted, showing Gmail and Outlook options]
+
+Deep dive: [Linking your mailbox](/help/linking-your-mailbox)
+
+## Step 2. Set up your Master ICP
+
+Click **Settings, Master ICP**. Fill in:
+
+- **Who you sell to** (job titles, company size, industry)
+- **What pain you solve** (specific outcome, not feature list)
+- **Tone of voice** (3-5 examples of how you'd talk to a prospect)
+
+Master ICP is the ground truth Mirvo uses for every email it drafts. Time spent here pays back in every downstream draft.
+
+[SCREENSHOT: Master ICP form with example values filled in]
+
+Deep dive: [Your Master ICP](/help/master-icp)
+
+## Step 3. (Optional) Connect a custom sending domain
+
+By default, Mirvo sends from a shared sending domain with managed reputation. This works on day one and requires no setup.
+
+For better long-term deliverability and brand consistency, connect a custom domain you own. Click **Settings, Sending Domains, Add domain** and follow the 3-step wizard (DNS records auto-generated, copy them to your DNS provider).
+
+[SCREENSHOT: Sending Domains 3-step wizard, showing DNS records to add]
+
+Deep dive: [Adding a sending domain](/help/adding-a-sending-domain)
+
+## Step 4. Pick your prospects
+
+Two ways to populate your prospect list:
+
+- **Import contacts.** Upload a CSV, or paste rows. Required columns: email, first name, company. Other columns become merge fields.
+- **Search Mirvo's prospect database.** Filter by industry, role, company size, geography, tech stack. Build a list inside Mirvo, no CSV required.
+
+You can use both in the same campaign.
+
+[SCREENSHOT: Prospects page with toggle between "Import" and "Search" tabs]
+
+Deep dive: [Picking your prospects](/help/picking-your-prospects)
+
+## Step 5. Create your first campaign
+
+Click **Campaigns, New campaign**. Configure:
+
+- **Target prospects** (from step 4)
+- **Email sequence** (first email + follow-ups, AI drafts each)
+- **Optional: add a Signal** for buying-moment targeting. Without a signal, the campaign drafts for every targeted prospect.
+
+[SCREENSHOT: Campaign creation form with prospect selection, sequence steps, and optional Signal section]
+
+Deep dive: [Create your first campaign](/help/create-your-first-campaign)
+
+## Step 6. Review and approve drafts
+
+Drafts appear in the **Approval Queue** within an hour of launch (often within minutes). For each draft:
+
+- **Read it.** Does the personalization make sense? Does the ask fit the prospect?
+- **Edit if needed.** Inline edits are saved instantly.
+- **Approve.** Mirvo sends through managed deliverability.
+
+You stay in control. Nothing goes out without your approval.
+
+[SCREENSHOT: Approval Queue with a draft email expanded, showing AI-generated personalization and edit/approve buttons]
+
+Deep dive: [Approval Queue workflow](/help/approval-queue-workflow)
+
+## Step 7. Monitor replies and iterate
+
+Replies land in your **Mirvo inbox**, sorted by intent:
+
+- **Positive** (interested, asking questions)
+- **Objection** (push back, ask for proof)
+- **Out of office** (try again later, auto-detected)
+- **Unsubscribe** (auto-suppressed for future campaigns)
+
+Use the **Campaign Analytics** view to track open rate, reply rate, and positive reply rate per Signal. Iterate on your Master ICP and Signals based on what's working.
+
+[SCREENSHOT: Mirvo inbox with replies sorted by intent category, showing positive/objection/OOO labels]
+
+Deep dive: [Reading your reply inbox](/help/reading-your-reply-inbox)
+
+## What's next
+
+- [What are Signals?](/help/what-are-signals): the optional precision layer
+- [Plans and pricing](/help/plans-pricing): quotas, credits, what's included
+- [Troubleshooting common issues](/help/troubleshooting): if something doesn't work

@@ -1,0 +1,97 @@
+---
+title: Troubleshooting common issues
+description: Q&A for the most common Mirvo issues. Find your problem and the fix.
+slug: troubleshooting
+category: troubleshooting
+order: 10
+last_updated: 2026-05-29
+---
+
+# Troubleshooting common issues
+
+Find your issue below. If it's not listed, open the AI assistant in your dashboard (bottom-right help button).
+
+## Mailbox disconnected. How do I reconnect?
+
+Go to **Settings, Mailboxes**. Click the disconnected mailbox, then **Reconnect**. Re-complete the OAuth flow for Gmail or Outlook.
+
+Mailboxes disconnect when you change your account password, revoke app access, or when a token expires. Reconnection takes under a minute.
+
+- Deep dive: [Linking your mailbox](/help/linking-your-mailbox)
+
+## Drafts aren't appearing in the Approval Queue
+
+Check these in order:
+
+1. **Campaign is active?** Go to Campaigns and confirm the campaign status is "Active," not "Paused" or "Draft."
+2. **Prospects are added?** Open the campaign and check the Prospects tab. If it's empty, add prospects and re-launch.
+3. **Signal attached?** If the campaign has a Signal, drafts only generate when the signal fires. Check the Signal's match history.
+4. **Queue is filtered?** The Approval Queue may be filtered by campaign or status. Clear all filters.
+
+If none of these apply, wait an hour. Mirvo processes prospect batches asynchronously.
+
+## Prospect CSV import failed
+
+The most common cause: the required columns are missing or misnamed.
+
+Required: `email`, `first_name`, `company` (case-insensitive). Optional extras work as merge fields.
+
+Other causes:
+
+- Encoding issues: save the CSV as UTF-8 before uploading
+- Special characters in headers (remove spaces, parentheses, etc.)
+- Email addresses with formatting issues (extra spaces, angle brackets)
+
+Download the import template from the import dialog for a guaranteed-working format.
+
+- Deep dive: [Picking your prospects](/help/picking-your-prospects)
+
+## OAuth fails for Gmail or Outlook
+
+**Gmail:** Check that your Google Workspace admin hasn't blocked third-party app access. Ask your admin to allowlist Mirvo's app ID, or use a personal Google account for testing.
+
+**Outlook:** If your organization uses conditional access policies or MFA requirements, the OAuth flow may fail silently. Use a mailbox that isn't behind a strict conditional access policy, or have your IT team add an exception.
+
+For both: make sure you're completing the consent screen fully (don't close the popup before it redirects back).
+
+- Deep dive: [Linking your mailbox](/help/linking-your-mailbox)
+
+## Signal not firing as expected
+
+Check the signal conditions: go to **Signals, [your signal], Edit conditions**. Common issues:
+
+- Keywords too specific (e.g., exact phrase not appearing in web content)
+- Signal source not enabled for your plan
+- Scan hasn't run since the event occurred (signals scan nightly)
+
+Test the signal using the **Preview matches** button before attaching it to a campaign.
+
+- Deep dive: [Creating custom signals](/help/creating-custom-signals)
+
+## Email landed in spam. What to check.
+
+In order of likelihood:
+
+1. **Prospect's own filters:** Some corporate email servers are aggressive. This isn't always fixable.
+2. **Subject line:** Contains spam trigger words (see [Subject line best practices](/help/subject-line-best-practices))
+3. **Link density:** More than 2 links in a short email increases spam risk
+4. **Custom domain not verified:** If you're using a custom sending domain and SPF/DKIM/DMARC aren't verified, spam placement increases sharply
+5. **Content:** Attachments, images, or HTML-heavy formatting all increase spam risk. Plain text or minimal HTML performs better.
+
+- Deep dive: [Why emails go to spam](/help/why-emails-go-to-spam)
+
+## Reply not categorized correctly
+
+Open the reply in your inbox, click the category label, and select the correct one. Manual overrides are applied immediately and improve future categorization.
+
+## Can't add custom domain. DNS issues.
+
+The most common causes:
+
+- You added the record under the wrong type (TXT vs CNAME)
+- You added it to the root domain when Mirvo expects a subdomain record
+- Your DNS provider has caching that delays propagation
+
+Try deleting and re-adding the record exactly as shown in the wizard. Wait at least 30 minutes before checking again.
+
+- Deep dive: [Adding a sending domain](/help/adding-a-sending-domain)
