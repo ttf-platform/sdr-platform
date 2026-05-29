@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 
 export function Screenshot({
@@ -13,6 +13,19 @@ export function Screenshot({
   caption?: string
 }) {
   const [zoomed, setZoomed] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!zoomed) return
+    const el = dialogRef.current
+    if (el) el.focus()
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setZoomed(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [zoomed])
 
   return (
     <>
@@ -40,11 +53,13 @@ export function Screenshot({
       </figure>
       {zoomed && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setZoomed(false)}
+          ref={dialogRef}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-label={alt}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 outline-none"
+          onClick={() => setZoomed(false)}
         >
           <Image
             src={src}
@@ -53,6 +68,7 @@ export function Screenshot({
             height={1012}
             className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
             unoptimized
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}

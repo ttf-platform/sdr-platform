@@ -53,6 +53,7 @@ export default async function HelpArticlePage({
   return (
     <HelpLayout
       article={article}
+      locale={locale}
       nav={<ArticleNav prev={prev} next={next} locale={locale} />}
     >
       {locale === 'fr' && <FRBanner />}

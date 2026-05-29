@@ -48,7 +48,7 @@ export function HelpIndex({
             key={cat}
             className="bg-white border border-[#e8e3dc] rounded-xl p-5 hover:border-[#2563eb] transition-colors"
           >
-            <div className="text-3xl mb-3">{CATEGORY_ICONS[cat] ?? '📄'}</div>
+            <div className="text-3xl mb-3" aria-hidden="true">{CATEGORY_ICONS[cat] ?? '📄'}</div>
             <h2 className="text-base font-semibold text-[#1a1a1a]">{CATEGORY_LABELS[cat]}</h2>
             <ul className="mt-3 space-y-1.5">
               {items.map((article) => (
@@ -57,7 +57,7 @@ export function HelpIndex({
                     href={`/${locale}/help/${article.slug}`}
                     className="flex items-center gap-2 text-sm text-[#4a4a5a] hover:text-[#2563eb] transition-colors group"
                   >
-                    <span className="text-xs text-[#9a9a9a] group-hover:text-[#2563eb]">→</span>
+                    <span className="text-xs text-[#9a9a9a] group-hover:text-[#2563eb]" aria-hidden="true">→</span>
                     <span className="group-hover:underline">{article.title}</span>
                   </Link>
                 </li>

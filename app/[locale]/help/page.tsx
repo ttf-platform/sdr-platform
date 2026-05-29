@@ -28,7 +28,7 @@ export default async function HelpPage({
             href={`/${locale}/dashboard`}
             className="text-sm text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors"
           >
-            ← Back to dashboard
+            <span aria-hidden="true">←</span> Back to dashboard
           </Link>
           <Link href={`/${locale}`} className="text-base font-bold text-[#1a1a1a]">
             Mir<span className="text-[#2563eb]">vo</span>

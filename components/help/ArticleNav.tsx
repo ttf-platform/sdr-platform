@@ -21,7 +21,7 @@ export function ArticleNav({
             href={`/${locale}/help/${prev.slug}`}
             className="group flex flex-col text-sm text-[#6b5e4e] hover:text-[#1a1a1a]"
           >
-            <span className="text-xs text-[#9a9a9a]">Previous</span>
+            <span className="text-xs text-[#6b5e4e]">Previous</span>
             <span className="group-hover:underline">{prev.title}</span>
           </Link>
         )}
@@ -32,7 +32,7 @@ export function ArticleNav({
             href={`/${locale}/help/${next.slug}`}
             className="group flex flex-col text-sm text-[#6b5e4e] hover:text-[#1a1a1a]"
           >
-            <span className="text-xs text-[#9a9a9a]">Next</span>
+            <span className="text-xs text-[#6b5e4e]">Next</span>
             <span className="group-hover:underline">{next.title}</span>
           </Link>
         )}

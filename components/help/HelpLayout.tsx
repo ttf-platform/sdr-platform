@@ -7,24 +7,26 @@ export function HelpLayout({
   article,
   children,
   nav,
+  locale,
 }: {
   article: ArticleMeta
   children: ReactNode
   nav: ReactNode
+  locale: string
 }) {
   return (
     <div className="min-h-screen bg-[#faf8f5]">
       <header className="border-b border-[#e8e3dc] bg-white sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3 text-sm">
-          <Link href="/dashboard" className="text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors">
+          <Link href={`/${locale}/dashboard`} className="text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors hidden sm:inline">
             Dashboard
           </Link>
-          <span className="text-[#9a9a9a]">/</span>
-          <Link href="../help" className="text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors">
+          <span className="text-[#6b5e4e] hidden sm:inline">/</span>
+          <Link href={`/${locale}/help`} className="text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors">
             Help Center
           </Link>
-          <span className="text-[#9a9a9a]">/</span>
-          <span className="text-[#1a1a1a] font-medium truncate max-w-xs">{article.title}</span>
+          <span className="text-[#6b5e4e]">/</span>
+          <span className="text-[#1a1a1a] font-medium truncate" title={article.title}>{article.title}</span>
         </div>
       </header>
 
@@ -40,10 +42,9 @@ export function HelpLayout({
         {nav}
 
         <div className="mt-12 rounded-xl border border-[#e8e3dc] bg-white p-5 text-sm text-[#4a4a5a]">
-          <p className="font-medium text-[#1a1a1a]">Was this helpful?</p>
-          <p className="mt-1">
+          <p>
             Still stuck?{' '}
-            <Link href="/dashboard" className="text-[#2563eb] underline">
+            <Link href={`/${locale}/dashboard`} className="text-[#2563eb] underline">
               Open the AI assistant
             </Link>{' '}
             in your dashboard (bottom-right help button).
