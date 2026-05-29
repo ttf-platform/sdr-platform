@@ -137,18 +137,18 @@ export async function sendOnboardingEmail(params: {
 
 const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, workspaceName: string, baseUrl: string) => { subject: string; html: string }> = {
   0: (greeting, workspaceName, baseUrl) => ({
-    subject: 'Welcome to Mirvo — your first email goes out in <1 hour',
+    subject: 'Welcome to Mirvo: your first email goes out in under 1 hour',
     html: wrapEmail(`
       <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">Welcome to Mirvo</h2>
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
       <p style="color: #1a1a1a; line-height: 1.6;">You just created ${workspaceName} on Mirvo. Here's what happens next:</p>
       <ol style="color: #1a1a1a; line-height: 1.7;">
-        <li><strong>Link your mailbox</strong> (Gmail or Outlook, OAuth — 30 sec).</li>
+        <li><strong>Link your mailbox</strong> (Gmail or Outlook, OAuth, 30 sec).</li>
         <li><strong>Define your ICP</strong> (who you sell to + what pain you solve).</li>
-        <li><strong>Launch your first campaign</strong> — Mirvo finds buyers, drafts emails, sends them.</li>
+        <li><strong>Launch your first campaign</strong>: Mirvo finds buyers, drafts emails, sends them.</li>
       </ol>
       <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open Mirvo &#x2192;</a></p>
-      <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Your first email can go out within an hour of signing up — no warmup period, no waiting.</p>
+      <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Your first email can go out within an hour of signing up. No warmup period, no waiting.</p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
     `),
   }),
@@ -157,7 +157,7 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
     html: wrapEmail(`
       <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">The unfair advantage</h2>
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
-      <p style="color: #1a1a1a; line-height: 1.6;">Most outbound tools wait for you to upload a list. Mirvo does the opposite: it watches the signals that mean "this prospect is ready to buy" — hiring SDRs, funding rounds, new tool stack — and drafts the email at the moment it matters.</p>
+      <p style="color: #1a1a1a; line-height: 1.6;">Most outbound tools wait for you to upload a list. Mirvo does the opposite: it watches the signals that mean "this prospect is ready to buy" (hiring SDRs, funding rounds, new tool stack) and drafts the email at the moment it matters.</p>
       <p style="color: #1a1a1a; line-height: 1.6;">Set up a signal once. Mirvo scans every night and queues drafts for your approval.</p>
       <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/signals" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Set up your first signal &#x2192;</a></p>
       <p style="color: #4a4a5a; font-size: 14px;"><a href="${baseUrl}/help/signals" style="color: #2563eb; text-decoration: underline;">Read: how signals work</a></p>
@@ -170,24 +170,24 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
       <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">Deliverability, handled.</h2>
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
       <p style="color: #1a1a1a; line-height: 1.6;">Cold email reputation is the silent killer of outbound. Domains burn, deliverability drops, leads never see your messages.</p>
-      <p style="color: #1a1a1a; line-height: 1.6;">Mirvo runs every outgoing email through a managed deliverability infrastructure with built-in warmup, reputation monitoring, and pattern checks. Your real inbox stays clean — replies land in Mirvo's dedicated inbox, sorted by intent.</p>
+      <p style="color: #1a1a1a; line-height: 1.6;">Mirvo runs every outgoing email through a managed deliverability infrastructure with built-in warmup, reputation monitoring, and pattern checks. Your real inbox stays clean; replies land in Mirvo's dedicated inbox, sorted by intent.</p>
       <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/inbox" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">See your replies inbox &#x2192;</a></p>
       <p style="color: #4a4a5a; font-size: 14px;"><a href="${baseUrl}/help/deliverability" style="color: #2563eb; text-decoration: underline;">Read: how Mirvo protects your reputation</a></p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
     `),
   }),
   7: (greeting, workspaceName, baseUrl) => ({
-    subject: 'Your first week with Mirvo — what to do next',
+    subject: 'Your first week with Mirvo: what to do next',
     html: wrapEmail(`
       <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">One week in.</h2>
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
-      <p style="color: #1a1a1a; line-height: 1.6;">You've had ${workspaceName} on Mirvo for a week. If you've launched a campaign — great, you should be seeing replies. If not, here's the fastest path:</p>
+      <p style="color: #1a1a1a; line-height: 1.6;">You've had ${workspaceName} on Mirvo for a week. If you've launched a campaign, you should be seeing replies. If not, here's the fastest path:</p>
       <ol style="color: #1a1a1a; line-height: 1.7;">
         <li><a href="${baseUrl}/dashboard/settings" style="color: #2563eb;">Sharpen your ICP</a> (the more specific, the better the drafts)</li>
         <li><a href="${baseUrl}/dashboard/signals" style="color: #2563eb;">Activate at least one signal</a> (this is the moat)</li>
         <li><a href="${baseUrl}/dashboard/campaigns/new" style="color: #2563eb;">Launch a campaign</a> (Mirvo will draft, you approve)</li>
       </ol>
-      <p style="color: #1a1a1a; line-height: 1.6;">Stuck? Reply to this email — we read every message.</p>
+      <p style="color: #1a1a1a; line-height: 1.6;">Stuck? Reply to this email; we read every message.</p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
     `),
   }),
