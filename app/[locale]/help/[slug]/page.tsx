@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
 import { getArticles, getArticle } from '@/lib/help/getArticles'
+import { MDX_MODULES } from '@/lib/help/mdxModules'
 import { HelpLayout } from '@/components/help/HelpLayout'
 import { ArticleNav } from '@/components/help/ArticleNav'
 import { FRBanner } from '@/components/help/FRBanner'
@@ -38,17 +39,13 @@ export default async function HelpArticlePage({
   const article = getArticle(slug)
   if (!article) notFound()
 
+  const MDXContent = MDX_MODULES[slug]
+  if (!MDXContent) notFound()
+
   const articles = getArticles()
   const idx = articles.findIndex((a) => a.slug === slug)
   const prev = idx > 0 ? articles[idx - 1] : null
   const next = idx < articles.length - 1 ? articles[idx + 1] : null
-
-  let MDXContent: React.ComponentType
-  try {
-    MDXContent = (await import(`@/content/help/${slug}.mdx`)).default
-  } catch {
-    notFound()
-  }
 
   return (
     <HelpLayout
