@@ -16,6 +16,33 @@ import { getEmailProvider } from '@/lib/email-provider-adapter';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type EmailAccountDetail = {
+  id: string
+  workspace_id: string
+  domain: string | null
+  email_address: string | null
+  sender_name: string | null
+  warmup_status: string | null
+  reputation_score: number | null
+  daily_capacity: number | null
+  daily_sent: number | null
+  daily_reset_at: string | null
+  dns_records: unknown
+  dns_spf_verified: boolean | null
+  dns_dkim_verified: boolean | null
+  dns_dmarc_verified: boolean | null
+  dns_last_checked_at: string | null
+  provider_inbox_id: string | null
+  sending_phase: string | null
+  sending_phase_changed_at: string | null
+  paused_by_user: boolean | null
+  paused_at: string | null
+  warmup_started_at: string | null
+  warmup_completed_at: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 // ============================================================================
 // GET — Detail with live warmup refresh
 // ============================================================================
@@ -49,6 +76,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       'warmup_started_at, warmup_completed_at, created_at, updated_at'
     )
     .eq('id', params.id)
+    .returns<EmailAccountDetail[]>()
     .maybeSingle();
 
   if (error) {
@@ -128,6 +156,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     .from('email_accounts')
     .select('id, provider_inbox_id')
     .eq('id', params.id)
+    .returns<{ id: string; provider_inbox_id: string | null }[]>()
     .maybeSingle();
 
   if (fetchError) {
