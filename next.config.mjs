@@ -16,7 +16,7 @@ const withMDX = createMDX({
 const nextConfig = {
   pageExtensions: ['ts', 'tsx', 'mdx'],
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: true,
