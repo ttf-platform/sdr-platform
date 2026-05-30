@@ -52,7 +52,7 @@ async function checkStripe(): Promise<CheckResult> {
   }
   const start = Date.now()
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' })
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' as Stripe.LatestApiVersion })
     await withTimeout(stripe.products.list({ limit: 1 }), CHECK_TIMEOUT_MS)
     return { status: 'ok', latency_ms: Date.now() - start }
   } catch (err) {

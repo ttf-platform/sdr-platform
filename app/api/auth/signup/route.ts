@@ -1,11 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr'
 import { signupSchema } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
 import { verifyTurnstile } from '@/lib/turnstile'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const rl = await rateLimitByIp(request, { limit: 5, window: '10 m', prefix: 'auth-signup' })
   if (!rl.allowed) return rl.response
 

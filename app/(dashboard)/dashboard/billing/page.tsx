@@ -164,14 +164,14 @@ export default function BillingPage() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg font-bold text-[#1a1a2e]">{PLAN_LABELS[currentPlan] ?? currentPlan}</span>
+                <span className="text-lg font-bold text-[#1a1a2e]">{PLAN_LABELS[currentPlan ?? ''] ?? currentPlan}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                   status === 'active'   ? 'bg-green-50 text-green-700' :
                   status === 'trialing' ? 'bg-blue-50 text-[#3b6bef]' :
                   status === 'past_due' ? 'bg-amber-50 text-amber-700' :
                   'bg-red-50 text-red-600'
                 }`}>
-                  {STATUS_LABELS[status] ?? status}
+                  {STATUS_LABELS[status ?? ''] ?? status}
                 </span>
               </div>
               {status === 'trialing' && usage.days_remaining > 0 && (
@@ -196,7 +196,7 @@ export default function BillingPage() {
                 {loadingPortal ? 'Opening...' : 'Manage subscription →'}
               </button>
             ) : (
-              <button onClick={() => startCheckout(currentPlan)} disabled={!!loadingCheckout}
+              <button onClick={() => startCheckout(currentPlan!)} disabled={!!loadingCheckout}
                 className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
                 {loadingCheckout ? 'Redirecting...' : 'Add payment method →'}
               </button>
@@ -256,7 +256,7 @@ export default function BillingPage() {
             const isCurrent  = p.id === currentPlan
             const price      = interval === 'yearly' ? `$${p.yearly}/yr` : `$${p.monthly}/mo`
             const tIdx       = tierIndex[p.id] ?? 0
-            const cIdx       = tierIndex[currentPlan] ?? 0
+            const cIdx       = tierIndex[currentPlan ?? ''] ?? 0
             const isCurrentActive = isCurrent && isActive
             let btnLabel: string
             if (status === 'trialing' || status === 'expired') {

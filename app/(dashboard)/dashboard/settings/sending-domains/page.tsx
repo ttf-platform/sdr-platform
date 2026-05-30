@@ -33,7 +33,8 @@ export default async function SendingDomainsPage() {
       'daily_capacity, daily_sent, dns_spf_verified, dns_dkim_verified, ' +
       'dns_dmarc_verified, sending_phase, paused_by_user, setup_status'
     )
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .returns<EmailAccount[]>();
 
   if (error) {
     console.error('[sending-domains:page] fetch failed', error);

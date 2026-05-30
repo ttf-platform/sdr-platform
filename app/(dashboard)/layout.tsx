@@ -126,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <WorkspaceDropdown
               planTier={planTier}
               role={role}
-              isSentraAdmin={isSentraAdmin}
+              isMirvoAdmin={isSentraAdmin}
               hasCallRecording={hasCallRecording}
               hasLinkedIn={hasLinkedIn}
               pathname={pathname}

@@ -494,13 +494,13 @@ export function SignalCreateModal({
           <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-4">
             <p className="text-xs font-semibold text-[#3b6bef] mb-3">How we'll monitor it</p>
             <div className="flex flex-col gap-1.5 text-xs text-[#4a4a5a]">
-              {cfg.source && (
+              {!!cfg.source && (
                 <div className="flex gap-2">
                   <span className="text-[#8a7e6e] w-20 flex-shrink-0">Source</span>
                   <span className="font-medium">{String(cfg.source).replace(/_/g, ' ')}</span>
                 </div>
               )}
-              {cfg.search_strategy && (
+              {!!cfg.search_strategy && (
                 <div className="flex gap-2">
                   <span className="text-[#8a7e6e] w-20 flex-shrink-0">Strategy</span>
                   <span className="leading-relaxed">{String(cfg.search_strategy)}</span>
