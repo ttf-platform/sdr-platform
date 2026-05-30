@@ -10,8 +10,8 @@ export type CapMetric = 'total_prospects' | 'emails_per_month' | 'prospect_credi
 
 interface Props {
   metric:      CapMetric
-  current:     number
-  cap:         number
+  current:     number | null | undefined
+  cap:         number | null | undefined
   preview?:    number    // if set → simulation mode
   resetDate?:  string    // ISO date — monthly caps only (not total_prospects)
   onUpgrade?:  () => void
@@ -30,8 +30,8 @@ function barColor(pct: number): string {
   return 'bg-green-500'
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString()
+function fmt(n: number | null | undefined): string {
+  return (n ?? 0).toLocaleString()
 }
 
 function fmtDate(iso: string): string {
@@ -49,13 +49,15 @@ function UpgradeBtn({ onClick }: { onClick: () => void }) {
 
 export default function CreditUsageIndicator({ metric, current, cap, preview, resetDate, onUpgrade, label }: Props) {
   const displayLabel = label ?? DEFAULT_LABELS[metric]
-  const pctCurrent   = cap > 0 ? Math.min(100, Math.round((current / cap) * 100)) : 0
-  const remaining    = Math.max(0, cap - current)
+  const safeCurrent  = current ?? 0
+  const safeCap      = cap ?? 0
+  const pctCurrent   = safeCap > 0 ? Math.min(100, Math.round((safeCurrent / safeCap) * 100)) : 0
+  const remaining    = Math.max(0, safeCap - safeCurrent)
 
   // ── Exceeds-cap simulation (Sprint 9) ─────────────────────────────────────
-  if (preview !== undefined && current + preview > cap) {
-    const after   = current + preview
-    const deficit = after - cap
+  if (preview !== undefined && safeCurrent + preview > safeCap) {
+    const after   = safeCurrent + preview
+    const deficit = after - safeCap
     return (
       <div>
         <p className="text-xs font-semibold text-[#6b5e4e] mb-1.5">{displayLabel}</p>
@@ -64,7 +66,7 @@ export default function CreditUsageIndicator({ metric, current, cap, preview, re
         </div>
         <p className="text-xs text-red-600 font-medium mb-2">100% — would exceed cap by {fmt(deficit)}</p>
         <div className="text-xs text-[#6b5e4e] space-y-0.5 mb-3">
-          <div>Currently: {fmt(current)} / {fmt(cap)} · {fmt(remaining)} remaining</div>
+          <div>Currently: {fmt(safeCurrent)} / {fmt(safeCap)} · {fmt(remaining)} remaining</div>
           <div>This action would add: +{fmt(preview)}</div>
         </div>
         {onUpgrade && (
@@ -78,8 +80,8 @@ export default function CreditUsageIndicator({ metric, current, cap, preview, re
 
   // ── Simulation view (Sprint 9) ────────────────────────────────────────────
   if (preview !== undefined) {
-    const after    = current + preview
-    const pctAfter = cap > 0 ? Math.min(100, Math.round((after / cap) * 100)) : 0
+    const after    = safeCurrent + preview
+    const pctAfter = safeCap > 0 ? Math.min(100, Math.round((after / safeCap) * 100)) : 0
     const warn     = pctAfter >= 85
     return (
       <div>
@@ -97,10 +99,10 @@ export default function CreditUsageIndicator({ metric, current, cap, preview, re
           {pctAfter}% used after this action {warn && <span className="text-yellow-600">⚠️</span>}
         </p>
         <div className="text-xs text-[#6b5e4e] space-y-0.5">
-          <div>Currently: {fmt(current)} / {fmt(cap)}</div>
+          <div>Currently: {fmt(safeCurrent)} / {fmt(safeCap)}</div>
           <div>This action: +{fmt(preview)}</div>
           <div className="font-medium">
-            After: {fmt(after)} / {fmt(cap)} · {fmt(Math.max(0, cap - after))} remaining
+            After: {fmt(after)} / {fmt(safeCap)} · {fmt(Math.max(0, safeCap - after))} remaining
           </div>
         </div>
       </div>
@@ -108,7 +110,7 @@ export default function CreditUsageIndicator({ metric, current, cap, preview, re
   }
 
   // ── Static view (Sprint 16b) ──────────────────────────────────────────────
-  // When current = 0, show a 2px green sliver so the bar reads as "healthy/empty",
+  // When safeCurrent = 0, show a 2px green sliver so the bar reads as "healthy/empty",
   // not as a broken or unloaded state.
   const barWidth  = pctCurrent === 0 ? '2px' : `${pctCurrent}%`
   const barClass  = barColor(pctCurrent)   // green at 0% — correct
@@ -117,7 +119,7 @@ export default function CreditUsageIndicator({ metric, current, cap, preview, re
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <p className="text-xs font-semibold text-[#6b5e4e]">{displayLabel}</p>
-        <span className="text-xs text-[#8a7e6e]">{fmt(current)} / {fmt(cap)}</span>
+        <span className="text-xs text-[#8a7e6e]">{fmt(safeCurrent)} / {fmt(safeCap)}</span>
       </div>
       <div className="w-full bg-[#f0ece6] rounded-full h-2 mb-1.5">
         <div className={`h-2 rounded-full transition-all ${barClass}`} style={{ width: barWidth }} />
