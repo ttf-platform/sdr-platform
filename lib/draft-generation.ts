@@ -51,6 +51,7 @@ function buildLines(pairs: Array<[string, string | null | undefined]>): string {
 // Auto-generates step_order=0 when a campaign was created without a sequence.
 // Uses Claude if campaign has content, falls back to a blank template otherwise.
 async function ensureInitialStep(
+  anthropic: ReturnType<typeof getAnthropicClient>,
   admin: AdminClient,
   campaignId: string,
   campaign: CampaignForStep,
@@ -215,7 +216,7 @@ export async function generateDraftsForCampaign(
   let steps: StepRow[] | null = existingSteps as StepRow[] | null
 
   if (!steps || steps.length === 0) {
-    const generated = await ensureInitialStep(admin, campaignId, campaign as any, profile as any)
+    const generated = await ensureInitialStep(anthropic, admin, campaignId, campaign as any, profile as any)
     if (!generated) return { error: 'Failed to auto-generate initial email step.', status: 500 }
     steps = [generated]
   }
