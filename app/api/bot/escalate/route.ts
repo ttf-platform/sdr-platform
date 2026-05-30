@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     conversationId: conv.id,
     workspaceId: conv.workspace_id,
     userId: user.id,
-    reason: body.reason,
+    reason,
     summary,
     appBaseUrl,
   });
