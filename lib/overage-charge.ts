@@ -40,10 +40,9 @@ export async function triggerOverageChargeIfNeeded(workspaceId: string): Promise
   // Atomic CAS — skip if another request already incremented
   const { count } = await admin
     .from('workspaces')
-    .update({ overage_charges_made: batchesOwed })
+    .update({ overage_charges_made: batchesOwed }, { count: 'exact' })
     .eq('id', workspaceId)
     .eq('overage_charges_made', ws.overage_charges_made ?? 0)
-    .select('id', { count: 'exact', head: true })
 
   if (!count || count === 0) return // another concurrent call won the race
 

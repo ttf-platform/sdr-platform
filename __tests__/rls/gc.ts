@@ -1,6 +1,6 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { adminClient } from './setup.ts'
+import { adminClient } from './setup'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 

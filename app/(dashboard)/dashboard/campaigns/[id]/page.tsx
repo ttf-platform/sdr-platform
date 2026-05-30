@@ -149,7 +149,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         setEmailDrafts(d.emails ?? [])
         // by_status is always campaign-wide (unfiltered) — use it as the source of truth
         // so the total never drops to 0 when a status filter returns empty results
-        const aggTotal = Object.values(d.by_status ?? {}).reduce((s, n) => s + (n as number), 0)
+        const aggTotal = Object.values<number>(d.by_status ?? {}).reduce((s, n) => s + n, 0)
         setEmailsTotal(aggTotal > 0 ? aggTotal : (d.total ?? 0))
         setEmailsByStatus(d.by_status ?? {})
         setEmailsPages(d.pages ?? 1)

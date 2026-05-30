@@ -221,7 +221,7 @@ export function isLikelyMainDomain(
 export async function detectExistingMailUsage(
   domain: string
 ): Promise<'google_workspace' | 'microsoft_365' | 'other' | 'none' | 'lookup_error'> {
-  let mxRecords: dns.MxRecord[];
+  let mxRecords: Awaited<ReturnType<typeof dns.resolveMx>>;
 
   try {
     mxRecords = await dns.resolveMx(domain);

@@ -11,7 +11,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as { posthog?: { captureException?: (err: Error) => void } }).posthog?.captureException) {
-      ;(window as { posthog: { captureException: (err: Error) => void } }).posthog.captureException(error)
+      ;(window as unknown as { posthog: { captureException: (err: Error) => void } }).posthog.captureException(error)
     }
   }, [error])
 
