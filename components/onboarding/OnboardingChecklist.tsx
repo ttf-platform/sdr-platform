@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { Route } from 'next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
@@ -171,7 +172,7 @@ export function OnboardingChecklist() {
                   return (
                     <Link
                       key={step.key}
-                      href={step.href(lastCampaignId)}
+                      href={step.href(lastCampaignId) as Route}
                       className={`flex items-start gap-3 px-3 py-2.5 border-b border-[#f0ece4] last:border-b-0 hover:bg-[#fafaf7] transition-colors ${isComplete ? 'opacity-55' : ''}`}
                     >
                       {isComplete ? (
