@@ -8,13 +8,20 @@
  *   3. npx playwright install chromium (if not already installed)
  */
 import { chromium, type Browser, type Page } from 'playwright'
+import { createClient } from '@supabase/supabase-js'
+import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
+
+dotenv.config({ path: path.join(process.cwd(), '.env.local') })
 
 const BASE_URL = 'http://localhost:3000'
 const OUT_DIR = path.join(process.cwd(), 'public', 'help', 'screenshots')
 const MANIFEST_FILE = path.join(process.cwd(), 'scripts', 'help-screenshots', 'manifest.json')
 const STATE_FILE = path.join(process.cwd(), 'scripts', 'help-screenshots', '.seed-state.json')
+
+const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 interface ManifestEntry {
   article_slug: string
@@ -27,18 +34,49 @@ interface ManifestEntry {
   skip_reason: string
 }
 
-
 async function login(page: Page, email: string, password: string): Promise<void> {
-  console.log('  🔑 Logging in via UI…')
+  console.log('  🔑 Injecting session cookie…')
 
-  await page.goto(`${BASE_URL}/en/login`, { waitUntil: 'networkidle', timeout: 30_000 })
-  await page.fill('#login-email', email)
-  await page.fill('#login-password', password)
-  await page.click('button[type="submit"]')
+  // Sign in from Node.js, inject cookie — avoids Playwright UI login timing issues
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error || !data.session) throw new Error(`Supabase login failed: ${error?.message}`)
 
-  // Wait for redirect to /dashboard or /en/dashboard
-  await page.waitForURL(/dashboard/, { timeout: 20_000 })
-  console.log('  ✅ Logged in')
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
+  const cookieName = `sb-${projectRef}-auth-token`
+
+  await page.context().addCookies([{
+    name:     cookieName,
+    value:    JSON.stringify(data.session),
+    domain:   'localhost',
+    path:     '/',
+    httpOnly: false,
+    secure:   false,
+    sameSite: 'Lax',
+  }])
+
+  await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 30_000 })
+  if (!page.url().includes('/dashboard')) {
+    throw new Error(`Session injection failed — redirected to: ${page.url()}`)
+  }
+  console.log('  ✅ Logged in via session injection')
+}
+
+async function dismissOverlays(page: Page): Promise<void> {
+  // Cookie banner — click "Reject analytics" if present
+  const reject = page.getByRole('button', { name: 'Reject analytics' })
+  if (await reject.isVisible().catch(() => false)) {
+    await reject.click().catch(() => {})
+    await page.waitForTimeout(200)
+  }
+  // Welcome modal — click "Let's go" if present
+  const letsGo = page.getByRole('button', { name: /Let's go/i })
+  if (await letsGo.isVisible().catch(() => false)) {
+    await letsGo.click().catch(() => {})
+    await page.waitForTimeout(300)
+  }
 }
 
 async function capture(page: Page, entry: ManifestEntry, outPath: string): Promise<void> {
@@ -47,6 +85,8 @@ async function capture(page: Page, entry: ManifestEntry, outPath: string): Promi
 
   // Wait for main content to load (sidebar or dashboard content)
   await page.waitForSelector('main, [role="main"], .dashboard-content, nav', { timeout: 10_000 }).catch(() => {})
+
+  await dismissOverlays(page)
 
   // Small stabilization delay for animations/hydration
   await page.waitForTimeout(800)
