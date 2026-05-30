@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
+import { randomBytes } from 'crypto'
 
 dotenv.config({ path: path.join(process.cwd(), '.env.local') })
 
@@ -24,7 +25,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 })
 
 const TEST_EMAIL = 'screenshots-bot@mirvo.test'
-const TEST_PASSWORD = 'screenshots-test-2026!'
+const TEST_PASSWORD = randomBytes(18).toString('base64url') + 'Aa1!'
 const TEST_WORKSPACE_NAME = 'Screenshots Test'
 const STATE_FILE = path.join(process.cwd(), 'scripts', 'help-screenshots', '.seed-state.json')
 
@@ -247,7 +248,7 @@ async function seed() {
   else console.log('  ✅ 3 signals seeded')
 
   // 10. Save state file for capture script
-  const state = { userId: user.id, workspaceId: workspace.id, campaignId: campaign.id }
+  const state = { userId: user.id, workspaceId: workspace.id, campaignId: campaign.id, email: TEST_EMAIL, password: TEST_PASSWORD }
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
   console.log(`  ✅ State saved → ${STATE_FILE}`)
   console.log('\n✅ Seed complete.')
@@ -257,6 +258,11 @@ async function seed() {
 }
 
 async function main() {
+  if (process.env.ALLOW_SEED !== '1') {
+    console.error('❌ Refus : ce script provisionne un compte réel sur la DB pointée par .env.local.')
+    console.error('   Relance avec ALLOW_SEED=1 si tu es sûr de la cible : ALLOW_SEED=1 npm run help:seed')
+    process.exit(1)
+  }
   await reset()
   await seed()
 }

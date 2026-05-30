@@ -30,6 +30,7 @@ interface ManifestEntry {
   caption: string
   file: string
   target_url: string
+  pre_action?: string
   state_required: string
   skip_reason: string
 }
@@ -79,14 +80,30 @@ async function dismissOverlays(page: Page): Promise<void> {
   }
 }
 
-async function capture(page: Page, entry: ManifestEntry, outPath: string): Promise<void> {
-  const url = `${BASE_URL}${entry.target_url}`
+async function runPreAction(page: Page, action?: string): Promise<void> {
+  if (!action) return
+  if (action === 'open-new-signal') {
+    await page.getByRole('button', { name: /New Signal/i }).first().click().catch(() => {})
+  } else if (action === 'open-csv-import') {
+    await page.getByRole('button', { name: /Import CSV/i }).first().click().catch(() => {})
+  } else if (action === 'open-approval-expand') {
+    await page.getByRole('button', { name: /Approval Queue|Approval/i }).first().click().catch(() => {})
+    await page.waitForTimeout(500)
+    // expand first draft row
+    await page.locator('[data-draft-row], .draft-row, button:has-text("Expand")').first().click().catch(() => {})
+  }
+  await page.waitForTimeout(600)
+}
+
+async function capture(page: Page, entry: ManifestEntry, outPath: string, campaignId: string): Promise<void> {
+  const url = `${BASE_URL}${entry.target_url.replace('__CAMPAIGN_ID__', campaignId)}`
   await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
 
   // Wait for main content to load (sidebar or dashboard content)
   await page.waitForSelector('main, [role="main"], .dashboard-content, nav', { timeout: 10_000 }).catch(() => {})
 
   await dismissOverlays(page)
+  await runPreAction(page, entry.pre_action)
 
   // Small stabilization delay for animations/hydration
   await page.waitForTimeout(800)
@@ -125,7 +142,10 @@ async function main() {
   await page.setViewportSize({ width: 1440, height: 900 })
 
   try {
-    await login(page, 'screenshots-bot@mirvo.test', 'screenshots-test-2026!')
+    if (!state.email || !state.password) {
+      throw new Error('state.email / state.password manquants — relance npm run help:seed avant help:capture')
+    }
+    await login(page, state.email, state.password)
 
     let captured = 0
     let failed = 0
@@ -135,7 +155,7 @@ async function main() {
       process.stdout.write(`  [${entry.article_slug}:${entry.index}] ${entry.file} … `)
 
       try {
-        await capture(page, entry, outPath)
+        await capture(page, entry, outPath, state.campaignId)
         console.log('✅')
         captured++
       } catch (err) {
