@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Route } from 'next'
 
 export const metadata = {
   title: '404 — Page not found | Mirvo',
@@ -15,7 +16,7 @@ export default function NotFound() {
           The page you&apos;re looking for doesn&apos;t exist or has moved.
         </p>
         <Link
-          href="/"
+          href={"/" as Route}
           className="inline-block bg-[#3b6bef] text-white rounded-lg px-6 py-3 text-sm font-medium hover:bg-[#2d5cdc] transition-colors"
         >
           Back to home

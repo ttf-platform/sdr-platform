@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { AdminStatusIndicator } from './AdminStatusIndicator';
 
@@ -37,7 +38,7 @@ export function AdminSidebar() {
                     <span className="rounded-full border border-[#fde68a] bg-[#fef3c7] px-1.5 py-0.5 text-[10px] font-medium text-[#92400e]">Soon</span>
                   </div>
                 ) : (
-                  <Link href={item.href} className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${active ? 'bg-[#eff6ff] font-medium text-[#2563eb]' : 'text-[#1a1a1a] hover:bg-[#f5f2ee]'}`}>
+                  <Link href={item.href as Route} className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${active ? 'bg-[#eff6ff] font-medium text-[#2563eb]' : 'text-[#1a1a1a] hover:bg-[#f5f2ee]'}`}>
                     <span className="text-base leading-none">{item.icon}</span>
                     <span>{item.label}</span>
                   </Link>

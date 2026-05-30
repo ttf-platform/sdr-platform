@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard, BarChart2, Globe, Shield, Radio } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
@@ -156,7 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <Settings size={14} /> Settings
                   </Link>
                   <div className="border-t border-[#f0ece6]">
-                    <Link href="/" onClick={() => setAvatarOpen(false)}
+                    <Link href={"/" as Route} onClick={() => setAvatarOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#6b5e4e] hover:bg-[#f7f4f0]">
                       ← Homepage
                     </Link>
@@ -314,7 +315,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Profile / sign out */}
             <div className="py-2">
-              <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#6b5e4e] hover:bg-[#f5f2ee]">
+              <Link href={"/" as Route} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#6b5e4e] hover:bg-[#f5f2ee]">
                 ← Homepage
               </Link>
               <button type="button" onClick={() => { setMenuOpen(false); signOut() }}

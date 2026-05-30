@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Route } from 'next'
 import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
@@ -43,10 +43,10 @@ export default async function TermsPage({
           </h2>
           <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             By creating an account or using the Mirvo Service, you agree to be bound by these Terms of Service, our{' '}
-            <Link href="/legal/privacy" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Privacy Policy</Link>,{' '}
-            <Link href="/legal/cookies" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Cookie Policy</Link>,{' '}
-            <Link href="/legal/sending-policy" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Sending Policy</Link>, and, where applicable, our{' '}
-            <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
+            <Link href={"/legal/privacy" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Privacy Policy</Link>,{' '}
+            <Link href={"/legal/cookies" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Cookie Policy</Link>,{' '}
+            <Link href={"/legal/sending-policy" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Sending Policy</Link>, and, where applicable, our{' '}
+            <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             If you are accepting on behalf of a company or legal entity, you represent that you have authority to bind that entity to these Terms.
@@ -153,7 +153,7 @@ export default async function TermsPage({
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Adhere to our{' '}
-                <Link href="/legal/sending-policy" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Sending Policy</Link>
+                <Link href={"/legal/sending-policy" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Sending Policy</Link>
                 , including prohibitions on spam, purchased lists, and B2C outreach.</span>
             </li>
             <li className="flex gap-3">
@@ -184,7 +184,7 @@ export default async function TermsPage({
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Mirvo does not claim ownership over your content, does not use it to train AI models, and does not share it with third parties except as required to operate the Service (see our{' '}
-            <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>
+            <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>
             ).
           </p>
         </section>

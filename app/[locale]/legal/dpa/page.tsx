@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Route } from 'next'
 import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
@@ -59,7 +59,7 @@ export default async function DpaPage({
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             By agreeing to the{' '}
-            <Link href="/legal/terms" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Terms of Service</Link>
+            <Link href={"/legal/terms" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Terms of Service</Link>
             , you also agree to this DPA where applicable.
           </p>
         </section>
@@ -101,7 +101,7 @@ export default async function DpaPage({
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Mirvo = Data Controller</strong> for subscriber account data (name, email, billing information) — governed by the{' '}
-                <Link href="/legal/privacy" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Privacy Policy</Link>.
+                <Link href={"/legal/privacy" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Privacy Policy</Link>.
               </span>
             </li>
           </ul>
@@ -208,7 +208,7 @@ export default async function DpaPage({
           </ul>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             A full description is available on our{' '}
-            <Link href="/legal/security" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Security page</Link>.
+            <Link href={"/legal/security" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Security page</Link>.
           </p>
         </section>
 

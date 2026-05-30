@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Route } from 'next'
 import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
@@ -45,7 +45,7 @@ export default async function PrivacyPage({
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Mirvo plays two roles under GDPR: we act as <strong style={{ color: '#1a1a1a' }}>data controller</strong> for the personal data of our own users (account holders, subscribers), and as <strong style={{ color: '#1a1a1a' }}>data processor</strong> for the contact data that users import into the platform (prospects, email recipients). For questions about the processing of your prospects&apos; data, see our{' '}
-            <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
+            <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Mirvo&apos;s supervisory authority under GDPR is the Commission Nationale de l&apos;Informatique et des Libertés (<strong style={{ color: '#1a1a1a' }}>CNIL</strong>), France.
@@ -115,7 +115,7 @@ export default async function PrivacyPage({
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>Cookie data</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
                 See our{' '}
-                <Link href="/legal/cookies" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Cookie Policy</Link>
+                <Link href={"/legal/cookies" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Cookie Policy</Link>
                 {' '}for full details on what cookies are set and why.
               </p>
             </div>
@@ -229,7 +229,7 @@ export default async function PrivacyPage({
               <h3 className="mb-2" style={{ fontSize: '1.125rem', fontWeight: 500, color: '#1a1a1a' }}>AI provider transparency</h3>
               <p className="leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
                 Mirvo works with enterprise-grade AI providers under the EU-US Data Privacy Framework (DPF) and Standard Contractual Clauses (SCCs). A full list of AI sub-processors is available in our{' '}
-                <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
+                <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
               </p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export default async function PrivacyPage({
           </ul>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             A complete list of sub-processors with full names, locations, and data transfer mechanisms (DPF/SCCs) is available in our{' '}
-            <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>
+            <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>
             {' '}or by contacting{' '}
             <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
               privacy@mirvo.ai
@@ -361,7 +361,7 @@ export default async function PrivacyPage({
           </ul>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Full details including a Transfer Impact Assessment are available in our{' '}
-            <Link href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
+            <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>.
           </p>
         </section>
 
@@ -375,7 +375,7 @@ export default async function PrivacyPage({
           </p>
           <p className="mt-4 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             For a complete description of our security measures, see our{' '}
-            <Link href="/legal/security" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Security page</Link>.
+            <Link href={"/legal/security" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Security page</Link>.
           </p>
         </section>
 

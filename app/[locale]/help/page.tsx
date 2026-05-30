@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Route } from 'next'
 import Link from 'next/link'
 import { setRequestLocale } from 'next-intl/server'
 import { getArticles } from '@/lib/help/getArticles'
@@ -25,7 +25,7 @@ export default async function HelpPage({
       <header className="border-b border-[#e8e3dc] bg-white">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
           <Link
-            href={`/${locale}/dashboard`}
+            href={`/${locale}/dashboard` as Route}
             className="text-sm text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors"
           >
             <span aria-hidden="true">←</span> Back to dashboard
@@ -49,7 +49,7 @@ export default async function HelpPage({
 
         <p className="mt-10 text-center text-sm text-[#6b5e4e]">
           Still stuck?{' '}
-          <Link href={`/${locale}/dashboard`} className="text-[#2563eb] underline">
+          <Link href={`/${locale}/dashboard` as Route} className="text-[#2563eb] underline">
             Open the AI assistant
           </Link>{' '}
           in your dashboard.
