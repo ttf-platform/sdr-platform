@@ -1,12 +1,31 @@
 import { z } from 'zod'
 
-// Prospect import: outer envelope only. Inner `data` structure varies by mode
-// and is validated by the route handler (mode-specific logic preserved).
-export const prospectImportSchema = z.object({
-  mode:        z.enum(['manual', 'paste', 'csv']),
-  campaign_id: z.string().uuid().nullish(),
-  data:        z.unknown(),
-})
+const importContactFields = {
+  first_name:   z.string().nullish(),
+  last_name:    z.string().nullish(),
+  company:      z.string().nullish(),
+  title:        z.string().nullish(),
+  linkedin_url: z.string().nullish(),
+  website:      z.string().nullish(),
+}
+
+export const prospectImportSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode:        z.literal('manual'),
+    campaign_id: z.string().uuid().nullish(),
+    data:        z.object({ email: z.string(), ...importContactFields }),
+  }),
+  z.object({
+    mode:        z.literal('paste'),
+    campaign_id: z.string().uuid().nullish(),
+    data:        z.object({ emails: z.array(z.string()) }),
+  }),
+  z.object({
+    mode:        z.literal('csv'),
+    campaign_id: z.string().uuid().nullish(),
+    data:        z.object({ rows: z.array(z.object({ email: z.string(), ...importContactFields })) }),
+  }),
+])
 
 // Status values from migration 012 CHECK constraint.
 export const PROSPECT_STATUSES = [
