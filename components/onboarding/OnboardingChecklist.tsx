@@ -44,7 +44,7 @@ const STEPS: ChecklistStep[] = [
   {
     key: 'prospects_added',
     title: 'Add your prospects',
-    description: 'CSV, Clay, or Signal-matched',
+    description: 'CSV import or AI discovery',
     href: () => '/dashboard/campaigns',
   },
   {

@@ -47,7 +47,7 @@ export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
       onClose={handleClose}
       size="lg"
       title="Welcome to Mirvo"
-      description="Your AI sales agent is ready. Here's your 7-step setup — 15 minutes to your first campaign."
+      description="Your AI sales agent is ready. Here's your 7-step setup — your first email goes out in under an hour."
       closeOnBackdropClick={false}
       footer={
         <div className="flex flex-col gap-2 w-full">
