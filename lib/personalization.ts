@@ -47,7 +47,7 @@ export function renderTemplate(template: string, vars: ContactVars, extras?: Ren
     .replace(/\{\{meeting_duration\}\}/g, String(extras?.meetingDuration ?? 30))
 }
 
-// ─── Smart opening line — Sonnet prompt builder ───────────────────────────────
+// ─── Smart opening line: Sonnet prompt builder ───────────────────────────────
 
 export function buildSmartPrompt(
   vars: ContactVars,
@@ -89,7 +89,7 @@ Don't fake specificity.
 - The opening must connect naturally to the rest of the email below.
 - Plain text only. No emojis. No markdown.
 - Maximum 2 sentences. Keep it tight.
-- Each opening line must feel distinct — vary your angle, verb choice, and sentence structure. \
+- Each opening line must feel distinct: vary your angle, verb choice, and sentence structure. \
 Two prospects in the same industry must NOT receive openings that sound like variations of each other.
 
 OUTPUT: Just the 1-2 sentence opening line. No preamble, no quotes, no explanation.`
@@ -149,7 +149,7 @@ export function assembleSmartBody(renderedBody: string, openingLine: string): st
       return firstPara + '\n\n' + opening + rest
     }
 
-    // No greeting — replace first paragraph with AI opening, keep the rest
+    // No greeting: replace first paragraph with AI opening, keep the rest
     return opening + '\n\n' + afterFirstBlank
   }
 

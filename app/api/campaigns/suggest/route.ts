@@ -55,7 +55,7 @@ ${STRATEGY_VOICE_RULES}
 ${profileCtx}
 
 Each persona = a specific job title + company type (e.g. "Head of Sales at Series A SaaS, 20-100 employees").
-Make each one meaningfully different — different title, different stage, or different segment.
+Make each one meaningfully different: different title, different stage, or different segment.
 Be specific and actionable. No generic "decision makers".
 
 Return ONLY a JSON array of 3 strings. No markdown, no explanation:
@@ -88,7 +88,7 @@ ${profileCtx}
 
 An angle = the specific lens / framing / narrative that makes THIS message resonate with THIS persona.
 Examples: pain point angle, ROI angle, timing/urgency angle, competitor angle, social proof angle, aspirational angle.
-Each should feel like a completely different strategic bet — not variations of the same message.
+Each should feel like a completely different strategic bet, not variations of the same message.
 Keep each angle to 1-2 concise sentences max.
 
 Return ONLY a JSON array of 3 strings. No markdown, no explanation:
@@ -122,7 +122,7 @@ Target persona: ${target_persona}
 Campaign angle: ${angle}
 Campaign name: ${campaign_name}
 
-A value proposition = the specific, concrete benefit this persona gets — written the way you'd say it in an email.
+A value proposition = the specific, concrete benefit this persona gets, written the way you'd say it in an email.
 It must connect the angle to something the persona genuinely cares about.
 Each should be a single punchy sentence (10-20 words). Different framing each time.
 

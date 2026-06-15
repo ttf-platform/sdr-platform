@@ -44,7 +44,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const stepLabel = stepRow.step_type === 'initial' ? 'initial cold email' : `follow-up email #${stepRow.step_order} (sent ~${stepRow.delay_days} days after previous)`
 
   const variableRules = stepRow.step_type === 'initial'
-    ? `CRITICAL — Template variables: The body MUST include {{first_name}} in the greeting (e.g., "Hi {{first_name}},") and {{company}} somewhere in the body. These are placeholders replaced with real prospect data at send time. DO NOT hardcode names or write "Hey there".`
+    ? `CRITICAL: Template variables: The body MUST include {{first_name}} in the greeting (e.g., "Hi {{first_name}},") and {{company}} somewhere in the body. These are placeholders replaced with real prospect data at send time. DO NOT hardcode names or write "Hey there".`
     : `Variables: If the follow-up opens with a greeting, use {{first_name}} (e.g., "Hi {{first_name}},"). For short follow-ups with no greeting, omit it. You may use {{company}} where it fits naturally.`
 
   const wordCap = stepRow.step_type === 'initial' ? 120 : 80
@@ -53,13 +53,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
 ${HUMAN_VOICE_RULES}
 
-${stepRow.step_type === 'initial' ? 'STRUCTURE (problem-first — non negotiable):\n- Open on the prospect\'s problem, not on us. NOT on our company or product.\n- Then one sentence on how that gets solved (benefit, not a product pitch).\n- Then one soft CTA.\n' : ''}
+${stepRow.step_type === 'initial' ? 'STRUCTURE (problem-first, non negotiable):\n- Open on the prospect\'s problem, not on us. NOT on our company or product.\n- Then one sentence on how that gets solved (benefit, not a product pitch).\n- Then one soft CTA.\n' : ''}
 ${variableRules}
 
-CRITICAL — Anti-fabrication:
-Do NOT invent specific facts. Keep the email general enough to work for the persona — personalization happens later per-prospect.
+CRITICAL: Anti-fabrication:
+Do NOT invent specific facts. Keep the email general enough to work for the persona. Personalization happens later per-prospect.
 
-CRITICAL — Meeting duration:
+CRITICAL: Meeting duration:
 When proposing a meeting/call/demo, ALWAYS use {{meeting_duration}} for the duration.
 Examples: "Worth a {{meeting_duration}}-minute call?" or "Happy to book a {{meeting_duration}}-min demo."
 DO NOT hardcode "30 min", "20 min", or any specific duration.
