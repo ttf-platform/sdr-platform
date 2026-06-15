@@ -13,7 +13,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   {
     id: 'recruitment-clients',
     emoji: '🎯',
-    label: 'Recruitment — Win Clients',
+    label: 'Recruitment Clients',
     description: 'Land new client companies for your recruitment or staffing desk.',
     angle: 'Open roles at {{company}} that stay unfilled for weeks quietly cost revenue and burn out the team covering the gap',
     value_prop: 'We fill specialist roles faster than in-house hiring, on a model built for lean teams.',
@@ -23,7 +23,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   {
     id: 'agency-clients',
     emoji: '📣',
-    label: 'Agency — Win Retainers',
+    label: 'Agency Retainers',
     description: 'Win new retainer clients for your agency.',
     angle: 'Most teams at {{company}} run growth on the side of their real job, so it stalls and no one owns it',
     value_prop: 'We run your growth channels as an extension of your team, so you get output without another hire.',
@@ -33,7 +33,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   {
     id: 'consultant',
     emoji: '💼',
-    label: 'Consulting — Land Engagements',
+    label: 'Consulting Engagements',
     description: 'Win clients for your consulting or fractional practice.',
     angle: 'Scaling fast means {{company}} keeps hitting problems it has never solved before, with no one in-house who has',
     value_prop: 'I have solved exactly this for companies at your stage and can step in without a long ramp.',

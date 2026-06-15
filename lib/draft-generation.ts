@@ -90,7 +90,7 @@ async function ensureInitialStep(
 
 ${HUMAN_VOICE_RULES}
 
-STRUCTURE (problem-first — non negotiable):
+STRUCTURE (problem-first, non negotiable):
 - Line 1 opens on the PROSPECT's problem or the cost of their status quo. NOT on us, our company, or our product.
 - Then one sentence on how that gets solved (benefit, not a product pitch).
 - Then one soft CTA.
@@ -107,7 +107,7 @@ CRITICAL — Meeting duration:
 For any meeting/call/demo duration, ALWAYS use {{meeting_duration}} (e.g. "Worth a {{meeting_duration}}-minute call?").
 DO NOT hardcode "30 min", "20 min", or any number.
 
-GROUNDING CONTEXT (use to inform the problem framing — do NOT lead with it):
+GROUNDING CONTEXT (use to inform the problem framing, do NOT lead with it):
 - Sender company: ${(profile?.company_name as string) || 'the company'}
 - What they do: ${(profile?.product_description as string) || ''}
 - Value proposition: ${(profile?.value_proposition as string) || ''}

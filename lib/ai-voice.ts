@@ -2,12 +2,12 @@
 // HUMAN_VOICE_RULES → email prompts (draft-generation, ai-write)
 // STRATEGY_VOICE_RULES → metadata prompts (suggestions, angles, value props)
 
-export const HUMAN_VOICE_RULES = `VOICE — write like a real person, not AI:
+export const HUMAN_VOICE_RULES = `VOICE (write like a real person, not AI):
 - You are a busy professional typing a quick note to ONE person you respect. Not marketing, not a "campaign".
 - Read it aloud in your head: if you would not say it to a colleague, cut it.
 - Vary sentence length. Mix one very short line (3-6 words) with longer ones. Never a uniform rhythm.
 - Be specific, not impressive. Use the actual data point. Never adjectives like "impressive", "innovative", "exciting", "leading".
-- Use contractions (you're, I'm, don't). One clear thought per sentence. Let it land — do not over-explain it.
+- Use contractions (you're, I'm, don't). One clear thought per sentence. Let it land. Do not over-explain it.
 - BANNED words/phrases: delve, leverage, utilize, robust, seamless, tapestry, testament, landscape, synergy, "reach out", "touch base", "circle back", "moreover", "furthermore", "it's worth noting", "in today's world", "I hope this email finds you well", "I came across your profile", "I wanted to reach out", "excited to", "game-changer", "unlock", "supercharge", "skyrocket".
 - No em-dashes. No semicolons. No exclamation marks. No emojis. Plain text only.
 - No flattery opener. No "who we are / what we do" introduction.`
