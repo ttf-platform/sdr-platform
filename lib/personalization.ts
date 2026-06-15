@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import { HUMAN_VOICE_RULES } from '@/lib/ai-voice'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ export function renderTemplate(template: string, vars: ContactVars, extras?: Ren
     .replace(/\{\{first_name\}\}/g,       fn)
     .replace(/\{\{last_name\}\}/g,        ln)
     .replace(/\{\{full_name\}\}/g,        fullName)
-    .replace(/\{\{company\}\}/g,          vars.company      ?? '')
+    .replace(/\{\{company\}\}/g,          vars.company?.trim() || 'your company')
     .replace(/\{\{title\}\}/g,            vars.title        ?? '')
     .replace(/\{\{sender_name\}\}/g,      vars.sender_name  ?? '')
     .replace(/\{\{booking_link\}\}/g,     extras?.bookingUrl      ?? '{{booking_link}}')
@@ -58,6 +59,8 @@ export function buildSmartPrompt(
   return `You are writing the FIRST 1-2 sentences (opening line) of a cold outreach email \
 to a B2B prospect. The rest of the email is already written. Your job is ONLY the opening \
 line that will hook the reader's attention.
+
+${HUMAN_VOICE_RULES}
 
 CAMPAIGN CONTEXT:
 - Persona: ${context.persona ?? 'not specified'}
