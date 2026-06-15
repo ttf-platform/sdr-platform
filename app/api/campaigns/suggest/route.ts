@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignSuggestSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
+import { STRATEGY_VOICE_RULES } from '@/lib/ai-voice'
 
 export async function POST(request: Request) {
   const client = getAnthropicClient()
@@ -49,6 +50,8 @@ Tone: ${profile?.tone || 'professional'}`.trim()
         role: 'user',
         content: `You are a B2B sales strategist. Suggest 3 distinct target personas for the campaign "${campaign_name}".
 
+${STRATEGY_VOICE_RULES}
+
 ${profileCtx}
 
 Each persona = a specific job title + company type (e.g. "Head of Sales at Series A SaaS, 20-100 employees").
@@ -79,6 +82,8 @@ Return ONLY a JSON array of 3 strings. No markdown, no explanation:
         role: 'user',
         content: `You are a B2B sales strategist. Suggest 3 distinct campaign angles for reaching "${target_persona}" with the campaign "${campaign_name}".
 
+${STRATEGY_VOICE_RULES}
+
 ${profileCtx}
 
 An angle = the specific lens / framing / narrative that makes THIS message resonate with THIS persona.
@@ -108,6 +113,8 @@ Return ONLY a JSON array of 3 strings. No markdown, no explanation:
     messages: [{
       role: 'user',
       content: `You are a B2B sales copywriter. Suggest 3 distinct value propositions for this campaign.
+
+${STRATEGY_VOICE_RULES}
 
 ${profileCtx}
 
