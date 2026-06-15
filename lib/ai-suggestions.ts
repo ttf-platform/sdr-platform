@@ -2,6 +2,7 @@
 // Called by both the GET route (auto-refresh on empty) and the POST /refresh route.
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { STRATEGY_VOICE_RULES } from '@/lib/ai-voice'
 
 export interface AISuggestion {
   id: string
@@ -37,6 +38,8 @@ export async function refreshAISuggestions(workspaceId: string): Promise<AISugge
     : (profile?.icp_company_size ?? '')
 
   const prompt = `You are a B2B outbound strategist. Generate 3 distinct campaign suggestions for a sales team based on their product and ICP.
+
+${STRATEGY_VOICE_RULES}
 
 Product & Company:
 - Company: ${(profile as any)?.company_name || 'the company'}

@@ -6,6 +6,7 @@ import {
 } from '@/lib/personalization'
 import { renderSignature, appendSignature } from '@/lib/signature'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { HUMAN_VOICE_RULES, selfRevisionBlock } from '@/lib/ai-voice'
 
 export interface GenerateResult {
   generated_count:   number
@@ -21,8 +22,8 @@ export interface GenerateError {
 }
 
 // Fallback body used when no campaign content is available (blank canvas)
-const BLANK_INITIAL_BODY = 'Hi {{first_name}},\n\nI wanted to reach out — I think there might be a good fit between what we do and what {{company}} is working on.\n\nWould you be open to a quick chat?'
-const BLANK_INITIAL_SUBJECT = 'Quick note for {{company}}'
+const BLANK_INITIAL_SUBJECT = 'Quick question for {{company}}'
+const BLANK_INITIAL_BODY = 'Hi {{first_name}},\n\nI\'ll keep this short. Most teams at {{company}}\'s stage hit the same bottleneck, and it usually costs more than it looks.\n\nWorth a quick call to see if it\'s worth solving now?'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -85,28 +86,35 @@ async function ensureInitialStep(
 
     const tone = campaign.tone || (profile?.tone as string) || 'professional'
 
-    const prompt = `You are an expert B2B sales copywriter for cold outbound campaigns. Write the initial cold outreach email for a sequence.
+    const prompt = `You are an expert B2B cold outreach copywriter. Write the initial email for a sequence.
+
+${HUMAN_VOICE_RULES}
+
+STRUCTURE (problem-first, non negotiable):
+- Line 1 opens on the PROSPECT's problem or the cost of their status quo. NOT on us, our company, or our product.
+- Then one sentence on how that gets solved (benefit, not a product pitch).
+- Then one soft CTA.
 
 CRITICAL — Template variables (mandatory):
-The body MUST include:
-- {{first_name}} in the greeting line (e.g., "Hi {{first_name}},")
-- {{company}} somewhere naturally in the body
-These are literal placeholders replaced at send time. DO NOT replace them with real values.
-DO NOT hardcode any name, company, or generic substitute like "Hey there", "Hi friend", or "Hi [Name]".
-DO NOT add a sign-off, closing name, or signature — these are handled separately outside the email body.
+The body MUST include {{first_name}} in the greeting (e.g. "Hi {{first_name}},") and {{company}} somewhere natural.
+These are literal placeholders replaced at send time. DO NOT replace them or hardcode names ("Hey there", "Hi [Name]").
+DO NOT add a sign-off, closing name, or signature — handled separately.
 
 CRITICAL — Anti-fabrication:
-Do NOT invent specific facts about prospects. No fake fundraising, no fake employee counts, no named clients.
+Do NOT invent facts about the prospect. No fake funding, headcounts, or named clients.
 
-SENDER:
-- Company: ${(profile?.company_name as string) || 'the company'}
-- Description: ${(profile?.product_description as string) || ''}
+CRITICAL — Meeting duration:
+For any meeting/call/demo duration, ALWAYS use {{meeting_duration}} (e.g. "Worth a {{meeting_duration}}-minute call?").
+DO NOT hardcode "30 min", "20 min", or any number.
+
+GROUNDING CONTEXT (use to inform the problem framing, do NOT lead with it):
+- Sender company: ${(profile?.company_name as string) || 'the company'}
+- What they do: ${(profile?.product_description as string) || ''}
 - Value proposition: ${(profile?.value_proposition as string) || ''}
-- Sender name: ${(profile?.sender_name as string) || 'the sender'}
-- Tone: ${tone}
 - ICP context: ${(profile?.icp_description as string) || ''}
 - ICP industries: ${icp_industries}
 - Pain points: ${(profile?.pain_points as string) || ''}
+- Tone: ${tone}
 
 TARGET PROSPECT:
 ${targetProspectLines || '(no structured ICP data — write for a general B2B audience)'}
@@ -117,25 +125,12 @@ ${campaign.target_persona || ''}
 PITCH:
 ${pitchLines}
 
-CRITICAL — Meeting duration:
-When proposing a meeting/call/demo, ALWAYS use {{meeting_duration}} for the duration.
-Examples: "Worth a {{meeting_duration}}-minute call?" or "Happy to book a {{meeting_duration}}-min demo."
-DO NOT hardcode "30 min", "20 min", or any specific duration.
+Length: 80-120 words. Subject line: 4-8 words, problem or curiosity driven (never the product name). Paragraphs separated by \\n\\n.
 
-Writing rules:
-- Use plain text only. No HTML, no bullet lists, no formatting tags.
-- Keep the email SHORT: 80-120 words.
-- Subject line: 4-8 words, curiosity or value-driven.
-- Sound like a real human SDR.
-- Paragraphs separated by \\n\\n.
+${selfRevisionBlock(120)}
 
 Return ONLY valid JSON (no markdown):
-{
-  "initial": {
-    "subject": "string",
-    "body": "string"
-  }
-}`
+{ "initial": { "subject": "string", "body": "string" } }`
 
     try {
       const msg = await anthropic.messages.create({
