@@ -53,19 +53,19 @@ Target audience:
 - Company sizes: ${icp_sizes || '(not specified)'}
 - Pain points: ${(profile as any)?.pain_points || '(not specified)'}
 
-Rules — STRICTLY FOLLOW:
+Rules (STRICTLY FOLLOW):
 - Each suggestion must use a DIFFERENT strategic angle: pain point, ROI/value, competitive, urgency, or relationship
 - All 3 must be meaningfully different from each other (different persona segments or angles)
 - Anti-fabrication: do NOT invent specific statistics, percentages, revenue figures, or exact headcounts
 - If estimating, use ranges or qualitative language (e.g. "growing teams", "mid-size companies")
 - Base everything solely on the information provided above
-- Template variables {{first_name}} and {{company}} are available — you may reference them in angle/value_prop
+- Template variables {{first_name}} and {{company}} are available; you may reference them in angle/value_prop
 
 Return ONLY a valid JSON array (no markdown, no explanation):
 [
   {
     "name": "short campaign name (4-6 words, action-oriented)",
-    "angle": "core outreach angle — the hook (1 sentence, may include {{company}})",
+    "angle": "core outreach angle: the hook (1 sentence, may include {{company}})",
     "value_prop": "specific value proposition (1-2 sentences)",
     "cta": "call to action (1 sentence)",
     "target_persona": "specific target audience within the ICP (1 sentence)",
@@ -97,7 +97,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
       reasoning:      s.reasoning     ?? null,
     }))
   } catch {
-    // Return empty on generation failure — caller decides how to surface error
+    // Return empty on generation failure. Caller decides how to surface error.
     return []
   }
 

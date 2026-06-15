@@ -1,4 +1,4 @@
-// Core campaign draft generation — shared by generate-drafts and regenerate-drafts routes.
+// Core campaign draft generation, shared by generate-drafts and regenerate-drafts routes.
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   renderTemplate, generateOpeningLine, assembleSmartBody,
@@ -95,15 +95,15 @@ STRUCTURE (problem-first, non negotiable):
 - Then one sentence on how that gets solved (benefit, not a product pitch).
 - Then one soft CTA.
 
-CRITICAL — Template variables (mandatory):
+CRITICAL: Template variables (mandatory):
 The body MUST include {{first_name}} in the greeting (e.g. "Hi {{first_name}},") and {{company}} somewhere natural.
 These are literal placeholders replaced at send time. DO NOT replace them or hardcode names ("Hey there", "Hi [Name]").
-DO NOT add a sign-off, closing name, or signature — handled separately.
+DO NOT add a sign-off, closing name, or signature, handled separately.
 
-CRITICAL — Anti-fabrication:
+CRITICAL: Anti-fabrication:
 Do NOT invent facts about the prospect. No fake funding, headcounts, or named clients.
 
-CRITICAL — Meeting duration:
+CRITICAL: Meeting duration:
 For any meeting/call/demo duration, ALWAYS use {{meeting_duration}} (e.g. "Worth a {{meeting_duration}}-minute call?").
 DO NOT hardcode "30 min", "20 min", or any number.
 
@@ -117,7 +117,7 @@ GROUNDING CONTEXT (use to inform the problem framing, do NOT lead with it):
 - Tone: ${tone}
 
 TARGET PROSPECT:
-${targetProspectLines || '(no structured ICP data — write for a general B2B audience)'}
+${targetProspectLines || '(no structured ICP data: write for a general B2B audience)'}
 
 PERSONA SUMMARY:
 ${campaign.target_persona || ''}
@@ -200,7 +200,7 @@ export async function generateDraftsForCampaign(
   const bookingUrl     = bookingSlug && bookingEnabled ? `${appUrl}/book/${bookingSlug}` : null
   const meetingDuration: number = ((bookingConfig.meeting_durations as number[] | undefined)?.[0]) ?? 30
 
-  // 3. Initial step — auto-generate if campaign was created without a sequence
+  // 3. Initial step: auto-generate if campaign was created without a sequence
   const { data: existingSteps } = await admin
     .from('campaign_steps')
     .select('id, step_order, step_type, subject, body')
@@ -287,7 +287,7 @@ export async function generateDraftsForCampaign(
     return { generated_count: 0, skipped_existing, errors: [], campaign_step_count: steps.length, prospect_count: prospects.length }
   }
 
-  // 7. Smart mode — generate opening lines for initial step, batch of 5
+  // 7. Smart mode: generate opening lines for initial step, batch of 5
   const errors: GenerateResult['errors'] = []
   const openingLines = new Map<string, string | null>()
 
@@ -314,7 +314,7 @@ export async function generateDraftsForCampaign(
   // 8. Render and assemble rows
   const renderExtras = { bookingUrl, meetingDuration }
   const insertRows = workItems.map(item => {
-    const DEFAULT_SIG  = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
+    const DEFAULT_SIG  = '--\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
     const isInitial    = item.step_order === 0
     const sigTemplate  = ((profile as any)?.email_signature as string | null | undefined)?.trim() || DEFAULT_SIG
     const appendSig    = isInitial
@@ -356,7 +356,7 @@ export async function generateDraftsForCampaign(
     }
   })
 
-  // 9. Upsert — ignoreDuplicates guards against concurrent double-call.
+  // 9. Upsert: ignoreDuplicates guards against concurrent double-call.
   //    UNIQUE(prospect_id, campaign_step_id) is a non-partial constraint so
   //    ignoreDuplicates resolves correctly.
   const { error: insertError } = await admin
