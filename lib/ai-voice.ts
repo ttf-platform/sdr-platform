@@ -24,3 +24,9 @@ export function selfRevisionBlock(wordCap: number): string {
 4. Any banned word or uniform AI cadence? 5. Would a human actually type this?
 If any check fails, rewrite it, then return only the final version.`
 }
+
+export function languageDirective(language?: string | null): string {
+  const lang = (language || 'English').trim()
+  if (!lang || lang.toLowerCase() === 'english') return ''
+  return `LANGUAGE (critical): Write the ENTIRE email (subject and body) natively in ${lang}. Compose directly in ${lang}; do NOT write in English and translate. Use idiomatic, natural phrasing a native speaker would use, and avoid anglicisms, stiff formality, or translated-sounding cliches.`
+}
