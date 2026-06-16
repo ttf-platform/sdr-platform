@@ -101,13 +101,18 @@ Return STRICTLY a JSON object with these keys (all optional):
 - value_proposition: string (1-2 sentences, the core benefit)
 - icp_description: string (who they target, 1-2 sentences)
 - target_industry: string (industry of their customers)
-- target_titles: array of strings (decision-maker job titles)
+- target_titles: array of strings (decision-maker job titles). MUST be plausible for the ICP and company size you return (see CONSISTENCY below).
 - target_regions: array of strings (geographic focus)
-- target_company_size: GENEROUS — can be a single range like "50-200" OR a wider spectrum
-  like "10-1000" if the company targets multiple sizes. Use the same enum values as
-  user_company_size but ranges can be wider.
+- target_company_size: array of enum values (same enum as user_company_size) consistent with the ICP.
+  Use the SMALLEST plausible bucket(s). Only span several buckets when the ICP explicitly targets a
+  broad range of company sizes. Do NOT default to wide ranges.
 - target_pain_points: string (problems they solve, 1-2 sentences)
 - email_tone: must be EXACTLY one of: "professional", "casual", "technical", "warm"
+
+CONSISTENCY (critical): icp_description, target_titles and target_company_size must describe the SAME customer.
+- If the ICP is founders, early-stage, solo operators, small businesses or small teams: target_titles must be owner/founder-level (e.g. "Founder", "Co-founder", "CEO", "Owner", "Managing Director"), and target_company_size must be small ("1-10", plus "10-50" only if clearly implied). Do NOT return "VP ...", "Head of ...", "Director ...", "SDR" or "Revenue Operations" titles, and do NOT return sizes of "50-200" or larger, for a small or early-stage ICP.
+- If the ICP is mid-market or enterprise: VP/Director/Head titles and larger sizes are appropriate.
+The titles and sizes you return must be realistic for a company matching the ICP you describe.
 
 DO NOT include explanations or wrapping text — only valid JSON.
 
