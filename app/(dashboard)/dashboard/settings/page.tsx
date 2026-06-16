@@ -22,7 +22,7 @@ const WORKSPACE_TIMEZONES = [
 const PRODUCT_TOOLTIP      = 'Your ICP and product details are used by Mirvo AI to personalize every email. The more precise, the higher your reply rate. These defaults auto-fill every new campaign.'
 const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From field. Defaults to Your name (Account) if empty. Use this to display a more formal name (e.g. 'Robert Smith' instead of 'Bob')."
 
-const DEFAULT_SIGNATURE = '—\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
+const DEFAULT_SIGNATURE = '--\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
 
 const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#2563eb]'
 const labelCls  = 'text-xs font-bold text-[#6b5e4e]'
@@ -38,23 +38,27 @@ function FieldOk({ show }: { show: boolean }) {
   return <p className="text-xs mt-1 text-green-600">Ok ✓</p>
 }
 
-function SaveButton({ section, saving, saved, onSave, missing = [] }: {
+function SaveButton({ section, saving, saved, onSave, missing = [], dirty }: {
   section:  string
   saving:   string | null
   saved:    string | null
   onSave:   () => void
   missing?: string[]
+  dirty?:   boolean
 }) {
-  const isSaving    = saving === section
-  const hasMissing  = missing.length > 0
+  const isSaving   = saving === section
+  const hasMissing = missing.length > 0
+  const isClean    = dirty === false
+
+  const isDisabled = isSaving || isClean || hasMissing
 
   const btn = (
     <button
       type="button"
-      onClick={!hasMissing && !isSaving ? onSave : undefined}
+      onClick={!isDisabled ? onSave : undefined}
       disabled={isSaving}
       className={`bg-[#2563eb] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity
-        ${hasMissing ? 'opacity-50 cursor-not-allowed' : 'disabled:opacity-40'}`}>
+        ${hasMissing ? 'opacity-50 cursor-not-allowed' : isClean ? 'opacity-40 cursor-default' : 'disabled:opacity-40'}`}>
       {saved === section ? '✓ Saved' : isSaving ? 'Saving...' : 'Save'}
     </button>
   )
@@ -75,6 +79,22 @@ function previewSignature(
   return renderSignature(template, { user_name: name, user_title: userTitle, company: companyName, company_website: companyWebsite })
 }
 
+const SNAP_DEFAULTS = {
+  name:                   '',
+  user_title:             '',
+  company_name:           '',
+  sender_name:            '',
+  company_website:        '',
+  timezone:               'America/Toronto',
+  user_industry:          '',
+  user_company_size:      '',
+  product_description:    '',
+  value_proposition:      '',
+  email_signature:        DEFAULT_SIGNATURE,
+  signature_in_initial:   true  as boolean,
+  signature_in_followups: false as boolean,
+}
+
 export default function SettingsPage() {
   const [user,          setUser]          = useState<any>(null)
   const [workspaceId,   setWorkspaceId]   = useState<string|null>(null)
@@ -86,7 +106,7 @@ export default function SettingsPage() {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
   const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string; persistent?: boolean } | null>(null)
-  const [pendingIcpUpdates, setPendingIcpUpdates] = useState<Record<string, unknown> | null>(null)
+  const [snapshot,      setSnapshot]      = useState(SNAP_DEFAULTS)
   const pathname = usePathname()
   useEffect(() => { setToast(t => t?.persistent ? null : t) }, [pathname])
 
@@ -104,7 +124,7 @@ export default function SettingsPage() {
     // Product
     product_description:     '',
     value_proposition:       '',
-    // ICP + Tone — loaded from DB for badge scoring; managed from Prospects page
+    // ICP + Tone: loaded from DB for badge scoring; managed from Prospects page
     tone:                    'professional',
     icp_description:         '',
     icp_industries:          [] as string[],
@@ -118,6 +138,11 @@ export default function SettingsPage() {
     signature_in_initial:    true,
     signature_in_followups:  false,
   })
+
+  function isDirtyAccount()   { return form.name !== snapshot.name || form.user_title !== snapshot.user_title }
+  function isDirtyCompany()   { return form.company_name !== snapshot.company_name || form.sender_name !== snapshot.sender_name || form.company_website !== snapshot.company_website || form.timezone !== snapshot.timezone || form.user_industry !== snapshot.user_industry || form.user_company_size !== snapshot.user_company_size }
+  function isDirtyProduct()   { return form.product_description !== snapshot.product_description || form.value_proposition !== snapshot.value_proposition }
+  function isDirtySignature() { return form.email_signature !== snapshot.email_signature || form.signature_in_initial !== snapshot.signature_in_initial || form.signature_in_followups !== snapshot.signature_in_followups }
 
   function touch(field: string) {
     setTouched(prev => { const n = new Set(prev); n.add(field); return n })
@@ -150,7 +175,7 @@ export default function SettingsPage() {
       setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
 
       if (p) {
-        setForm({
+        const loaded = {
           name:                   session.user.user_metadata?.full_name || '',
           user_title:             p.user_title              || '',
           company_name:           p.company_name            || '',
@@ -169,10 +194,25 @@ export default function SettingsPage() {
           target_titles:          p.target_titles           || '',
           target_regions:         p.target_regions          || '',
           company_revenue:        p.target_company_revenue  ?? [],
-          // Pre-fill default template when email_signature has never been set
           email_signature:        p.email_signature         ?? DEFAULT_SIGNATURE,
           signature_in_initial:   p.signature_in_initial    ?? true,
           signature_in_followups: p.signature_in_followups  ?? false,
+        }
+        setForm(loaded)
+        setSnapshot({
+          name:                   loaded.name,
+          user_title:             loaded.user_title,
+          company_name:           loaded.company_name,
+          sender_name:            loaded.sender_name,
+          company_website:        loaded.company_website,
+          timezone:               loaded.timezone,
+          user_industry:          loaded.user_industry,
+          user_company_size:      loaded.user_company_size,
+          product_description:    loaded.product_description,
+          value_proposition:      loaded.value_proposition,
+          email_signature:        loaded.email_signature,
+          signature_in_initial:   loaded.signature_in_initial,
+          signature_in_followups: loaded.signature_in_followups,
         })
       }
       setProfileLoaded(true)
@@ -192,12 +232,13 @@ export default function SettingsPage() {
       }))
     }
     await Promise.all(ops)
+    setSnapshot(s => ({ ...s, name: form.name, user_title: form.user_title }))
     setSavingSection(null)
     setSavedSection('account')
     setTimeout(() => setSavedSection(null), 2000)
   }
 
-  async function saveSection(section: string, fields: Record<string, unknown>) {
+  async function saveSection(section: string, fields: Record<string, unknown>, onSuccess?: () => void) {
     setSavingSection(section)
     const res = await fetch('/api/workspace/profile', {
       method: 'POST',
@@ -213,6 +254,7 @@ export default function SettingsPage() {
     }
     setSavedSection(section)
     setTimeout(() => setSavedSection(null), 2000)
+    onSuccess?.()
     if (section === 'signature') {
       setToast({ type: 'info', msg: 'Signature saved. This will only affect future email generations and regenerations. Existing drafts won\'t be modified.' })
       setTimeout(() => setToast(null), 7000)
@@ -222,21 +264,18 @@ export default function SettingsPage() {
   async function saveCompany() {
     if (!form.company_name.trim()) return
     setSavingSection('company')
-    const icpCount = pendingIcpUpdates ? Object.keys(pendingIcpUpdates).length : 0
-    const payload: Record<string, unknown> = {
-      workspace_id:       workspaceId,
-      company_name:       form.company_name,
-      sender_name:        form.sender_name,
-      company_website:    form.company_website,
-      workspace_timezone: form.timezone,
-      user_industry:      form.user_industry,
-      user_company_size:  form.user_company_size,
-      ...(pendingIcpUpdates ?? {}),
-    }
     const res = await fetch('/api/workspace/profile', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
+      body:    JSON.stringify({
+        workspace_id:       workspaceId,
+        company_name:       form.company_name,
+        sender_name:        form.sender_name,
+        company_website:    form.company_website,
+        workspace_timezone: form.timezone,
+        user_industry:      form.user_industry,
+        user_company_size:  form.user_company_size,
+      }),
     })
     setSavingSection(null)
     if (!res.ok) {
@@ -245,44 +284,79 @@ export default function SettingsPage() {
       setTimeout(() => setToast(null), 4000)
       return
     }
-    setPendingIcpUpdates(null)
+    setSnapshot(s => ({
+      ...s,
+      company_name:      form.company_name,
+      sender_name:       form.sender_name,
+      company_website:   form.company_website,
+      timezone:          form.timezone,
+      user_industry:     form.user_industry,
+      user_company_size: form.user_company_size,
+    }))
     setSavedSection('company')
     setTimeout(() => setSavedSection(null), 2000)
-    if (icpCount > 0) {
-      setToast({
-        type:       'info',
-        msg:        `Settings saved. We also saved ${icpCount} ICP field${icpCount !== 1 ? 's' : ''} in your Master ICP.`,
-        link:       '/dashboard/prospects?openIcp=1',
-        linkLabel:  'Review and adjust →',
-        persistent: true,
-      })
-    }
   }
 
-  function handleAutoFillApply(extracted: ExtractedFields) {
-    // Settings form fields — deferred to Save
-    setForm(f => ({
-      ...f,
-      ...(extracted.industry            !== undefined && { user_industry:       extracted.industry }),
-      ...(extracted.user_company_size   !== undefined && { user_company_size:   extracted.user_company_size }),
-      ...(extracted.product_description !== undefined && { product_description: extracted.product_description }),
-      ...(extracted.value_proposition   !== undefined && { value_proposition:   extracted.value_proposition }),
-    }))
+  async function handleAutoFillApply(extracted: ExtractedFields) {
+    const prevForm = { ...form }
 
-    // ICP fields — store in pending state, persisted at Save (not now)
-    const icpPayload: Record<string, unknown> = {}
-    if (extracted.icp_description     !== undefined) icpPayload.icp_description  = extracted.icp_description
-    if (extracted.target_industry     !== undefined) icpPayload.icp_industries   = [extracted.target_industry]
-    if (extracted.target_titles       !== undefined) icpPayload.target_titles    = (extracted.target_titles as string[]).join(', ')
-    if (extracted.target_regions      !== undefined) icpPayload.target_regions   = (extracted.target_regions as string[]).join(', ')
-    if (extracted.target_company_size !== undefined) icpPayload.icp_company_sizes = extracted.target_company_size
-    if (extracted.target_pain_points  !== undefined) icpPayload.pain_points      = extracted.target_pain_points
-    if (extracted.email_tone          !== undefined) icpPayload.tone             = extracted.email_tone
+    // Build settings + ICP form updates
+    const settingsFormUpdate: Partial<typeof form> = {}
+    if (extracted.industry          !== undefined) settingsFormUpdate.user_industry       = extracted.industry as string
+    if (extracted.user_company_size !== undefined) settingsFormUpdate.user_company_size   = extracted.user_company_size as string
+    if (extracted.product_description !== undefined) settingsFormUpdate.product_description = extracted.product_description as string
+    if (extracted.value_proposition !== undefined) settingsFormUpdate.value_proposition   = extracted.value_proposition as string
 
-    if (Object.keys(icpPayload).length > 0) setPendingIcpUpdates(icpPayload)
+    const icpFormUpdate: Partial<typeof form> = {}
+    if (extracted.icp_description     !== undefined) icpFormUpdate.icp_description  = extracted.icp_description as string
+    if (extracted.target_industry     !== undefined) icpFormUpdate.icp_industries   = [extracted.target_industry as string]
+    if (extracted.target_titles       !== undefined) icpFormUpdate.target_titles    = (extracted.target_titles as string[]).join(', ')
+    if (extracted.target_regions      !== undefined) icpFormUpdate.target_regions   = (extracted.target_regions as string[]).join(', ')
+    if (extracted.target_company_size !== undefined) icpFormUpdate.icp_company_sizes = extracted.target_company_size as string[]
+    if (extracted.target_pain_points  !== undefined) icpFormUpdate.pain_points      = extracted.target_pain_points as string
+    if (extracted.email_tone          !== undefined) icpFormUpdate.tone             = extracted.email_tone as string
 
-    setToast({ type: 'info', msg: "Auto-fill applied. Review the fields below and click Save to confirm." })
-    setTimeout(() => setToast(null), 6000)
+    setForm(f => ({ ...f, ...settingsFormUpdate, ...icpFormUpdate }))
+
+    // Build API payload
+    const payload: Record<string, unknown> = { workspace_id: workspaceId }
+    if (extracted.industry            !== undefined) payload.user_industry    = extracted.industry
+    if (extracted.user_company_size   !== undefined) payload.user_company_size = extracted.user_company_size
+    if (extracted.product_description !== undefined) payload.product_description = extracted.product_description
+    if (extracted.value_proposition   !== undefined) payload.value_proposition = extracted.value_proposition
+    if (extracted.icp_description     !== undefined) payload.icp_description  = extracted.icp_description
+    if (extracted.target_industry     !== undefined) payload.icp_industries   = [extracted.target_industry]
+    if (extracted.target_titles       !== undefined) payload.target_titles    = (extracted.target_titles as string[]).join(', ')
+    if (extracted.target_regions      !== undefined) payload.target_regions   = (extracted.target_regions as string[]).join(', ')
+    if (extracted.target_company_size !== undefined) payload.icp_company_sizes = extracted.target_company_size
+    if (extracted.target_pain_points  !== undefined) payload.pain_points      = extracted.target_pain_points
+    if (extracted.email_tone          !== undefined) payload.tone             = extracted.email_tone
+
+    const filledCount = Object.keys(payload).length - 1 // exclude workspace_id
+
+    const res = await fetch('/api/workspace/profile', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      setForm(prevForm)
+      setToast({ type: 'error', msg: 'Auto-fill failed. Please try again.' })
+      setTimeout(() => setToast(null), 4000)
+      return
+    }
+
+    // Update snapshot for settings fields (now persisted)
+    setSnapshot(s => ({ ...s, ...settingsFormUpdate }))
+
+    setToast({
+      type:       'info',
+      msg:        `Saved. We filled ${filledCount} field${filledCount !== 1 ? 's' : ''} from your site. Your audience details (titles, regions, pain points) live in your Master ICP. Open it to review.`,
+      link:       '/dashboard/prospects?openIcp=1',
+      linkLabel:  'Open Master ICP →',
+      persistent: true,
+    })
   }
 
   const ws = (workspace?.workspaces as any)
@@ -334,7 +408,7 @@ export default function SettingsPage() {
           <a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings
         </div>
         {profileLoaded && (
-          <ProfileQualityBadge profile={profileForScore} hideEditLink={true} className="mb-3" />
+          <ProfileQualityBadge profile={profileForScore} hideEditLink={true} sticky dismissible className="mb-3" />
         )}
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
         <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
@@ -400,6 +474,7 @@ export default function SettingsPage() {
             saved={savedSection}
             onSave={saveAccount}
             missing={form.name.trim() ? [] : ['Your name']}
+            dirty={isDirtyAccount()}
           />
         </div>
 
@@ -411,7 +486,7 @@ export default function SettingsPage() {
               <div>
                 <div className="font-medium text-[#2563eb]">
                   {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string, string>)[ws?.plan_tier] ?? ws?.plan_tier ?? 'Starter'}
-                  {ws?.subscription_status === 'trialing' ? ' — Free Trial' : ''}
+                  {ws?.subscription_status === 'trialing' ? ' (Free Trial)' : ''}
                 </div>
                 <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
               </div>
@@ -435,7 +510,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* EMAIL SIGNATURE — full width, between Account+Plan and Company+Product */}
+      {/* EMAIL SIGNATURE: full width, between Account+Plan and Company+Product */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-1`}>EMAIL SIGNATURE</div>
         <p className="text-xs text-[#8a7e6e] mb-4">
@@ -493,7 +568,8 @@ export default function SettingsPage() {
             email_signature:        form.email_signature,
             signature_in_initial:   form.signature_in_initial,
             signature_in_followups: form.signature_in_followups,
-          })}
+          }, () => setSnapshot(s => ({ ...s, email_signature: form.email_signature, signature_in_initial: form.signature_in_initial, signature_in_followups: form.signature_in_followups })))}
+          dirty={isDirtySignature()}
         />
       </div>
 
@@ -545,7 +621,7 @@ export default function SettingsPage() {
                 />
               </div>
               <p className="text-xs text-[#b0a898] mt-1.5">
-                Save time — we&apos;ll analyze your website to suggest your industry, product description, ICP, and more.
+                Save time: we&apos;ll analyze your website to suggest your industry, product description, ICP, and more.
               </p>
             </div>
             <div>
@@ -584,10 +660,11 @@ export default function SettingsPage() {
             saved={savedSection}
             missing={form.company_name.trim() ? [] : ['Company name']}
             onSave={saveCompany}
+            dirty={isDirtyCompany()}
           />
         </div>
 
-        {/* PRODUCT — id="icp" for onboarding checklist deeplink */}
+        {/* PRODUCT: id="icp" for onboarding checklist deeplink */}
         <div id="icp" className={cardCls}>
           <div className="flex items-center gap-1.5 mb-4">
             <span className={sectionHd}>PRODUCT</span>
@@ -633,12 +710,13 @@ export default function SettingsPage() {
             saving={savingSection}
             saved={savedSection}
             missing={form.product_description.trim() ? [] : ['Product description']}
-            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition })}
+            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition }, () => setSnapshot(s => ({ ...s, product_description: form.product_description, value_proposition: form.value_proposition })))}
+            dirty={isDirtyProduct()}
           />
         </div>
       </div>
 
-      {/* PROSPECT RESEARCH — full width */}
+      {/* PROSPECT RESEARCH: full width */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-1`}>PROSPECT RESEARCH</div>
         <p className="text-xs text-[#8a7e6e] mb-3">Your monthly prospect research credits.</p>
@@ -658,12 +736,12 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* SENDING DOMAINS — full width */}
+      {/* SENDING DOMAINS: full width */}
       <div className={`${cardCls} mt-6`}>
         <header className="flex items-center gap-2 mb-2">
           <span className="text-xl" aria-hidden>📬</span>
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">Sending domains</h2>
-          <Tooltip content="Configure your domain for long-term deliverability. Mirvo sends immediately via managed infrastructure — your domain config improves reputation over time." placement="top">
+          <Tooltip content="Configure your domain for long-term deliverability. Mirvo sends immediately via managed infrastructure. Your domain config improves reputation over time." placement="top">
             <svg className="w-3.5 h-3.5 text-[#8a7e6e] cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -678,14 +756,14 @@ export default function SettingsPage() {
         </Link>
       </div>
 
-      {/* ADVANCED SETTINGS — full width */}
+      {/* ADVANCED SETTINGS: full width */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-4`}>ADVANCED SETTINGS</div>
         {[
-          { title: 'API Keys',          desc: 'Programmatic access to your Mirvo data for custom integrations — launching Q4 2026' },
-          { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability — launching Q3 2026' },
-          { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences — launching Q3 2026' },
-          { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV — launching Q3 2026' },
+          { title: 'API Keys',          desc: 'Programmatic access to your Mirvo data for custom integrations, launching Q4 2026' },
+          { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability, launching Q3 2026' },
+          { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences, launching Q3 2026' },
+          { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV, launching Q3 2026' },
         ].map(item => (
           <div key={item.title} className="flex items-center justify-between py-3 border-b border-[#f0ece6] last:border-0">
             <div>
@@ -697,7 +775,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* DANGER ZONE — full width */}
+      {/* DANGER ZONE: full width */}
       <div className="bg-white border-2 border-red-100 rounded-xl p-5 mt-6">
         <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-4">DANGER ZONE</div>
         <div className="flex items-center justify-between py-2 border-b border-[#f0ece6]">
