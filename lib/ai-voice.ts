@@ -10,7 +10,8 @@ export const HUMAN_VOICE_RULES = `VOICE (write like a real person, not AI):
 - Use contractions (you're, I'm, don't). One clear thought per sentence. Let it land. Do not over-explain it.
 - BANNED words/phrases: delve, leverage, utilize, robust, seamless, tapestry, testament, landscape, synergy, "reach out", "touch base", "circle back", "moreover", "furthermore", "it's worth noting", "in today's world", "I hope this email finds you well", "I came across your profile", "I wanted to reach out", "excited to", "game-changer", "unlock", "supercharge", "skyrocket".
 - No em-dashes. No semicolons. No exclamation marks. No emojis. Plain text only.
-- No flattery opener. No "who we are / what we do" introduction.`
+- No flattery opener. No "who we are / what we do" introduction.
+- Use the prospect's first name only once, in the greeting. Never repeat their name later in the body.`
 
 export const STRATEGY_VOICE_RULES = `STYLE:
 - Be specific, not impressive. Never adjectives like "impressive", "innovative", "leading", "cutting-edge".

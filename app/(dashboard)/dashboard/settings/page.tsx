@@ -467,6 +467,7 @@ export default function SettingsPage() {
                 className={inputCls}
                 placeholder="e.g. Founder, CEO, Head of Sales"
               />
+              <p className="text-xs text-[#8a7e6e] mt-1">Just your role. Your company is added automatically in the signature.</p>
             </div>
           </div>
           <SaveButton
