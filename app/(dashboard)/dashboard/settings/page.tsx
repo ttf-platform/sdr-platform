@@ -402,14 +402,15 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {profileLoaded && (
+        <ProfileQualityBadge profile={profileForScore} hideEditLink={true} sticky dismissible className="mb-4" />
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1">
           <a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings
         </div>
-        {profileLoaded && (
-          <ProfileQualityBadge profile={profileForScore} hideEditLink={true} sticky dismissible className="mb-3" />
-        )}
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
         <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
       </div>
