@@ -1,4 +1,4 @@
-// Pure module — no React deps. Importable server-side and client-side.
+// Pure module. No React deps. Importable server-side and client-side.
 
 export interface ProfileForScore {
   // Company (Settings)

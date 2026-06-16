@@ -53,7 +53,7 @@ export default function ProfileQualityBadge({
     bannerCls = 'bg-red-50 border-l-4 border-red-500'
     pillCls   = 'bg-red-100 text-red-700'
     label     = `⚠️ Limited context · ${score}%`
-    subtext   = 'Campaigns are locked until you reach 30%. Complete your profile so Sentra AI can write on-brand emails.'
+    subtext   = 'Campaigns are locked until you reach 30%. Complete your profile so Mirvo AI can write on-brand emails.'
   }
 
   function handleDismiss() {

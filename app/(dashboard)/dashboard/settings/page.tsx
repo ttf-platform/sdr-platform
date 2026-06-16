@@ -19,7 +19,7 @@ const WORKSPACE_TIMEZONES = [
   'Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC',
 ]
 
-const PRODUCT_TOOLTIP      = 'Your ICP and product details are used by Sentra AI to personalize every email. The more precise, the higher your reply rate. These defaults auto-fill every new campaign.'
+const PRODUCT_TOOLTIP      = 'Your ICP and product details are used by Mirvo AI to personalize every email. The more precise, the higher your reply rate. These defaults auto-fill every new campaign.'
 const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From field. Defaults to Your name (Account) if empty. Use this to display a more formal name (e.g. 'Robert Smith' instead of 'Bob')."
 
 const DEFAULT_SIGNATURE = '--\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
@@ -124,7 +124,7 @@ export default function SettingsPage() {
     // Product
     product_description:     '',
     value_proposition:       '',
-    // ICP + Tone — loaded from DB for badge scoring; managed from Prospects page
+    // ICP + Tone: loaded from DB for badge scoring; managed from Prospects page
     tone:                    'professional',
     icp_description:         '',
     icp_industries:          [] as string[],
@@ -486,7 +486,7 @@ export default function SettingsPage() {
               <div>
                 <div className="font-medium text-[#2563eb]">
                   {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string, string>)[ws?.plan_tier] ?? ws?.plan_tier ?? 'Starter'}
-                  {ws?.subscription_status === 'trialing' ? ' — Free Trial' : ''}
+                  {ws?.subscription_status === 'trialing' ? ' (Free Trial)' : ''}
                 </div>
                 <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
               </div>
@@ -510,7 +510,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* EMAIL SIGNATURE — full width, between Account+Plan and Company+Product */}
+      {/* EMAIL SIGNATURE: full width, between Account+Plan and Company+Product */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-1`}>EMAIL SIGNATURE</div>
         <p className="text-xs text-[#8a7e6e] mb-4">
@@ -621,7 +621,7 @@ export default function SettingsPage() {
                 />
               </div>
               <p className="text-xs text-[#b0a898] mt-1.5">
-                Save time — we&apos;ll analyze your website to suggest your industry, product description, ICP, and more.
+                Save time: we&apos;ll analyze your website to suggest your industry, product description, ICP, and more.
               </p>
             </div>
             <div>
@@ -664,7 +664,7 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* PRODUCT — id="icp" for onboarding checklist deeplink */}
+        {/* PRODUCT: id="icp" for onboarding checklist deeplink */}
         <div id="icp" className={cardCls}>
           <div className="flex items-center gap-1.5 mb-4">
             <span className={sectionHd}>PRODUCT</span>
@@ -716,7 +716,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* PROSPECT RESEARCH — full width */}
+      {/* PROSPECT RESEARCH: full width */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-1`}>PROSPECT RESEARCH</div>
         <p className="text-xs text-[#8a7e6e] mb-3">Your monthly prospect research credits.</p>
@@ -736,18 +736,18 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* SENDING DOMAINS — full width */}
+      {/* SENDING DOMAINS: full width */}
       <div className={`${cardCls} mt-6`}>
         <header className="flex items-center gap-2 mb-2">
           <span className="text-xl" aria-hidden>📬</span>
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">Sending domains</h2>
-          <Tooltip content="Configure your domain for long-term deliverability. Sentra AI sends immediately via managed infrastructure — your domain config improves reputation over time." placement="top">
+          <Tooltip content="Configure your domain for long-term deliverability. Mirvo sends immediately via managed infrastructure. Your domain config improves reputation over time." placement="top">
             <svg className="w-3.5 h-3.5 text-[#8a7e6e] cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </Tooltip>
         </header>
-        <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Sentra warm it up while you send from day one.</p>
+        <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Mirvo warm it up while you send from day one.</p>
         <Link
           href="/dashboard/settings/sending-domains"
           className="inline-flex items-center gap-1 text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
@@ -756,14 +756,14 @@ export default function SettingsPage() {
         </Link>
       </div>
 
-      {/* ADVANCED SETTINGS — full width */}
+      {/* ADVANCED SETTINGS: full width */}
       <div className={`${cardCls} mt-6`}>
         <div className={`${sectionHd} mb-4`}>ADVANCED SETTINGS</div>
         {[
-          { title: 'API Keys',          desc: 'Programmatic access to your Sentra data for custom integrations — launching Q4 2026' },
-          { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability — launching Q3 2026' },
-          { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences — launching Q3 2026' },
-          { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV — launching Q3 2026' },
+          { title: 'API Keys',          desc: 'Programmatic access to your Mirvo data for custom integrations, launching Q4 2026' },
+          { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability, launching Q3 2026' },
+          { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences, launching Q3 2026' },
+          { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV, launching Q3 2026' },
         ].map(item => (
           <div key={item.title} className="flex items-center justify-between py-3 border-b border-[#f0ece6] last:border-0">
             <div>
@@ -775,7 +775,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* DANGER ZONE — full width */}
+      {/* DANGER ZONE: full width */}
       <div className="bg-white border-2 border-red-100 rounded-xl p-5 mt-6">
         <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-4">DANGER ZONE</div>
         <div className="flex items-center justify-between py-2 border-b border-[#f0ece6]">
