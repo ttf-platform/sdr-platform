@@ -33,6 +33,7 @@ export default function ProfileQualityBadge({
   const missing = getMissingCriteriaDetailed(profile)
 
   if (dismissed && score >= 30) return null
+  if (sticky && score >= 100) return null
 
   let bannerCls: string
   let pillCls: string
@@ -61,7 +62,7 @@ export default function ProfileQualityBadge({
     setDismissed(true)
   }
 
-  const stickyClass = sticky ? 'sticky top-0 z-30' : ''
+  const stickyClass = sticky ? 'sticky top-12 z-30' : ''
 
   return (
     <div className={`px-4 py-3 rounded-r-lg ${bannerCls} ${stickyClass} ${className}`}>
