@@ -70,6 +70,12 @@ const SOURCE_LABEL: Record<string, string> = {
 const COMPANY_SIZES  = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REVENUE_RANGES = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
 const TONES          = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
+const TONE_ALIASES: Record<string, string> = { technical: 'direct', warm: 'friendly' }
+function normalizeTone(raw?: string): string {
+  const t = (raw || '').toLowerCase()
+  if (TONES.some(x => x.toLowerCase() === t)) return t
+  return TONE_ALIASES[t] ?? 'professional'
+}
 
 const ICP_TOOLTIP         = 'These are your master defaults. They auto-fill every new campaign you create — and you can override any field per campaign at launch.'
 const PAIN_POINTS_TOOLTIP = 'Describe the problems your prospects face that your product solves. Examples: struggling with low email deliverability, spending 3+ hours/day on manual prospecting, missing quota due to lack of qualified leads.'
@@ -596,7 +602,7 @@ export default function ProspectsPage() {
           company_sizes:    p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []),
           company_revenue:  p.target_company_revenue ?? [],
           pain_points:      p.pain_points       || '',
-          tone:             p.tone              || 'professional',
+          tone:             normalizeTone(p.tone),
         }
         setIcpForm(loaded)
         setIcpOriginal(loaded)
@@ -619,6 +625,8 @@ export default function ProspectsPage() {
     target_company_revenue: icpForm.company_revenue,
     tone:                   icpForm.tone,
   } : null
+
+  const icpDirty = JSON.stringify(icpForm) !== JSON.stringify(icpOriginal)
 
   async function saveIcp() {
     if (!wid) return
@@ -765,7 +773,7 @@ export default function ProspectsPage() {
             <button onClick={() => setIcpOpen(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-lg leading-none">✕</button>
           </div>
           <p className="text-sm text-[#6b5e4e] mb-5">
-            Define your ideal customer once. All new campaigns auto-fill from this.
+            This is your refined ideal customer profile, the source of truth every new campaign builds on. Auto-fill from your website (in Settings) gives a first draft. Review and sharpen it here, then Save.
           </p>
 
           {/* ICP description — single textarea, scored + AI parse */}
@@ -912,11 +920,11 @@ export default function ProspectsPage() {
 
           {/* Footer */}
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setIcpForm(icpOriginal)}
-              className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors">
+            <button onClick={() => setIcpForm(icpOriginal)} disabled={!icpDirty}
+              className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               Reset
             </button>
-            <button onClick={saveIcp} disabled={icpSaving}
+            <button onClick={saveIcp} disabled={icpSaving || !icpDirty}
               className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
               {icpSaved ? '✓ Saved' : icpSaving ? 'Saving…' : 'Save Master ICP'}
             </button>
