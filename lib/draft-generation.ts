@@ -6,7 +6,7 @@ import {
 } from '@/lib/personalization'
 import { renderSignature, appendSignature } from '@/lib/signature'
 import { getAnthropicClient } from '@/lib/anthropic'
-import { HUMAN_VOICE_RULES, selfRevisionBlock } from '@/lib/ai-voice'
+import { HUMAN_VOICE_RULES, selfRevisionBlock, languageDirective } from '@/lib/ai-voice'
 
 export interface GenerateResult {
   generated_count:   number
@@ -40,6 +40,7 @@ type CampaignForStep = {
   company_sizes:   string[] | null
   company_revenue: string[] | null
   tone:            string | null
+  language:        string | null
 }
 
 function buildLines(pairs: Array<[string, string | null | undefined]>): string {
@@ -89,6 +90,8 @@ async function ensureInitialStep(
     const prompt = `You are an expert B2B cold outreach copywriter. Write the initial email for a sequence.
 
 ${HUMAN_VOICE_RULES}
+
+${languageDirective(campaign.language)}
 
 STRUCTURE (problem-first, non negotiable):
 - Line 1 opens on the PROSPECT's problem or the cost of their status quo. NOT on us, our company, or our product.
@@ -178,7 +181,7 @@ export async function generateDraftsForCampaign(
   // 1. Campaign
   const { data: campaign } = await admin
     .from('campaigns')
-    .select('id, target_persona, angle, value_prop, cta, include_booking_link_initial, target_industry, target_titles, target_regions, company_sizes, company_revenue, tone')
+    .select('id, target_persona, angle, value_prop, cta, include_booking_link_initial, target_industry, target_titles, target_regions, company_sizes, company_revenue, tone, language')
     .eq('id', campaignId)
     .eq('workspace_id', workspaceId)
     .single()
@@ -297,6 +300,7 @@ export async function generateDraftsForCampaign(
       persona:    (campaign as any).target_persona,
       angle:      (campaign as any).angle,
       value_prop: (campaign as any).value_prop,
+      language:   (campaign as any).language,
     }
 
     for (let i = 0; i < initialItems.length; i += 5) {

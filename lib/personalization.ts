@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
-import { HUMAN_VOICE_RULES } from '@/lib/ai-voice'
+import { HUMAN_VOICE_RULES, languageDirective } from '@/lib/ai-voice'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ export interface CampaignContext {
   persona:    string | null
   angle:      string | null
   value_prop: string | null
+  language?:  string | null
 }
 
 // ─── Variable renderer ────────────────────────────────────────────────────────
@@ -61,6 +62,8 @@ to a B2B prospect. The rest of the email is already written. Your job is ONLY th
 line that will hook the reader's attention.
 
 ${HUMAN_VOICE_RULES}
+
+${languageDirective(context.language)}
 
 CAMPAIGN CONTEXT:
 - Persona: ${context.persona ?? 'not specified'}

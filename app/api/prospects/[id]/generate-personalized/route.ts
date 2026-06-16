@@ -102,6 +102,7 @@ export async function POST(_request: Request, { params }: Params) {
 Your job: take a template email and personalize ONLY the intro paragraph (first 1-2 sentences) based on detected signals about the prospect's company. Keep the rest of the body unchanged in tone and structure.
 
 CRITICAL RULES (anti-fabrication):
+- Write the personalized intro in the SAME language as the original template below. Do not switch languages.
 - The intro MUST reference the signal as factual context. NEVER fabricate details not in signal_data.
 - Do NOT invent specific quotes, numbers, dates, or events not present in signal_data.
 - The intro should feel natural and conversational, not robotic.

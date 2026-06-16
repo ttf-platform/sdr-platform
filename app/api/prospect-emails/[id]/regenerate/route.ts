@@ -46,7 +46,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const { data: campaign } = await admin
     .from('campaigns')
-    .select('id, personalization_mode, target_persona, angle, value_prop')
+    .select('id, personalization_mode, target_persona, angle, value_prop, language')
     .eq('id', step.campaign_id)
     .eq('workspace_id', guard.workspaceId)
     .single()
@@ -95,6 +95,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       persona:    campaign.target_persona,
       angle:      campaign.angle,
       value_prop: campaign.value_prop,
+      language:   campaign.language,
     }, step.body ?? '')
     if (opening) bodyOut = assembleSmartBody(bodyOut, opening)
   }

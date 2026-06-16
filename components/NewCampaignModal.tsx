@@ -7,7 +7,7 @@ import { track } from '@/lib/track'
 const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
 const TONES        = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
-const LANGUAGES    = ['English', 'French', 'German', 'Spanish', 'Italian']
+const LANGUAGES    = ['English', 'French']
 
 interface Props {
   preset: CampaignTemplate | null

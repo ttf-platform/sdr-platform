@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignStepAiWriteSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
-import { HUMAN_VOICE_RULES, selfRevisionBlock } from '@/lib/ai-voice'
+import { HUMAN_VOICE_RULES, selfRevisionBlock, languageDirective } from '@/lib/ai-voice'
 
 export async function POST(request: Request, context: { params: Promise<{ id: string; step_id: string }> }) {
   const params = await context.params
@@ -24,7 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const { data: stepRow } = await admin
     .from('campaign_steps')
-    .select('*, campaigns!inner(workspace_id, name, angle, value_prop, cta, target_persona, icp_snapshot)')
+    .select('*, campaigns!inner(workspace_id, name, angle, value_prop, cta, target_persona, icp_snapshot, language)')
     .eq('id', params.step_id)
     .single()
 
@@ -52,6 +52,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const prompt = `You are an expert B2B cold outreach copywriter. Write a single ${stepLabel} for the following campaign.
 
 ${HUMAN_VOICE_RULES}
+
+${languageDirective(campaign.language)}
 
 ${stepRow.step_type === 'initial' ? 'STRUCTURE (problem-first, non negotiable):\n- Open on the prospect\'s problem, not on us. NOT on our company or product.\n- Then one sentence on how that gets solved (benefit, not a product pitch).\n- Then one soft CTA.\n' : ''}
 ${variableRules}
