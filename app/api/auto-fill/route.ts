@@ -9,7 +9,7 @@ import { getAnthropicClient } from '@/lib/anthropic'
 const lastUsed = new Map<string, number>()
 const RATE_LIMIT_MS = 30_000
 
-const VALID_EMAIL_TONES = ['professional', 'casual', 'technical', 'warm']
+const VALID_EMAIL_TONES = ['professional', 'casual', 'direct', 'friendly', 'witty']
 
 function validateExtracted(raw: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}
@@ -107,7 +107,7 @@ Return STRICTLY a JSON object with these keys (all optional):
   Use the SMALLEST plausible bucket(s). Only span several buckets when the ICP explicitly targets a
   broad range of company sizes. Do NOT default to wide ranges.
 - target_pain_points: string (problems they solve, 1-2 sentences)
-- email_tone: must be EXACTLY one of: "professional", "casual", "technical", "warm"
+- email_tone: must be EXACTLY one of: "professional", "casual", "direct", "friendly", "witty"
 
 CONSISTENCY (critical): icp_description, target_titles and target_company_size must describe the SAME customer.
 - If the ICP is founders, early-stage, solo operators, small businesses or small teams: target_titles must be owner/founder-level (e.g. "Founder", "Co-founder", "CEO", "Owner", "Managing Director"), and target_company_size must be small ("1-10", plus "10-50" only if clearly implied). Do NOT return "VP ...", "Head of ...", "Director ...", "SDR" or "Revenue Operations" titles, and do NOT return sizes of "50-200" or larger, for a small or early-stage ICP.
