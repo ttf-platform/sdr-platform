@@ -399,10 +399,36 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       {/* ── Tab: Overview ────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <div className="flex flex-col gap-4">
+          {(() => {
+            const pending = campaign.pending_drafts_count ?? 0
+            let step: { n: number; title: string; text: string; cta: string; onClick: () => void } | null = null
+            if (campaign.prospects_count === 0) {
+              step = { n: 1, title: 'Add your prospects', text: 'Import a CSV, add them manually, or generate a prospect list with AI.', cta: 'Go to Prospects', onClick: () => setTab('prospects') }
+            } else if (emailsTotal === 0) {
+              step = { n: 2, title: 'Generate your emails', text: `Review your ${campaign.prospects_count} prospect${campaign.prospects_count !== 1 ? 's' : ''}, then let AI draft a personalized email for each.`, cta: 'Generate emails', onClick: () => setTab('emails') }
+            } else if (pending > 0) {
+              step = { n: 3, title: 'Review & approve', text: `${pending} draft${pending !== 1 ? 's' : ''} waiting. Approve or edit them before they're ready to send.`, cta: 'Open Approval Queue', onClick: () => setTab('approval_queue') }
+            }
+            if (!step) return null
+            return (
+              <div className="bg-white border border-[#dde6fd] rounded-xl p-5 flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs font-bold text-[#3b6bef] uppercase tracking-wider mb-1">Step {step.n} of 3</div>
+                  <div className="text-base font-bold text-[#1a1a2e]">{step.title}</div>
+                  <div className="text-sm text-[#6b5e4e] mt-0.5">{step.text}</div>
+                </div>
+                <button onClick={step.onClick} className="shrink-0 bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                  {step.cta} →
+                </button>
+              </div>
+            )
+          })()}
+          {campaign.prospects_count > 0 && emailsTotal > 0 && (campaign.pending_drafts_count ?? 0) === 0 && (
           <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl px-4 py-3 text-sm text-[#3b6bef] flex items-center gap-2">
             <span>🚀</span>
             <span>Sending and scheduling will be available soon. For now, you can review and approve all your drafts.</span>
           </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {[
               { label: 'Prospects', value: campaign.prospects_count },
