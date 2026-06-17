@@ -40,7 +40,7 @@ export function getTrialStatus(workspace: {
     return { status: 'expired', daysRemaining: 0, blockedActions: true }
   }
 
-  // Unknown status (null, '', or any unrecognized value) — do not block, log for diagnosis
-  console.warn('[getTrialStatus] Unrecognized subscription_status — allowing access:', { subscription_status: s })
-  return { status: 'active', daysRemaining: -1, blockedActions: false }
+  // Unknown status (null, '', or any unrecognized value) — fail CLOSED, log for diagnosis
+  console.warn('[getTrialStatus] Unrecognized subscription_status — blocking (fail-closed):', { subscription_status: s })
+  return { status: 'expired', daysRemaining: 0, blockedActions: true }
 }
