@@ -17,24 +17,24 @@ import { SectionFinalCTA } from '@/components/landing/SectionFinalCTA';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 
 export const metadata: Metadata = {
-  title: 'Mirvo — Cold outreach that books meetings',
-  description: 'Mirvo finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
+  title: 'Mirvo: cold outreach you control',
+  description: 'Mirvo finds the right people, drafts a real email for each one, and never sends anything you haven\'t approved. From $149/mo, no salary, no 6-week ramp.',
   metadataBase: new URL('https://mirvo.ai'),
   alternates: {
     canonical: '/',
     languages: { en: '/en', fr: '/fr' },
   },
   openGraph: {
-    title: 'Mirvo — Cold outreach that books meetings',
-    description: 'Mirvo finds your buyers and drafts the emails. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.',
+    title: 'Mirvo: cold outreach you control',
+    description: 'Mirvo finds the right people, drafts a real email for each one, and never sends anything you haven\'t approved. From $149/mo, no salary, no 6-week ramp.',
     url: 'https://mirvo.ai',
     siteName: 'Mirvo',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Mirvo — Cold outreach that books meetings',
-    description: 'Your first hire. Without the headcount. Mirvo finds your buyers, writes the emails, books the meetings.',
+    title: 'Mirvo: cold outreach you control',
+    description: 'Mirvo finds the right people, writes each email for them, and waits for your approval before anything sends.',
   },
 }
 
@@ -54,7 +54,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'All-in-one outbound platform for founders. Mirvo finds your buyers, writes the email, and books the meeting.',
+    'All-in-one outbound platform for small teams. Mirvo finds the right people, drafts each email, and sends only what you approve.',
   url: 'https://mirvo.ai',
   offers: {
     '@type': 'AggregateOffer',

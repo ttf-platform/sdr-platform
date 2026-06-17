@@ -9,12 +9,12 @@
       "menuLabel": "Toggle mobile menu"
     },
     "hero": {
-      "eyebrow": "For founders who won't hire full-time outbound",
+      "eyebrow": "For teams that won't hire full-time outbound",
       "headlinePre": "Your ",
       "headlineItalic": "first hire",
       "headlinePost": ". Without the headcount.",
-      "subtext": "Mirvo finds your buyers, catches the moment they’re ready, and drafts the email. You approve. Meetings land on your calendar. From $149/mo — no salary, no benefits, no 6-week ramp.",
-      "ctaPrimary": "Start free trial — no credit card",
+      "subtext": "Mirvo finds the right people, catches the moment they're ready, and drafts the email. You approve. Nothing sends without you. From $149/mo, no salary, no 6-week ramp.",
+      "ctaPrimary": "Start free trial, no credit card",
       "ctaSecondary": "See how it works",
       "stat0Value": "5,000",
       "stat0Label": "prospects sourced",
@@ -38,16 +38,16 @@
       "stat2Label": "No per-user pricing",
       "stat2Value": "$149–$399/mo",
       "stat2Sub": "Everything included",
-      "stat3Label": "For founders & first hires",
-      "stat3Value": "Founder-built",
+      "stat3Label": "For small teams & first hires",
+      "stat3Value": "Operator-built",
       "stat3Sub": "No sales training needed"
     },
     "problem": {
       "eyebrow": "The Problem",
       "headline": "Outbound shouldn't take 5 tools to set up.",
-      "body1": "For most founders, cold outreach starts the same way. You buy a data tool. You add an enrichment layer. You set up a sending platform with deliverability tooling. You glue in a multichannel sequencer. You stitch a booking link at the end.",
+      "body1": "For most small teams, cold outreach starts the same way. You buy a data tool. You add an enrichment layer. You set up a sending platform with deliverability tooling. You glue in a multichannel sequencer. You stitch a booking link at the end.",
       "body2": "Five subscriptions. Eight hours of setup. A new ICP definition copied across each tool. And every Monday morning, something is broken or out of sync.",
-      "pullquote": "It's the modern outbound stack — and it's why most founders give up on cold outreach.",
+      "pullquote": "It's the modern outbound stack, and it's why most small teams give up on cold outreach.",
       "tool0Label": "Data tool",
       "tool0Price": "$149/mo",
       "tool1Label": "Enrichment",
@@ -65,8 +65,8 @@
     },
     "solution": {
       "eyebrow": "The Solution",
-      "headline": "One product. One price. One founder-friendly setup.",
-      "body1": "Mirvo is the outbound role you'd otherwise hire a Sales Development Rep (SDR) to run — sourcing the right buyers, drafting the emails, handling replies, and booking meetings. Except Mirvo does not need a salary, doesn't need a 6-week ramp, and doesn't need three tools to do its job.",
+      "headline": "One product. One price. One setup that just works.",
+      "body1": "Mirvo is the outbound role you'd otherwise hire a Sales Development Rep (SDR) to run: sourcing the right buyers, drafting the emails, handling replies, and booking meetings. Except Mirvo does not need a salary, doesn't need a 6-week ramp, and doesn't need three tools to do its job.",
       "body2": "From $149/mo. 14 days free. Zero stack to assemble.",
       "narrativeIn": "All of this...",
       "narrativeOut": "...in one product.",
@@ -81,7 +81,7 @@
       "chip4Label": "Booking",
       "chip4Price": "$20/mo",
       "cardTagline": "All-in-one outbound",
-      "cta": "Start free trial — no credit card"
+      "cta": "Start free trial, no credit card"
     },
     "howItWorks": {
       "eyebrow": "Time to Result",
@@ -92,10 +92,10 @@
       "step0Body": "Industry, company size, role, region. Five minutes in a guided setup. Mirvo does the rest.",
       "step1Number": "02",
       "step1Title": "Mirvo runs",
-      "step1Body": "Sourcing prospects. Drafting personalized emails. Watching for your buying signals. Sending follow-ups. You approve in one click — or set autopilot once you trust the cadence.",
+      "step1Body": "Sourcing prospects. Drafting personalized emails. Watching for your buying signals. Sending follow-ups. You approve in one click, or set autopilot once you trust the cadence.",
       "step2Number": "03",
-      "step2Title": "Meetings book themselves",
-      "step2Body": "When a prospect says yes, Mirvo books the meeting on your calendar. You wake up to a Morning Brief. You show up to the call.",
+      "step2Title": "Meetings get booked",
+      "step2Body": "When a prospect says yes, Mirvo books the meeting on your calendar. Each morning you get a Morning Brief, and you show up to the call.",
       "timelineALabel": "Day 1 · Under one hour",
       "timelineANode0Label": "T+0",
       "timelineANode0Action": "Sign up",
@@ -135,7 +135,7 @@
       "starterName": "Starter",
       "starterPrice": "$149",
       "starterAnnual": "$1,490/yr",
-      "starterTagline": "For founders making their first 100 cold reaches",
+      "starterTagline": "For teams making their first 100 cold reaches",
       "starterF0": "5,000 prospects sourced",
       "starterF1": "5,000 emails/month",
       "starterF2": "500 enrichment credits/month",
@@ -167,7 +167,7 @@
     "stackComparison": {
       "eyebrow": "The True Cost",
       "headline": "Three ways to ship outbound. One that makes sense before $1M ARR.",
-      "subtext": "Most founders don't realize they have three options. Until they've sunk a quarter into the wrong one.",
+      "subtext": "Most small teams don't realize they have three options. Until they've sunk a quarter into the wrong one.",
       "strengthsLabel": "Strengths",
       "frictionLabel": "Friction",
       "tradeOffsLabel": "Trade-offs",
@@ -191,9 +191,9 @@
       "opt2Con0": "$50k+ per year fully loaded",
       "opt2Con1": "Can't hire before product-market fit is clear",
       "opt2Con2": "Still needs the same 5 tools as Option 1",
-      "opt3Tag": "Founder's Choice",
+      "opt3Tag": "Most popular",
       "opt3Title": "Run Mirvo",
-      "opt3Desc": "All-in-one outbound for founders",
+      "opt3Desc": "All-in-one outbound for small teams",
       "opt3Price": "$149–399/mo",
       "opt3PriceNote": "+ no recruiting, no setup hell, no manual coordination",
       "opt3Pro0": "One product replaces the stack",
@@ -201,23 +201,23 @@
       "opt3Pro2": "You approve every email. AI you control.",
       "opt3Pro3": "Cancel anytime, no annual commit",
       "opt3Con0": "Email-first (LinkedIn coming Q3 2026)",
-      "opt3Con1": "Built for founders and early-stage teams, not enterprise sales orgs",
-      "cta": "Start free trial — no credit card"
+      "opt3Con1": "Built for small and early-stage teams, not enterprise sales orgs",
+      "cta": "Start free trial, no credit card"
     },
     "builtForFounders": {
-      "eyebrow": "Built for Founders",
+      "eyebrow": "Built for teams that do their own outbound",
       "headline": "AI you control. Not AI that runs wild.",
-      "subtext": "We built Mirvo after watching too many AI SDR tools promise autopilot and deliver auto-spam. Founders deserve outbound infrastructure they can trust, and that means staying in the loop on what gets sent in their name.",
+      "subtext": "We built Mirvo after watching too many AI SDR tools promise autopilot and deliver auto-spam. Anyone who runs their own outbound deserves infrastructure they can trust, and that means staying in the loop on what gets sent in their name.",
       "p0Title": "No demo gate.",
       "p0Body": "You shouldn't have to schedule a 45-minute call with a sales engineer to learn what an outbound product costs. Pricing is on this page. Setup is self-serve.",
       "p1Title": "AI drafts. You approve.",
       "p1Body": "Every email Mirvo writes lands in your queue first. You approve in one click, or set autopilot once you trust the cadence. Mirvo never sends in your name without your say-so.",
-      "p2Title": "Flat pricing. Founder-friendly.",
+      "p2Title": "Flat pricing. No surprises.",
       "p2Body": "No per-user multipliers. No 5-seat minimum annual contract. No enterprise tier you'll get pushed into. Three plans. One can fit you. Cancel anytime.",
-      "p3Title": "Built by founders. Used by founders.",
+      "p3Title": "Built by operators who ran outbound.",
       "p3Body": "Mirvo is built by people who ran outbound themselves before AI made it possible to systematize. We use it on Mirvo. If something feels broken, we hear about it the same day you do.",
       "closing": "If that sounds like the outbound product you'd build for yourself, you'll feel at home here.",
-      "cta": "Start free trial — no credit card"
+      "cta": "Start free trial, no credit card"
     },
     "limitsAndRoadmap": {
       "eyebrow": "Transparency",
@@ -226,7 +226,7 @@
       "limit0Title": "You want to send 10,000+ emails per day.",
       "limit0Body": "Mirvo is built for quality, not volume. If your strategy is high-volume spray-and-pray, you'll outgrow our caps fast. Try a dedicated high-volume sending platform.",
       "limit1Title": "You manage a 20+ person SDR team.",
-      "limit1Body": "Mirvo is for solo founders and early-stage teams. If you have a full SDR org, you need Salesloft or Outreach: different category, different price.",
+      "limit1Body": "Mirvo is for small and early-stage teams. If you have a full SDR org, you need Salesloft or Outreach: different category, different price.",
       "limit2Title": "You need LinkedIn, WhatsApp, and voice today.",
       "limit2Body": "Mirvo is email-first for V1. LinkedIn integration is on the roadmap for Q3 2026. WhatsApp and voice are not planned: they're separate problems.",
       "limit3Title": "You want a fully autonomous AI.",
@@ -274,7 +274,7 @@
       "note": "14-day trial. Cancel anytime."
     },
     "footer": {
-      "tagline": "AI-powered outbound for founders who sell before they hire.",
+      "tagline": "Outbound you control, for teams that do their own selling.",
       "statusText": "All systems operational",
       "productHeading": "Product",
       "productFeatures": "Features",
@@ -292,14 +292,14 @@
       "legalCookies": "Cookie Policy",
       "legalGdpr": "GDPR",
       "copyright": "© 2026 Mirvo. All rights reserved.",
-      "footerTagline": "Built for founders who move fast."
+      "footerTagline": "Built for teams that move fast."
     },
     "signals": {
       "eyebrow": "The unfair advantage",
-      "headline": "Describe what a buyer looks like. Mirvo watches for it every night.",
-      "body": "Tell Mirvo the trigger that turns a company into a buyer, in plain English. Every night it checks your prospects against that signal, flags the ones that match, and drafts the email ready for your approval. No RevOps hire. No data tools to wire together.",
-      "visualSignalLabel": "Your signal",
-      "visualSignalExample": "“Companies that just raised a Series A”",
+      "headline": "Meet Signals: describe what a buyer looks like, and Mirvo watches for it.",
+      "body": "Tell Mirvo the trigger that turns a company into a buyer, in plain English. It checks your prospects against that Signal, flags the ones that match, and drafts the email ready for your approval. No RevOps hire. No data tools to wire together.",
+      "visualSignalLabel": "Your Signal",
+      "visualSignalExample": "\u201cCompanies that just raised a Series A\u201d",
       "visualScan": "Scanned last night",
       "visualMatches": "3 matches",
       "visualMatchCompany": "Acme Corp",
@@ -307,19 +307,19 @@
       "visualDrafted": "Email drafted",
       "visualApprove": "Approve",
       "beat0Title": "Describe it",
-      "beat0Body": "“Companies that just raised a Series A.” “Teams hiring their first sales rep.” Write the trigger like you’d say it out loud.",
-      "beat1Title": "Mirvo watches, nightly",
-      "beat1Body": "Every night, Mirvo scans your prospects against your signal. You wake up to the matches, not the busywork.",
+      "beat0Body": "\u201cCompanies that just raised a Series A.\u201d \u201cTeams hiring their first sales rep.\u201d Write the trigger like you\u2019d say it out loud.",
+      "beat1Title": "Mirvo keeps watch",
+      "beat1Body": "Mirvo checks your prospects against your Signal and surfaces the ones that match, so you act on timing instead of hunting for it.",
       "beat2Title": "Reach out at the perfect moment",
       "beat2Body": "Each match arrives with a tailored email already drafted. You approve, it sends. Timing does the rest.",
-      "close": "Doing this by hand means a RevOps hire and a stack of subscriptions. Mirvo does it from one sentence, while you sleep."
+      "close": "Doing this by hand means a RevOps hire and a stack of subscriptions. Mirvo does it from one sentence, and nothing sends without your approval."
     }
   },
   "about": {
     "headline": "We build cold outreach that doesn't feel cold.",
-    "subtext": "Mirvo is a B2B platform built for founders and revenue teams who want to scale outbound without sacrificing quality. Our agents research, write, and send like your best SDR — except they don't sleep.",
+    "subtext": "Mirvo is a B2B platform built for people who do their own outbound and want to scale it without sacrificing quality. Mirvo researches and writes like your best SDR, and nothing sends without your approval.",
     "principleTitle": "The principle",
-    "principleBody": "Most \"AI outreach\" tools spray generic templates and burn sender reputations. We believe outbound only works when the message is genuinely relevant — and that's a research problem, not just a writing problem. Mirvo solves both.",
+    "principleBody": "Most \"AI outreach\" tools spray generic templates and burn sender reputations. We believe outbound only works when the message is genuinely relevant, and that's a research problem, not just a writing problem. Mirvo solves both.",
     "builtByTitle": "Built by",
     "builtByBody": "Mirvo is built by Max, a founder operating from Montréal and Paris. We're a small team intentionally: fewer cooks, more taste.",
     "getInTouchTitle": "Get in touch",
@@ -408,7 +408,7 @@
     "headline": "Simple, honest pricing.",
     "subtext": "14-day free trial on every plan. No credit card required.",
     "promoCode": "LAUNCH50",
-    "promoTextPre": "Launch promo active — code",
+    "promoTextPre": "Launch promo active, code",
     "promoTextPost": "saves $50/month for 6 months on Pro & Power",
     "soloPlansLabel": "Solo plans",
     "teamsLabel": "Teams & Enterprise",
@@ -425,7 +425,7 @@
     "corporateDesc": "Unlimited seats, SSO, dedicated CSM, SLA, custom data processing agreement.",
     "allPlansLabel": "All plans include",
     "faqTitle": "Questions about pricing",
-    "finalHeadline": "Start free — no risk.",
+    "finalHeadline": "Start free, no risk.",
     "finalSubtext": "14 days free on any plan. No credit card. Cancel anytime.",
     "finalCta": "Start 14-day free trial →",
     "starterName": "Starter",
@@ -458,7 +458,7 @@
     "allF7": "Cancel anytime",
     "allF8": "99.9% uptime SLA",
     "faq0q": "Do I need a credit card to start?",
-    "faq0a": "No. Your 14-day trial starts the moment you sign up — no payment information required.",
+    "faq0a": "No. Your 14-day trial starts the moment you sign up, no payment information required.",
     "faq1q": "Can I change plans later?",
     "faq1a": "Yes, any time. Upgrades take effect immediately. Downgrades apply at the next billing cycle.",
     "faq2q": "What counts as a \"prospect\"?",
@@ -466,7 +466,7 @@
     "faq3q": "What happens if I hit my monthly cap?",
     "faq3a": "By default, actions are blocked at 100% of your cap. You can enable overage for enrichments at $0.50/lead in your billing settings.",
     "faq4q": "Is there an annual discount?",
-    "faq4a": "Yes — pay yearly and save 20%. Starter $1,430/yr · Pro $2,870/yr · Power $3,830/yr.",
+    "faq4a": "Yes, pay yearly and save 20%. Starter $1,430/yr · Pro $2,870/yr · Power $3,830/yr.",
     "faq5q": "What's your refund policy?",
     "faq5a": "If you're not satisfied in your first 30 days after upgrading, contact us and we'll make it right."
   },
@@ -519,7 +519,7 @@
     "backHome": "Home"
   },
   "metadata": {
-    "siteTitle": "Mirvo — Cold outreach that books meetings",
-    "siteDescription": "Mirvo finds your buyers, writes the email, books the meeting. All-in-one outbound for founders and first sales hires."
+    "siteTitle": "Mirvo: cold outreach you control",
+    "siteDescription": "Mirvo finds the right people, writes each email, and sends only what you approve. All-in-one outbound for small teams."
   }
 }
