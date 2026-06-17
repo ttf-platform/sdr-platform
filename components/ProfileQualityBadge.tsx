@@ -41,17 +41,17 @@ export default function ProfileQualityBadge({
   let subtext: string
 
   if (score >= 70) {
-    bannerCls = 'bg-emerald-50 border-l-4 border-emerald-500'
+    bannerCls = 'bg-emerald-50 border border-emerald-200'
     pillCls   = 'bg-emerald-100 text-emerald-700'
     label     = `✨ Full context · ${score}%`
     subtext   = 'Your AI knows your business inside out. Expect tailored, on-voice outputs.'
   } else if (score >= 30) {
-    bannerCls = 'bg-amber-50 border-l-4 border-amber-500'
+    bannerCls = 'bg-amber-50 border border-amber-200'
     pillCls   = 'bg-amber-100 text-amber-700'
     label     = `📊 Decent context · ${score}%`
     subtext   = 'Your AI works, but better data means sharper outputs.'
   } else {
-    bannerCls = 'bg-red-50 border-l-4 border-red-500'
+    bannerCls = 'bg-red-50 border border-red-200'
     pillCls   = 'bg-red-100 text-red-700'
     label     = `⚠️ Limited context · ${score}%`
     subtext   = 'Campaigns are locked until you reach 30%. Complete your profile so Mirvo AI can write on-brand emails.'

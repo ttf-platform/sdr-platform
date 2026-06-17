@@ -729,7 +729,7 @@ export default function ProspectsPage() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setIcpOpen(v => !v)}
-            className={`border px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${icpOpen ? 'bg-purple-600 text-white border-purple-600' : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'}`}>
+            className={`border px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${icpOpen ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#dde6fd] bg-[#eef1fd] text-[#3b6bef] hover:bg-[#dde6fd]'}`}>
             🎯 ICP Settings
           </button>
           <button disabled title="AI prospect discovery — Sprint 9"
@@ -758,14 +758,14 @@ export default function ProspectsPage() {
 
       {/* ── Master ICP Panel ─────────────────────────────────────────────────── */}
       {icpOpen && (
-        <div id="master-icp-panel" className="bg-purple-50/50 border border-purple-200 rounded-xl p-6 mb-4">
+        <div id="master-icp-panel" className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-6 mb-4">
 
           {/* Panel header */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span>🎯</span>
               <span className="font-semibold text-[#1a1a2e]">Master ICP</span>
-              <StatusBadge variant="purple">Source of truth</StatusBadge>
+              <StatusBadge variant="blueprint">Source of truth</StatusBadge>
               <Tooltip content={ICP_TOOLTIP}>
                 <InfoIcon />
               </Tooltip>
@@ -777,16 +777,16 @@ export default function ProspectsPage() {
           </p>
 
           {/* ICP description — single textarea, scored + AI parse */}
-          <div className="bg-white border border-purple-200 rounded-xl p-4 mb-6">
+          <div className="bg-white border border-[#dde6fd] rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-purple-600 font-medium text-sm">✨ Describe your target ICP in plain English and let AI structure it</span>
+              <span className="text-[#3b6bef] font-medium text-sm">✨ Describe your target ICP in plain English and let AI structure it</span>
             </div>
             <textarea
               value={icpForm.icp_description}
               onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
               rows={4}
               placeholder="e.g. I want to target B2B SaaS founders in Europe who are struggling with outbound sales and have 10-200 employees..."
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
             />
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-2">
@@ -796,7 +796,7 @@ export default function ProspectsPage() {
                 <StatusBadge variant="gray">Adds 15% to AI quality</StatusBadge>
               </div>
               <button onClick={handleAiParse} disabled={aiParsing || !icpForm.icp_description.trim()}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors">
+                className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors">
                 {aiParsing ? 'Parsing…' : '✨ Parse with AI'}
               </button>
             </div>
@@ -851,7 +851,7 @@ export default function ProspectsPage() {
                 onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
                 rows={3}
                 placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-purple-400 resize-none"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
               />
               <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
                 {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
@@ -872,7 +872,7 @@ export default function ProspectsPage() {
                   return (
                     <button key={s} type="button"
                       onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
                       {s}
                     </button>
                   )
@@ -890,7 +890,7 @@ export default function ProspectsPage() {
                   return (
                     <button key={r} type="button"
                       onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
                       {r}
                     </button>
                   )
@@ -910,7 +910,7 @@ export default function ProspectsPage() {
               {TONES.map(t => (
                 <button key={t} type="button"
                   onClick={() => setIcpForm(f => ({ ...f, tone: t.toLowerCase() }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === t.toLowerCase() ? 'bg-purple-600 text-white border-purple-600' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-purple-400'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === t.toLowerCase() ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
                   {t}
                 </button>
               ))}
@@ -925,7 +925,7 @@ export default function ProspectsPage() {
               Reset
             </button>
             <button onClick={saveIcp} disabled={icpSaving || !icpDirty}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
+              className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
               {icpSaved ? '✓ Saved' : icpSaving ? 'Saving…' : 'Save Master ICP'}
             </button>
           </div>
