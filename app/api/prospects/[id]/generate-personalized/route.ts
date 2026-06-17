@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
+import { HUMAN_VOICE_RULES } from '@/lib/ai-voice'
 
 export const maxDuration = 300
 
@@ -89,7 +90,8 @@ export async function POST(_request: Request, { params }: Params) {
   const contact = Array.isArray(prospect.contacts) ? prospect.contacts[0] : prospect.contacts
   const signalsContext = signals.map(s => {
     const sig = Array.isArray(s.signals) ? s.signals[0] : s.signals
-    return `- ${sig?.name ?? 'Signal'}: ${JSON.stringify(s.signal_data)} (source: ${s.source_url ?? 'n/a'})`
+    const hypothesis = sig?.description ? ` (${sig.description})` : ''
+    return `- ${sig?.name ?? 'Signal'}${hypothesis}: ${JSON.stringify(s.signal_data)} (source: ${s.source_url ?? 'n/a'})`
   }).join('\n')
 
   const variantsGenerated: Array<{ step_id: string; step_order: number; subject: string }> = []
@@ -97,26 +99,37 @@ export async function POST(_request: Request, { params }: Params) {
 
   // 5. Sequential per-step Claude calls
   for (const step of steps) {
-    const systemPrompt = `You are an outbound email personalization expert.
+    const systemPrompt = `You are an outbound email personalization expert writing for a busy founder.
 
-Your job: take a template email and personalize ONLY the intro paragraph (first 1-2 sentences) based on detected signals about the prospect's company. Keep the rest of the body unchanged in tone and structure.
+Your job: rewrite ONLY the intro paragraph (the first 1-2 sentences) of the template below. Leave everything else unchanged: tone, structure, CTA, value proposition, and signature.
 
-CRITICAL RULES (anti-fabrication):
-- Write the personalized intro in the SAME language as the original template below. Do not switch languages.
-- The intro MUST reference the signal as factual context. NEVER fabricate details not in signal_data.
-- Do NOT invent specific quotes, numbers, dates, or events not present in signal_data.
-- The intro should feel natural and conversational, not robotic.
-- Preserve the original CTA, value prop, and signature exactly.
-- Subject may be slightly adjusted to reference the signal context (max 80 chars).
+USE THE SIGNAL AS A CLUE, NOT THE MESSAGE (problem-first):
+- A signal is evidence of a likely priority or pain. It is not the thing to announce.
+- Do NOT open by stating the signal as a fact or congratulating them on it.
+- Reason from the signal to the concrete operational problem it implies for this person's team right now.
+- Open the intro on THAT problem, from their point of view. Let the template's existing value prop be the answer to it.
+- BANNED openers: "I saw", "I noticed", "I came across", "I read that", "Saw that you", "Congrats on", "Hope you're". Lead with the problem, never with the observation.
+
+${HUMAN_VOICE_RULES}
+
+ANTI-FABRICATION:
+- Write the intro in the SAME language as the template below. Do not switch languages.
+- Ground the problem in the signal data only. NEVER invent quotes, numbers, dates, or events that are not in the signal data.
+- If the signal is thin, keep the intro short and plausible rather than inventing specifics.
+
+BEFORE RETURNING, verify silently: does the intro open on THEIR problem (not on the signal as a fact), and is it free of banned words and openers? If not, rewrite it.
+
+OUTPUT:
+- Subject may be lightly adjusted to reflect the problem angle (max 80 chars).
 - Output strict JSON only: { "subject": "...", "body": "..." }. No markdown wrapper.
 
 CONTEXT:
-Prospect: ${contact?.first_name ?? ''} ${contact?.last_name ?? ''} — ${contact?.title ?? '?'} @ ${contact?.company ?? '?'}
+Prospect: ${contact?.first_name ?? ''} ${contact?.last_name ?? ''}, ${contact?.title ?? '?'} at ${contact?.company ?? '?'}
 
-Detected signals:
+Detected signals (name, hypothesis, data):
 ${signalsContext}
 
-Original template (to personalize):
+Original template (preserve everything except the intro):
 SUBJECT: ${step.subject}
 BODY:
 ${step.body}`
@@ -146,7 +159,7 @@ ${step.body}`
         continue
       }
 
-      // Upsert — UNIQUE(prospect_id, campaign_step_id) handles re-generation
+      // Upsert: UNIQUE(prospect_id, campaign_step_id) handles re-generation
       const { error: upsertError } = await admin
         .from('prospect_email_variants')
         .upsert(
