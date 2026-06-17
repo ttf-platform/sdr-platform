@@ -7,10 +7,11 @@ const VARIANT_STYLES: Record<string, string> = {
   amber:  'bg-amber-50  text-amber-700  border-amber-200',
   red:    'bg-red-50    text-red-700    border-red-200',
   yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  blueprint: 'bg-[#eef1fd] text-[#3b6bef] border-[#dde6fd]',
 }
 
 interface Props {
-  variant: 'orange' | 'blue' | 'green' | 'gray' | 'purple' | 'amber' | 'red' | 'yellow'
+  variant: 'orange' | 'blue' | 'green' | 'gray' | 'purple' | 'amber' | 'red' | 'yellow' | 'blueprint'
   children: React.ReactNode
   className?: string
 }

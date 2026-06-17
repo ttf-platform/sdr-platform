@@ -765,7 +765,7 @@ export default function ProspectsPage() {
             <div className="flex items-center gap-2">
               <span>🎯</span>
               <span className="font-semibold text-[#1a1a2e]">Master ICP</span>
-              <StatusBadge variant="purple">Source of truth</StatusBadge>
+              <StatusBadge variant="blueprint">Source of truth</StatusBadge>
               <Tooltip content={ICP_TOOLTIP}>
                 <InfoIcon />
               </Tooltip>
