@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { assertPublicUrl } from './ssrf-guard'
 
 const SCRAPE_TIMEOUT = 8000
 const MAX_HTML_SIZE  = 500_000
@@ -55,19 +56,31 @@ async function fetchWithTimeout(url: string, ms: number): Promise<string | null>
   const controller = new AbortController()
   const timeout    = setTimeout(() => controller.abort(), ms)
   try {
-    const res = await fetch(url, {
-      signal:   controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; SentraBot/1.0)',
-        'Accept':     'text/html,application/xhtml+xml',
-      },
-      redirect: 'follow',
-    })
-    if (!res.ok) return null
-    const ct = res.headers.get('content-type') ?? ''
-    if (!ct.includes('text/html')) return null
-    const text = await res.text()
-    return text.slice(0, MAX_HTML_SIZE)
+    let current = url
+    for (let hop = 0; hop < 4; hop++) {
+      // SSRF guard : re-valide avant chaque requête, y compris chaque redirection
+      await assertPublicUrl(current)
+      const res = await fetch(current, {
+        signal:   controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; MirvoBot/1.0)',
+          'Accept':     'text/html,application/xhtml+xml',
+        },
+        redirect: 'manual',
+      })
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get('location')
+        if (!loc) return null
+        current = new URL(loc, current).toString()
+        continue
+      }
+      if (!res.ok) return null
+      const ct = res.headers.get('content-type') ?? ''
+      if (!ct.includes('text/html')) return null
+      const text = await res.text()
+      return text.slice(0, MAX_HTML_SIZE)
+    }
+    return null // trop de redirections
   } catch {
     return null
   } finally {
