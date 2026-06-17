@@ -444,10 +444,11 @@ export default function SettingsPage() {
               <span className="text-xs bg-[#f0ece6] text-[#8a7e6e] px-2 py-1 rounded ml-2">email</span>
             </div>
             <div>
-              <label className={`${labelCls} mb-1 block`}>
+              <label className={`${labelCls} mb-1 block`} htmlFor="set-your-name">
                 Your name <span className="text-red-500">*</span>
               </label>
               <input
+                id="set-your-name"
                 value={form.name}
                 onChange={e => setForm({...form, name: e.target.value})}
                 onBlur={() => touch('name')}
@@ -457,11 +458,12 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Your title</label>
+                <label className={labelCls} htmlFor="set-your-title">Your title</label>
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
                 <StatusBadge variant="gray">Used in email signature</StatusBadge>
               </div>
               <input
+                id="set-your-title"
                 value={form.user_title}
                 onChange={e => setForm({...form, user_title: e.target.value})}
                 className={inputCls}
@@ -583,8 +585,9 @@ export default function SettingsPage() {
           <div className={`${sectionHd} mb-4`}>COMPANY</div>
           <div className="flex flex-col gap-3 flex-1">
             <div>
-              <label className={`${labelCls} mb-1 block`}>Company name <span className="text-red-500">*</span></label>
+              <label className={`${labelCls} mb-1 block`} htmlFor="set-company-name">Company name <span className="text-red-500">*</span></label>
               <input
+                id="set-company-name"
                 value={form.company_name}
                 onChange={e => setForm({...form, company_name: e.target.value})}
                 onBlur={() => touch('company_name')}
@@ -593,7 +596,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Display name</label>
+                <label className={labelCls} htmlFor="set-display-name">Display name</label>
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
                 <Tooltip content={DISPLAY_NAME_TOOLTIP}>
                   <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -601,17 +604,18 @@ export default function SettingsPage() {
                   </svg>
                 </Tooltip>
               </div>
-              <input value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})}
+              <input id="set-display-name" value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})}
                 className={inputCls} placeholder="e.g. Robert Smith (defaults to your name)" />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Company website</label>
+                <label className={labelCls} htmlFor="set-company-website">Company website</label>
                 <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
                 <StatusBadge variant="gray">Used in email signature</StatusBadge>
               </div>
               <div className="flex items-start gap-2">
                 <input
+                  id="set-company-website"
                   value={form.company_website}
                   onChange={e => setForm({...form, company_website: e.target.value})}
                   className={`${inputCls} flex-1`}
@@ -628,19 +632,19 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Industry</label>
+                <label className={labelCls} htmlFor="set-industry">Industry</label>
                 <QualityBadge pct="Adds 10% to AI quality" />
               </div>
-              <input value={form.user_industry} onChange={e => setForm({...form, user_industry: e.target.value})}
+              <input id="set-industry" value={form.user_industry} onChange={e => setForm({...form, user_industry: e.target.value})}
                 className={inputCls} placeholder="e.g. SaaS, Fintech, Healthcare" />
               <FieldOk show={!!form.user_industry} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Company size</label>
+                <label className={labelCls} htmlFor="set-company-size">Company size</label>
                 <QualityBadge pct="Adds 5% to AI quality" />
               </div>
-              <select value={form.user_company_size} onChange={e => setForm({...form, user_company_size: e.target.value})}
+              <select id="set-company-size" value={form.user_company_size} onChange={e => setForm({...form, user_company_size: e.target.value})}
                 className={`${inputCls} bg-white`}>
                 <option value="">Select size</option>
                 {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -648,8 +652,8 @@ export default function SettingsPage() {
               <FieldOk show={!!form.user_company_size} />
             </div>
             <div>
-              <label className={`${labelCls} mb-1 block`}>Workspace timezone</label>
-              <select value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
+              <label className={`${labelCls} mb-1 block`} htmlFor="set-workspace-timezone">Workspace timezone</label>
+              <select id="set-workspace-timezone" value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
                 className={`${inputCls} bg-white`}>
                 {WORKSPACE_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
               </select>
@@ -679,10 +683,11 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-3 flex-1">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Product description <span className="text-red-500">*</span></label>
+                <label className={labelCls} htmlFor="set-product-description">Product description <span className="text-red-500">*</span></label>
                 <QualityBadge pct="Adds 15% to AI quality" />
               </div>
               <textarea
+                id="set-product-description"
                 value={form.product_description}
                 onChange={e => setForm({...form, product_description: e.target.value})}
                 onBlur={() => touch('product_description')}
@@ -697,10 +702,10 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Value proposition</label>
+                <label className={labelCls} htmlFor="set-value-proposition">Value proposition</label>
                 <QualityBadge pct="Adds 15% to AI quality" />
               </div>
-              <textarea value={form.value_proposition} onChange={e => setForm({...form, value_proposition: e.target.value})}
+              <textarea id="set-value-proposition" value={form.value_proposition} onChange={e => setForm({...form, value_proposition: e.target.value})}
                 className={`${inputCls} resize-none`} rows={2} />
               <p className={`text-xs mt-1 ${form.value_proposition.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
                 {form.value_proposition.length}/20 chars{form.value_proposition.length >= 20 ? ' ✓' : ''}

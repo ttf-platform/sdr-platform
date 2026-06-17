@@ -182,6 +182,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
             </p>
           </div>
           <textarea
+            aria-label="ICP description"
             value={targetPersona}
             onChange={e => setTargetPersona(e.target.value)}
             placeholder="Founders of B2B SaaS companies in Europe, 10-50 employees, focused on outbound sales..."
@@ -192,8 +193,9 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
 
         {/* Campaign Name */}
         <div>
-          <label className={labelCls}>Campaign Name <span className="text-red-500">*</span></label>
+          <label className={labelCls} htmlFor="nc-campaign-name">Campaign Name <span className="text-red-500">*</span></label>
           <input
+            id="nc-campaign-name"
             ref={nameInputRef}
             type="text"
             value={name}
@@ -218,18 +220,18 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
           </div>
           <div className="flex flex-col gap-4">
             <div>
-              <label className={labelCls}>Target Industry</label>
-              <input type="text" value={targetIndustry} onChange={e => setTargetIndustry(e.target.value)}
+              <label className={labelCls} htmlFor="nc-target-industry">Target Industry</label>
+              <input id="nc-target-industry" type="text" value={targetIndustry} onChange={e => setTargetIndustry(e.target.value)}
                 placeholder="e.g. SaaS, FinTech, Healthcare" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Target Titles</label>
-              <input type="text" value={targetTitles} onChange={e => setTargetTitles(e.target.value)}
+              <label className={labelCls} htmlFor="nc-target-titles">Target Titles</label>
+              <input id="nc-target-titles" type="text" value={targetTitles} onChange={e => setTargetTitles(e.target.value)}
                 placeholder="e.g. VP of Sales, Head of Growth" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Target Regions</label>
-              <input type="text" value={targetRegions} onChange={e => setTargetRegions(e.target.value)}
+              <label className={labelCls} htmlFor="nc-target-regions">Target Regions</label>
+              <input id="nc-target-regions" type="text" value={targetRegions} onChange={e => setTargetRegions(e.target.value)}
                 placeholder="e.g. US, UK, DACH" className={inputCls} />
             </div>
             <div>
@@ -274,10 +276,11 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
           </div>
           <div className="flex flex-col gap-4">
             <div>
-              <label className={labelCls}>
+              <label className={labelCls} htmlFor="nc-product-angle">
                 What does your product do? <span className="text-red-500">*</span>
               </label>
               <textarea
+                id="nc-product-angle"
                 value={angle}
                 onChange={e => setAngle(e.target.value)}
                 placeholder="e.g. We help B2B teams close more deals with AI-driven intent signals"
@@ -286,11 +289,12 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
               />
             </div>
             <div>
-              <label className={labelCls}>
+              <label className={labelCls} htmlFor="nc-value-prop">
                 Value Proposition{' '}
                 <span className="text-[#a89e8e] font-normal normal-case tracking-normal">(optional)</span>
               </label>
               <textarea
+                id="nc-value-prop"
                 value={valueProp}
                 onChange={e => setValueProp(e.target.value)}
                 placeholder="e.g. Real-time buying signals from LinkedIn + web activity"
@@ -304,14 +308,14 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         {/* Tone & Language */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>Tone</label>
-            <select value={tone} onChange={e => setTone(e.target.value)} className={inputCls}>
+            <label className={labelCls} htmlFor="nc-tone">Tone</label>
+            <select id="nc-tone" value={tone} onChange={e => setTone(e.target.value)} className={inputCls}>
               {TONES.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
           <div>
-            <label className={labelCls}>Language</label>
-            <select value={language} onChange={e => setLanguage(e.target.value)} className={inputCls}>
+            <label className={labelCls} htmlFor="nc-language">Language</label>
+            <select id="nc-language" value={language} onChange={e => setLanguage(e.target.value)} className={inputCls}>
               {LANGUAGES.map(l => <option key={l}>{l}</option>)}
             </select>
           </div>

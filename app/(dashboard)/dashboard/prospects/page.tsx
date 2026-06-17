@@ -782,6 +782,7 @@ export default function ProspectsPage() {
               <span className="text-[#3b6bef] font-medium text-sm">✨ Describe your target ICP in plain English and let AI structure it</span>
             </div>
             <textarea
+              aria-label="ICP description"
               value={icpForm.icp_description}
               onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
               rows={4}
@@ -809,19 +810,19 @@ export default function ProspectsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Industry</label>
+                <label className={labelCls} htmlFor="icp-industry">Industry</label>
                 <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
               </div>
-              <input value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
+              <input id="icp-industry" value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
                 className={inputCls} placeholder="e.g. SaaS, Fintech" />
               <FieldOk show={!!icpForm.industry} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Titles</label>
+                <label className={labelCls} htmlFor="icp-titles">Titles</label>
                 <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
               </div>
-              <input value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
+              <input id="icp-titles" value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
                 className={inputCls} placeholder="e.g. CEO, CTO, VP Sales" />
               <FieldOk show={!!icpForm.target_titles} />
             </div>
@@ -831,22 +832,23 @@ export default function ProspectsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Regions</label>
+                <label className={labelCls} htmlFor="icp-regions">Regions</label>
                 <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
               </div>
-              <input value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
+              <input id="icp-regions" value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
                 className={inputCls} placeholder="e.g. US, Europe, APAC" />
               <FieldOk show={!!icpForm.target_regions} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls}>Pain points</label>
+                <label className={labelCls} htmlFor="icp-pain-points">Pain points</label>
                 <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
                 <Tooltip content={PAIN_POINTS_TOOLTIP}>
                   <InfoIcon />
                 </Tooltip>
               </div>
               <textarea
+                id="icp-pain-points"
                 value={icpForm.pain_points}
                 onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
                 rows={3}
