@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 import { track } from '@/lib/track'
+import { Modal } from '@/components/ui/Modal'
 
 const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
@@ -134,182 +135,13 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   const labelCls = 'block text-xs font-semibold text-[#4a4a5a] uppercase tracking-wider mb-1.5'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[#f0ece6]">
-          <h2 className="text-base font-bold text-[#1a1a2e]">New Campaign</h2>
-          <button onClick={onClose} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none">✕</button>
-        </div>
-
-        {/* Body */}
-        <div className="overflow-y-auto px-6 py-5 flex flex-col gap-5">
-
-          {/* Badges */}
-          {isFromAI && (
-            <div className="flex items-center gap-2 bg-[#eef1fd] border border-[#3b6bef]/20 rounded-lg px-3 py-2 text-xs text-[#3b6bef] font-medium">
-              <span>✨</span><span>Pre-filled from AI suggestion</span>
-            </div>
-          )}
-          {!isFromAI && isTemplate && (
-            <div className="flex items-center gap-2 bg-[#f5f0e8] border border-[#c8a96e]/20 rounded-lg px-3 py-2 text-xs text-[#8b6914] font-medium">
-              <span>🎯</span><span>Pre-filled from template</span>
-            </div>
-          )}
-
-          {/* ICP: Ideal Customer Profile */}
-          <div>
-            <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
-              <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">🎯 ICP: Ideal Customer Profile</h3>
-              <p className="text-xs text-[#8a7e6e] mt-0.5">
-                A plain-English description of who this campaign targets, used to personalize emails. Pre-filled from your Master ICP, edit to tailor this campaign.
-              </p>
-            </div>
-            <textarea
-              value={targetPersona}
-              onChange={e => setTargetPersona(e.target.value)}
-              placeholder="Founders of B2B SaaS companies in Europe, 10-50 employees, focused on outbound sales..."
-              rows={3}
-              className={`${inputCls} resize-none`}
-            />
-          </div>
-
-          {/* Campaign Name */}
-          <div>
-            <label className={labelCls}>Campaign Name <span className="text-red-500">*</span></label>
-            <input
-              ref={nameInputRef}
-              type="text"
-              value={name}
-              onChange={e => {
-                const v = e.target.value
-                setName(v)
-                setNameError('')
-                if (v.trim()) scheduleNameCheck(v, 500)
-              }}
-              onBlur={handleNameBlur}
-              placeholder="e.g. SaaS VP Outreach Q3"
-              className={`${inputCls} ${nameError ? 'border-red-400' : ''} ${nameFlashing ? 'animate-pulse ring-2 ring-red-300' : ''}`}
-            />
-            {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
-          </div>
-
-          {/* Define Your Ideal Customer */}
-          <div>
-            <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
-              <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Define Your Ideal Customer</h3>
-              <p className="text-xs text-[#8a7e6e] mt-0.5">Structured targeting filters. Pre-filled from your Master ICP, edit to tailor this campaign.</p>
-            </div>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className={labelCls}>Target Industry</label>
-                <input type="text" value={targetIndustry} onChange={e => setTargetIndustry(e.target.value)}
-                  placeholder="e.g. SaaS, FinTech, Healthcare" className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Target Titles</label>
-                <input type="text" value={targetTitles} onChange={e => setTargetTitles(e.target.value)}
-                  placeholder="e.g. VP of Sales, Head of Growth" className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Target Regions</label>
-                <input type="text" value={targetRegions} onChange={e => setTargetRegions(e.target.value)}
-                  placeholder="e.g. US, UK, DACH" className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Company Size</label>
-                <div className="flex flex-wrap gap-2">
-                  {SIZE_OPTIONS.map(opt => (
-                    <button key={opt}
-                      onClick={() => togglePill(selectedSizes, opt, setSelectedSizes)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        selectedSizes.includes(opt)
-                          ? 'bg-[#3b6bef] border-[#3b6bef] text-white'
-                          : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'
-                      }`}>
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>Company Revenue</label>
-                <div className="flex flex-wrap gap-2">
-                  {REV_OPTIONS.map(opt => (
-                    <button key={opt}
-                      onClick={() => togglePill(selectedRevs, opt, setSelectedRevs)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        selectedRevs.includes(opt)
-                          ? 'bg-[#3b6bef] border-[#3b6bef] text-white'
-                          : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'
-                      }`}>
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Your Pitch */}
-          <div>
-            <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
-              <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Your Pitch</h3>
-            </div>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className={labelCls}>
-                  What does your product do? <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={angle}
-                  onChange={e => setAngle(e.target.value)}
-                  placeholder="e.g. We help B2B teams close more deals with AI-driven intent signals"
-                  rows={2}
-                  className={`${inputCls} resize-none`}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>
-                  Value Proposition{' '}
-                  <span className="text-[#a89e8e] font-normal normal-case tracking-normal">(optional)</span>
-                </label>
-                <textarea
-                  value={valueProp}
-                  onChange={e => setValueProp(e.target.value)}
-                  placeholder="e.g. Real-time buying signals from LinkedIn + web activity"
-                  rows={2}
-                  className={`${inputCls} resize-none`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Tone & Language */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Tone</label>
-              <select value={tone} onChange={e => setTone(e.target.value)} className={inputCls}>
-                {TONES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Language</label>
-              <select value={language} onChange={e => setLanguage(e.target.value)} className={inputCls}>
-                {LANGUAGES.map(l => <option key={l}>{l}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {error && <p className="text-xs text-red-600">{error}</p>}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#f0ece6] flex gap-2">
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="New Campaign"
+      size="lg"
+      footer={
+        <>
           <button
             onClick={onClose}
             disabled={creating}
@@ -324,8 +156,169 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
           >
             {creating ? 'Creating…' : 'Create Campaign'}
           </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-5">
+
+        {/* Badges */}
+        {isFromAI && (
+          <div className="flex items-center gap-2 bg-[#eef1fd] border border-[#3b6bef]/20 rounded-lg px-3 py-2 text-xs text-[#3b6bef] font-medium">
+            <span>✨</span><span>Pre-filled from AI suggestion</span>
+          </div>
+        )}
+        {!isFromAI && isTemplate && (
+          <div className="flex items-center gap-2 bg-[#f5f0e8] border border-[#c8a96e]/20 rounded-lg px-3 py-2 text-xs text-[#8b6914] font-medium">
+            <span>🎯</span><span>Pre-filled from template</span>
+          </div>
+        )}
+
+        {/* ICP: Ideal Customer Profile */}
+        <div>
+          <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
+            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">🎯 ICP: Ideal Customer Profile</h3>
+            <p className="text-xs text-[#8a7e6e] mt-0.5">
+              A plain-English description of who this campaign targets, used to personalize emails. Pre-filled from your Master ICP, edit to tailor this campaign.
+            </p>
+          </div>
+          <textarea
+            value={targetPersona}
+            onChange={e => setTargetPersona(e.target.value)}
+            placeholder="Founders of B2B SaaS companies in Europe, 10-50 employees, focused on outbound sales..."
+            rows={3}
+            className={`${inputCls} resize-none`}
+          />
         </div>
+
+        {/* Campaign Name */}
+        <div>
+          <label className={labelCls}>Campaign Name <span className="text-red-500">*</span></label>
+          <input
+            ref={nameInputRef}
+            type="text"
+            value={name}
+            onChange={e => {
+              const v = e.target.value
+              setName(v)
+              setNameError('')
+              if (v.trim()) scheduleNameCheck(v, 500)
+            }}
+            onBlur={handleNameBlur}
+            placeholder="e.g. SaaS VP Outreach Q3"
+            className={`${inputCls} ${nameError ? 'border-red-400' : ''} ${nameFlashing ? 'animate-pulse ring-2 ring-red-300' : ''}`}
+          />
+          {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
+        </div>
+
+        {/* Define Your Ideal Customer */}
+        <div>
+          <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
+            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Define Your Ideal Customer</h3>
+            <p className="text-xs text-[#8a7e6e] mt-0.5">Structured targeting filters. Pre-filled from your Master ICP, edit to tailor this campaign.</p>
+          </div>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className={labelCls}>Target Industry</label>
+              <input type="text" value={targetIndustry} onChange={e => setTargetIndustry(e.target.value)}
+                placeholder="e.g. SaaS, FinTech, Healthcare" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Target Titles</label>
+              <input type="text" value={targetTitles} onChange={e => setTargetTitles(e.target.value)}
+                placeholder="e.g. VP of Sales, Head of Growth" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Target Regions</label>
+              <input type="text" value={targetRegions} onChange={e => setTargetRegions(e.target.value)}
+                placeholder="e.g. US, UK, DACH" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Company Size</label>
+              <div className="flex flex-wrap gap-2">
+                {SIZE_OPTIONS.map(opt => (
+                  <button key={opt}
+                    onClick={() => togglePill(selectedSizes, opt, setSelectedSizes)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      selectedSizes.includes(opt)
+                        ? 'bg-[#3b6bef] border-[#3b6bef] text-white'
+                        : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'
+                    }`}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Company Revenue</label>
+              <div className="flex flex-wrap gap-2">
+                {REV_OPTIONS.map(opt => (
+                  <button key={opt}
+                    onClick={() => togglePill(selectedRevs, opt, setSelectedRevs)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      selectedRevs.includes(opt)
+                        ? 'bg-[#3b6bef] border-[#3b6bef] text-white'
+                        : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'
+                    }`}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Your Pitch */}
+        <div>
+          <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
+            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Your Pitch</h3>
+          </div>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className={labelCls}>
+                What does your product do? <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={angle}
+                onChange={e => setAngle(e.target.value)}
+                placeholder="e.g. We help B2B teams close more deals with AI-driven intent signals"
+                rows={2}
+                className={`${inputCls} resize-none`}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>
+                Value Proposition{' '}
+                <span className="text-[#a89e8e] font-normal normal-case tracking-normal">(optional)</span>
+              </label>
+              <textarea
+                value={valueProp}
+                onChange={e => setValueProp(e.target.value)}
+                placeholder="e.g. Real-time buying signals from LinkedIn + web activity"
+                rows={2}
+                className={`${inputCls} resize-none`}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tone & Language */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Tone</label>
+            <select value={tone} onChange={e => setTone(e.target.value)} className={inputCls}>
+              {TONES.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Language</label>
+            <select value={language} onChange={e => setLanguage(e.target.value)} className={inputCls}>
+              {LANGUAGES.map(l => <option key={l}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
-    </div>
+    </Modal>
   )
 }
