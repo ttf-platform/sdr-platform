@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
-import { assertPublicUrl } from './ssrf-guard'
+import { fetch } from 'undici'
+import { assertPublicUrl, ssrfDispatcher } from './ssrf-guard'
 
 const SCRAPE_TIMEOUT = 8000
 const MAX_HTML_SIZE  = 500_000
@@ -61,6 +62,7 @@ async function fetchWithTimeout(url: string, ms: number): Promise<string | null>
       // SSRF guard : re-valide avant chaque requête, y compris chaque redirection
       await assertPublicUrl(current)
       const res = await fetch(current, {
+        dispatcher: ssrfDispatcher,
         signal:   controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; MirvoBot/1.0)',

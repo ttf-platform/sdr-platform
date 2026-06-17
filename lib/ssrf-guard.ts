@@ -1,11 +1,16 @@
 import dns from 'node:dns/promises'
+import nodeDns from 'node:dns'
+import { Agent } from 'undici'
 import ipaddr from 'ipaddr.js'
 
 /**
- * SSRF guard : n'autorise que des URLs http(s) dont TOUTES les IP résolues
- * sont publiques (unicast). Throw sur toute IP privée/loopback/link-local/
- * reserved/metadata (169.254.169.254). À ré-appeler avant CHAQUE fetch,
- * y compris à chaque hop de redirection.
+ * SSRF guard, deux couches :
+ *  1. assertPublicUrl() : check de scheme + rejet pré-résolution (erreurs propres).
+ *  2. ssrfDispatcher : Agent undici dont connect.lookup résout UNE fois, valide
+ *     chaque adresse retournée, et pin l'IP validée à la connexion réelle —
+ *     ferme la fenêtre DNS-rebinding / TOCTOU (pas de 2e résolution indépendante).
+ * À utiliser avec le fetch undici { dispatcher: ssrfDispatcher } + ré-appeler
+ * assertPublicUrl avant chaque hop.
  */
 function isPublicAddress(addr: string): boolean {
   let ip
@@ -39,3 +44,29 @@ export async function assertPublicUrl(rawUrl: string): Promise<void> {
     }
   }
 }
+
+/**
+ * Dispatcher undici qui valide ET pin l'IP connectée.
+ * net.connect appelle lookup(hostname, options, cb) en attendant une seule adresse :
+ * on résout tout, on rejette si UNE adresse est non-publique, puis on renvoie la
+ * première (validée). Pas de seconde résolution indépendante => TOCTOU fermé.
+ */
+export const ssrfDispatcher = new Agent({
+  connect: {
+    lookup: (hostname, _options, callback) => {
+      nodeDns.lookup(hostname, { all: true }, (err, addresses) => {
+        if (err) return callback(err, '', 0)
+        const list = Array.isArray(addresses) ? addresses : []
+        if (list.length === 0) {
+          return callback(new Error('ssrf: dns resolution empty'), '', 0)
+        }
+        for (const a of list) {
+          if (!isPublicAddress(a.address)) {
+            return callback(new Error('ssrf: non-public address blocked'), '', 0)
+          }
+        }
+        callback(null, list[0].address, list[0].family)
+      })
+    },
+  },
+})
