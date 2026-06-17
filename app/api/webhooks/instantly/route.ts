@@ -91,7 +91,7 @@ async function handleEmailReplied(data: ReplyData): Promise<void> {
     .maybeSingle()
 
   if (!account) {
-    console.warn('[webhook/instantly] email.replied: no email_account found for', inboxEmail)
+    console.warn('[webhook/instantly] email.replied: no email_account for inbox (redacted)')
     return
   }
 
