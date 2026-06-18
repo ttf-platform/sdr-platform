@@ -17,12 +17,26 @@ type ClaudeScanResult = {
   note?: string
 }
 
+type ProspectRow = {
+  id: string
+  email: string
+  first_name: string | null
+  last_name: string | null
+  company: string | null
+  title: string | null
+  linkedin_url: string | null
+  website: string | null
+}
+
+const COOLDOWN_DAYS = 14
+
 export type ScanResult = {
   prospects_scanned: number
   matches_found: number
   duration_ms: number
   status: 'executed' | 'queued' | 'failed'
   block_reason?: string
+  empty_reason?: 'no_prospects' | 'all_on_cooldown'
   error?: string
 }
 
@@ -54,13 +68,15 @@ export async function scanSignalOnCampaign(params: {
     }
   }
 
-  // 2. Fetch prospects to scan
-  const { data: prospects, error: prospectsError } = await admin
-    .from('prospects')
-    .select('id, email, contacts!contact_id(first_name, last_name, company, title, linkedin_url, website)')
-    .eq('campaign_id', params.campaignId)
-    .eq('workspace_id', params.workspaceId)
-    .limit(maxProspects)
+  // 2. Fetch prospects eligible for scan (cooldown + already-matched filtered in DB)
+  const { data: prospectsRaw, error: prospectsError } = await admin.rpc('get_prospects_to_scan', {
+    p_signal_id: params.signalId,
+    p_campaign_id: params.campaignId,
+    p_workspace_id: params.workspaceId,
+    p_cooldown_days: COOLDOWN_DAYS,
+    p_limit: maxProspects,
+  })
+  const prospects = prospectsRaw as ProspectRow[] | null
 
   if (prospectsError) {
     console.error('[signal-scanner] Failed to fetch prospects:', prospectsError)
@@ -68,7 +84,18 @@ export async function scanSignalOnCampaign(params: {
   }
 
   if (!prospects || prospects.length === 0) {
-    return { prospects_scanned: 0, matches_found: 0, duration_ms: Date.now() - startTime, status: 'executed' }
+    const { count } = await admin
+      .from('prospects')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', params.campaignId)
+      .eq('workspace_id', params.workspaceId)
+    return {
+      prospects_scanned: 0,
+      matches_found: 0,
+      duration_ms: Date.now() - startTime,
+      status: 'executed',
+      empty_reason: (count ?? 0) > 0 ? 'all_on_cooldown' : 'no_prospects',
+    }
   }
 
   // 3. Silent limit check
@@ -129,16 +156,14 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
 
   // 5. Sequential per-prospect Claude calls (same pattern as manual run)
   for (const prospect of prospects) {
-    const contact = Array.isArray(prospect.contacts) ? prospect.contacts[0] : prospect.contacts
-
     const prospectContext = [
       `Prospect to evaluate:`,
       `- Email: ${prospect.email}`,
-      `- Name: ${contact?.first_name ?? ''} ${contact?.last_name ?? ''}`.trim(),
-      `- Company: ${contact?.company ?? '(unknown)'}`,
-      `- Title: ${contact?.title ?? '(unknown)'}`,
-      `- LinkedIn: ${contact?.linkedin_url ?? '(not provided)'}`,
-      `- Website: ${contact?.website ?? '(not provided)'}`,
+      `- Name: ${prospect.first_name ?? ''} ${prospect.last_name ?? ''}`.trim(),
+      `- Company: ${prospect.company ?? '(unknown)'}`,
+      `- Title: ${prospect.title ?? '(unknown)'}`,
+      `- LinkedIn: ${prospect.linkedin_url ?? '(not provided)'}`,
+      `- Website: ${prospect.website ?? '(not provided)'}`,
     ].join('\n')
 
     try {
@@ -170,6 +195,18 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
         console.error('[signal-scanner] No valid JSON from Claude for prospect', prospect.id)
         continue
       }
+
+      // Update cooldown state for this prospect (matched or not)
+      await admin.from('signal_scan_state').upsert(
+        {
+          signal_id: params.signalId,
+          prospect_id: prospect.id,
+          workspace_id: params.workspaceId,
+          last_scanned_at: new Date().toISOString(),
+          detected: scanResult.detected,
+        },
+        { onConflict: 'signal_id,prospect_id' }
+      )
 
       if (scanResult.detected) {
         const { error: insertError } = await admin
