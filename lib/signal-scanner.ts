@@ -55,12 +55,17 @@ export async function scanSignalOnCampaign(params: {
   }
 
   // 2. Fetch prospects to scan
-  const { data: prospects } = await admin
+  const { data: prospects, error: prospectsError } = await admin
     .from('prospects')
     .select('id, email, contacts!contact_id(first_name, last_name, company, title, linkedin_url, website)')
     .eq('campaign_id', params.campaignId)
     .eq('workspace_id', params.workspaceId)
     .limit(maxProspects)
+
+  if (prospectsError) {
+    console.error('[signal-scanner] Failed to fetch prospects:', prospectsError)
+    return { prospects_scanned: 0, matches_found: 0, duration_ms: Date.now() - startTime, status: 'failed', error: 'Could not load prospects' }
+  }
 
   if (!prospects || prospects.length === 0) {
     return { prospects_scanned: 0, matches_found: 0, duration_ms: Date.now() - startTime, status: 'executed' }
