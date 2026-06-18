@@ -16,10 +16,10 @@ type RunSignalModalProps = {
 type Step = 'select_campaign' | 'confirm' | 'running' | 'complete'
 
 type RunResult = {
-  scanned: number
-  matched: number
-  errors: number
-  skipped: number
+  prospects_scanned: number
+  matches_found: number
+  status: 'executed' | 'queued'
+  block_reason?: string
 }
 
 export function RunSignalModal({ isOpen, onClose, signalId, signalName, onComplete }: RunSignalModalProps) {
@@ -78,10 +78,10 @@ export function RunSignalModal({ isOpen, onClose, signalId, signalName, onComple
         return
       }
       setScanResult({
-        scanned: data.scanned ?? 0,
-        matched: data.matched ?? 0,
-        errors: data.errors ?? 0,
-        skipped: data.skipped ?? 0,
+        prospects_scanned: data.prospects_scanned ?? 0,
+        matches_found: data.matches_found ?? 0,
+        status: data.status,
+        block_reason: data.block_reason,
       })
       setStep('complete')
       onComplete()
@@ -196,20 +196,32 @@ export function RunSignalModal({ isOpen, onClose, signalId, signalName, onComple
       {/* Step 4 : complete */}
       {step === 'complete' && scanResult && (
         <div className="flex flex-col gap-4">
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-            <p className="text-3xl mb-2">✓</p>
-            <p className="text-sm font-semibold text-green-700 mb-1">Scan complete</p>
-            <p className="text-2xl font-bold text-[#1a1a2e]">
-              {scanResult.matched}{' '}
-              <span className="text-base font-normal text-[#8a7e6e]">of {scanResult.scanned} prospects matched</span>
-            </p>
-            {scanResult.errors > 0 && (
-              <p className="text-xs text-amber-600 mt-2">{scanResult.errors} error{scanResult.errors !== 1 ? 's' : ''} (check logs)</p>
-            )}
-            {scanResult.skipped > 0 && (
-              <p className="text-xs text-[#8a7e6e] mt-1">{scanResult.skipped} prospect{scanResult.skipped !== 1 ? 's' : ''} skipped (V1 cap at 30 per Run)</p>
-            )}
-          </div>
+          {scanResult.status === 'queued' ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+              <p className="text-3xl mb-2">⏳</p>
+              <p className="text-sm font-semibold text-amber-700 mb-1">
+                {scanResult.block_reason === 'monthly_cap'
+                  ? 'Monthly signal limit reached'
+                  : 'Too many scans right now, try again shortly'}
+              </p>
+              <p className="text-xs text-amber-600 mt-1">This run has been queued and will process when capacity is available.</p>
+            </div>
+          ) : scanResult.prospects_scanned === 0 ? (
+            <div className="bg-[#f7f4f0] border border-[#e8e3dc] rounded-xl p-4 text-center">
+              <p className="text-3xl mb-2">○</p>
+              <p className="text-sm font-semibold text-[#4a4a5a] mb-1">No prospects to scan in this campaign.</p>
+              <p className="text-xs text-[#8a7e6e] mt-1">Add prospects to this campaign, then run again.</p>
+            </div>
+          ) : (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+              <p className="text-3xl mb-2">✓</p>
+              <p className="text-sm font-semibold text-green-700 mb-1">Scan complete</p>
+              <p className="text-2xl font-bold text-[#1a1a2e]">
+                {scanResult.matches_found}{' '}
+                <span className="text-base font-normal text-[#8a7e6e]">of {scanResult.prospects_scanned} prospects matched</span>
+              </p>
+            </div>
+          )}
           <div className="flex justify-end">
             <button
               onClick={onClose}

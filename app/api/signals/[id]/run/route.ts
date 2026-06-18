@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { signalRunSchema, badRequest } from '@/lib/schemas'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { scanSignalOnCampaign } from '@/lib/signal-scanner'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const maxDuration = 300
 
@@ -36,6 +37,18 @@ export async function POST(request: Request, { params }: Params) {
   const parsed = signalRunSchema.safeParse(body)
   if (!parsed.success) return badRequest(parsed.error.issues)
   const { campaign_id } = parsed.data
+
+  const admin = createAdminClient()
+  const { data: campaign } = await admin
+    .from('campaigns')
+    .select('id')
+    .eq('id', campaign_id)
+    .eq('workspace_id', guard.workspaceId)
+    .maybeSingle()
+
+  if (!campaign) {
+    return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+  }
 
   const result = await scanSignalOnCampaign({
     workspaceId: guard.workspaceId,
