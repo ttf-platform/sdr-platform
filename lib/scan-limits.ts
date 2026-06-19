@@ -3,22 +3,26 @@ import { createAdminClient } from '@/lib/supabase/admin'
 type Tier = 'free' | 'starter' | 'pro' | 'power'
 
 const MONTHLY_CAPS: Record<Tier, number> = {
-  free: 50,
-  starter: 2000,
-  pro: 10000,
-  power: 30000,
+  free: 25,
+  starter: 150,
+  pro: 250,
+  power: 350,
 }
 
 const RATE_LIMIT_10MIN = 200
 
-// Claude Sonnet 4.6 pricing (per million tokens)
+// Claude Sonnet 4.6 pricing (per million tokens / per request)
 const CLAUDE_PRICING = {
   input_per_million: 3,
   output_per_million: 15,
+  web_search_per_request: 0.01,
 }
 
-export function estimateCostUsd(inputTokens: number, outputTokens: number): number {
-  return (inputTokens * CLAUDE_PRICING.input_per_million + outputTokens * CLAUDE_PRICING.output_per_million) / 1_000_000
+export function estimateCostUsd(inputTokens: number, outputTokens: number, webSearchRequests = 0): number {
+  return (
+    (inputTokens * CLAUDE_PRICING.input_per_million + outputTokens * CLAUDE_PRICING.output_per_million) / 1_000_000 +
+    webSearchRequests * CLAUDE_PRICING.web_search_per_request
+  )
 }
 
 export async function getWorkspaceTier(workspaceId: string): Promise<Tier> {

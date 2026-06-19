@@ -2,21 +2,24 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { PlanTier } from '@/lib/stripe-prices'
 import { triggerOverageChargeIfNeeded } from '@/lib/overage-charge'
 
-export const TIER_CAPS: Record<PlanTier, {
-  total_prospects: number             // lifetime safety cap (enforced Sprint 16b)
-  enrichments_per_month: number       // Sprint 9 enforcement
-  prospect_credits_per_month: number  // Sprint 9 Clay enforcement
-  emails_per_month: number            // monthly email send cap
+type TierKey = PlanTier | 'free'
+
+export const TIER_CAPS: Record<TierKey, {
+  total_prospects: number               // lifetime safety cap
+  prospects_sourced_per_month: number   // AI prospect sourcing monthly cap (hard cap, no overage)
+  enrichments_per_month: number         // enrichment monthly cap
+  emails_per_month: number              // monthly email send cap
   inboxes: number
 }> = {
-  starter: { total_prospects: 10000, enrichments_per_month: 500,  prospect_credits_per_month: 200, emails_per_month: 1000, inboxes: 1 },
-  pro:     { total_prospects: 25000, enrichments_per_month: 1000, prospect_credits_per_month: 500, emails_per_month: 2000, inboxes: 2 },
-  power:   { total_prospects: 50000, enrichments_per_month: 2000, prospect_credits_per_month: 750, emails_per_month: 3000, inboxes: 3 },
+  free:    { total_prospects: 1000,  prospects_sourced_per_month: 0,   enrichments_per_month: 25,  emails_per_month: 100,  inboxes: 1 },
+  starter: { total_prospects: 10000, prospects_sourced_per_month: 120, enrichments_per_month: 100, emails_per_month: 1000, inboxes: 1 },
+  pro:     { total_prospects: 25000, prospects_sourced_per_month: 250, enrichments_per_month: 300, emails_per_month: 2000, inboxes: 2 },
+  power:   { total_prospects: 50000, prospects_sourced_per_month: 350, enrichments_per_month: 500, emails_per_month: 3000, inboxes: 3 },
 }
 
-type UsageMetric = 'enrichments_used' | 'inboxes'
+type UsageMetric = 'enrichments_used' | 'inboxes' | 'prospects_sourced'
 
-// Total contacts lifetime cap — counts from contacts table (Sprint 16b.5).
+// Total contacts lifetime cap — counts from contacts table.
 // Race condition under concurrent imports is an acceptable limitation.
 export async function checkTotalProspectsLimit(
   workspaceId: string,
@@ -28,8 +31,8 @@ export async function checkTotalProspectsLimit(
     .from('workspaces').select('plan_tier')
     .eq('id', workspaceId).single()
 
-  const tier = (ws?.plan_tier ?? 'starter') as PlanTier
-  const cap = TIER_CAPS[tier].total_prospects
+  const tier = (ws?.plan_tier ?? 'starter') as TierKey
+  const cap = TIER_CAPS[tier]?.total_prospects ?? TIER_CAPS.starter.total_prospects
 
   const { count } = await admin
     .from('contacts')
@@ -61,8 +64,8 @@ export async function checkTierLimit(
     .from('workspaces').select('plan_tier, overage_enabled')
     .eq('id', workspaceId).single()
 
-  const tier = (ws?.plan_tier ?? 'starter') as PlanTier
-  const caps = TIER_CAPS[tier]
+  const tier = (ws?.plan_tier ?? 'starter') as TierKey
+  const caps = TIER_CAPS[tier] ?? TIER_CAPS.starter
 
   if (metric === 'inboxes') {
     const { count } = await admin
@@ -75,7 +78,7 @@ export async function checkTierLimit(
     return { allowed: true, currentUsage: current, cap: caps.inboxes }
   }
 
-  // enrichments_used — monthly via usage_tracking
+  // Monthly metric — read from usage_tracking
   const periodStart = new Date()
   periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
 
@@ -87,8 +90,22 @@ export async function checkTierLimit(
     .gte('period_start', periodStart.toISOString().split('T')[0])
 
   const current = (rows ?? []).reduce((s, r) => s + r.value, 0)
-  const cap = caps.enrichments_per_month
 
+  if (metric === 'prospects_sourced') {
+    const cap = caps.prospects_sourced_per_month
+    if (current + amount > cap) {
+      return {
+        allowed: false,
+        reason: `Monthly sourced-prospects cap reached (${cap} on ${tier} plan). Upgrade to source more.`,
+        currentUsage: current,
+        cap,
+      }
+    }
+    return { allowed: true, currentUsage: current, cap }
+  }
+
+  // enrichments_used — overage eligible
+  const cap = caps.enrichments_per_month
   if (current + amount > cap) {
     if (metric === 'enrichments_used' && ws?.overage_enabled) {
       triggerOverageChargeIfNeeded(workspaceId).catch(e => console.error('[overage]', e))
@@ -105,9 +122,12 @@ export async function checkTierLimit(
   return { allowed: true, currentUsage: current, cap }
 }
 
+// NOTE: 'prospects_sourced' requires migration to add to usage_tracking.metric CHECK constraint
+// (004_stripe_subscriptions.sql CHECK constraint currently allows only:
+//  'prospects_added','enrichments_used','emails_sent','meetings_booked')
 export async function trackUsage(
   workspaceId: string,
-  metric: 'enrichments_used' | 'emails_sent' | 'meetings_booked',
+  metric: 'enrichments_used' | 'emails_sent' | 'meetings_booked' | 'prospects_sourced',
   value = 1,
 ) {
   const admin = createAdminClient()

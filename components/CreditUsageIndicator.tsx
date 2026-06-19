@@ -6,7 +6,7 @@
 // Simulation + exceeds-cap views are implemented but activated
 // Sprint 9 (Clay integration) when preview prop is passed.
 
-export type CapMetric = 'total_prospects' | 'emails_per_month' | 'prospect_credits_per_month'
+export type CapMetric = 'total_prospects' | 'emails_per_month' | 'prospects_sourced_per_month'
 
 interface Props {
   metric:      CapMetric
@@ -21,7 +21,7 @@ interface Props {
 const DEFAULT_LABELS: Record<CapMetric, string> = {
   total_prospects:             'AI-researched contacts',
   emails_per_month:            'Emails this month',
-  prospect_credits_per_month:  'Prospect Credits this month',
+  prospects_sourced_per_month: 'AI-sourced prospects this month',
 }
 
 function barColor(pct: number): string {
