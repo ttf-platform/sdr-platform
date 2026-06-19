@@ -153,6 +153,7 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
   let matchesFound = 0
   let totalInputTokens = 0
   let totalOutputTokens = 0
+  let totalWebSearchRequests = 0
 
   // 5. Sequential per-prospect Claude calls (same pattern as manual run)
   for (const prospect of prospects) {
@@ -177,6 +178,7 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
 
       totalInputTokens += completion.usage?.input_tokens ?? 0
       totalOutputTokens += completion.usage?.output_tokens ?? 0
+      totalWebSearchRequests += completion.usage?.server_tool_use?.web_search_requests ?? 0
 
       // Iterate last-to-first through text blocks to find the JSON answer
       const textBlocks = completion.content.filter(b => b.type === 'text') as Array<{ type: 'text'; text: string }>
@@ -250,7 +252,7 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
     status: 'executed',
     claudeInputTokens: totalInputTokens,
     claudeOutputTokens: totalOutputTokens,
-    estimatedCostUsd: estimateCostUsd(totalInputTokens, totalOutputTokens),
+    estimatedCostUsd: estimateCostUsd(totalInputTokens, totalOutputTokens, totalWebSearchRequests),
   })
 
   return {

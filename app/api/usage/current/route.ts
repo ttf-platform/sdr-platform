@@ -65,9 +65,9 @@ export async function GET() {
     // Enrichments — monthly (Sprint 9 enforcement)
     enrichments_used:           usage.enrichments_used,
     enrichments_cap:            caps.enrichments_per_month,
-    // Prospect credits — monthly (Sprint 9 Clay enforcement; 0 until Clay integration)
-    prospect_credits_used:      0, // TODO Sprint 9: populate from Clay usage_tracking
-    prospect_credits_cap:       caps.prospect_credits_per_month,
+    // Sourced prospects — monthly (hard cap, no overage)
+    prospects_sourced_used:     0, // populated via usage_tracking 'prospects_sourced' once migration 051 is applied
+    prospects_sourced_cap:      caps.prospects_sourced_per_month,
     // Emails — monthly (Sprint 8 enforcement)
     emails_sent:                usage.emails_sent,
     emails_cap:                 caps.emails_per_month,

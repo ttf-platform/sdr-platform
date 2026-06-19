@@ -12,7 +12,7 @@ interface UsageData {
   prospects_added: number; prospects_cap: number
   enrichments_used: number; enrichments_cap: number
   emails_sent: number; emails_cap: number
-  prospect_credits_used: number; prospect_credits_cap: number
+  prospects_sourced_used: number; prospects_sourced_cap: number
   reset_date: string
   inboxes_used: number; inboxes_cap: number; overage_enabled: boolean
   overage_charges_made: number
@@ -224,9 +224,9 @@ export default function BillingPage() {
               resetDate={usage.reset_date}
             />
             <CreditUsageIndicator
-              metric="prospect_credits_per_month"
-              current={usage.prospect_credits_used}
-              cap={usage.prospect_credits_cap}
+              metric="prospects_sourced_per_month"
+              current={usage.prospects_sourced_used}
+              cap={usage.prospects_sourced_cap}
               resetDate={usage.reset_date}
             />
           </div>

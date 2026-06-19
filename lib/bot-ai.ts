@@ -55,12 +55,13 @@ export const MAX_TOKENS_PER_TURN = 1024;
 const PLAN_CAPS: Record<string, {
   inboxes: number;
   emails_per_month: number;
-  prospect_credits_per_month: number;
+  prospects_sourced_per_month: number;
   total_prospects: number;
 }> = {
-  starter: { inboxes: 1, emails_per_month: 1000, prospect_credits_per_month: 200, total_prospects: 10000 },
-  pro:     { inboxes: 2, emails_per_month: 2000, prospect_credits_per_month: 500, total_prospects: 25000 },
-  power:   { inboxes: 3, emails_per_month: 3000, prospect_credits_per_month: 750, total_prospects: 50000 },
+  free:    { inboxes: 1, emails_per_month: 100,  prospects_sourced_per_month: 0,   total_prospects: 1000  },
+  starter: { inboxes: 1, emails_per_month: 1000, prospects_sourced_per_month: 120, total_prospects: 10000 },
+  pro:     { inboxes: 2, emails_per_month: 2000, prospects_sourced_per_month: 250, total_prospects: 25000 },
+  power:   { inboxes: 3, emails_per_month: 3000, prospects_sourced_per_month: 350, total_prospects: 50000 },
 };
 
 // ---------------------------------------------------------------------------
@@ -324,7 +325,7 @@ async function executeGetUserCreditsUsage(ctx: BotContext): Promise<unknown> {
   }
 
   const tier = (workspace.plan_tier ?? 'starter') as keyof typeof PLAN_CAPS;
-  const total = (PLAN_CAPS[tier] ?? PLAN_CAPS.starter).prospect_credits_per_month;
+  const total = (PLAN_CAPS[tier] ?? PLAN_CAPS.starter).prospects_sourced_per_month;
 
   // Current period = 1st of this month to now
   const periodStart = new Date();
