@@ -23,6 +23,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
+import { getEmailProvider } from '@/lib/email-provider-adapter'
 import {
   extractFields,
   normalizeEvent,
@@ -36,6 +37,19 @@ import crypto from 'crypto'
 export const runtime = 'nodejs'
 
 type Admin = ReturnType<typeof createAdminClient>
+
+// ---------------------------------------------------------------------------
+// Auto-pause thresholds (Sprint B2)
+//
+// A mailbox is auto-paused when its bounce rate over the rolling 24h window
+// crosses BOUNCE_RATE_THRESHOLD AND volume is meaningful (≥ MIN_VOLUME_FOR_PAUSE
+// sent in the same window). The volume floor avoids tripping on the first
+// bounce of a brand-new box.
+// ---------------------------------------------------------------------------
+
+const BOUNCE_RATE_THRESHOLD  = 0.05  // 5 %
+const MIN_VOLUME_FOR_PAUSE   = 20    // sent in the 24h window
+const COUNTS_WINDOW_HOURS    = 24    // documented in migration 057
 
 // ---------------------------------------------------------------------------
 // HMAC verification
@@ -109,13 +123,6 @@ async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Prom
     return
   }
 
-  if (event === 'ACCOUNT_ERROR') {
-    console.warn('[webhook/instantly] ACCOUNT_ERROR', {
-      inbox: fields.inboxEmail, reason: fields.bounceReason,
-    })
-    return
-  }
-
   // Resolve workspace. Primary: inbox_email → email_accounts. Fallback:
   // provider_campaign_id → campaigns. Both routes always pass the resolved
   // id explicitly into downstream queries — no cross-workspace bleed.
@@ -124,6 +131,18 @@ async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Prom
     console.warn('[webhook/instantly] could not resolve workspace', {
       event, inbox: fields.inboxEmail, providerCampaign: fields.providerCampaignId,
     })
+    return
+  }
+
+  // ACCOUNT_ERROR: pause the box immediately + log. No dedup (no inbox row).
+  if (event === 'ACCOUNT_ERROR') {
+    console.warn('[webhook/instantly] ACCOUNT_ERROR', {
+      inbox: fields.inboxEmail, reason: fields.bounceReason,
+    })
+    const account = await resolveEmailAccount(admin, workspaceId, fields.inboxEmail)
+    if (account) {
+      await autoPauseAccount(admin, workspaceId, account, 'account_error')
+    }
     return
   }
 
@@ -146,6 +165,84 @@ async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Prom
     case 'SENT':        return handleSent(admin, workspaceId, fields)
     case 'BOUNCED':     return handleBounced(admin, workspaceId, fields)
     case 'UNSUBSCRIBED':return handleUnsubscribed(admin, workspaceId, fields)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mailbox resolution + auto-pause helpers (Sprint B2)
+// ---------------------------------------------------------------------------
+
+type EmailAccountRef = {
+  id: string
+  provider_inbox_id: string | null
+  warmup_status: string | null
+}
+
+/** Look up the workspace's email_account by its sending address. Returns
+ *  null when we can't match (e.g. inboxEmail missing or unknown to us). */
+async function resolveEmailAccount(
+  admin: Admin,
+  workspaceId: string,
+  inboxEmail: string | null,
+): Promise<EmailAccountRef | null> {
+  if (!inboxEmail) return null
+  const { data } = await admin
+    .from('email_accounts')
+    .select('id, provider_inbox_id, warmup_status')
+    .eq('workspace_id', workspaceId)
+    .eq('email_address', inboxEmail.toLowerCase())
+    .maybeSingle()
+  return (data as EmailAccountRef | null) ?? null
+}
+
+/** Set warmup_status='paused' + stamp the reason — but only if the box is
+ *  currently sending (active/pending/completed). Already-paused or failed
+ *  boxes keep their existing reason so we don't overwrite the first cause.
+ *  Best-effort: also calls provider.pauseInbox() so the provider stops
+ *  driving sends; provider failure is logged and swallowed. */
+async function autoPauseAccount(
+  admin: Admin,
+  workspaceId: string,
+  account: EmailAccountRef,
+  reason: 'bounce_rate' | 'account_error',
+): Promise<void> {
+  if (account.warmup_status === 'paused' || account.warmup_status === 'failed') {
+    return
+  }
+
+  const { data: updated, error } = await admin
+    .from('email_accounts')
+    .update({
+      warmup_status:     'paused',
+      auto_paused_at:    new Date().toISOString(),
+      auto_pause_reason: reason,
+    })
+    .eq('id', account.id)
+    .eq('workspace_id', workspaceId)
+    .in('warmup_status', ['pending', 'active', 'completed'])
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    console.error('[webhook/instantly] autoPauseAccount update failed:', error)
+    return
+  }
+  if (!updated) {
+    // Concurrent state change — another worker already paused, fine.
+    return
+  }
+
+  console.warn('[webhook/instantly] auto-paused mailbox', {
+    accountId: account.id, reason,
+  })
+
+  if (account.provider_inbox_id) {
+    try {
+      await getEmailProvider().pauseInbox(account.provider_inbox_id)
+    } catch (err) {
+      console.warn('[webhook/instantly] provider.pauseInbox failed (DB pause still applied):',
+        err instanceof Error ? err.message : err)
+    }
   }
 }
 
@@ -279,23 +376,26 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
 
 async function handleSent(admin: Admin, workspaceId: string, fields: ExtractedFields): Promise<void> {
   const pe = await findProspectEmail(admin, workspaceId, fields)
-  if (!pe) {
+  if (pe && (pe.status === 'sending' || pe.status === 'approved')) {
+    const now = new Date().toISOString()
+    await admin
+      .from('prospect_emails')
+      .update({ status: 'sent', sent_at: now })
+      .eq('id', pe.id)
+      .eq('workspace_id', workspaceId)
+  } else if (!pe) {
     console.log('[webhook/instantly] SENT: no prospect_email match', {
       providerMessageId: fields.providerMessageId, threadId: fields.threadId,
     })
-    return
   }
-  // Only flip the rows we actually queued via Mirvo. A row already in
-  // 'sent' / 'replied' / 'bounced' / 'failed' stays as-is.
-  if (pe.status !== 'sending' && pe.status !== 'approved') {
-    return
+
+  // Record the send on the mailbox counter regardless of whether we found
+  // the prospect_email — the denominator must reflect every send the box
+  // made, not just the ones we can match back to a row.
+  const account = await resolveEmailAccount(admin, workspaceId, fields.inboxEmail)
+  if (account) {
+    await admin.rpc('record_sent_for_email_account', { p_account_id: account.id })
   }
-  const now = new Date().toISOString()
-  await admin
-    .from('prospect_emails')
-    .update({ status: 'sent', sent_at: now })
-    .eq('id', pe.id)
-    .eq('workspace_id', workspaceId)
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +440,28 @@ async function handleBounced(admin: Admin, workspaceId: string, fields: Extracte
         sentiment:           'bounce',
         received_at:         now,
       })
+  }
+
+  // Record the bounce on the mailbox counter + evaluate threshold.
+  const account = await resolveEmailAccount(admin, workspaceId, fields.inboxEmail)
+  if (!account) return
+
+  const { data: counts } = await admin
+    .rpc('record_bounce_for_email_account', { p_account_id: account.id })
+    .single()
+  if (!counts) return
+
+  const c = counts as { bounce_count_24h: number; sent_count_24h: number }
+  const bounceRate = c.sent_count_24h > 0 ? c.bounce_count_24h / c.sent_count_24h : 0
+  if (c.sent_count_24h >= MIN_VOLUME_FOR_PAUSE && bounceRate >= BOUNCE_RATE_THRESHOLD) {
+    console.warn('[webhook/instantly] bounce-rate threshold hit', {
+      accountId: account.id,
+      bounces:   c.bounce_count_24h,
+      sent:      c.sent_count_24h,
+      rate:      bounceRate.toFixed(3),
+      threshold: BOUNCE_RATE_THRESHOLD,
+    })
+    await autoPauseAccount(admin, workspaceId, account, 'bounce_rate')
   }
 }
 
