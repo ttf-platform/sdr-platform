@@ -1,45 +1,41 @@
 /**
  * POST /api/webhooks/instantly
  *
- * Receives inbound webhook events from Instantly.ai and routes them to
- * the appropriate handler.
+ * Single "All Events" webhook receiver. The provider posts every event type
+ * for every campaign at this URL; we normalise + route here.
  *
- * Security: verifies HMAC-SHA256 signature in X-Instantly-Signature header.
- * Format: "sha256=<hex_digest>" (same scheme as GitHub webhooks).
+ * Security: HMAC-SHA256 over the raw body, header X-Instantly-Signature in
+ * the GitHub-style `sha256=<hex>` format.
  *
- * Supported events (Sprint 8.5b):
- *   email.replied — prospect replied to a campaign email
+ * Defensive posture (Sprint A4): we have ZERO real webhook deliveries to
+ * inspect. We log the FULL raw payload on every receipt so the first real
+ * event reveals the actual field names; field extraction falls back across
+ * every documented alias (see lib/instantly-webhook-mapping.ts).
  *
- * Payload shape (based on Instantly v2 API docs — verify against live
- * webhooks at Sprint 8.5c when account is active):
- * {
- *   event: "email.replied",
- *   timestamp: "ISO string",
- *   data: {
- *     campaign_id: string,
- *     lead_email: string,
- *     lead_name?: string,
- *     reply_subject: string,
- *     reply_body: string,
- *     reply_from: string,
- *     thread_id?: string,
- *     original_message_id?: string,
- *     inbox_email: string,   // the sending address that received the reply
- *   }
- * }
+ * Dedup: events carrying an id are deduped by (workspace_id, provider_event_id)
+ * via the partial unique index on inbox_messages (migration 055).
  *
- * Workspace resolution strategy (Sprint 8.5b):
- *   inbox_email → email_accounts.email_address → workspace_id
- *   Limitation: if no email account is configured, the event is logged and
- *   dropped (not retried). Sprint 8.5c will add campaign_id mapping.
+ * Always returns 200 once the signature passes, so the provider does not
+ * retry-storm us on application errors. Per-event failures are logged and
+ * swallowed.
  */
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
+import {
+  extractFields,
+  normalizeEvent,
+  isPlausibleEmail,
+  clip,
+  type ExtractedFields,
+  type NormalizedEvent,
+} from '@/lib/instantly-webhook-mapping'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
+
+type Admin = ReturnType<typeof createAdminClient>
 
 // ---------------------------------------------------------------------------
 // HMAC verification
@@ -56,109 +52,6 @@ function verifySignature(payload: string, signature: string, secret: string): bo
   } catch {
     return false
   }
-}
-
-// ---------------------------------------------------------------------------
-// Event handlers
-// ---------------------------------------------------------------------------
-
-interface ReplyData {
-  campaign_id?: string
-  lead_email: string
-  lead_name?: string
-  reply_subject?: string
-  reply_body?: string
-  reply_from?: string
-  thread_id?: string
-  original_message_id?: string
-  inbox_email?: string
-}
-
-async function handleEmailReplied(data: ReplyData): Promise<void> {
-  const admin = createAdminClient()
-
-  // 1. Resolve workspace via the inbox_email → email_accounts
-  const inboxEmail = data.inbox_email || data.reply_from
-  if (!inboxEmail) {
-    console.warn('[webhook/instantly] email.replied: no inbox_email to resolve workspace')
-    return
-  }
-
-  const { data: account } = await admin
-    .from('email_accounts')
-    .select('workspace_id')
-    .eq('email_address', inboxEmail)
-    .maybeSingle()
-
-  if (!account) {
-    console.warn('[webhook/instantly] email.replied: no email_account for inbox (redacted)')
-    return
-  }
-
-  const workspaceId = account.workspace_id
-
-  // 2. Find the prospect by lead_email
-  const { data: prospect } = await admin
-    .from('prospects')
-    .select('id')
-    .eq('email', data.lead_email)
-    .eq('workspace_id', workspaceId)
-    .maybeSingle()
-
-  // 3. Find original prospect_email via thread_id (if provided)
-  let prospectEmailId: string | null = null
-  if (data.thread_id) {
-    const { data: pe } = await admin
-      .from('prospect_emails')
-      .select('id')
-      .eq('thread_id', data.thread_id)
-      .eq('workspace_id', workspaceId)
-      .maybeSingle()
-    prospectEmailId = pe?.id ?? null
-  }
-
-  const body = data.reply_body ?? ''
-  const bodyPreview = body.slice(0, 200)
-  const now = new Date().toISOString()
-
-  // 4. Insert inbox_message
-  const { data: inserted, error } = await admin
-    .from('inbox_messages')
-    .insert({
-      workspace_id: workspaceId,
-      thread_id: data.thread_id ?? null,
-      prospect_email_id: prospectEmailId,
-      prospect_id: prospect?.id ?? null,
-      from_name: data.lead_name ?? null,
-      from_email: data.lead_email,
-      to_email: inboxEmail,
-      subject: data.reply_subject ?? null,
-      body,
-      body_preview: bodyPreview,
-      provider: 'instantly',
-      provider_message_id: data.original_message_id ?? null,
-      received_at: now,
-    })
-    .select('id')
-    .single()
-
-  if (error || !inserted) {
-    console.error('[webhook/instantly] insert failed:', error)
-    return
-  }
-
-  // 5. Update prospect_email tracking if we have it
-  if (prospectEmailId) {
-    await admin
-      .from('prospect_emails')
-      .update({ replied_at: now, status: 'replied' })
-      .eq('id', prospectEmailId)
-  }
-
-  // 6. Fire-and-forget sentiment analysis
-  analyzeMessageSentiment(inserted.id).catch(err =>
-    console.error('[webhook/instantly] sentiment analysis failed:', err)
-  )
 }
 
 // ---------------------------------------------------------------------------
@@ -179,26 +72,348 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_signature' }, { status: 401 })
   }
 
-  let payload: { event: string; data?: unknown; timestamp?: string }
+  let payload: { event?: unknown; data?: unknown; timestamp?: unknown }
   try {
     payload = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
   }
 
-  // Route events
-  switch (payload.event) {
-    case 'email.replied':
-      // Fire-and-forget — return 200 immediately so Instantly doesn't retry
-      handleEmailReplied(payload.data as ReplyData).catch(err =>
-        console.error('[webhook/instantly] handleEmailReplied failed:', err)
-      )
-      break
+  // Log the FULL raw payload — the only way we'll learn the real field shape
+  // until a live mailbox is connected. Body content is server-side only,
+  // never exposed to the client.
+  console.log('[webhook/instantly] raw', JSON.stringify(payload))
 
-    default:
-      // Unknown event — acknowledge so Instantly doesn't retry
-      console.log('[webhook/instantly] unhandled event:', payload.event)
+  const event = normalizeEvent(payload.event)
+  const fields = extractFields(payload)
+
+  try {
+    await routeEvent(event, fields)
+  } catch (err) {
+    console.error('[webhook/instantly] handler failed:', err instanceof Error ? err.message : err)
+    // Still 200 — we don't want a retry storm on a transient handler bug.
   }
 
   return NextResponse.json({ ok: true })
+}
+
+// ---------------------------------------------------------------------------
+// Event router
+// ---------------------------------------------------------------------------
+
+async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Promise<void> {
+  const admin = createAdminClient()
+
+  if (event === 'UNKNOWN') {
+    console.log('[webhook/instantly] unhandled event (UNKNOWN)')
+    return
+  }
+
+  if (event === 'ACCOUNT_ERROR') {
+    console.warn('[webhook/instantly] ACCOUNT_ERROR', {
+      inbox: fields.inboxEmail, reason: fields.bounceReason,
+    })
+    return
+  }
+
+  // Resolve workspace. Primary: inbox_email → email_accounts. Fallback:
+  // provider_campaign_id → campaigns. Both routes always pass the resolved
+  // id explicitly into downstream queries — no cross-workspace bleed.
+  const workspaceId = await resolveWorkspace(admin, fields)
+  if (!workspaceId) {
+    console.warn('[webhook/instantly] could not resolve workspace', {
+      event, inbox: fields.inboxEmail, providerCampaign: fields.providerCampaignId,
+    })
+    return
+  }
+
+  // Dedup by (workspace_id, provider_event_id) when an event id is present.
+  if (fields.eventId) {
+    const { data: existing } = await admin
+      .from('inbox_messages')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('provider_event_id', fields.eventId)
+      .maybeSingle()
+    if (existing) {
+      console.log('[webhook/instantly] dedup hit', { eventId: fields.eventId })
+      return
+    }
+  }
+
+  switch (event) {
+    case 'REPLY':       return handleReply(admin, workspaceId, fields)
+    case 'SENT':        return handleSent(admin, workspaceId, fields)
+    case 'BOUNCED':     return handleBounced(admin, workspaceId, fields)
+    case 'UNSUBSCRIBED':return handleUnsubscribed(admin, workspaceId, fields)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Workspace resolution
+// ---------------------------------------------------------------------------
+
+async function resolveWorkspace(admin: Admin, fields: ExtractedFields): Promise<string | null> {
+  if (fields.inboxEmail) {
+    const { data } = await admin
+      .from('email_accounts')
+      .select('workspace_id')
+      .eq('email_address', fields.inboxEmail.toLowerCase())
+      .maybeSingle()
+    if (data?.workspace_id) return data.workspace_id as string
+  }
+  if (fields.providerCampaignId) {
+    const { data } = await admin
+      .from('campaigns')
+      .select('workspace_id')
+      .eq('provider_campaign_id', fields.providerCampaignId)
+      .maybeSingle()
+    if (data?.workspace_id) return data.workspace_id as string
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Prospect-email matching (thread first, then provider lead/message id)
+// ---------------------------------------------------------------------------
+
+type ProspectEmailRef = {
+  id: string
+  prospect_id: string
+  campaign_step_id: string
+  status: string
+}
+
+async function findProspectEmail(
+  admin: Admin,
+  workspaceId: string,
+  fields: ExtractedFields,
+): Promise<ProspectEmailRef | null> {
+  if (fields.threadId) {
+    const { data } = await admin
+      .from('prospect_emails')
+      .select('id, prospect_id, campaign_step_id, status')
+      .eq('workspace_id', workspaceId)
+      .eq('thread_id', fields.threadId)
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (data) return data as ProspectEmailRef
+  }
+  if (fields.providerMessageId) {
+    const { data } = await admin
+      .from('prospect_emails')
+      .select('id, prospect_id, campaign_step_id, status')
+      .eq('workspace_id', workspaceId)
+      .eq('provider_message_id', fields.providerMessageId)
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (data) return data as ProspectEmailRef
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// REPLY
+// ---------------------------------------------------------------------------
+
+async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedFields): Promise<void> {
+  const fromEmail = fields.leadEmail
+  if (!isPlausibleEmail(fromEmail)) {
+    console.warn('[webhook/instantly] REPLY: invalid lead email, skipping insert')
+    return
+  }
+  // inbox_messages.to_email is NOT NULL — fall back to a sentinel when we
+  // can't derive it (very unlikely once we have a real payload).
+  const toEmail = isPlausibleEmail(fields.inboxEmail) ? fields.inboxEmail : 'unknown@inbox.local'
+
+  const pe = await findProspectEmail(admin, workspaceId, fields)
+  const body = fields.body ?? ''
+  const now = new Date().toISOString()
+
+  const { data: inserted, error } = await admin
+    .from('inbox_messages')
+    .insert({
+      workspace_id:        workspaceId,
+      thread_id:           fields.threadId,
+      prospect_email_id:   pe?.id ?? null,
+      prospect_id:         pe?.prospect_id ?? null,
+      from_name:           clip(fields.leadName, 200),
+      from_email:          fromEmail,
+      to_email:            toEmail,
+      subject:             clip(fields.subject, 500),
+      body,
+      body_preview:        clip(body, 200),
+      provider:            'instantly',
+      provider_message_id: fields.providerMessageId,
+      provider_event_id:   fields.eventId,
+      received_at:         now,
+    })
+    .select('id')
+    .single()
+
+  if (error || !inserted) {
+    console.error('[webhook/instantly] REPLY insert failed:', error)
+    return
+  }
+
+  if (pe) {
+    await admin
+      .from('prospect_emails')
+      .update({ replied_at: now, status: 'replied' })
+      .eq('id', pe.id)
+      .eq('workspace_id', workspaceId)
+
+    await maybeStopFollowups(admin, workspaceId, pe, 'smart_stop_on_reply', 'prospect replied')
+  }
+
+  analyzeMessageSentiment(inserted.id).catch(err =>
+    console.error('[webhook/instantly] sentiment analysis failed:', err)
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SENT
+// ---------------------------------------------------------------------------
+
+async function handleSent(admin: Admin, workspaceId: string, fields: ExtractedFields): Promise<void> {
+  const pe = await findProspectEmail(admin, workspaceId, fields)
+  if (!pe) {
+    console.log('[webhook/instantly] SENT: no prospect_email match', {
+      providerMessageId: fields.providerMessageId, threadId: fields.threadId,
+    })
+    return
+  }
+  // Only flip the rows we actually queued via Mirvo. A row already in
+  // 'sent' / 'replied' / 'bounced' / 'failed' stays as-is.
+  if (pe.status !== 'sending' && pe.status !== 'approved') {
+    return
+  }
+  const now = new Date().toISOString()
+  await admin
+    .from('prospect_emails')
+    .update({ status: 'sent', sent_at: now })
+    .eq('id', pe.id)
+    .eq('workspace_id', workspaceId)
+}
+
+// ---------------------------------------------------------------------------
+// BOUNCED
+// ---------------------------------------------------------------------------
+
+async function handleBounced(admin: Admin, workspaceId: string, fields: ExtractedFields): Promise<void> {
+  const pe = await findProspectEmail(admin, workspaceId, fields)
+  const now = new Date().toISOString()
+
+  if (pe) {
+    await admin
+      .from('prospect_emails')
+      .update({
+        status:         'bounced',
+        bounced_at:     now,
+        bounce_reason:  clip(fields.bounceReason, 500),
+      })
+      .eq('id', pe.id)
+      .eq('workspace_id', workspaceId)
+
+    await maybeStopFollowups(admin, workspaceId, pe, 'smart_stop_on_bounce', 'mailbox bounced')
+  }
+
+  // Best-effort inbound record so the user sees the bounce in the inbox.
+  if (isPlausibleEmail(fields.leadEmail) && isPlausibleEmail(fields.inboxEmail)) {
+    await admin
+      .from('inbox_messages')
+      .insert({
+        workspace_id:        workspaceId,
+        thread_id:           fields.threadId,
+        prospect_email_id:   pe?.id ?? null,
+        prospect_id:         pe?.prospect_id ?? null,
+        from_email:          fields.leadEmail,
+        to_email:            fields.inboxEmail,
+        subject:             clip(fields.subject, 500),
+        body:                fields.bounceReason ?? '',
+        body_preview:        clip(fields.bounceReason, 200),
+        provider:            'instantly',
+        provider_message_id: fields.providerMessageId,
+        provider_event_id:   fields.eventId,
+        sentiment:           'bounce',
+        received_at:         now,
+      })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// UNSUBSCRIBED
+// ---------------------------------------------------------------------------
+
+async function handleUnsubscribed(admin: Admin, workspaceId: string, fields: ExtractedFields): Promise<void> {
+  if (!isPlausibleEmail(fields.leadEmail)) {
+    console.warn('[webhook/instantly] UNSUBSCRIBED: no lead email')
+    return
+  }
+  // prospects.status accepts 'unsubscribed' per migration 012 — flip the
+  // row(s) matching this email in this workspace.
+  const { error } = await admin
+    .from('prospects')
+    .update({ status: 'unsubscribed' })
+    .eq('workspace_id', workspaceId)
+    .eq('email', fields.leadEmail.toLowerCase())
+
+  if (error) {
+    console.error('[webhook/instantly] UNSUBSCRIBED update failed:', error)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Smart-stop application
+// ---------------------------------------------------------------------------
+
+async function maybeStopFollowups(
+  admin: Admin,
+  workspaceId: string,
+  pe: ProspectEmailRef,
+  flagColumn: 'smart_stop_on_reply' | 'smart_stop_on_bounce',
+  reason: string,
+): Promise<void> {
+  // Resolve the campaign behind this prospect_email via its step.
+  const { data: step } = await admin
+    .from('campaign_steps')
+    .select('campaign_id')
+    .eq('id', pe.campaign_step_id)
+    .maybeSingle()
+  if (!step?.campaign_id) return
+
+  const { data: campaign } = await admin
+    .from('campaigns')
+    .select(`id, ${flagColumn}`)
+    .eq('id', step.campaign_id)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle()
+  if (!campaign || !(campaign as Record<string, unknown>)[flagColumn]) return
+
+  // Pull every step of the same campaign + flip every approved/sending
+  // prospect_email for this prospect to 'rejected'. We never touch rows
+  // already in a terminal state (sent / bounced / replied / failed).
+  const { data: allSteps } = await admin
+    .from('campaign_steps')
+    .select('id')
+    .eq('campaign_id', step.campaign_id)
+
+  const stepIds = (allSteps ?? []).map(s => s.id as string)
+  if (stepIds.length === 0) return
+
+  await admin
+    .from('prospect_emails')
+    .update({
+      status:     'rejected',
+      // send_error is server-side only (never returned per A3 rules) — safe
+      // place to leave an auto-stop marker for ops/debug.
+      send_error: `auto_stop: ${reason}`,
+    })
+    .eq('workspace_id', workspaceId)
+    .eq('prospect_id', pe.prospect_id)
+    .in('campaign_step_id', stepIds)
+    .in('status', ['approved', 'sending'])
+    .neq('id', pe.id)
 }
