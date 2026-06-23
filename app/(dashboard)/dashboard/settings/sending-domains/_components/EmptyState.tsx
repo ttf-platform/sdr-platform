@@ -1,12 +1,14 @@
 /**
- * EmptyState — shown when the workspace has no sending domains yet.
+ * EmptyState — shown when the workspace has no sending mailboxes yet.
  *
- * Visual identity inherits from Firstsend (header CAPS + emoji 📬, card
- * layout with light beige background, blue CTA). Copy is rewritten to
- * emphasize Mirvo's Day-1-sending promise (warmup runs in background).
+ * Two paths:
+ *   1. Connect an existing pro mailbox (Google Workspace / Microsoft 365)
+ *      → fastest setup, sends from your own address.
+ *   2. Add a dedicated domain → DNS records + warmup over 14–21 days.
  */
 
 import Link from 'next/link';
+import { ConnectMailboxButton } from './ConnectMailboxButton';
 
 export function EmptyState() {
   return (
@@ -14,28 +16,48 @@ export function EmptyState() {
       <div className="mb-4 flex items-center gap-2">
         <span className="text-xl" aria-hidden="true">📬</span>
         <h2 className="text-xs font-semibold uppercase tracking-wider text-[#1a1a1a]">
-          Sending domain
+          Sending mailboxes
         </h2>
       </div>
 
-      <p className="mb-1 text-sm leading-relaxed text-[#4a4a5a]">
-        Connect your sending domain to launch campaigns. We'll send your first
-        emails through our deliverability infrastructure on day one, while
-        your domain warms up in the background over 14–21 days.
-      </p>
-      <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">
-        No sending domains configured yet. Add one to get started.
+      <p className="mb-5 text-sm leading-relaxed text-[#4a4a5a]">
+        Pick how you want to send. Connecting an existing pro mailbox is the
+        fastest path: emails go from your own address as soon as you
+        authorize. A dedicated domain takes 14–21 days to warm up before it
+        can carry meaningful volume.
       </p>
 
-      <Link
-        href="/dashboard/settings/sending-domains/new"
-        className="inline-flex items-center gap-2 rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus:ring-2 focus:ring-[#3b6bef] focus:ring-offset-2"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        Add sending domain
-      </Link>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-md border border-[#e8e3dc] p-4">
+          <h3 className="mb-1 text-sm font-semibold text-[#1a1a1a]">
+            Connect your mailbox
+          </h3>
+          <p className="mb-3 text-xs leading-relaxed text-[#4a4a5a]">
+            Google Workspace or Microsoft 365. OAuth, 30 seconds. Sends from
+            your own address.
+          </p>
+          <ConnectMailboxButton />
+        </div>
+
+        <div className="rounded-md border border-[#e8e3dc] p-4">
+          <h3 className="mb-1 text-sm font-semibold text-[#1a1a1a]">
+            Add a sending domain
+          </h3>
+          <p className="mb-3 text-xs leading-relaxed text-[#4a4a5a]">
+            Dedicated domain with DNS records. Warms up in the background
+            over 14–21 days. Recommended for higher volume.
+          </p>
+          <Link
+            href="/dashboard/settings/sending-domains/new"
+            className="inline-flex items-center gap-2 rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Add sending domain
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

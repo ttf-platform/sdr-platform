@@ -2,31 +2,30 @@
  * lib/email-provider-adapter.ts
  *
  * Provider-agnostic wrapper for cold email + warmup operations.
- * Allows swapping Instantly ↔ Smartlead ↔ MailReef without touching business code.
+ * Allows swapping the underlying sending provider without touching business code.
  *
  * Architecture:
  *   IEmailProvider (interface) implemented by:
- *     - InstantlyProvider — V1 prod (stub for now, awaiting API keys)
+ *     - InstantlyProvider — V1 prod (only OAuth methods are wired today)
  *     - MockEmailProvider — V1 dev/test, no external calls, no cost
  *
- * Phase 1 (now)   = Mock everywhere. Backend testable end-to-end without API keys.
- * Phase 2 (later) = swap to Instantly via factory once keys are available.
- *
- * Vendor invisibility: this module is the ONLY place that knows about Instantly.
- * Routes API and UI never reference the provider name directly.
+ * Vendor invisibility: this module is the ONLY place that knows the provider
+ * name. Routes API and UI never reference it directly.
  */
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type WarmupPhase = 'pending' | 'warming' | 'active' | 'paused' | 'failed';
+// Aligned with DB CHECK on email_accounts.warmup_status
+// (migration 029: 'pending','active','paused','completed','failed').
+export type WarmupPhase = 'pending' | 'active' | 'paused' | 'completed' | 'failed';
 
 export interface ProvisionInboxParams {
   workspaceId: string;
-  domain: string;        // ex: "getsentra.com"
-  emailAddress: string;  // ex: "outreach@getsentra.com"
-  senderName: string;    // ex: "Cyrus from Sentra"
+  domain: string;        // ex: "getmirvo.com"
+  emailAddress: string;  // ex: "outreach@getmirvo.com"
+  senderName: string;    // ex: "Cyrus from Mirvo"
 }
 
 export interface DnsRecord {
@@ -73,6 +72,22 @@ export interface SendEmailResult {
   threadId: string;      // thread identifier (new or continued)
 }
 
+// OAuth mailbox connection — Sprint A1.
+// The provider hosts the OAuth flow; we only carry the session handle.
+export type OAuthProviderKind = 'google' | 'microsoft';
+
+export interface OAuthInitResult {
+  sessionId: string;
+  authUrl: string;
+  expiresAt: string;     // ISO timestamp
+}
+
+export type OAuthStatusResult =
+  | { status: 'pending' }
+  | { status: 'success'; email: string; name: string; accountId: string }
+  | { status: 'error'; error: string; errorDescription?: string }
+  | { status: 'expired' };
+
 export interface IEmailProvider {
   /** Create a new sending account on the provider for a workspace's domain. */
   provisionInbox(params: ProvisionInboxParams): Promise<ProvisionInboxResult>;
@@ -83,8 +98,7 @@ export interface IEmailProvider {
   /** Get current warmup status (score, days, capacity). */
   getWarmupStatus(inboxId: string): Promise<WarmupStatus>;
 
-  /** Queue/send an email. Provider routes via shared infra (Phase 1-2) or
-   *  user's domain (Phase 3) automatically based on warmup state. */
+  /** Queue/send an email. */
   sendEmail(params: SendEmailParams): Promise<SendEmailResult>;
 
   /** User-initiated pause on sending. */
@@ -95,12 +109,17 @@ export interface IEmailProvider {
 
   /** Permanently delete the inbox (workspace cancellation, mailbox disconnect). */
   deleteInbox(inboxId: string): Promise<void>;
+
+  /** Open an OAuth session at the provider; returns a hosted auth_url to redirect the user to. */
+  initOAuth(provider: OAuthProviderKind): Promise<OAuthInitResult>;
+
+  /** Poll the OAuth session. Per provider docs, success/error is single-read. */
+  getOAuthStatus(sessionId: string): Promise<OAuthStatusResult>;
 }
 
 // ============================================================================
 // MockEmailProvider
-// Used in dev/test before Instantly keys are available.
-// Returns realistic data shapes without any external API calls.
+// Used in dev/test without an API key. Returns realistic shapes, no calls.
 // ============================================================================
 
 export class MockEmailProvider implements IEmailProvider {
@@ -119,7 +138,7 @@ export class MockEmailProvider implements IEmailProvider {
         },
         dkim: {
           type: 'TXT',
-          name: `sentra._domainkey.${params.domain}`,
+          name: `mirvo._domainkey.${params.domain}`,
           // Realistic DKIM length (~1024-bit RSA in base64 = ~216 chars)
           value: `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQ${this.randomBase64(180)}`,
         },
@@ -138,17 +157,17 @@ export class MockEmailProvider implements IEmailProvider {
   }
 
   async triggerWarmup(_inboxId: string): Promise<void> {
-    // No-op. Real impl would POST /api/v2/warmup/start.
+    // No-op.
   }
 
   async getWarmupStatus(inboxId: string): Promise<WarmupStatus> {
-    // Deterministic mock based on inboxId hash → stable for tests
+    // Deterministic mock from inboxId hash → stable across reads.
     const seed = this.hashString(inboxId);
     const daysWarming = seed % 22; // 0-21
 
-    let status: WarmupPhase = 'warming';
+    let status: WarmupPhase = 'active';
     if (daysWarming === 0) status = 'pending';
-    else if (daysWarming >= 21) status = 'active';
+    else if (daysWarming >= 21) status = 'completed';
 
     const reputationScore = Math.min(100, Math.floor(daysWarming * 4.5));
     const dailyCapacity = Math.min(2000, 50 + daysWarming * 100);
@@ -170,17 +189,12 @@ export class MockEmailProvider implements IEmailProvider {
   }
 
   async sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-    // Simulate realistic network latency (100-600ms)
     await this.sleep(Math.random() * 500 + 100);
-
-    // 5% failure rate to exercise the error path in tests
     if (Math.random() < 0.05) {
       throw new Error('[MockEmailProvider] Simulated failure: Mailbox not ready');
     }
-
     const providerMessageId = this.makeMockId('msg');
     const threadId = params.threadId || this.makeMockId('thread');
-
     return {
       providerMessageId,
       scheduledAt: new Date().toISOString(),
@@ -191,6 +205,30 @@ export class MockEmailProvider implements IEmailProvider {
   async pauseInbox(_inboxId: string): Promise<void> {}
   async resumeInbox(_inboxId: string): Promise<void> {}
   async deleteInbox(_inboxId: string): Promise<void> {}
+
+  async initOAuth(provider: OAuthProviderKind): Promise<OAuthInitResult> {
+    const sessionId = this.makeMockId(`oauth_${provider}`);
+    return {
+      sessionId,
+      // Local mock landing page — wires the popup loop end-to-end without
+      // hitting the real provider. The page just shows a "connecting…" message.
+      authUrl: `/api/email-accounts/oauth/mock-callback?session=${encodeURIComponent(sessionId)}`,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    };
+  }
+
+  async getOAuthStatus(sessionId: string): Promise<OAuthStatusResult> {
+    // Deterministic success: derive a stable mock email from the sessionId so
+    // the same session yields the same identity across reads.
+    const seed = this.hashString(sessionId);
+    const slug = (seed % 1000).toString().padStart(3, '0');
+    return {
+      status: 'success',
+      email: `mock${slug}@mock-workspace.test`,
+      name: `Mock User ${slug}`,
+      accountId: `mock_acct_${slug}`,
+    };
+  }
 
   // --- Internal helpers ---
 
@@ -225,31 +263,8 @@ export class MockEmailProvider implements IEmailProvider {
 
 // ============================================================================
 // InstantlyProvider
-// Implementation against Instantly.ai API v2.
-//
-// Stub for now — throws "not yet implemented" until API keys arrive.
-//
-// Key facts validated by Firstsend's prior implementation (May 2026):
-//
-//  1. Account model: Sentra uses ONE Instantly Hypergrowth account ($97/mo).
-//     We provision one Instantly email-account per Sentra user inside that
-//     single account. Vendor invisibility — the Sentra user never sees
-//     "Instantly" in the UI.
-//
-//  2. Provisioning needs a real mailbox to attach to. Instantly does not
-//     create a mailbox from thin air — it requires an existing Gmail /
-//     Outlook / SMTP custom mailbox the user already controls. Implication:
-//     Sprint 8.5 must add OAuth flows (Google Workspace + M365) so we can
-//     pass the credentials through to Instantly's `password` field.
-//
-//  3. Instantly does NOT generate SPF / DKIM / DMARC values. Those need to
-//     come from us: either generated server-side based on our shared sending
-//     pool, or fetched from a separate Instantly endpoint TBD. The mock
-//     currently fakes plausible values — to revisit at implementation time.
-//
-//  4. There is no single-send endpoint. The API is 100% campaign-based.
-//     Each sendEmail() call requires 3 sequential calls (see sendEmail
-//     below for the breakdown). Plan to batch when possible.
+// OAuth methods are live (Sprint A1). Other methods remain stubs until their
+// own sprints land.
 // ============================================================================
 
 export class InstantlyProvider implements IEmailProvider {
@@ -266,72 +281,18 @@ export class InstantlyProvider implements IEmailProvider {
   async provisionInbox(
     _params: ProvisionInboxParams
   ): Promise<ProvisionInboxResult> {
-    // Instantly endpoint:
-    //   POST {baseUrl}/email-accounts
-    //   Body: {
-    //     email: "outreach@getsentra.com",
-    //     provider: "gmail" | "outlook" | "yahoo" | "custom",
-    //     password: "<app password OR oauth refresh token>",
-    //     // For provider: "custom":
-    //     smtp_host?: string, smtp_port?: number, username?: string,
-    //   }
-    //
-    // To unblock this method we need (Sprint 8.5):
-    //   - OAuth flow for Google Workspace and Microsoft 365
-    //   - A way to pass through the OAuth refresh token as `password`
-    //
-    // The dnsRecords returned by this stub are FAKE: Instantly does not
-    // return DNS records here. We need to generate them server-side based
-    // on our shared sending pool, or call a separate endpoint TBD.
-    throw new Error(
-      '[InstantlyProvider] not yet implemented — awaiting API keys'
-    );
+    throw new Error('[InstantlyProvider] not yet implemented');
   }
 
   async triggerWarmup(_inboxId: string): Promise<void> {
-    // Probable Instantly endpoint:
-    //   POST {baseUrl}/email-accounts/{id}/warmup
-    //   Body: { enabled: true, warmup_level: 1-10 }
-    //
-    // Mechanism (per Firstsend prior art, not 100% verified):
-    //   Instantly's warmup is a reciprocity network. Once enabled, our
-    //   mailbox starts sending small volumes (5/day) to partner mailboxes
-    //   in their network, and receives traffic back. Volume ramps over
-    //   ~21 days: 5 → 20 → 50 → 100+ /day. This builds positive sender
-    //   signals (opens, replies) at Gmail / Outlook / etc.
-    //
-    //   `warmup_level` controls aggressiveness — higher level means faster
-    //   ramp but also higher detection risk. V1 default likely level 5.
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
   async getWarmupStatus(_inboxId: string): Promise<WarmupStatus> {
-    // Probable Instantly endpoint:
-    //   GET {baseUrl}/email-accounts/{id}/warmup
-    //   Companion endpoint that may exist:
-    //   GET {baseUrl}/warmup-schedule
-    //     → { daily_limit: 50, current_sent: 23 }
-    //
-    // Response shape mapping to our WarmupStatus interface needs to be
-    // confirmed against live API responses at implementation time.
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
   async sendEmail(_params: SendEmailParams): Promise<SendEmailResult> {
-    // Instantly has NO single-send endpoint. Every send goes through a
-    // campaign object. The minimum viable flow per email is 3 sequential
-    // calls:
-    //
-    //   1. POST {baseUrl}/campaigns           → create one-shot campaign
-    //   2. POST {baseUrl}/campaigns/{id}/leads → add the prospect as a lead
-    //   3. POST {baseUrl}/campaigns/{id}/send → kick off the send
-    //
-    // Latency budget: ~1.5-3s per email when serialized.
-    //
-    // Optimization to plan at implementation time: batch by Sentra campaign.
-    // One Sentra campaign with 200 prospects = one Instantly campaign with
-    // 200 leads + one send call, instead of 200 × 3 calls. The provider
-    // adapter signature may need a `sendBatch()` method to unlock this.
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
@@ -346,23 +307,96 @@ export class InstantlyProvider implements IEmailProvider {
   async deleteInbox(_inboxId: string): Promise<void> {
     throw new Error('[InstantlyProvider] not yet implemented');
   }
+
+  async initOAuth(provider: OAuthProviderKind): Promise<OAuthInitResult> {
+    const res = await fetch(`${this.baseUrl}/oauth/${provider}/init`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: '{}',
+    });
+    const text = await res.text();
+    let body: unknown
+    try { body = text ? JSON.parse(text) : {} } catch { body = {} }
+
+    if (!res.ok) {
+      const message = (body as { error?: string; message?: string })?.error
+        ?? (body as { message?: string })?.message
+        ?? `provider returned HTTP ${res.status}`
+      throw new Error(`[InstantlyProvider.initOAuth] ${message}`)
+    }
+
+    const b = body as { session_id?: string; auth_url?: string; expires_at?: string }
+    if (!b.session_id || !b.auth_url || !b.expires_at) {
+      throw new Error('[InstantlyProvider.initOAuth] missing fields in response')
+    }
+    return { sessionId: b.session_id, authUrl: b.auth_url, expiresAt: b.expires_at }
+  }
+
+  async getOAuthStatus(sessionId: string): Promise<OAuthStatusResult> {
+    const res = await fetch(
+      `${this.baseUrl}/oauth/session/status/${encodeURIComponent(sessionId)}`,
+      {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}` },
+      }
+    );
+    const text = await res.text();
+    let body: unknown
+    try { body = text ? JSON.parse(text) : {} } catch { body = {} }
+
+    if (res.status === 404) {
+      return { status: 'expired' }
+    }
+    if (!res.ok) {
+      const message = (body as { error?: string; message?: string })?.error
+        ?? (body as { message?: string })?.message
+        ?? `provider returned HTTP ${res.status}`
+      throw new Error(`[InstantlyProvider.getOAuthStatus] ${message}`)
+    }
+
+    const b = body as {
+      status?: string
+      email?: string
+      name?: string
+      account_id?: string
+      error?: string
+      error_description?: string
+    }
+
+    switch (b.status) {
+      case 'pending':
+        return { status: 'pending' }
+      case 'success':
+        if (!b.email || !b.name || !b.account_id) {
+          throw new Error('[InstantlyProvider.getOAuthStatus] success missing fields')
+        }
+        return {
+          status: 'success',
+          email: b.email,
+          name: b.name,
+          accountId: b.account_id,
+        }
+      case 'error':
+        return {
+          status: 'error',
+          error: b.error ?? 'unknown_error',
+          errorDescription: b.error_description,
+        }
+      case 'expired':
+        return { status: 'expired' }
+      default:
+        throw new Error(`[InstantlyProvider.getOAuthStatus] unknown status: ${b.status}`)
+    }
+  }
 }
 
 // ============================================================================
 // Factory
 // ============================================================================
 
-/**
- * Returns the appropriate provider based on env config.
- *
- * Selection rules:
- *   1. If MOCK_EMAIL_PROVIDER=true → MockEmailProvider (force mock for tests)
- *   2. If INSTANTLY_API_KEY missing → MockEmailProvider (graceful dev fallback)
- *   3. Otherwise → InstantlyProvider with the env API key
- *
- * Used by route handlers and webhook dispatcher to avoid coupling to a
- * specific provider class.
- */
 export function getEmailProvider(): IEmailProvider {
   if (process.env.MOCK_EMAIL_PROVIDER === 'true') {
     return new MockEmailProvider();

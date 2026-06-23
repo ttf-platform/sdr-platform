@@ -8,3 +8,8 @@ export const emailAccountCreateSchema = z.object({
   emailAddress: z.string().email().max(254),
   senderName:   z.string().min(1).max(100),
 })
+
+// POST /api/email-accounts/oauth/init — start an OAuth mailbox connection.
+export const emailAccountOAuthInitSchema = z.object({
+  provider: z.enum(['google', 'microsoft']),
+})

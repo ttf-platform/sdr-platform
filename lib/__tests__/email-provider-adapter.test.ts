@@ -109,35 +109,33 @@ describe('MockEmailProvider', () => {
       expect(status.daysWarming).toBeLessThanOrEqual(21);
     });
 
-    it('status is "active" when daysWarming >= 21', async () => {
+    it('status is "completed" when daysWarming >= 21', async () => {
       // Find an inboxId that hashes to daysWarming >= 21
       // (the mock uses hash % 22 → 0..21, so 21 is reachable)
-      // We try a handful of seeds to guarantee a hit.
-      let foundActive = false;
+      let foundCompleted = false;
       for (let i = 0; i < 100; i++) {
-        const status = await provider.getWarmupStatus(`seed_active_${i}`);
-        if (status.status === 'active') {
-          foundActive = true;
+        const status = await provider.getWarmupStatus(`seed_completed_${i}`);
+        if (status.status === 'completed') {
+          foundCompleted = true;
           expect(status.daysWarming).toBe(21);
           expect(status.estimatedCompletionDate).toBeNull();
           break;
         }
       }
-      expect(foundActive).toBe(true);
+      expect(foundCompleted).toBe(true);
     });
 
-    it('estimated completion date is set when warming', async () => {
-      // Find a seed that produces a "warming" status
+    it('estimated completion date is set when active (still warming)', async () => {
+      // Find a seed that produces an "active" status (daysWarming 1..20)
       for (let i = 0; i < 100; i++) {
-        const status = await provider.getWarmupStatus(`seed_warming_${i}`);
-        if (status.status === 'warming') {
+        const status = await provider.getWarmupStatus(`seed_active_${i}`);
+        if (status.status === 'active') {
           expect(status.estimatedCompletionDate).not.toBeNull();
           expect(() => new Date(status.estimatedCompletionDate!)).not.toThrow();
           return;
         }
       }
-      // If we never hit 'warming' in 100 tries, the mock distribution is broken
-      throw new Error('Could not find warming status in 100 seeds');
+      throw new Error('Could not find active status in 100 seeds');
     });
   });
 
