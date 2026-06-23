@@ -6,12 +6,12 @@ export async function GET() {
   const guard = await requireSentraAdmin()
   if (guard) return guard
   const admin = createAdminClient()
-  const { data: campaigns } = await admin.from('campaigns').select('sent_count, open_count')
+  const { data: campaigns } = await admin.from('campaigns').select('sent_count, opened_count')
   const { data: workspaces } = await admin.from('workspaces').select('id, plan, created_at')
   const { data: profiles } = await admin.from('workspace_profiles').select('company_name, workspace_id')
   const users = workspaces?.length || 0
   const emails = campaigns?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0
-  const opens = campaigns?.reduce((a, c) => a + (c.open_count || 0), 0) || 0
+  const opens = campaigns?.reduce((a, c) => a + (c.opened_count || 0), 0) || 0
   const userList = workspaces?.map(w => ({
     company: profiles?.find(p => p.workspace_id === w.id)?.company_name,
     plan: w.plan,

@@ -88,6 +88,49 @@ export type OAuthStatusResult =
   | { status: 'error'; error: string; errorDescription?: string }
   | { status: 'expired' };
 
+// ----------------------------------------------------------------------------
+// Campaign-based send model — Sprint A3.
+//
+// Instantly v2 has no single-shot send endpoint; every send rides on a
+// persistent campaign. We map one Mirvo campaign to one Instantly campaign
+// (link stored in campaigns.provider_campaign_id) and enqueue each approved
+// prospect_email as a lead on that campaign.
+// ----------------------------------------------------------------------------
+
+export interface CampaignSchedule {
+  windowStart: string;     // "HH:MM" 24h, e.g. "08:00"
+  windowEnd:   string;     // "HH:MM" 24h, e.g. "18:00"
+  // 0 = Sunday, 1 = Monday, … 6 = Saturday — matches Date.getDay() + DEFAULT_SENDING_PREFS.
+  days: number[];
+  timezone: string;        // IANA, e.g. "Europe/Paris"
+}
+
+export interface EnsureCampaignParams {
+  /** Human-readable Mirvo campaign name. Forwarded to the provider with a "Mirvo — " prefix. */
+  name: string;
+  /** Optional sending window override. Defaults to 08:00–18:00 Mon–Fri Europe/Paris. */
+  schedule?: CampaignSchedule;
+}
+
+export interface EnsureCampaignResult {
+  providerCampaignId: string;
+}
+
+export interface EnqueueLeadParams {
+  providerCampaignId: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  /** Pre-rendered subject + body for this prospect (the Instantly campaign
+   *  template is irrelevant — we ship the personalised text per lead). */
+  subject?: string;
+  body?: string;
+}
+
+export interface EnqueueLeadResult {
+  providerLeadId: string;
+}
+
 export interface IEmailProvider {
   /** Create a new sending account on the provider for a workspace's domain. */
   provisionInbox(params: ProvisionInboxParams): Promise<ProvisionInboxResult>;
@@ -115,6 +158,17 @@ export interface IEmailProvider {
 
   /** Poll the OAuth session. Per provider docs, success/error is single-read. */
   getOAuthStatus(sessionId: string): Promise<OAuthStatusResult>;
+
+  /** Create the provider-side campaign that backs a Mirvo campaign.
+   *  Caller is responsible for persisting the returned id. */
+  ensureCampaign(params: EnsureCampaignParams): Promise<EnsureCampaignResult>;
+
+  /** Queue a prospect on an existing provider campaign. */
+  enqueueLead(params: EnqueueLeadParams): Promise<EnqueueLeadResult>;
+
+  /** Flip the provider campaign to "active" so the queued leads start sending.
+   *  Idempotent at the caller's expense — safe to retry on transient failure. */
+  activateCampaign(providerCampaignId: string): Promise<void>;
 }
 
 // ============================================================================
@@ -205,6 +259,22 @@ export class MockEmailProvider implements IEmailProvider {
   async pauseInbox(_inboxId: string): Promise<void> {}
   async resumeInbox(_inboxId: string): Promise<void> {}
   async deleteInbox(_inboxId: string): Promise<void> {}
+
+  async ensureCampaign(params: EnsureCampaignParams): Promise<EnsureCampaignResult> {
+    // Deterministic mock id from the name so re-running the same test yields
+    // the same provider_campaign_id and the route's idempotent persist works.
+    const seed = this.hashString(params.name).toString(36)
+    return { providerCampaignId: `mock_campaign_${seed}` }
+  }
+
+  async enqueueLead(params: EnqueueLeadParams): Promise<EnqueueLeadResult> {
+    const seed = this.hashString(`${params.providerCampaignId}:${params.email}`).toString(36)
+    return { providerLeadId: `mock_lead_${seed}` }
+  }
+
+  async activateCampaign(_providerCampaignId: string): Promise<void> {
+    // No-op.
+  }
 
   async initOAuth(provider: OAuthProviderKind): Promise<OAuthInitResult> {
     const sessionId = this.makeMockId(`oauth_${provider}`);
@@ -391,6 +461,129 @@ export class InstantlyProvider implements IEmailProvider {
         throw new Error(`[InstantlyProvider.getOAuthStatus] unknown status: ${b.status}`)
     }
   }
+
+  // --------------------------------------------------------------------------
+  // Sprint A3 — campaign-based send
+  // --------------------------------------------------------------------------
+
+  async ensureCampaign(params: EnsureCampaignParams): Promise<EnsureCampaignResult> {
+    const schedule = params.schedule ?? DEFAULT_SCHEDULE
+    // Instantly's days object expects 0..6 keys with boolean values
+    // (0 = Sunday). We mirror the Date.getDay() convention used elsewhere.
+    const daysObj: Record<string, boolean> = { '0': false, '1': false, '2': false, '3': false, '4': false, '5': false, '6': false }
+    for (const d of schedule.days) {
+      if (d >= 0 && d <= 6) daysObj[String(d)] = true
+    }
+
+    const res = await fetch(`${this.baseUrl}/campaigns`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        name: `Mirvo — ${params.name}`,
+        campaign_schedule: {
+          schedules: [{
+            name:     'default',
+            timing:   { from: schedule.windowStart, to: schedule.windowEnd },
+            days:     daysObj,
+            timezone: schedule.timezone,
+          }],
+        },
+      }),
+    })
+    const body = await this.parseBody(res)
+    if (!res.ok) {
+      throw new Error(`[InstantlyProvider.ensureCampaign] ${this.errorMessage(body, res.status)}`)
+    }
+    const b = body as { id?: string; campaign_id?: string }
+    const id = b.id ?? b.campaign_id
+    if (!id) {
+      throw new Error('[InstantlyProvider.ensureCampaign] response missing campaign id')
+    }
+    return { providerCampaignId: id }
+  }
+
+  async enqueueLead(params: EnqueueLeadParams): Promise<EnqueueLeadResult> {
+    // Per Instantly v2: POST /leads requires `campaign` + `email`. The
+    // personalized subject/body are supplied via custom_variables which the
+    // sequence template can reference; we ship the rendered values directly.
+    const payload: Record<string, unknown> = {
+      campaign:   params.providerCampaignId,
+      email:      params.email,
+      first_name: params.firstName ?? undefined,
+      last_name:  params.lastName ?? undefined,
+    }
+    if (params.subject || params.body) {
+      payload.custom_variables = {
+        ...(params.subject ? { mirvo_subject: params.subject } : {}),
+        ...(params.body    ? { mirvo_body:    params.body    } : {}),
+      }
+    }
+
+    const res = await fetch(`${this.baseUrl}/leads`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const body = await this.parseBody(res)
+    if (!res.ok) {
+      throw new Error(`[InstantlyProvider.enqueueLead] ${this.errorMessage(body, res.status)}`)
+    }
+    const b = body as { id?: string; lead_id?: string }
+    const id = b.id ?? b.lead_id
+    if (!id) {
+      throw new Error('[InstantlyProvider.enqueueLead] response missing lead id')
+    }
+    return { providerLeadId: id }
+  }
+
+  async activateCampaign(providerCampaignId: string): Promise<void> {
+    // Instantly v2 documents POST /campaigns/{id}/activate to flip the
+    // campaign to "active". Best-effort: if the endpoint shape drifts we
+    // throw with the provider's own error message so the caller can decide
+    // to swallow it.
+    const res = await fetch(
+      `${this.baseUrl}/campaigns/${encodeURIComponent(providerCampaignId)}/activate`,
+      {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: '{}',
+      },
+    )
+    if (!res.ok) {
+      const body = await this.parseBody(res)
+      throw new Error(`[InstantlyProvider.activateCampaign] ${this.errorMessage(body, res.status)}`)
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Internal helpers
+  // --------------------------------------------------------------------------
+
+  private async parseBody(res: Response): Promise<unknown> {
+    const text = await res.text()
+    try { return text ? JSON.parse(text) : {} } catch { return {} }
+  }
+
+  private errorMessage(body: unknown, status: number): string {
+    const b = body as { error?: string; message?: string }
+    return b?.error ?? b?.message ?? `provider returned HTTP ${status}`
+  }
+}
+
+const DEFAULT_SCHEDULE: CampaignSchedule = {
+  windowStart: '08:00',
+  windowEnd:   '18:00',
+  days:        [1, 2, 3, 4, 5], // Mon–Fri
+  timezone:    'Europe/Paris',
 }
 
 // ============================================================================

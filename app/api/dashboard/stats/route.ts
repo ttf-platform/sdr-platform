@@ -19,12 +19,12 @@ export async function GET() {
     { data: ws },
   ] = await Promise.all([
     admin.from('campaigns')
-      .select('id, name, status, sent_count, open_count, reply_count, created_at')
+      .select('id, name, status, sent_count, opened_count, replied_count, created_at')
       .eq('workspace_id', wid)
       .order('created_at', { ascending: false })
       .limit(5),
     admin.from('campaigns')
-      .select('sent_count, open_count, reply_count')
+      .select('sent_count, opened_count, replied_count')
       .eq('workspace_id', wid),
     admin.from('prospect_emails')
       .select('*', { count: 'exact', head: true })
@@ -51,8 +51,8 @@ export async function GET() {
   // KPI aggregates
   const totalCampaigns = allCampaigns?.length ?? 0
   const totalSent    = allCampaigns?.reduce((a, c) => a + (c.sent_count  ?? 0), 0) ?? 0
-  const totalOpens   = allCampaigns?.reduce((a, c) => a + (c.open_count  ?? 0), 0) ?? 0
-  const totalReplies = allCampaigns?.reduce((a, c) => a + (c.reply_count ?? 0), 0) ?? 0
+  const totalOpens   = allCampaigns?.reduce((a, c) => a + (c.opened_count  ?? 0), 0) ?? 0
+  const totalReplies = allCampaigns?.reduce((a, c) => a + (c.replied_count ?? 0), 0) ?? 0
   const openRate  = totalSent > 0 ? parseFloat(((totalOpens   / totalSent) * 100).toFixed(1)) : 0
   const replyRate = totalSent > 0 ? parseFloat(((totalReplies / totalSent) * 100).toFixed(1)) : 0
 
@@ -78,8 +78,8 @@ export async function GET() {
       name: c.name,
       status: c.status,
       sentCount: c.sent_count ?? 0,
-      openRate:  c.sent_count > 0 ? parseFloat(((c.open_count  / c.sent_count) * 100).toFixed(1)) : null,
-      replyRate: c.sent_count > 0 ? parseFloat(((c.reply_count / c.sent_count) * 100).toFixed(1)) : null,
+      openRate:  c.sent_count > 0 ? parseFloat(((c.opened_count  / c.sent_count) * 100).toFixed(1)) : null,
+      replyRate: c.sent_count > 0 ? parseFloat(((c.replied_count / c.sent_count) * 100).toFixed(1)) : null,
       createdAt: c.created_at,
     })),
     draftsToApprove: draftsCount ?? 0,
