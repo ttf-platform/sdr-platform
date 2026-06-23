@@ -29,6 +29,12 @@ const SESSION_ID_REGEX = /^[A-Za-z0-9_.\-:]{8,256}$/
 // the email Instantly returns since email is the natural-key for the row.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+// Provider account id (Instantly's account UUID, or a mock_acct_* string).
+// We persist this verbatim and later pass it back to the provider as a path
+// segment in some calls — restrict to characters that are safe in URLs and
+// in our own logs / template literals.
+const PROVIDER_ACCOUNT_ID_REGEX = /^[A-Za-z0-9_\-:.]{1,256}$/
+
 export async function GET(
   _req: Request,
   context: { params: Promise<{ sessionId: string }> },
@@ -130,6 +136,13 @@ export async function GET(
       { status: 502 },
     )
   }
+  const safeAccountId = (accountId ?? '').trim()
+  if (!PROVIDER_ACCOUNT_ID_REGEX.test(safeAccountId)) {
+    return NextResponse.json(
+      { error: 'invalid_provider_response', message: 'Provider returned an invalid account id.' },
+      { status: 502 },
+    )
+  }
   const domain = normalizedEmail.slice(normalizedEmail.lastIndexOf('@') + 1)
   // Cap sender_name to a reasonable length; the column accepts arbitrary
   // text but we don't need anything longer than the dedicated-flow limit.
@@ -186,7 +199,7 @@ export async function GET(
       email_address:       normalizedEmail,
       sender_name:         safeName,
       provider_name:       providerName,
-      provider_account_id: accountId,
+      provider_account_id: safeAccountId,
       warmup_status:       'pending',
       setup_status:        'connected',
     })

@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/onboarding-emails",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-oauth-sessions",
+      "schedule": "0 4 * * *"
     }
   ]
 }
