@@ -90,6 +90,7 @@ Return ONLY valid JSON (no markdown):
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 800,
+    temperature: 0.7,
     messages: [{ role: 'user', content: prompt }],
   })
 
