@@ -67,11 +67,11 @@ export default async function SendingPolicyPage({
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Unsubscribe link.</strong> Each email must include a clear opt-out mechanism. Mirvo inserts one automatically — do not remove or obfuscate it.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>One-click unsubscribe.</strong> Mirvo attaches a standards-compliant <code>List-Unsubscribe</code> header (RFC 8058) to every outbound message. Gmail and Outlook surface this as a one-click &ldquo;Unsubscribe&rdquo; control next to the sender name — no link is added to the email body.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
-              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>List-Unsubscribe header.</strong> One-click unsubscribe for Gmail and Outlook is handled automatically by Mirvo.</span>
+              <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Honoring opt-outs.</strong> Unsubscribe requests received via the header are processed by the sending infrastructure and the contact is automatically removed from further sends within this workspace.</span>
             </li>
             <li className="flex gap-3">
               <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
