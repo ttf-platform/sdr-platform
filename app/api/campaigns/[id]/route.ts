@@ -103,7 +103,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!parsed.success) return badRequest(parsed.error.issues)
 
   const {
-    name, angle, value_prop, cta, target_persona,
+    name, angle, value_prop, cta, target_persona, proof_points,
     target_industry, target_titles, target_regions,
     company_sizes, company_revenue, tone, language,
     status, smart_stop_on_reply, smart_stop_on_bounce,
@@ -116,6 +116,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (value_prop       !== undefined) updates.value_prop       = value_prop
   if (cta              !== undefined) updates.cta              = cta
   if (target_persona   !== undefined) updates.target_persona   = target_persona
+  if (proof_points     !== undefined) updates.proof_points     = proof_points
   if (target_industry  !== undefined) updates.target_industry  = target_industry
   if (target_titles    !== undefined) updates.target_titles    = target_titles
   if (target_regions   !== undefined) updates.target_regions   = target_regions

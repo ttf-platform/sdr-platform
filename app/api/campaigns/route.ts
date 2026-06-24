@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues)
 
   const {
-    name, angle, value_prop, cta, target_persona,
+    name, angle, value_prop, cta, target_persona, proof_points,
     target_industry, target_titles, target_regions,
     company_sizes, company_revenue, tone, language,
     smart_stop_on_reply = true, smart_stop_on_bounce = true, booking_link_in_followups = false,
@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       value_prop:      value_prop      ?? null,
       cta:             cta             ?? null,
       target_persona:  target_persona  ?? null,
+      proof_points:    proof_points    ?? null,
       target_industry: target_industry ?? null,
       target_titles:   target_titles   ?? null,
       target_regions:  target_regions  ?? null,

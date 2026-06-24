@@ -24,7 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const { data: stepRow } = await admin
     .from('campaign_steps')
-    .select('*, campaigns!inner(workspace_id, name, angle, value_prop, cta, target_persona, icp_snapshot, language)')
+    .select('*, campaigns!inner(workspace_id, name, angle, value_prop, cta, target_persona, proof_points, icp_snapshot, language)')
     .eq('id', params.step_id)
     .single()
 
@@ -77,6 +77,7 @@ Campaign: ${campaign.name}
 Target persona: ${campaign.target_persona || campaign.icp_snapshot?.icp || ''}
 Angle: ${campaign.angle || campaign.icp_snapshot?.hook || ''}
 CTA: ${campaign.cta || 'book a quick call'}
+${(campaign.proof_points ?? '').trim() ? `\nPROOF (use AT MOST one of the points below, exactly as written, do NOT modify numbers or invent surrounding facts; only weave it in if it lands naturally — skip if not):\n${(campaign.proof_points as string).trim()}` : ''}
 ${instructions ? `\nSpecific instructions: ${instructions}` : ''}
 
 Length: ${stepRow.step_type === 'initial' ? '60-80 words' : '40-80 words'}. Subject line: 4-8 words${stepRow.step_type === 'follow_up' ? '. Return null if threading on previous.' : ', problem or curiosity driven (never the product name).'} Paragraphs separated by \\n\\n.

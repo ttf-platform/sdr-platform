@@ -34,6 +34,7 @@ type CampaignForStep = {
   value_prop:      string | null
   cta:             string | null
   target_persona:  string | null
+  proof_points:    string | null
   target_industry: string | null
   target_titles:   string | null
   target_regions:  string | null
@@ -41,6 +42,12 @@ type CampaignForStep = {
   company_revenue: string[] | null
   tone:            string | null
   language:        string | null
+}
+
+function proofBlock(proof: string | null | undefined): string {
+  const trimmed = (proof ?? '').trim()
+  if (!trimmed) return ''
+  return `\nPROOF (use AT MOST one of the points below, exactly as written, do NOT modify numbers or invent surrounding facts; only weave it in if it lands naturally — skip if not):\n${trimmed}\n`
 }
 
 function buildLines(pairs: Array<[string, string | null | undefined]>): string {
@@ -127,7 +134,7 @@ ${campaign.target_persona || ''}
 
 PITCH:
 ${pitchLines}
-
+${proofBlock(campaign.proof_points)}
 Length: 60-80 words. Subject line: 4-8 words, problem or curiosity driven (never the product name). Paragraphs separated by \\n\\n.
 
 ${selfRevisionBlock(80)}
@@ -181,7 +188,7 @@ export async function generateDraftsForCampaign(
   // 1. Campaign
   const { data: campaign } = await admin
     .from('campaigns')
-    .select('id, target_persona, angle, value_prop, cta, include_booking_link_initial, target_industry, target_titles, target_regions, company_sizes, company_revenue, tone, language')
+    .select('id, target_persona, angle, value_prop, cta, proof_points, include_booking_link_initial, target_industry, target_titles, target_regions, company_sizes, company_revenue, tone, language')
     .eq('id', campaignId)
     .eq('workspace_id', workspaceId)
     .single()

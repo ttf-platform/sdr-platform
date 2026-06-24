@@ -8,6 +8,7 @@ const baseFields = {
   value_prop:                z.string().max(2000).nullish(),
   cta:                       z.string().max(500).nullish(),
   target_persona:            z.string().max(2000).nullish(),
+  proof_points:              z.string().max(500).nullish(),
   target_industry:           z.unknown().optional(),
   target_titles:             z.unknown().optional(),
   target_regions:            z.unknown().optional(),
