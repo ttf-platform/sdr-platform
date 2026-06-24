@@ -4,6 +4,12 @@ import { useRouter } from 'next/navigation'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 import { track } from '@/lib/track'
 import { Modal } from '@/components/ui/Modal'
+import { Tooltip } from '@/components/Tooltip'
+
+const PROOF_TOOLTIP =
+  'A real, verifiable result the AI can reference as proof in every email of this campaign. Use a concrete metric or a named client: "Acme: 12 → 47 meetings/month in 90 days" or "Cogent: -38% acquisition cost". The AI will quote it verbatim and will NOT invent numbers. Leave empty if you have no real result to share — the AI will never fabricate one.'
+
+const PROOF_MAX = 500
 
 const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
@@ -30,6 +36,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   const [valueProp,      setValueProp]      = useState(preset?.value_prop ?? '')
   const [cta,            setCta]            = useState(preset?.cta ?? '')
   const [targetPersona,  setTargetPersona]  = useState(preset?.target_persona ?? '')
+  const [proofPoints,    setProofPoints]    = useState('')
   const [tone,           setTone]           = useState('Professional')
   const [language,       setLanguage]       = useState('English')
   const [creating,       setCreating]       = useState(false)
@@ -110,6 +117,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         value_prop:      valueProp.trim()      || null,
         cta:             cta.trim()            || null,
         target_persona:  targetPersona.trim()  || null,
+        proof_points:    proofPoints.trim()    || null,
         target_industry: targetIndustry.trim() || null,
         target_titles:   targetTitles.trim()   || null,
         target_regions:  targetRegions.trim()  || null,
@@ -301,6 +309,40 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
                 rows={2}
                 className={`${inputCls} resize-none`}
               />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <label className={`${labelCls} mb-0`} htmlFor="nc-proof-points">
+                  Proof points{' '}
+                  <span className="text-[#a89e8e] font-normal normal-case tracking-normal">(optional)</span>
+                </label>
+                <Tooltip content={PROOF_TOOLTIP} placement="top">
+                  <svg className="w-3.5 h-3.5 text-[#b0a898] hover:text-[#3b6bef] transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-label="About Proof points">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </Tooltip>
+              </div>
+              <textarea
+                id="nc-proof-points"
+                value={proofPoints}
+                onChange={e => setProofPoints(e.target.value.slice(0, PROOF_MAX))}
+                placeholder='e.g. "Acme: 12 → 47 meetings/month in 90 days" — only real numbers, never invented'
+                rows={2}
+                maxLength={PROOF_MAX}
+                aria-describedby="nc-proof-points-help"
+                className={`${inputCls} resize-none`}
+              />
+              <p
+                id="nc-proof-points-help"
+                aria-live="polite"
+                className={`text-xs mt-1 ${
+                  proofPoints.length >= PROOF_MAX       ? 'text-red-600'
+                  : proofPoints.length >= PROOF_MAX * 0.8 ? 'text-amber-600'
+                  : 'text-[#8a7e6e]'
+                }`}
+              >
+                {proofPoints.length}/{PROOF_MAX} · The AI will quote this verbatim. Leave empty if you have no real result yet.
+              </p>
             </div>
           </div>
         </div>

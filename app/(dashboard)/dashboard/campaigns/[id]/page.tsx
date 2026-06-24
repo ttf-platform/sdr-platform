@@ -16,6 +16,7 @@ interface Step {
 interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
   angle: string | null; value_prop: string | null; cta: string | null
+  proof_points: string | null
   prospects_count: number; sent_count: number; opened_count: number
   replied_count: number; meeting_count: number
   smart_stop_on_reply: boolean; smart_stop_on_bounce: boolean
@@ -24,6 +25,11 @@ interface Campaign {
   drafts_count: number
   pending_drafts_count: number
 }
+
+const PROOF_TOOLTIP =
+  'A real, verifiable result the AI can reference as proof in every email of this campaign. Use a concrete metric or a named client: "Acme: 12 → 47 meetings/month in 90 days" or "Cogent: -38% acquisition cost". The AI will quote it verbatim and will NOT invent numbers. Leave empty if you have no real result to share — the AI will never fabricate one.'
+
+const PROOF_MAX = 500
 type EmailDraft = {
   id: string; subject: string; body: string
   status: 'draft' | 'edited' | 'approved' | 'sending' | 'sent' | 'failed' | 'bounced' | 'replied' | 'rejected'
@@ -448,7 +454,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">Campaign Info</div>
-                <button onClick={() => { setEditForm({ name: campaign.name, target_persona: campaign.target_persona ?? '', angle: campaign.angle ?? '', value_prop: campaign.value_prop ?? '', cta: campaign.cta ?? '' }); setEditMode(true) }}
+                <button onClick={() => { setEditForm({ name: campaign.name, target_persona: campaign.target_persona ?? '', angle: campaign.angle ?? '', value_prop: campaign.value_prop ?? '', cta: campaign.cta ?? '', proof_points: campaign.proof_points ?? '' }); setEditMode(true) }}
                   className="text-xs text-[#3b6bef] font-medium hover:underline">Edit campaign</button>
               </div>
               <div className="flex flex-col gap-3 text-sm">
@@ -457,10 +463,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   { label: 'Angle', value: campaign.angle },
                   { label: 'Value proposition', value: campaign.value_prop },
                   { label: 'CTA', value: campaign.cta },
+                  { label: 'Proof points', value: campaign.proof_points },
                 ].map(f => f.value && (
                   <div key={f.label}>
                     <div className="text-xs font-semibold text-[#6b5e4e] mb-0.5">{f.label}</div>
-                    <div className="text-[#4a4a5a] leading-relaxed">{f.value}</div>
+                    <div className="text-[#4a4a5a] leading-relaxed whitespace-pre-wrap">{f.value}</div>
                   </div>
                 ))}
               </div>
@@ -468,21 +475,50 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           ) : (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col gap-3">
               <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-1">Edit Campaign</div>
-              {[
-                { key: 'name', label: 'Name', rows: 1 },
-                { key: 'target_persona', label: 'Target persona', rows: 2 },
-                { key: 'angle', label: 'Angle', rows: 2 },
-                { key: 'value_prop', label: 'Value proposition', rows: 2 },
-                { key: 'cta', label: 'CTA', rows: 1 },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{f.label}</label>
-                  {f.rows === 1
-                    ? <input value={(editForm as any)[f.key] ?? ''} onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-                    : <textarea value={(editForm as any)[f.key] ?? ''} onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })} rows={f.rows} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" />
-                  }
-                </div>
-              ))}
+              {([
+                { key: 'name',            label: 'Name',              rows: 1, tooltip: null,           maxLength: null },
+                { key: 'target_persona',  label: 'Target persona',    rows: 2, tooltip: null,           maxLength: null },
+                { key: 'angle',           label: 'Angle',             rows: 2, tooltip: null,           maxLength: null },
+                { key: 'value_prop',      label: 'Value proposition', rows: 2, tooltip: null,           maxLength: null },
+                { key: 'cta',             label: 'CTA',               rows: 1, tooltip: null,           maxLength: null },
+                { key: 'proof_points',    label: 'Proof points',      rows: 2, tooltip: PROOF_TOOLTIP,  maxLength: PROOF_MAX },
+              ] as const).map(f => {
+                const currentVal = ((editForm as any)[f.key] ?? '') as string
+                const remaining = f.maxLength ? `${currentVal.length}/${f.maxLength}` : null
+                const helpId = f.maxLength ? `edit-${f.key}-help` : undefined
+                const onChange = (val: string) => setEditForm({ ...editForm, [f.key]: f.maxLength ? val.slice(0, f.maxLength) : val })
+                return (
+                  <div key={f.key}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-xs font-semibold text-[#6b5e4e]" htmlFor={`edit-${f.key}`}>{f.label}</label>
+                      {f.tooltip && (
+                        <Tooltip content={f.tooltip} placement="top">
+                          <svg className="w-3.5 h-3.5 text-[#b0a898] hover:text-[#3b6bef] transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-label={`About ${f.label}`}>
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </Tooltip>
+                      )}
+                    </div>
+                    {f.rows === 1
+                      ? <input id={`edit-${f.key}`} value={currentVal} maxLength={f.maxLength ?? undefined} aria-describedby={helpId} onChange={e => onChange(e.target.value)} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
+                      : <textarea id={`edit-${f.key}`} value={currentVal} maxLength={f.maxLength ?? undefined} aria-describedby={helpId} onChange={e => onChange(e.target.value)} rows={f.rows} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" />
+                    }
+                    {remaining && f.maxLength && (
+                      <p
+                        id={helpId}
+                        aria-live="polite"
+                        className={`text-xs mt-1 ${
+                          currentVal.length >= f.maxLength       ? 'text-red-600'
+                          : currentVal.length >= f.maxLength * 0.8 ? 'text-amber-600'
+                          : 'text-[#8a7e6e]'
+                        }`}
+                      >
+                        {remaining} · The AI will quote this verbatim. Leave empty if you have no real result yet.
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
               <div className="flex gap-2 mt-1">
                 <button onClick={() => setEditMode(false)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
                 <button onClick={saveCampaignEdit} disabled={saving} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">{saving ? 'Saving…' : 'Save'}</button>
