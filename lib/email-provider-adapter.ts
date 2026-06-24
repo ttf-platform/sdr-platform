@@ -483,6 +483,9 @@ export class InstantlyProvider implements IEmailProvider {
       },
       body: JSON.stringify({
         name: `Mirvo — ${params.name}`,
+        // RFC 8058 one-click List-Unsubscribe header (Gmail/Yahoo Feb 2024 requirement).
+        // Provider-managed: Instantly injects the header on every outbound message.
+        insert_unsubscribe_header: true,
         campaign_schedule: {
           schedules: [{
             name:     'default',
