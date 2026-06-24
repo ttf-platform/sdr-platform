@@ -74,6 +74,7 @@ Write only the email body. No subject line, no preamble, no quotes around the re
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 500,
+    temperature: 0.7,
     messages: [{ role: 'user', content: prompt }],
   })
 

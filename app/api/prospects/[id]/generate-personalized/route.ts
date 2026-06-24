@@ -138,6 +138,7 @@ ${step.body}`
       const completion = await getAnthropicClient().messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
+        temperature: 0.7,
         system: systemPrompt,
         messages: [{ role: 'user', content: 'Generate the personalized variant.' }],
       })
