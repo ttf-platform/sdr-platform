@@ -4,6 +4,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
+import { HUMAN_VOICE_RULES } from '@/lib/ai-voice'
 
 const TONE_INSTRUCTIONS: Record<string, string> = {
   professional: 'Be formal and professional.',
@@ -53,14 +54,21 @@ export async function POST(request: Request) {
   }
 
   const toneInstruction = TONE_INSTRUCTIONS[tone] ?? TONE_INSTRUCTIONS.professional
-  const sep = '\n'
-  const prompt = [
-    `Write a short reply to this email. ${toneInstruction} Move toward a next step.`,
-    `From: ${message.from_name || message.from_email || ''}`,
-    `Subject: ${message.subject || ''}`,
-    `Message: ${message.body || ''}`,
-    `Write only the email body, no subject line.`,
-  ].join(sep)
+  const prompt = `You are writing a short reply to an inbound email. ${toneInstruction} Move toward a next step.
+
+${HUMAN_VOICE_RULES}
+
+LANGUAGE: Reply in the same language as the received message below. Match the sender's register and formality. Do not switch languages mid-message.
+
+ANTI-FABRICATION: Do not invent facts, numbers, commitments, dates, prices, names, or details that are not present in the thread below. If a piece of information would help but is missing, ask for it rather than fabricate it.
+
+RECEIVED MESSAGE:
+From: ${message.from_name || message.from_email || ''}
+Subject: ${message.subject || ''}
+Body:
+${message.body || ''}
+
+Write only the email body. No subject line, no preamble, no quotes around the reply.`
 
   const client = getAnthropicClient()
   const msg = await client.messages.create({

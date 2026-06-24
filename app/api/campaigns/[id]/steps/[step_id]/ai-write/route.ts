@@ -47,7 +47,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     ? `CRITICAL: Template variables: The body MUST include {{first_name}} in the greeting (e.g., "Hi {{first_name}},") and {{company}} somewhere in the body. These are placeholders replaced with real prospect data at send time. DO NOT hardcode names or write "Hey there".`
     : `Variables: If the follow-up opens with a greeting, use {{first_name}} (e.g., "Hi {{first_name}},"). For short follow-ups with no greeting, omit it. You may use {{company}} where it fits naturally.`
 
-  const wordCap = stepRow.step_type === 'initial' ? 120 : 80
+  // 60-80 for initial (best practice 2026: first-touch performs better < 80 words),
+  // 40-80 for follow-ups (already terse). Both share the same upper bound.
+  const wordCap = 80
 
   const prompt = `You are an expert B2B cold outreach copywriter. Write a single ${stepLabel} for the following campaign.
 
@@ -77,7 +79,7 @@ Angle: ${campaign.angle || campaign.icp_snapshot?.hook || ''}
 CTA: ${campaign.cta || 'book a quick call'}
 ${instructions ? `\nSpecific instructions: ${instructions}` : ''}
 
-Length: ${stepRow.step_type === 'initial' ? '80-120 words' : '40-80 words'}. Subject line: 4-8 words${stepRow.step_type === 'follow_up' ? '. Return null if threading on previous.' : ', problem or curiosity driven (never the product name).'} Paragraphs separated by \\n\\n.
+Length: ${stepRow.step_type === 'initial' ? '60-80 words' : '40-80 words'}. Subject line: 4-8 words${stepRow.step_type === 'follow_up' ? '. Return null if threading on previous.' : ', problem or curiosity driven (never the product name).'} Paragraphs separated by \\n\\n.
 
 ${selfRevisionBlock(wordCap)}
 

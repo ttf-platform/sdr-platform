@@ -128,9 +128,9 @@ ${campaign.target_persona || ''}
 PITCH:
 ${pitchLines}
 
-Length: 80-120 words. Subject line: 4-8 words, problem or curiosity driven (never the product name). Paragraphs separated by \\n\\n.
+Length: 60-80 words. Subject line: 4-8 words, problem or curiosity driven (never the product name). Paragraphs separated by \\n\\n.
 
-${selfRevisionBlock(120)}
+${selfRevisionBlock(80)}
 
 Return ONLY valid JSON (no markdown):
 { "initial": { "subject": "string", "body": "string" } }`
