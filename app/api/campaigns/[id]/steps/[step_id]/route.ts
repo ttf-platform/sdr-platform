@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { campaignStepUpdateSchema, badRequest } from '@/lib/schemas'
 
 async function verifyOwnership(admin: ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, stepId: string, workspaceId: string) {
   const { data } = await admin
@@ -23,11 +24,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const body = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const parsed = campaignStepUpdateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const body = parsed.data
+
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  if (body.subject !== undefined) updates.subject = body.subject
-  if (body.body !== undefined) updates.body = body.body
-  if (body.delay_days !== undefined) updates.delay_days = body.delay_days
+  if (body.subject              !== undefined) updates.subject              = body.subject
+  if (body.body                 !== undefined) updates.body                 = body.body
+  if (body.delay_days           !== undefined) updates.delay_days           = body.delay_days
   if (body.include_booking_link !== undefined) updates.include_booking_link = body.include_booking_link
 
   const { data: step, error } = await admin

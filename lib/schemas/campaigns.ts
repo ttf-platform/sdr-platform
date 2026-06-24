@@ -32,3 +32,13 @@ export const campaignUpdateSchema = z.object({
   status:                       z.string().max(50).optional(),
   include_booking_link_initial: z.boolean().optional(),
 })
+
+// Sequence step PATCH (subject/body/delay_days/include_booking_link).
+// delay_days is hard-capped at 90 to prevent absurd schedules and reject
+// negative/float/non-numeric inputs that would otherwise surface as a 500.
+export const campaignStepUpdateSchema = z.object({
+  subject:              z.string().max(500).nullable().optional(),
+  body:                 z.string().max(50000).optional(),
+  delay_days:           z.number().int().min(0).max(90).optional(),
+  include_booking_link: z.boolean().optional(),
+}).strict()
