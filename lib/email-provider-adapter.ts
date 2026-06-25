@@ -131,6 +131,100 @@ export interface EnqueueLeadResult {
   providerLeadId: string;
 }
 
+// ----------------------------------------------------------------------------
+// DFY (Done-For-You) provisioning — Sprint A2a-2a.
+//
+// Provider sells either "dfy" (we pick a domain + register it) or "pre_warmed_up"
+// (we get an inventory-managed pool domain). The "simulation" field on the
+// create endpoint returns a full quote (price, payment method, validation
+// buckets) without charging or claiming inventory — caller MUST set
+// simulate:false explicitly to place a real order.
+// ----------------------------------------------------------------------------
+
+export type DfyOrderType = 'dfy' | 'pre_warmed_up';
+
+export interface DomainAvailability {
+  domain: string;
+  available: boolean;
+}
+
+export interface PreWarmedDomain {
+  domain: string;
+  /** Provider-side account tier id (1 = standard, observed). */
+  accountType: number;
+}
+
+export interface DfyOrderAccount {
+  /** Local part of the email address, e.g. "sales" → sales@domain.com. */
+  emailAddressPrefix: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface DfyOrderItem {
+  domain: string;
+  accounts: DfyOrderAccount[];
+}
+
+export interface CreateDfyOrderParams {
+  orderType: DfyOrderType;
+  items: DfyOrderItem[];
+  /**
+   * CRITICAL: simulate=true returns a quote with order_placed=false and never
+   * charges. simulate=false places a REAL order and debits the payment method
+   * on file at the provider. Boolean is required to force the caller to make
+   * an explicit choice.
+   */
+  simulate: boolean;
+}
+
+export interface DfyOrderResultItem {
+  domain: string;
+  accounts: DfyOrderAccount[];
+  domainPrice: number;
+  accountsPrice: number;
+  totalPrice: number;
+  totalDiscount: number;
+}
+
+export interface DfyOrderResult {
+  orderPlaced: boolean;
+  orderIsValid: boolean;
+  simulation: boolean;
+  /** null when order_is_valid; provider error code (e.g. "domains_without_accounts") otherwise. */
+  orderError: string | null;
+  // Pricing breakdown
+  pricePerAccountPerMonth: number;
+  pricePerDomainPerYear: number;
+  totalPricePerMonth: number;
+  totalPricePerYear: number;
+  totalPrice: number;
+  totalDiscount: number;
+  numberOfDomainsOrdered: number;
+  numberOfAccountsOrdered: number;
+  // Payment context for the UI (already on file at the provider)
+  paymentMethodBrand: string | null;
+  paymentMethodLast4: string | null;
+  paymentMethodNameOnCard: string | null;
+  // Validation buckets — empty arrays when order is valid
+  unavailableDomains: string[];
+  blacklistDomains: string[];
+  invalidDomains: string[];
+  domainsWithoutAccounts: string[];
+  // Resolved items echoed back with per-item pricing
+  orderItems: DfyOrderResultItem[];
+  /** Untouched provider response — keep for debugging and forward-compat. */
+  raw: unknown;
+}
+
+export interface DfyOrderStatus {
+  id: string;
+  /** Provider-side status string (e.g. "pending", "processing", "completed"). */
+  status: string | null;
+  /** Untouched provider response — full shape varies by provider state. */
+  raw: unknown;
+}
+
 export interface IEmailProvider {
   /** Create a new sending account on the provider for a workspace's domain. */
   provisionInbox(params: ProvisionInboxParams): Promise<ProvisionInboxResult>;
@@ -169,6 +263,22 @@ export interface IEmailProvider {
   /** Flip the provider campaign to "active" so the queued leads start sending.
    *  Idempotent at the caller's expense — safe to retry on transient failure. */
   activateCampaign(providerCampaignId: string): Promise<void>;
+
+  // --------------------------------------------------------------------------
+  // DFY (Done-For-You) provisioning — Sprint A2a-2a
+  // --------------------------------------------------------------------------
+
+  /** Bulk-check whether one or more domains can be ordered as DFY. */
+  checkDomains(domains: string[]): Promise<DomainAvailability[]>;
+
+  /** List pre-warmed domains currently available in the provider's pool. */
+  listPreWarmedDomains(): Promise<PreWarmedDomain[]>;
+
+  /** Create a DFY order. simulate:true → quote only, no charge. simulate:false → real order. */
+  createDfyOrder(params: CreateDfyOrderParams): Promise<DfyOrderResult>;
+
+  /** Fetch the status of a DFY order by its provider-side id. */
+  getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus>;
 }
 
 // ============================================================================
@@ -297,6 +407,77 @@ export class MockEmailProvider implements IEmailProvider {
       email: `mock${slug}@mock-workspace.test`,
       name: `Mock User ${slug}`,
       accountId: `mock_acct_${slug}`,
+    };
+  }
+
+  // --- DFY mock ---
+
+  async checkDomains(domains: string[]): Promise<DomainAvailability[]> {
+    // Deterministic per-domain: domains containing "taken" return unavailable,
+    // everything else is available.
+    return domains.map(domain => ({
+      domain,
+      available: !domain.includes('taken'),
+    }));
+  }
+
+  async listPreWarmedDomains(): Promise<PreWarmedDomain[]> {
+    // Small deterministic pool — enough to render the picker UI in tests.
+    return [
+      { domain: 'mock-prewarmed-alpha.com',   accountType: 1 },
+      { domain: 'mock-prewarmed-beta.org',    accountType: 1 },
+      { domain: 'mock-prewarmed-gamma.io',    accountType: 1 },
+    ];
+  }
+
+  async createDfyOrder(params: CreateDfyOrderParams): Promise<DfyOrderResult> {
+    // Match Instantly's per-unit pricing observed in live probes:
+    // $5/account/month, $15/domain/year.
+    const PRICE_ACCOUNT_MONTH = 5;
+    const PRICE_DOMAIN_YEAR   = 15;
+
+    const numDomains  = params.items.length;
+    const numAccounts = params.items.reduce((sum, item) => sum + item.accounts.length, 0);
+    const totalDomainsYear  = numDomains * PRICE_DOMAIN_YEAR;
+    const totalAccountsMonth = numAccounts * PRICE_ACCOUNT_MONTH;
+
+    return {
+      orderPlaced:               params.simulate ? false : true,
+      orderIsValid:              numAccounts > 0,
+      simulation:                params.simulate,
+      orderError:                numAccounts > 0 ? null : 'domains_without_accounts',
+      pricePerAccountPerMonth:   PRICE_ACCOUNT_MONTH,
+      pricePerDomainPerYear:     PRICE_DOMAIN_YEAR,
+      totalPricePerMonth:        totalAccountsMonth,
+      totalPricePerYear:         totalDomainsYear,
+      totalPrice:                totalAccountsMonth + totalDomainsYear,
+      totalDiscount:             0,
+      numberOfDomainsOrdered:    numDomains,
+      numberOfAccountsOrdered:   numAccounts,
+      paymentMethodBrand:        'mock',
+      paymentMethodLast4:        '0000',
+      paymentMethodNameOnCard:   'Mock Cardholder',
+      unavailableDomains:        [],
+      blacklistDomains:          [],
+      invalidDomains:            [],
+      domainsWithoutAccounts:    params.items.filter(it => it.accounts.length === 0).map(it => it.domain),
+      orderItems: params.items.map(it => ({
+        domain:         it.domain,
+        accounts:       it.accounts,
+        domainPrice:    PRICE_DOMAIN_YEAR,
+        accountsPrice:  it.accounts.length * PRICE_ACCOUNT_MONTH,
+        totalPrice:     PRICE_DOMAIN_YEAR + it.accounts.length * PRICE_ACCOUNT_MONTH,
+        totalDiscount:  0,
+      })),
+      raw: { mock: true, simulation: params.simulate },
+    };
+  }
+
+  async getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus> {
+    return {
+      id:     orderId,
+      status: orderId.startsWith('mock_dfy_') ? 'completed' : 'unknown',
+      raw:    { mock: true, id: orderId },
     };
   }
 
@@ -564,6 +745,180 @@ export class InstantlyProvider implements IEmailProvider {
     if (!res.ok) {
       const body = await this.parseBody(res)
       throw new Error(`[InstantlyProvider.activateCampaign] ${this.errorMessage(body, res.status)}`)
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Sprint A2a-2a — DFY provisioning (discovery + ordering with simulation)
+  // --------------------------------------------------------------------------
+
+  async checkDomains(domains: string[]): Promise<DomainAvailability[]> {
+    // Provider expects {"domains": [...]} (plural array — singular shape returns 400).
+    const res = await fetch(`${this.baseUrl}/dfy-email-account-orders/domains/check`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({ domains }),
+    })
+    const body = await this.parseBody(res)
+    if (!res.ok) {
+      throw new Error(`[InstantlyProvider.checkDomains] ${this.errorMessage(body, res.status)}`)
+    }
+    const b = body as { results?: Array<{ domain?: string; available?: boolean }> }
+    if (!Array.isArray(b.results)) {
+      throw new Error('[InstantlyProvider.checkDomains] response missing results array')
+    }
+    return b.results
+      .filter(r => typeof r.domain === 'string' && typeof r.available === 'boolean')
+      .map(r => ({ domain: r.domain as string, available: r.available as boolean }))
+  }
+
+  async listPreWarmedDomains(): Promise<PreWarmedDomain[]> {
+    const res = await fetch(`${this.baseUrl}/dfy-email-account-orders/domains/pre-warmed-up-list`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: '{}',
+    })
+    const body = await this.parseBody(res)
+    if (!res.ok) {
+      throw new Error(`[InstantlyProvider.listPreWarmedDomains] ${this.errorMessage(body, res.status)}`)
+    }
+    // Provider returns both `domains: string[]` and `domains_with_type: [{domain, account_type}]`.
+    // We use domains_with_type when present, fall back to plain domains with a default type.
+    const b = body as {
+      domains?: string[]
+      domains_with_type?: Array<{ domain?: string; account_type?: number }>
+    }
+    if (Array.isArray(b.domains_with_type) && b.domains_with_type.length > 0) {
+      return b.domains_with_type
+        .filter(d => typeof d.domain === 'string')
+        .map(d => ({ domain: d.domain as string, accountType: typeof d.account_type === 'number' ? d.account_type : 1 }))
+    }
+    if (Array.isArray(b.domains)) {
+      return b.domains.map(d => ({ domain: d, accountType: 1 }))
+    }
+    return []
+  }
+
+  async createDfyOrder(params: CreateDfyOrderParams): Promise<DfyOrderResult> {
+    // CRITICAL: params.simulate=false places a REAL order and charges the
+    // payment method on file at the provider. The boolean is required on
+    // CreateDfyOrderParams so the caller cannot forget.
+    const payload = {
+      simulation: params.simulate,
+      order_type: params.orderType,
+      items: params.items.map(item => ({
+        domain: item.domain,
+        accounts: item.accounts.map(a => ({
+          email_address_prefix: a.emailAddressPrefix,
+          first_name:           a.firstName,
+          last_name:            a.lastName,
+        })),
+      })),
+    }
+
+    const res = await fetch(`${this.baseUrl}/dfy-email-account-orders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const body = await this.parseBody(res)
+    if (!res.ok) {
+      throw new Error(`[InstantlyProvider.createDfyOrder] ${this.errorMessage(body, res.status)}`)
+    }
+
+    const b = body as {
+      order_placed?: boolean
+      order_is_valid?: boolean
+      simulation?: boolean
+      order_error?: string | null
+      price_per_account_per_month?: number
+      price_per_domain_per_year?: number
+      total_price_per_month?: number
+      total_price_per_year?: number
+      total_price?: number
+      total_discount?: number
+      number_of_domains_ordered?: number
+      number_of_accounts_ordered?: number
+      payment_method_brand?: string | null
+      payment_method_last_4_digits?: string | null
+      payment_method_name_on_card?: string | null
+      unavailable_domains?: string[]
+      blacklist_domains?: string[]
+      invalid_domains?: string[]
+      domains_without_accounts?: string[]
+      order_items?: Array<{
+        domain?: string
+        accounts?: Array<{ email_address_prefix?: string; first_name?: string; last_name?: string }>
+        domain_price?: number
+        accounts_price?: number
+        total_price?: number
+        total_discount?: number
+      }>
+    }
+
+    return {
+      orderPlaced:             b.order_placed === true,
+      orderIsValid:            b.order_is_valid === true,
+      simulation:              b.simulation === true,
+      orderError:              b.order_error ?? null,
+      pricePerAccountPerMonth: b.price_per_account_per_month ?? 0,
+      pricePerDomainPerYear:   b.price_per_domain_per_year ?? 0,
+      totalPricePerMonth:      b.total_price_per_month ?? 0,
+      totalPricePerYear:       b.total_price_per_year ?? 0,
+      totalPrice:              b.total_price ?? 0,
+      totalDiscount:           b.total_discount ?? 0,
+      numberOfDomainsOrdered:  b.number_of_domains_ordered ?? 0,
+      numberOfAccountsOrdered: b.number_of_accounts_ordered ?? 0,
+      paymentMethodBrand:      b.payment_method_brand ?? null,
+      paymentMethodLast4:      b.payment_method_last_4_digits ?? null,
+      paymentMethodNameOnCard: b.payment_method_name_on_card ?? null,
+      unavailableDomains:      Array.isArray(b.unavailable_domains)     ? b.unavailable_domains : [],
+      blacklistDomains:        Array.isArray(b.blacklist_domains)       ? b.blacklist_domains   : [],
+      invalidDomains:          Array.isArray(b.invalid_domains)         ? b.invalid_domains     : [],
+      domainsWithoutAccounts:  Array.isArray(b.domains_without_accounts) ? b.domains_without_accounts : [],
+      orderItems: Array.isArray(b.order_items) ? b.order_items.map(it => ({
+        domain:        it.domain ?? '',
+        accounts:      Array.isArray(it.accounts) ? it.accounts.map(a => ({
+          emailAddressPrefix: a.email_address_prefix ?? '',
+          firstName:          a.first_name ?? '',
+          lastName:           a.last_name ?? '',
+        })) : [],
+        domainPrice:    it.domain_price ?? 0,
+        accountsPrice:  it.accounts_price ?? 0,
+        totalPrice:     it.total_price ?? 0,
+        totalDiscount:  it.total_discount ?? 0,
+      })) : [],
+      raw: body,
+    }
+  }
+
+  async getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus> {
+    const res = await fetch(
+      `${this.baseUrl}/dfy-email-account-orders/${encodeURIComponent(orderId)}`,
+      {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}` },
+      },
+    )
+    const body = await this.parseBody(res)
+    if (!res.ok) {
+      throw new Error(`[InstantlyProvider.getDfyOrderStatus] ${this.errorMessage(body, res.status)}`)
+    }
+    const b = body as { id?: string; order_id?: string; status?: string }
+    const id = b.id ?? b.order_id ?? orderId
+    return {
+      id,
+      status: b.status ?? null,
+      raw:    body,
     }
   }
 
