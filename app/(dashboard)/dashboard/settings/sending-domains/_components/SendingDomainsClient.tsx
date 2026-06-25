@@ -30,20 +30,20 @@ export function SendingDomainsClient({
               <h2 className="text-xs font-semibold uppercase tracking-wider text-[#1a1a1a]">
                 Sending mailboxes
               </h2>
-              <Tooltip content="Connect an existing pro mailbox to start sending today, or add a dedicated domain that warms up in the background over 14–21 days." placement="top">
+              <Tooltip content="Connect an existing pro mailbox to start sending today, or order a managed dedicated domain — we handle registration, DNS, and warm-up for you." placement="top">
                 <InfoIcon />
               </Tooltip>
             </div>
             <div className="flex items-center gap-2">
               <ConnectMailboxButton />
               <Link
-                href="/dashboard/settings/sending-domains/new"
+                href="/dashboard/settings/sending-domains/order-dfy"
                 className="inline-flex items-center gap-2 rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                   <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                Add sending domain
+                Order managed domain
               </Link>
             </div>
           </div>
