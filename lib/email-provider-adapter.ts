@@ -568,8 +568,28 @@ export class InstantlyProvider implements IEmailProvider {
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
-  async triggerWarmup(_inboxId: string): Promise<void> {
-    throw new Error('[InstantlyProvider] not yet implemented');
+  async triggerWarmup(inboxId: string): Promise<void> {
+    // POST /accounts/warmup/enable body { emails: [email] }
+    //
+    // Provider behaviour: this endpoint enqueues a background job that flips
+    // the account's warmup_status to active. The response acks the enqueue
+    // and returns a job id at /background-jobs/{id} we could poll, but the
+    // interface contract (Promise<void>) is fire-and-forget. We rely on the
+    // caller's UI to refresh getWarmupStatus a few minutes later if it cares
+    // about the eventual flip. Any non-2xx is surfaced as a throw so the
+    // route caller's try/catch can decide.
+    const res = await fetch(`${this.baseUrl}/accounts/warmup/enable`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({ emails: [inboxId] }),
+    })
+    if (!res.ok) {
+      const body = await this.parseBody(res)
+      throw new Error(`[InstantlyProvider.triggerWarmup] ${this.errorMessage(body, res.status)}`)
+    }
   }
 
   async getWarmupStatus(inboxId: string): Promise<WarmupStatus> {
@@ -675,12 +695,43 @@ export class InstantlyProvider implements IEmailProvider {
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
-  async pauseInbox(_inboxId: string): Promise<void> {
-    throw new Error('[InstantlyProvider] not yet implemented');
+  async pauseInbox(inboxId: string): Promise<void> {
+    // POST /accounts/{email}/pause — empty body. Idempotent at the provider
+    // side: pausing an already-paused account returns 200 with no change.
+    const res = await fetch(
+      `${this.baseUrl}/accounts/${encodeURIComponent(inboxId)}/pause`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: '{}',
+      },
+    )
+    if (!res.ok) {
+      const body = await this.parseBody(res)
+      throw new Error(`[InstantlyProvider.pauseInbox] ${this.errorMessage(body, res.status)}`)
+    }
   }
 
-  async resumeInbox(_inboxId: string): Promise<void> {
-    throw new Error('[InstantlyProvider] not yet implemented');
+  async resumeInbox(inboxId: string): Promise<void> {
+    // POST /accounts/{email}/resume — empty body. Mirror of pauseInbox.
+    const res = await fetch(
+      `${this.baseUrl}/accounts/${encodeURIComponent(inboxId)}/resume`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: '{}',
+      },
+    )
+    if (!res.ok) {
+      const body = await this.parseBody(res)
+      throw new Error(`[InstantlyProvider.resumeInbox] ${this.errorMessage(body, res.status)}`)
+    }
   }
 
   async deleteInbox(_inboxId: string): Promise<void> {
