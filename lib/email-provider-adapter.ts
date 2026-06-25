@@ -572,8 +572,103 @@ export class InstantlyProvider implements IEmailProvider {
     throw new Error('[InstantlyProvider] not yet implemented');
   }
 
-  async getWarmupStatus(_inboxId: string): Promise<WarmupStatus> {
-    throw new Error('[InstantlyProvider] not yet implemented');
+  async getWarmupStatus(inboxId: string): Promise<WarmupStatus> {
+    // inboxId == account email at Instantly (the natural identifier).
+    // Two calls because the live probe confirmed:
+    //   GET /accounts/{email}              → score + status + capacity + start date
+    //   POST /accounts/warmup-analytics    → per-day sent counts
+    // The first one is required (any failure throws); the analytics call is
+    // best-effort (if it fails, dailySent falls back to 0 — the caller route
+    // already has a try/catch around getWarmupStatus, so partial-data is
+    // strictly better than nothing).
+
+    // --- Call 1: account detail ---
+    const accountRes = await fetch(
+      `${this.baseUrl}/accounts/${encodeURIComponent(inboxId)}`,
+      {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}` },
+      },
+    )
+    const accountBody = await this.parseBody(accountRes)
+    if (!accountRes.ok) {
+      throw new Error(`[InstantlyProvider.getWarmupStatus] ${this.errorMessage(accountBody, accountRes.status)}`)
+    }
+    const account = accountBody as {
+      email?: string
+      warmup_status?: number
+      stat_warmup_score?: number
+      daily_limit?: number
+      timestamp_warmup_start?: string
+    }
+
+    const reputationScore = typeof account.stat_warmup_score === 'number' ? account.stat_warmup_score : 0
+    const dailyCapacity   = typeof account.daily_limit === 'number'        ? account.daily_limit        : 0
+    const warmupStart     = account.timestamp_warmup_start ? new Date(account.timestamp_warmup_start) : null
+    const daysWarming     = warmupStart
+      ? Math.max(0, Math.floor((Date.now() - warmupStart.getTime()) / 86_400_000))
+      : 0
+
+    // Numeric warmup_status → WarmupPhase mapping.
+    // CONFIRMED via live probe: 1 = active (max@trymirvo.com with warmup
+    // running). Other numeric values (0, 2, -1, ...) are NOT confirmed and
+    // their semantics need verification against the provider docs in a
+    // follow-up. For unknown values we fall back to 'pending' which is the
+    // most conservative phase — it never makes a paused / failed mailbox
+    // look ready to send. The 'completed' refinement is heuristic on
+    // daysWarming when status is active.
+    let status: WarmupPhase
+    if (account.warmup_status === 1) {
+      status = daysWarming >= 21 ? 'completed' : 'active'
+    } else {
+      status = 'pending'
+    }
+
+    const estimatedCompletionDate = warmupStart && status === 'active'
+      ? new Date(warmupStart.getTime() + 21 * 86_400_000).toISOString()
+      : null
+
+    // --- Call 2: today's sent count (best-effort) ---
+    let dailySent = 0
+    try {
+      const analyticsRes = await fetch(
+        `${this.baseUrl}/accounts/warmup-analytics`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type':  'application/json',
+          },
+          body: JSON.stringify({ emails: [inboxId] }),
+        },
+      )
+      if (analyticsRes.ok) {
+        const analyticsBody = await this.parseBody(analyticsRes) as {
+          email_date_data?: Record<string, Record<string, { sent?: number }>>
+        }
+        // Instantly buckets analytics by YYYY-MM-DD (UTC, per observed shape).
+        const todayKey = new Date().toISOString().slice(0, 10)
+        const accountDays = analyticsBody.email_date_data?.[inboxId]
+        const today = accountDays?.[todayKey]
+        if (today && typeof today.sent === 'number') {
+          dailySent = today.sent
+        }
+      }
+    } catch {
+      // Swallow analytics errors: dailySent stays at 0. The route caller's
+      // try/catch around getWarmupStatus already covers full failure of
+      // call 1 — this inner swallow is for partial degradation only.
+    }
+
+    return {
+      inboxId,
+      status,
+      reputationScore,
+      daysWarming,
+      estimatedCompletionDate,
+      dailyCapacity,
+      dailySent,
+    }
   }
 
   async sendEmail(_params: SendEmailParams): Promise<SendEmailResult> {
