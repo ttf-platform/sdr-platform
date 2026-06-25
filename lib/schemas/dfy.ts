@@ -1,5 +1,16 @@
 import { z } from 'zod'
 
+// Shared domain regex — same shape as the route-level DOMAIN_REGEX in
+// app/api/email-accounts/route.ts, kept centralised here so the DFY discovery
+// routes and the order route validate identically.
+const DFY_DOMAIN_SCHEMA = z.string().min(3).max(253).regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, 'Invalid domain')
+
+// POST /api/email-accounts/dfy-domains/check body.
+// Bulk availability probe before placing an order. 1-10 domains per call.
+export const dfyDomainsCheckRequestSchema = z.object({
+  domains: z.array(DFY_DOMAIN_SCHEMA).min(1).max(10),
+}).strict()
+
 // One mailbox to be created under a domain.
 // email_address_prefix is the local part (e.g. "sales" → sales@domain.com).
 const dfyOrderAccountSchema = z.object({
@@ -10,7 +21,7 @@ const dfyOrderAccountSchema = z.object({
 
 // One domain to be ordered + its accounts.
 const dfyOrderItemSchema = z.object({
-  domain:   z.string().min(3).max(253).regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, 'Invalid domain'),
+  domain:   DFY_DOMAIN_SCHEMA,
   accounts: z.array(dfyOrderAccountSchema).min(1).max(10),
 }).strict()
 
