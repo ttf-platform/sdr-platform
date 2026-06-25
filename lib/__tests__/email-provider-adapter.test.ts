@@ -176,13 +176,23 @@ describe('InstantlyProvider stub', () => {
         senderName: 'A',
       })
     ).rejects.toThrow(/not yet implemented/);
-    // getWarmupStatus (A2a-2c-1) and triggerWarmup / pauseInbox / resumeInbox
-    // (A2a-2c-2a) are now real implementations that hit Instantly live. With
-    // a fake API key the call fails at the network/auth layer instead of the
-    // "not yet implemented" stub. Skip asserting their specific error shape
-    // here — implementations are covered by manual live probes documented in
-    // the sprint notes.
-    await expect(p.deleteInbox('x')).rejects.toThrow(/not yet implemented/);
+    // getWarmupStatus (A2a-2c-1), triggerWarmup / pauseInbox / resumeInbox
+    // (A2a-2c-2a) and deleteInbox (A2a-2c-2b) are now real implementations
+    // that hit Instantly live. With a fake API key the call fails at the
+    // network/auth layer instead of the "not yet implemented" stub. Skip
+    // asserting their specific error shape here — implementations are
+    // covered by manual live probes documented in the sprint notes.
+    //
+    // sendEmail still throws "not yet implemented" — it is an orphan stub
+    // (no in-app caller since the campaign-based send model in A3 supersedes
+    // single-shot sends).
+    await expect(p.sendEmail({
+      inboxId: 'x',
+      to: 't@t.com',
+      fromName: 'F',
+      subject: 's',
+      body: 'b',
+    })).rejects.toThrow(/not yet implemented/);
   });
 });
 

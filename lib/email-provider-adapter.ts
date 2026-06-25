@@ -734,8 +734,26 @@ export class InstantlyProvider implements IEmailProvider {
     }
   }
 
-  async deleteInbox(_inboxId: string): Promise<void> {
-    throw new Error('[InstantlyProvider] not yet implemented');
+  async deleteInbox(inboxId: string): Promise<void> {
+    // DELETE /accounts/{email} — irreversible at the provider side.
+    //
+    // This is the most destructive method on the interface. Callers
+    // (DELETE /api/email-accounts/[id]) already wrap it in try/catch and
+    // proceed with the local row delete even on provider failure — the
+    // operational mode is "best-effort cleanup". The provider side may
+    // dangle if this throws and no operator reconciles, but the local
+    // workspace stops counting the seat.
+    const res = await fetch(
+      `${this.baseUrl}/accounts/${encodeURIComponent(inboxId)}`,
+      {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${this.apiKey}` },
+      },
+    )
+    if (!res.ok) {
+      const body = await this.parseBody(res)
+      throw new Error(`[InstantlyProvider.deleteInbox] ${this.errorMessage(body, res.status)}`)
+    }
   }
 
   async initOAuth(provider: OAuthProviderKind): Promise<OAuthInitResult> {
