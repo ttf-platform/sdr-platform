@@ -18,11 +18,14 @@ const STATUS_LABELS: Record<CheckStatus, { label: string; color: string; bg: str
   down: { label: 'Major outage', color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', emoji: '🔴' },
 }
 
+// Internal keys (database/stripe/anthropic/resend) come from /api/health and
+// must stay unchanged. Only the user-facing labels are generic — vendor
+// invisibility (see CLAUDE.md §Branding).
 const SERVICE_LABELS: Record<string, string> = {
-  database: 'Database (Supabase)',
-  stripe: 'Payments (Stripe)',
-  anthropic: 'AI (Anthropic)',
-  resend: 'Email (Resend)',
+  database: 'Database',
+  stripe: 'Payments',
+  anthropic: 'AI',
+  resend: 'Email infrastructure',
 }
 
 export function StatusClient() {
