@@ -176,14 +176,12 @@ describe('InstantlyProvider stub', () => {
         senderName: 'A',
       })
     ).rejects.toThrow(/not yet implemented/);
-    await expect(p.triggerWarmup('x')).rejects.toThrow(/not yet implemented/);
-    // getWarmupStatus was implemented in Sprint A2a-2c-1. It calls Instantly's
-    // /accounts/{email} live, so we cannot assert "not yet implemented" anymore.
-    // With a fake API key the call will fail at the network/auth layer instead.
-    // Skip asserting a specific error shape here — the implementation is
-    // covered by a manual live probe documented in the sprint notes.
-    await expect(p.pauseInbox('x')).rejects.toThrow(/not yet implemented/);
-    await expect(p.resumeInbox('x')).rejects.toThrow(/not yet implemented/);
+    // getWarmupStatus (A2a-2c-1) and triggerWarmup / pauseInbox / resumeInbox
+    // (A2a-2c-2a) are now real implementations that hit Instantly live. With
+    // a fake API key the call fails at the network/auth layer instead of the
+    // "not yet implemented" stub. Skip asserting their specific error shape
+    // here — implementations are covered by manual live probes documented in
+    // the sprint notes.
     await expect(p.deleteInbox('x')).rejects.toThrow(/not yet implemented/);
   });
 });
