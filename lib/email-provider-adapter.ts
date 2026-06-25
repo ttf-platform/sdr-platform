@@ -225,6 +225,19 @@ export interface DfyOrderStatus {
   raw: unknown;
 }
 
+export interface ListDfyOrdersOpts {
+  /** Pagination cursor from a previous listDfyOrders call. */
+  startingAfter?: string;
+  /** Page size (provider default applies if absent). */
+  limit?: number;
+}
+
+export interface ListDfyOrdersResult {
+  items: DfyOrderStatus[];
+  /** Cursor for the next page, or null when the current page is the last. */
+  nextStartingAfter: string | null;
+}
+
 export interface IEmailProvider {
   /** Create a new sending account on the provider for a workspace's domain. */
   provisionInbox(params: ProvisionInboxParams): Promise<ProvisionInboxResult>;
@@ -277,8 +290,15 @@ export interface IEmailProvider {
   /** Create a DFY order. simulate:true → quote only, no charge. simulate:false → real order. */
   createDfyOrder(params: CreateDfyOrderParams): Promise<DfyOrderResult>;
 
-  /** Fetch the status of a DFY order by its provider-side id. */
-  getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus>;
+  /** Fetch the status of a single DFY order by its provider-side id.
+   *  Implemented over listDfyOrders since the provider exposes no per-order
+   *  GET endpoint (the documented GET /dfy-email-account-orders/{id} returns
+   *  router-level 404). Returns null if the order is not present in the list. */
+  getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus | null>;
+
+  /** List DFY orders visible to the authenticated provider org. Used by the
+   *  reconciliation cron to update local dfy_orders rows in bulk. */
+  listDfyOrders(opts?: ListDfyOrdersOpts): Promise<ListDfyOrdersResult>;
 }
 
 // ============================================================================
@@ -473,11 +493,24 @@ export class MockEmailProvider implements IEmailProvider {
     };
   }
 
-  async getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus> {
+  async getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus | null> {
+    if (!orderId.startsWith('mock_dfy_')) return null;
     return {
       id:     orderId,
-      status: orderId.startsWith('mock_dfy_') ? 'completed' : 'unknown',
-      raw:    { mock: true, id: orderId },
+      status: 'completed',
+      raw:    { mock: true, id: orderId, status: 'completed' },
+    };
+  }
+
+  async listDfyOrders(_opts?: ListDfyOrdersOpts): Promise<ListDfyOrdersResult> {
+    // Mock returns a tiny deterministic list — enough to exercise the cron path
+    // without depending on external state.
+    return {
+      items: [
+        { id: 'mock_dfy_completed_1', status: 'completed', raw: { mock: true, status: 'completed' } },
+        { id: 'mock_dfy_pending_1',   status: 'pending',   raw: { mock: true, status: 'pending'   } },
+      ],
+      nextStartingAfter: null,
     };
   }
 
@@ -901,9 +934,28 @@ export class InstantlyProvider implements IEmailProvider {
     }
   }
 
-  async getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus> {
+  async getDfyOrderStatus(orderId: string): Promise<DfyOrderStatus | null> {
+    // Provider exposes no per-order GET (confirmed by live probe: the
+    // documented GET /dfy-email-account-orders/{id} returns router-level 404).
+    // Walk the list paginated until we find the matching order or exhaust.
+    let cursor: string | undefined = undefined
+    for (let page = 0; page < 20; page++) { // hard cap to bound runtime
+      const { items, nextStartingAfter } = await this.listDfyOrders({ startingAfter: cursor, limit: 100 })
+      const match = items.find(it => it.id === orderId)
+      if (match) return match
+      if (!nextStartingAfter) return null
+      cursor = nextStartingAfter
+    }
+    return null
+  }
+
+  async listDfyOrders(opts?: ListDfyOrdersOpts): Promise<ListDfyOrdersResult> {
+    const params = new URLSearchParams()
+    if (opts?.limit != null)         params.set('limit',           String(opts.limit))
+    if (opts?.startingAfter)         params.set('starting_after',  opts.startingAfter)
+    const qs = params.toString()
     const res = await fetch(
-      `${this.baseUrl}/dfy-email-account-orders/${encodeURIComponent(orderId)}`,
+      `${this.baseUrl}/dfy-email-account-orders${qs ? `?${qs}` : ''}`,
       {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${this.apiKey}` },
@@ -911,14 +963,22 @@ export class InstantlyProvider implements IEmailProvider {
     )
     const body = await this.parseBody(res)
     if (!res.ok) {
-      throw new Error(`[InstantlyProvider.getDfyOrderStatus] ${this.errorMessage(body, res.status)}`)
+      throw new Error(`[InstantlyProvider.listDfyOrders] ${this.errorMessage(body, res.status)}`)
     }
-    const b = body as { id?: string; order_id?: string; status?: string }
-    const id = b.id ?? b.order_id ?? orderId
+    const b = body as {
+      items?: Array<{ id?: string; order_id?: string; status?: string }>
+      next_starting_after?: string
+    }
+    const items: DfyOrderStatus[] = []
+    if (Array.isArray(b.items)) {
+      for (const rawItem of b.items) {
+        const id = rawItem.id ?? rawItem.order_id
+        if (id) items.push({ id, status: rawItem.status ?? null, raw: rawItem })
+      }
+    }
     return {
-      id,
-      status: b.status ?? null,
-      raw:    body,
+      items,
+      nextStartingAfter: b.next_starting_after && b.next_starting_after.length > 0 ? b.next_starting_after : null,
     }
   }
 
