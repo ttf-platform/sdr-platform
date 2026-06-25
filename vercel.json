@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/cleanup-oauth-sessions",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-dfy-orders",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

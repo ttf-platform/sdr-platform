@@ -20,6 +20,7 @@ export * from './sending-preferences'
 export * from './bot'
 export * from './support'
 export * from './email-variants'
+export * from './dfy'
 
 import { NextResponse } from 'next/server'
 
