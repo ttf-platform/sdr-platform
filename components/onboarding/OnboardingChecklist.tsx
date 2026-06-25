@@ -27,13 +27,13 @@ const STEPS: ChecklistStep[] = [
     key: 'domain_added',
     title: 'Add sending domain',
     description: 'Configure your domain for outbound',
-    href: () => '/dashboard/settings/sending-domains/new',
+    href: () => '/dashboard/settings/sending-domains/order-dfy',
   },
   {
     key: 'mailbox_connected',
     title: 'Connect your mailbox',
     description: 'Verify DNS — sending starts day 1',
-    href: () => '/dashboard/settings/sending-domains/new',
+    href: () => '/dashboard/settings/sending-domains/order-dfy',
   },
   {
     key: 'campaign_created',
