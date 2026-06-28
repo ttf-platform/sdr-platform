@@ -29,6 +29,7 @@ const nextConfig = {
   async redirects() {
     return [
       { source: '/landing-v2', destination: '/', permanent: true },
+      { source: '/dashboard/admin', destination: '/admin', permanent: true },
     ]
   },
   skipTrailingSlashRedirect: true,
