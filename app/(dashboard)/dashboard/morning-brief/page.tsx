@@ -75,7 +75,7 @@ function RichBrief({ content }: { content: any }) {
       {/* ── Today's Focus ── */}
       {content.today_focus && (
         <div className="bg-[#f4f1fb] border-l-4 border-[#8b5cf6] rounded-r-xl px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5cf6] mb-1.5">⚡ Today's Focus</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5cf6] mb-1.5">⚡ Today&apos;s Focus</p>
           <p className="text-sm font-semibold text-[#1a1a2e] mb-1">{content.today_focus.title}</p>
           {content.today_focus.rationale && (
             <p className="text-xs text-[#6b5e8e]">{content.today_focus.rationale}</p>
