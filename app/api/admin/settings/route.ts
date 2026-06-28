@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAllAdminSettings, setAdminSetting } from '@/lib/admin-settings';
 import { adminSettingsUpdateSchema, badRequest } from '@/lib/schemas';
+import { logAdminAction } from '@/lib/admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,12 @@ export async function PATCH(req: NextRequest) {
   if (failed.length > 0) {
     return NextResponse.json({ error: 'partial_failure', failed }, { status: 500 });
   }
+
+  await logAdminAction({
+    admin_id:    admin.id,
+    action_type: 'settings.update',
+    metadata:    { keys_changed: updates.map((u) => u.key) },
+  });
 
   return NextResponse.json({ ok: true, updated: updates.length });
 }

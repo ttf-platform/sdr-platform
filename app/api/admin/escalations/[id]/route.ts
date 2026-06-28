@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
 import { adminEscalationUpdateSchema, badRequest } from '@/lib/schemas';
+import { logAdminAction } from '@/lib/admin';
 
 export const runtime = 'nodejs';
 
@@ -10,8 +11,9 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
+  let admin: { id: string; email: string };
   try {
-    await requireSentraAdmin();
+    admin = await requireSentraAdmin();
   } catch (err) {
     if (err instanceof AdminAuthError) {
       return NextResponse.json({ error: err.code }, { status: err.code === 'unauthorized' ? 401 : 403 });
@@ -46,5 +48,14 @@ export async function PATCH(
   if (error || !data) {
     return NextResponse.json({ error: 'update_failed', detail: error?.message }, { status: 500 });
   }
+
+  await logAdminAction({
+    admin_id:    admin.id,
+    action_type: 'support.escalation.update',
+    target_type: 'escalation',
+    target_id:   params.id,
+    metadata:    { to_status: body.status ?? null, admin_response: typeof body.admin_response === 'string' },
+  });
+
   return NextResponse.json({ ok: true, escalation: data });
 }
