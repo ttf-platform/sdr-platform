@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { onboardingProgressPatchSchema, badRequest } from '@/lib/schemas'
 
 // Auto-detect step completions via live DB queries.
 // ICP fields live on workspace_profiles (not workspaces).
@@ -130,30 +131,18 @@ export async function GET() {
   })
 }
 
-const ALLOWED_PATCH_FIELDS = [
-  'welcome_dismissed',
-  'checklist_dismissed',
-  'try_mirvo_mode',
-  'last_campaign_id',
-] as const
-
 export async function PATCH(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: unknown
-  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  let rawBody: unknown
+  try { rawBody = await req.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const updates: Record<string, unknown> = {}
-  for (const key of ALLOWED_PATCH_FIELDS) {
-    if (body !== null && typeof body === 'object' && key in (body as object)) {
-      updates[key] = (body as Record<string, unknown>)[key]
-    }
-  }
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
-  }
+  const parsed = onboardingProgressPatchSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const updates: Record<string, unknown> = parsed.data
 
   const admin = createAdminClient()
   const { data: member } = await admin

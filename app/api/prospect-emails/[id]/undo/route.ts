@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { enforceEmptyBody } from '@/lib/schemas'
 
-export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
+  const bodyGuard = await enforceEmptyBody(req)
+  if (bodyGuard) return bodyGuard
+
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
