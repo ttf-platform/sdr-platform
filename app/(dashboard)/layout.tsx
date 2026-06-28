@@ -22,7 +22,6 @@ const supabase = createClient()
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [workspace, setWorkspace] = useState<any>(null)
-  const [role, setRole] = useState<string>('')
   const [billingData, setBillingData] = useState<{ blocked: boolean; daysRemaining: number; status: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
@@ -35,10 +34,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!session) { window.location.href = '/login'; return }
       setUser(session.user)
       const { data: member } = await supabase.from('workspace_members')
-        .select('workspace_id, role, workspaces(name, plan, plan_tier, credits, subscription_status, trial_end_date)')
+        .select('workspace_id, workspaces(name, plan, plan_tier, credits, subscription_status, trial_end_date)')
         .eq('user_id', session.user.id).single()
       if (member) {
-        setWorkspace(member); setRole(member.role)
+        setWorkspace(member)
         const ws = member.workspaces as any
         const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
         setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
@@ -125,7 +124,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="hidden md:flex items-center gap-2 ml-auto flex-shrink-0">
             <WorkspaceDropdown
               planTier={planTier}
-              role={role}
               isMirvoAdmin={isSentraAdmin}
               hasCallRecording={hasCallRecording}
               hasLinkedIn={hasLinkedIn}
@@ -295,12 +293,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link href="/dashboard/billing" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
                 <CreditCard size={16} /> Billing
               </Link>
-              {role === 'owner' && (
-                <Link href="/dashboard/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#2563eb] hover:bg-[#f5f2ee]">
-                  <Shield size={16} /> Workspace Admin
-                </Link>
-              )}
-
               {isSentraAdmin && (
                 <>
                   <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Mirvo Staff</p>

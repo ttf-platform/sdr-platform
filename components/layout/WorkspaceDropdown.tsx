@@ -6,7 +6,6 @@ import { BarChart2, Sun, Phone, Globe, Settings, Users, CreditCard, ChevronDown,
 
 type Props = {
   planTier: string
-  role: string
   isMirvoAdmin: boolean
   hasCallRecording: boolean
   hasLinkedIn: boolean
@@ -48,7 +47,7 @@ function NavItem({ href, icon: Icon, label, color = '#1a1a1a', active, onClose }
   )
 }
 
-export function WorkspaceDropdown({ planTier, role, isMirvoAdmin, hasCallRecording, hasLinkedIn, pathname }: Props) {
+export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasCallRecording, hasLinkedIn, pathname }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -115,9 +114,6 @@ export function WorkspaceDropdown({ planTier, role, isMirvoAdmin, hasCallRecordi
             <NavItem href="/dashboard/team" icon={Users} label="Team" active={isActive('/dashboard/team')} onClose={close} />
           )}
           <NavItem href="/dashboard/billing" icon={CreditCard} label="Billing" active={isActive('/dashboard/billing')} onClose={close} />
-          {role === 'owner' && (
-            <NavItem href="/dashboard/admin" icon={Shield} label="Workspace Admin" color="#2563eb" active={isActive('/dashboard/admin')} onClose={close} />
-          )}
 
           {isMirvoAdmin && (
             <>
