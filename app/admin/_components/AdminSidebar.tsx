@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   TrendingUp,
   Settings,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 import { AdminStatusIndicator } from './AdminStatusIndicator';
@@ -21,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/support', label: 'Support Center', icon: LifeBuoy },
   { href: '/admin/analytics', label: 'Analytics', icon: TrendingUp },
   { href: '/admin/settings', label: 'Platform Settings', icon: Settings },
+  { href: '/admin/audit', label: 'Audit log', icon: ScrollText },
 ];
 
 export function AdminSidebar() {
