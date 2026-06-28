@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { calculateProfileScore, getMissingCriteriaDetailed } from '@/lib/profile-quality'
 import type { ProfileForScore } from '@/lib/profile-quality'
 
@@ -72,13 +73,13 @@ export default function ProfileQualityBadge({
         </span>
         <span className="flex-1 text-sm text-[#6b5e4e] min-w-0 leading-snug">{subtext}</span>
         {!hideEditLink && (
-          <a
+          <Link
             href="/dashboard/settings"
             className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline flex-shrink-0"
             aria-label="Edit profile"
           >
             Edit profile →
-          </a>
+          </Link>
         )}
         {dismissible && score >= 30 && (
           <button

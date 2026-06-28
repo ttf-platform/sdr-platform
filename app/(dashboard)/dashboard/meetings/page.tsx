@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -335,7 +336,7 @@ export default function MeetingsPage() {
         <div className="fixed top-4 right-4 z-50 bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-sm">
           <span className="text-sm text-[#1a1a2e] flex-1">{toast.msg}</span>
           {toast.showBriefLink && (
-            <a href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline">Go to brief →</a>
+            <Link href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline">Go to brief →</Link>
           )}
           <button onClick={() => setToast(null)} className="text-[#8a7e6e] hover:text-[#1a1a2e] flex-shrink-0 ml-1">✕</button>
         </div>

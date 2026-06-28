@@ -1,5 +1,6 @@
 'use client'
 import { use, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Tooltip } from '@/components/Tooltip'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
@@ -362,7 +363,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       {/* Header */}
       <div className="flex items-start justify-between mb-1">
         <div>
-          <a href="/dashboard/campaigns" className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] mb-2 inline-block">← Back to campaigns</a>
+          <Link href="/dashboard/campaigns" className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] mb-2 inline-block">← Back to campaigns</Link>
           <h1 className="text-2xl font-bold text-[#1a1a2e] leading-tight">{campaign.name}</h1>
           <p className="text-sm text-[#8a7e6e] mt-0.5">
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mr-2 ${STATUS_COLORS[campaign.status] ?? 'bg-gray-100 text-gray-500'}`}>{statusLabel}</span>

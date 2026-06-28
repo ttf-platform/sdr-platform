@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { setConsent, hasConsentBeenGiven } from '@/lib/cookie-consent'
 import { initPostHogIfAllowed } from '@/app/providers'
 
@@ -35,7 +36,7 @@ export function CookieConsentBanner() {
       </h2>
       <p className="text-xs text-[#6b5e4e] mb-4 leading-relaxed">
         We use essential cookies to make Mirvo work, and analytics cookies to understand how you use the product so we can improve it. You can reject analytics anytime.{' '}
-        <a href="/en/legal/cookies" className="text-[#3b6bef] underline">Read our cookie policy</a>
+        <Link href="/en/legal/cookies" className="text-[#3b6bef] underline">Read our cookie policy</Link>
       </p>
       <div className="flex gap-2 justify-end">
         <button
