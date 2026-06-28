@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { workspaceCreateSchema, badRequest } from '@/lib/schemas'
 
 export async function POST(request: Request) {
   const admin = createAdminClient()
@@ -11,7 +12,13 @@ export async function POST(request: Request) {
 
   await admin.auth.admin.updateUserById(user.id, { email_confirm: true })
 
-  const { workspaceName } = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const parsed = workspaceCreateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { workspaceName } = parsed.data
 
   const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).slice(2, 6)
 

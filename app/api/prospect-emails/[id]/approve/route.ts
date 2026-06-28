@@ -38,6 +38,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
+import { enforceEmptyBody } from '@/lib/schemas'
 
 const PROVIDER_TIMEOUT_MS = 10_000
 
@@ -65,8 +66,11 @@ const CLIENT_COLUMNS =
   'id, status, provider_message_id, sent_at, ' +
   'prospect_id, campaign_step_id, subject, approved_at, updated_at'
 
-export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
+  const bodyGuard = await enforceEmptyBody(req)
+  if (bodyGuard) return bodyGuard
+
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 

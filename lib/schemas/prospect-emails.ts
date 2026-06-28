@@ -7,3 +7,9 @@ export const prospectEmailUpdateSchema = z.object({
   obj => obj.subject !== undefined || obj.body !== undefined,
   'At least one of subject or body is required',
 )
+
+// POST /api/prospect-emails/[id]/regenerate body.
+// mode is optional — falls back to campaign.personalization_mode → draft.mode → 'fast'.
+export const prospectEmailRegenerateSchema = z.object({
+  mode: z.enum(['fast', 'smart']).optional(),
+}).strict()

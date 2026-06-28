@@ -21,6 +21,10 @@ export * from './bot'
 export * from './support'
 export * from './email-variants'
 export * from './dfy'
+export * from './auto-fill'
+export * from './workspace'
+export * from './onboarding'
+export * from './common'
 
 import { NextResponse } from 'next/server'
 

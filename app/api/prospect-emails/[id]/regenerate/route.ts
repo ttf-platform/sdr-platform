@@ -7,6 +7,7 @@ import {
 } from '@/lib/personalization'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
+import { prospectEmailRegenerateSchema, badRequest } from '@/lib/schemas'
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
@@ -22,7 +23,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     )
   }
 
-  const body  = await request.json()
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const parsed = prospectEmailRegenerateSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const body = parsed.data
   const admin = createAdminClient()
 
   // 1. Fetch draft (prospect_id + step link)
@@ -54,10 +61,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
 
   // mode precedence: body.mode > campaign.personalization_mode > draft.mode > 'fast'
+  // body.mode is already validated to 'fast' | 'smart' | undefined by Zod.
   const mode: 'fast' | 'smart' =
-    (['fast', 'smart'].includes(body.mode) ? body.mode : null) ??
-    campaign.personalization_mode ??
-    draft.mode ??
+    body.mode ??
+    (campaign.personalization_mode as 'fast' | 'smart' | null) ??
+    (draft.mode as 'fast' | 'smart' | null) ??
     'fast'
 
   // 3. Fetch prospect + contacts + sender_name in parallel

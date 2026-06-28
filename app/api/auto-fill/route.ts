@@ -4,6 +4,7 @@ import { checkAiRateLimit } from '@/lib/ratelimit'
 import { scrapeWebsite } from '@/lib/website-scraper'
 import { mapCompanySize, mapUserCompanySize } from '@/lib/company-size-mapper'
 import { getAnthropicClient } from '@/lib/anthropic'
+import { autoFillSchema, badRequest } from '@/lib/schemas'
 
 // In-memory 30-second rate limit per workspace (resets on server restart — acceptable for this use case)
 const lastUsed = new Map<string, number>()
@@ -67,12 +68,13 @@ export async function POST(request: Request) {
   }
   lastUsed.set(guard.workspaceId, now)
 
-  const body = await request.json()
-  const url: string = body.url ?? ''
+  let rawBody: unknown
+  try { rawBody = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  if (!url.trim()) {
-    return NextResponse.json({ error: 'URL is required.' }, { status: 400 })
-  }
+  const parsed = autoFillSchema.safeParse(rawBody)
+  if (!parsed.success) return badRequest(parsed.error.issues)
+  const { url } = parsed.data
 
   const scraped = await scrapeWebsite(url)
   if (!scraped) {
