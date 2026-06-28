@@ -58,7 +58,7 @@ export function ReportBugForm({ onBack, onClose }: Props) {
           </svg>
         </div>
         <div className="text-base font-semibold text-[#1a1a2e] mb-1">Bug reported!</div>
-        <div className="text-sm text-[#8a7e6e] mb-6">We'll investigate and follow up if we need more details.</div>
+        <div className="text-sm text-[#8a7e6e] mb-6">We&apos;ll investigate and follow up if we need more details.</div>
         <button
           onClick={onClose}
           className="px-5 py-2 bg-[#3b6bef] text-white rounded-xl text-sm font-medium hover:bg-[#2a5bdf] transition-colors"

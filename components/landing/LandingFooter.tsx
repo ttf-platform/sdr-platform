@@ -23,7 +23,7 @@ function FooterColumn({
         {links.map(({ label, href }) => (
           <li key={label}>
             <Link
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // eslint-disable-next-line
               href={href as any}
               className="text-[#888888] hover:text-[#c0c0c0] transition-colors"
               style={{ fontSize: '0.875rem', fontWeight: 300 }}

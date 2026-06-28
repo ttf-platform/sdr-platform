@@ -97,7 +97,7 @@ export default function OnboardingPage() {
                   <input type="text" value={data.companyWebsite} onChange={e => setData({...data, companyWebsite: e.target.value})} className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="yourcompany.com (optional)" />
                   <AutoFillFromUrlButton websiteValue={data.companyWebsite} onApply={handleAutoFillApply} />
                 </div>
-                <p className="text-xs text-[#b0a898] mt-1">We'll analyze your site to pre-fill the fields below.</p>
+                <p className="text-xs text-[#b0a898] mt-1">We&apos;ll analyze your site to pre-fill the fields below.</p>
               </div>
               <textarea value={data.product} onChange={e => setData({...data, product: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="We help SaaS companies automate outbound sales..." />
               <div className="flex gap-2">

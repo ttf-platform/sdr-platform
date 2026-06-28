@@ -795,7 +795,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               {!emailsLoading && tabProspectsTotal > emailsTotal && (
                 <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
                   <p className="text-xs text-amber-800 font-medium">
-                    {tabProspectsTotal - emailsTotal} prospect{tabProspectsTotal - emailsTotal !== 1 ? 's' : ''} don't have a draft yet
+                    {tabProspectsTotal - emailsTotal} prospect{tabProspectsTotal - emailsTotal !== 1 ? 's' : ''} don&apos;t have a draft yet
                   </p>
                   <button
                     onClick={generateMissingDrafts}
@@ -980,7 +980,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <div className="bg-white border border-gray-200 rounded-xl p-10 text-center mb-4">
               <div className="text-3xl mb-3">↩️</div>
               <p className="text-sm font-semibold text-[#1a1a2e] mb-1">No follow-ups yet</p>
-              <p className="text-xs text-[#8a7e6e] mb-4">Add follow-ups to re-engage prospects who didn't reply.</p>
+              <p className="text-xs text-[#8a7e6e] mb-4">Add follow-ups to re-engage prospects who didn&apos;t reply.</p>
               {(campaign?.prospects_count ?? 0) > 0 && (
                 <button
                   onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}

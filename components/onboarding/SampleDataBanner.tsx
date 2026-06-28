@@ -25,7 +25,7 @@ export function SampleDataBanner() {
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[#a07d2a] text-sm leading-none flex-shrink-0">⚗</span>
         <p className="text-sm text-[#7a5c1a] font-medium truncate">
-          You're viewing <span className="font-semibold">sample data</span> — campaigns, prospects and signals are pre-filled for demo purposes.
+          You&apos;re viewing <span className="font-semibold">sample data</span> — campaigns, prospects and signals are pre-filled for demo purposes.
         </p>
       </div>
       <button

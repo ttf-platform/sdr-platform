@@ -492,7 +492,7 @@ export function SignalCreateModal({
           </div>
 
           <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-4">
-            <p className="text-xs font-semibold text-[#3b6bef] mb-3">How we'll monitor it</p>
+            <p className="text-xs font-semibold text-[#3b6bef] mb-3">How we&apos;ll monitor it</p>
             <div className="flex flex-col gap-1.5 text-xs text-[#4a4a5a]">
               {!!cfg.source && (
                 <div className="flex gap-2">

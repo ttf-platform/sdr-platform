@@ -408,7 +408,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
                         </div>
                       ))}
                     </div>
-                    <p className="text-blue-500 mt-1.5">Make sure you're not sending 2 sequences to the same person.</p>
+                    <p className="text-blue-500 mt-1.5">Make sure you&apos;re not sending 2 sequences to the same person.</p>
                   </div>
                 )}
               </div>

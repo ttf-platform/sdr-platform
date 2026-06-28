@@ -96,7 +96,7 @@ type MockResponse = { data: unknown; error: unknown; count?: number };
 function makeMockSupabase(handlers: {
   [key: string]: () => MockResponse | Promise<MockResponse>;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   const builder: any = {
     _table: '',
     _filters: [] as string[],
@@ -333,7 +333,7 @@ describe('saveMessage', () => {
   it('inserts a message and touches the conversation last_message_at', async () => {
     const inserts: unknown[] = [];
     const updates: unknown[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line
     const sb: any = {
       from(table: string) {
         return {
