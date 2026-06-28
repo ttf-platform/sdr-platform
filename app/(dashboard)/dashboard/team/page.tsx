@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 const supabase = createClient()
@@ -78,7 +79,7 @@ export default function TeamPage() {
             </button>
           </div>
           {seatsUsed >= seatsLimit && (
-            <p className="text-xs text-amber-600 mt-2">⚠ Seat limit reached. <a href="/dashboard/settings" className="underline">Upgrade your plan</a> to add more members.</p>
+            <p className="text-xs text-amber-600 mt-2">⚠ Seat limit reached. <Link href="/dashboard/settings" className="underline">Upgrade your plan</Link> to add more members.</p>
           )}
         </div>
       ) : null}

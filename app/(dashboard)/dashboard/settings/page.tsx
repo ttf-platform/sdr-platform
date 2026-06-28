@@ -409,7 +409,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1">
-          <a href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</a> / Settings
+          <Link href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</Link> / Settings
         </div>
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
         <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
@@ -738,7 +738,7 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="text-xs text-[#8a7e6e]">
-            {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · <a href="/dashboard/billing" className="text-[#2563eb] hover:underline">View usage →</a>
+            {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · <Link href="/dashboard/billing" className="text-[#2563eb] hover:underline">View usage →</Link>
           </div>
         </div>
       </div>

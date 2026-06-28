@@ -1,4 +1,5 @@
-import type { Metadata } from 'next'
+import type { Metadata, Route } from 'next'
+import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { InlineCode } from '@/components/legal/InlineCode'
 
@@ -133,7 +134,7 @@ export default async function SecurityPage({
           </h2>
           <p className="mb-6 leading-relaxed" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             Mirvo is built on a carefully selected set of infrastructure providers. We describe them by category here. A complete list with names, locations, and data transfer frameworks (DPF/SCCs) is available in our{' '}
-            <a href="/legal/dpa" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</a>
+            <Link href={"/legal/dpa" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Data Processing Addendum</Link>
             {' '}or by contacting{' '}
             <a href="mailto:privacy@mirvo.ai" className="transition-opacity hover:opacity-70" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
               privacy@mirvo.ai
