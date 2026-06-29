@@ -106,12 +106,13 @@ export function AtRiskTab({ rows }: { rows: AtRiskRow[] }) {
                 <th scope="col" className="px-4 py-3">Plan</th>
                 <th scope="col" className="px-4 py-3">Risk</th>
                 <th scope="col" className="px-4 py-3">Detail</th>
+                <th scope="col" className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-[#9a9a9a]">No rows match the current filter.</td>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-[#9a9a9a]">No rows match the current filter.</td>
                 </tr>
               ) : (
                 filtered.map((r) => {
@@ -141,6 +142,14 @@ export function AtRiskTab({ rows }: { rows: AtRiskRow[] }) {
                             </li>
                           ))}
                         </ul>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <a
+                          href={`/admin/workspaces/${r.workspace_id}`}
+                          className="text-xs font-medium text-[#2563eb] hover:underline"
+                        >
+                          View →
+                        </a>
                       </td>
                     </tr>
                   );
