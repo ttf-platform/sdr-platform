@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
+import { formatRelative, truncateId } from './utils';
 
-export type AuditLogRow = {
+export type AdminActionRow = {
   id:           string;
   admin_id:     string;
   admin_email:  string | null;
@@ -32,28 +33,6 @@ const CATEGORY_VARIANT: Record<Category, 'blue' | 'purple' | 'amber' | 'green' |
   legacy:   'gray',
 };
 
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diffSec = Math.round((now - then) / 1000);
-  if (diffSec < 5) return 'just now';
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.round(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}d ago`;
-  const diffMo = Math.round(diffDay / 30);
-  if (diffMo < 12) return `${diffMo}mo ago`;
-  return `${Math.round(diffMo / 12)}y ago`;
-}
-
-function truncateId(id: string | null): string {
-  if (!id) return '—';
-  return id.length > 13 ? id.slice(0, 8) + '…' + id.slice(-4) : id;
-}
-
 function formatMetadata(metadata: Record<string, unknown> | null): string {
   if (!metadata || Object.keys(metadata).length === 0) return '—';
   const parts: string[] = [];
@@ -76,19 +55,14 @@ function formatMetadata(metadata: Record<string, unknown> | null): string {
   return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
-export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLimit: number }) {
+export function AdminActionsTab({ rows, rowLimit }: { rows: AdminActionRow[]; rowLimit: number }) {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [adminFilter, setAdminFilter] = useState<string>('all');
 
-  const distinctActions = useMemo(() => {
-    return Array.from(new Set(rows.map((r) => r.action_type))).sort();
-  }, [rows]);
-
+  const distinctActions = useMemo(() => Array.from(new Set(rows.map((r) => r.action_type))).sort(), [rows]);
   const distinctAdmins = useMemo(() => {
     const emails = new Set<string>();
-    for (const r of rows) {
-      if (r.admin_email) emails.add(r.admin_email);
-    }
+    for (const r of rows) if (r.admin_email) emails.add(r.admin_email);
     return Array.from(emails).sort();
   }, [rows]);
 
@@ -103,14 +77,7 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
   const atLimit = rows.length >= rowLimit;
 
   return (
-    <div className="mx-auto max-w-7xl p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[#1a1a1a]">Audit log</h1>
-        <p className="mt-1 text-sm text-[#4a4a5a]">
-          Every action a Sentra admin takes on users, mailboxes, support items, and platform settings.
-        </p>
-      </div>
-
+    <>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="filter-action" className="mb-1 block text-xs font-medium text-[#4a4a5a]">Action</label>
@@ -121,9 +88,7 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
             className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
           >
             <option value="all">All actions</option>
-            {distinctActions.map((a) => (
-              <option key={a} value={a}>{a}</option>
-            ))}
+            {distinctActions.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div>
@@ -135,9 +100,7 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
             className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
           >
             <option value="all">All admins</option>
-            {distinctAdmins.map((e) => (
-              <option key={e} value={e}>{e}</option>
-            ))}
+            {distinctAdmins.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
         <div className="ml-auto text-xs text-[#9a9a9a]">
@@ -146,12 +109,10 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-[#e8e3dc] bg-white p-12 text-center">
-          <p className="text-sm text-[#4a4a5a]">No admin actions logged yet.</p>
-          <p className="mt-1 text-xs text-[#9a9a9a]">
-            Actions like suspending a user, granting credits, or updating platform settings will appear here.
-          </p>
-        </div>
+        <EmptyState
+          title="No admin actions logged yet."
+          subtitle="Actions like suspending a user, granting credits, or updating platform settings will appear here."
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
           <table className="w-full text-sm">
@@ -167,24 +128,18 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-[#9a9a9a]">
-                    No rows match the current filters.
-                  </td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-[#9a9a9a]">No rows match the current filters.</td>
                 </tr>
               ) : (
                 filtered.map((r) => {
                   const cat = categorize(r.action_type);
                   return (
                     <tr key={r.id} className="border-b border-[#f0ebe4] last:border-b-0">
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]" title={r.created_at}>
-                        {formatRelative(r.created_at)}
-                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]" title={r.created_at}>{formatRelative(r.created_at)}</td>
                       <td className="px-4 py-3 text-sm text-[#1a1a1a]">
                         {r.admin_email ?? <span className="text-[#9a9a9a]">{truncateId(r.admin_id)}</span>}
                       </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge variant={CATEGORY_VARIANT[cat]}>{r.action_type}</StatusBadge>
-                      </td>
+                      <td className="px-4 py-3"><StatusBadge variant={CATEGORY_VARIANT[cat]}>{r.action_type}</StatusBadge></td>
                       <td className="px-4 py-3 text-xs text-[#4a4a5a]">
                         {r.target_type ? (
                           <span>
@@ -196,9 +151,7 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-[#4a4a5a]">
-                        <span className="line-clamp-2" title={JSON.stringify(r.metadata ?? {})}>
-                          {formatMetadata(r.metadata)}
-                        </span>
+                        <span className="line-clamp-2" title={JSON.stringify(r.metadata ?? {})}>{formatMetadata(r.metadata)}</span>
                       </td>
                     </tr>
                   );
@@ -208,6 +161,15 @@ export function AuditLogClient({ rows, rowLimit }: { rows: AuditLogRow[]; rowLim
           </table>
         </div>
       )}
+    </>
+  );
+}
+
+function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="rounded-lg border border-[#e8e3dc] bg-white p-12 text-center">
+      <p className="text-sm text-[#4a4a5a]">{title}</p>
+      {subtitle && <p className="mt-1 text-xs text-[#9a9a9a]">{subtitle}</p>}
     </div>
   );
 }
