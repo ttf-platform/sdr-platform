@@ -17,12 +17,14 @@
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { cronComplete } from '@/lib/cron-log'
 import { getEmailProvider, type DfyOrderStatus } from '@/lib/email-provider-adapter'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
+const CRON_NAME = 'reconcile-dfy-orders'
 // Cap to bound runtime in pathological cases. With 100 orders/page * 5 pages
 // = 500 orders considered per run, plenty for V1.
 const MAX_PAGES_PER_RUN = 5
@@ -51,6 +53,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const startedAt = new Date().toISOString()
+  const t0 = Date.now()
+
+  try {
   const admin    = createAdminClient()
   const provider = getEmailProvider()
 
@@ -73,11 +79,24 @@ export async function GET(request: Request) {
 
   if (fetchErr) {
     console.error('[cron/reconcile-dfy-orders] fetch failed', fetchErr)
-    return NextResponse.json({ error: 'db_fetch_failed', detail: fetchErr.message }, { status: 500 })
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 500,
+      payload: { error: 'db_fetch_failed', detail: fetchErr.message },
+      started_at: startedAt,
+      t0,
+      error_message: fetchErr.message,
+    })
   }
   summary.open_orders = openOrders?.length ?? 0
   if (!openOrders || openOrders.length === 0) {
-    return NextResponse.json({ ...summary, timestamp: new Date().toISOString() })
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 200,
+      payload: { ...summary, timestamp: new Date().toISOString() },
+      started_at: startedAt,
+      t0,
+    })
   }
 
   // ---- Provider-side snapshot: paginate the order list (read-only) ---------
@@ -177,7 +196,23 @@ export async function GET(request: Request) {
   }
 
   console.log(JSON.stringify({ event: 'cron_reconcile_dfy_orders', ...summary }))
-  return NextResponse.json({ ...summary, timestamp: new Date().toISOString() })
+  return cronComplete({
+    cron_name: CRON_NAME,
+    http_status_code: 200,
+    payload: { ...summary, timestamp: new Date().toISOString() },
+    started_at: startedAt,
+    t0,
+  })
+  } catch (err) {
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 500,
+      payload: { error: 'unexpected_failure', detail: err instanceof Error ? err.message : 'unknown' },
+      started_at: startedAt,
+      t0,
+      error_message: err instanceof Error ? err.message : 'unknown',
+    })
+  }
 }
 
 // ----------------------------------------------------------------------------
