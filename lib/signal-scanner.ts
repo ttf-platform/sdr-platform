@@ -1,6 +1,7 @@
 import { getAnthropicClient } from '@/lib/anthropic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkScanLimits, logScanEvent, estimateCostUsd } from '@/lib/scan-limits'
+import { logAiCall } from '@/lib/ai-cost'
 
 type MonitoringConfig = {
   source?: string
@@ -243,6 +244,9 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
     .eq('workspace_id', params.workspaceId)
 
   // 7. Log scan event with cost data
+  //    Dual-write: signal_scan_events keeps its row (rate-limit + cooldown
+  //    logic in lib/scan-limits.ts reads it). ai_call_log receives the same
+  //    cost data in the unified ledger consumed by /admin/limits.
   await logScanEvent({
     workspaceId: params.workspaceId,
     signalId: params.signalId,
@@ -253,6 +257,20 @@ OUTPUT FORMAT (strict JSON only, no markdown, no preamble):
     claudeInputTokens: totalInputTokens,
     claudeOutputTokens: totalOutputTokens,
     estimatedCostUsd: estimateCostUsd(totalInputTokens, totalOutputTokens, totalWebSearchRequests),
+  })
+  void logAiCall({
+    source:               'signal_scan',
+    workspace_id:         params.workspaceId,
+    model:                'claude-sonnet-4-6',
+    input_tokens:         totalInputTokens,
+    output_tokens:        totalOutputTokens,
+    web_search_requests:  totalWebSearchRequests,
+    metadata: {
+      signal_id:      params.signalId,
+      campaign_id:    params.campaignId,
+      prospect_count: prospects.length,
+      matches_count:  matchesFound,
+    },
   })
 
   return {

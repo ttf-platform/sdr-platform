@@ -5,6 +5,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { morningBriefGenerateSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
+import { logAiCall } from '@/lib/ai-cost'
 
 export const maxDuration = 60
 
@@ -169,6 +170,14 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
         max_tokens: 2500,
         messages:   [{ role: 'user', content: promptB }],
       })
+      void logAiCall({
+        source:        'morning_brief',
+        workspace_id:  workspace_id,
+        model:         'claude-sonnet-4-6',
+        input_tokens:  msgB.usage?.input_tokens  ?? 0,
+        output_tokens: msgB.usage?.output_tokens ?? 0,
+        metadata:      { mode: 'B' },
+      })
     } catch (err: unknown) {
       const detail = err instanceof Error ? err.message : String(err)
       console.error('[morning-brief] Anthropic call failed (Mode B):', detail)
@@ -253,6 +262,14 @@ Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
       model:      'claude-sonnet-4-6',
       max_tokens: 3000,
       messages:   [{ role: 'user', content: promptA }],
+    })
+    void logAiCall({
+      source:        'morning_brief',
+      workspace_id:  workspace_id,
+      model:         'claude-sonnet-4-6',
+      input_tokens:  msgA.usage?.input_tokens  ?? 0,
+      output_tokens: msgA.usage?.output_tokens ?? 0,
+      metadata:      { mode: 'A' },
     })
   } catch (err: unknown) {
     const detail = err instanceof Error ? err.message : String(err)

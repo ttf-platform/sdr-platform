@@ -104,7 +104,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       angle:      campaign.angle,
       value_prop: campaign.value_prop,
       language:   campaign.language,
-    }, step.body ?? '')
+    }, step.body ?? '', guard.workspaceId)
     if (opening) bodyOut = assembleSmartBody(bodyOut, opening)
   }
 

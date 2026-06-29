@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { HUMAN_VOICE_RULES } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 export const maxDuration = 300
 
@@ -141,6 +142,14 @@ ${step.body}`
         temperature: 0.7,
         system: systemPrompt,
         messages: [{ role: 'user', content: 'Generate the personalized variant.' }],
+      })
+      void logAiCall({
+        source:        'personalize_step',
+        workspace_id:  guard.workspaceId,
+        model:         'claude-sonnet-4-6',
+        input_tokens:  completion.usage?.input_tokens  ?? 0,
+        output_tokens: completion.usage?.output_tokens ?? 0,
+        metadata:      { step_id: step.id },
       })
 
       // Iterate from last text block to first (same pattern as signals/run)

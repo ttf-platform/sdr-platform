@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { STRATEGY_VOICE_RULES } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 export interface AISuggestion {
   id: string
@@ -80,6 +81,13 @@ Return ONLY a valid JSON array (no markdown, no explanation):
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
+    })
+    void logAiCall({
+      source:        'ai_suggestions',
+      workspace_id:  workspaceId,
+      model:         'claude-sonnet-4-6',
+      input_tokens:  msg.usage?.input_tokens  ?? 0,
+      output_tokens: msg.usage?.output_tokens ?? 0,
     })
 
     const text  = msg.content[0].type === 'text' ? msg.content[0].text : '[]'

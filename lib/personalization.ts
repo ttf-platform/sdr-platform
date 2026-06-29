@@ -1,5 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { HUMAN_VOICE_RULES, languageDirective } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ export async function generateOpeningLine(
   vars: ContactVars,
   context: CampaignContext,
   templateBody: string,
+  workspaceId: string | null,
 ): Promise<string | null> {
   const prompt = buildSmartPrompt(vars, context, templateBody)
 
@@ -115,6 +117,13 @@ export async function generateOpeningLine(
       max_tokens:  100,
       temperature: 0.7,
       messages:    [{ role: 'user', content: prompt }],
+    })
+    void logAiCall({
+      source:        'draft_opening_line',
+      workspace_id:  workspaceId,
+      model:         'claude-sonnet-4-6',
+      input_tokens:  msg.usage?.input_tokens  ?? 0,
+      output_tokens: msg.usage?.output_tokens ?? 0,
     })
     const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
     return text || null

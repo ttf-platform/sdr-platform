@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { HUMAN_VOICE_RULES } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 const TONE_INSTRUCTIONS: Record<string, string> = {
   professional: 'Be formal and professional.',
@@ -76,6 +77,13 @@ Write only the email body. No subject line, no preamble, no quotes around the re
     max_tokens: 500,
     temperature: 0.7,
     messages: [{ role: 'user', content: prompt }],
+  })
+  void logAiCall({
+    source:        'inbox_draft',
+    workspace_id:  guard.workspaceId,
+    model:         'claude-sonnet-4-6',
+    input_tokens:  msg.usage?.input_tokens  ?? 0,
+    output_tokens: msg.usage?.output_tokens ?? 0,
   })
 
   const draft = msg.content[0].type === 'text' ? msg.content[0].text : ''
