@@ -3,10 +3,11 @@ import { OperationsClient, type OperationsData } from './_components/OperationsC
 
 export const dynamic = 'force-dynamic';
 
-const DFY_RECENT_LIMIT      = 50;
-const WEBHOOK_FEED_LIMIT    = 30;
-const PAUSED_MAILBOX_LIMIT  = 50;
-const CRON_RUNS_FETCH_LIMIT = 200;
+const DFY_RECENT_LIMIT       = 50;
+const WEBHOOK_FEED_LIMIT     = 30;
+const PAUSED_MAILBOX_LIMIT   = 50;
+const CRON_RUNS_FETCH_LIMIT  = 200;
+const WEBHOOK_EVENTS_LIMIT   = 30;
 
 // vercel.json schedule mirror — used to derive "stale" status when the latest
 // run is older than expected. Update this when crons are added/changed.
@@ -90,6 +91,29 @@ export default async function OperationsPage() {
     .order('received_at', { ascending: false })
     .limit(WEBHOOK_FEED_LIMIT);
 
+  // ── Webhook events feed (latest N, all event types) ─────────────────────
+  //    Note: do not select raw_payload here — it can contain PII and we
+  //    don't render it in the UI. Only metadata.
+  const { data: webhookEventsRaw } = await admin
+    .from('webhook_events')
+    .select('id, provider, event_type, provider_event_id, workspace_id, processing_status, error_message, handler_duration_ms, received_at')
+    .order('received_at', { ascending: false })
+    .limit(WEBHOOK_EVENTS_LIMIT);
+
+  // ── Send deliverability (24h + 7d windows from email_send_log) ──────────
+  const day1Iso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const day7Iso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const [sent24h, failed24h, sent7d, failed7d] = await Promise.all([
+    admin.from('email_send_log').select('id', { count: 'exact', head: true }).eq('status', 'sent').gte('created_at', day1Iso),
+    admin.from('email_send_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', day1Iso),
+    admin.from('email_send_log').select('id', { count: 'exact', head: true }).eq('status', 'sent').gte('created_at', day7Iso),
+    admin.from('email_send_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', day7Iso),
+  ]);
+  const deliverability = {
+    last_24h: { sent: sent24h.count ?? 0, failed: failed24h.count ?? 0 },
+    last_7d:  { sent: sent7d.count  ?? 0, failed: failed7d.count  ?? 0 },
+  };
+
   // ── Auto-paused mailboxes (sprint B2 mechanism: auto_paused_at + reason)
   const { data: pausedMailboxesRaw } = await admin
     .from('email_accounts')
@@ -103,10 +127,13 @@ export default async function OperationsPage() {
     dfyCounts,
     dfyRecent: (dfyRecentRaw ?? []) as OperationsData['dfyRecent'],
     webhookFeed: (webhookFeedRaw ?? []) as OperationsData['webhookFeed'],
+    webhookEvents: (webhookEventsRaw ?? []) as OperationsData['webhookEvents'],
+    deliverability,
     pausedMailboxes: (pausedMailboxesRaw ?? []) as OperationsData['pausedMailboxes'],
     limits: {
       dfyRecent:       DFY_RECENT_LIMIT,
       webhookFeed:     WEBHOOK_FEED_LIMIT,
+      webhookEvents:   WEBHOOK_EVENTS_LIMIT,
       pausedMailboxes: PAUSED_MAILBOX_LIMIT,
     },
   };

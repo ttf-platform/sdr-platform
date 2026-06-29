@@ -40,6 +40,21 @@ export type OperationsData = {
     sentiment:    'positive' | 'neutral' | 'negative' | 'meeting_request' | 'unsubscribe' | 'bounce' | null;
     received_at:  string;
   }>;
+  webhookEvents: Array<{
+    id:                  string;
+    provider:            string;
+    event_type:          'reply' | 'sent' | 'bounced' | 'account_error' | 'unsubscribed' | 'unknown';
+    provider_event_id:   string | null;
+    workspace_id:        string | null;
+    processing_status:   'success' | 'error' | 'ignored';
+    error_message:       string | null;
+    handler_duration_ms: number | null;
+    received_at:         string;
+  }>;
+  deliverability: {
+    last_24h: { sent: number; failed: number };
+    last_7d:  { sent: number; failed: number };
+  };
   pausedMailboxes: Array<{
     id:                 string;
     workspace_id:       string;
@@ -48,8 +63,32 @@ export type OperationsData = {
     auto_paused_at:     string | null;
     auto_pause_reason:  string | null;
   }>;
-  limits: { dfyRecent: number; webhookFeed: number; pausedMailboxes: number };
+  limits: { dfyRecent: number; webhookFeed: number; webhookEvents: number; pausedMailboxes: number };
 };
+
+const WEBHOOK_EVENT_VARIANT: Record<
+  'reply' | 'sent' | 'bounced' | 'account_error' | 'unsubscribed' | 'unknown',
+  'blue' | 'green' | 'red' | 'amber' | 'purple' | 'gray'
+> = {
+  reply:         'blue',
+  sent:          'green',
+  bounced:       'red',
+  account_error: 'red',
+  unsubscribed:  'amber',
+  unknown:       'gray',
+};
+
+const PROCESSING_VARIANT: Record<'success' | 'error' | 'ignored', 'green' | 'red' | 'gray'> = {
+  success: 'green',
+  error:   'red',
+  ignored: 'gray',
+};
+
+function deliveryRate(sent: number, failed: number): string {
+  const total = sent + failed;
+  if (total === 0) return '—';
+  return ((sent / total) * 100).toFixed(1) + '%';
+}
 
 function formatRelative(iso: string | null): string {
   if (!iso) return '—';
@@ -314,6 +353,96 @@ export function OperationsClient({ data }: { data: OperationsData }) {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────── */}
+      <section aria-labelledby="webhook-events-heading">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 id="webhook-events-heading" className="text-base font-semibold text-[#1a1a1a]">Webhook events</h2>
+          <p className="text-xs text-[#9a9a9a]">latest {data.limits.webhookEvents} events across all types</p>
+        </div>
+
+        {data.webhookEvents.length === 0 ? (
+          <EmptyState message="No webhook events recorded yet — events will appear here after the next provider delivery." />
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[#e8e3dc] bg-[#fafaf9] text-left text-xs font-medium uppercase tracking-wide text-[#6b5e4e]">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Received</th>
+                  <th scope="col" className="px-4 py-3">Event</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3">Workspace</th>
+                  <th scope="col" className="px-4 py-3">Duration</th>
+                  <th scope="col" className="px-4 py-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.webhookEvents.map((e) => (
+                  <tr key={e.id} className="border-b border-[#f0ebe4] last:border-b-0">
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]" title={e.received_at}>
+                      {formatRelative(e.received_at)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge variant={WEBHOOK_EVENT_VARIANT[e.event_type]}>{e.event_type}</StatusBadge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge variant={PROCESSING_VARIANT[e.processing_status]}>{e.processing_status}</StatusBadge>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4a4a5a]">
+                      {e.workspace_id ? truncateId(e.workspace_id) : <span className="text-[#9a9a9a]">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#4a4a5a]">
+                      {e.handler_duration_ms != null ? `${e.handler_duration_ms} ms` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {e.error_message ? (
+                        <span className="text-red-700">{e.error_message}</span>
+                      ) : (
+                        <span className="text-[#9a9a9a]">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────── */}
+      <section aria-labelledby="deliverability-heading">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 id="deliverability-heading" className="text-base font-semibold text-[#1a1a1a]">Send deliverability</h2>
+          <p className="text-xs text-[#9a9a9a]">sent vs failed from the email send log</p>
+        </div>
+
+        {data.deliverability.last_7d.sent === 0 && data.deliverability.last_7d.failed === 0 ? (
+          <EmptyState message="No sends recorded yet — confirmed deliveries land here once the provider fires SENT events." />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {(['last_24h', 'last_7d'] as const).map((window) => {
+              const w = data.deliverability[window];
+              const total = w.sent + w.failed;
+              const rate = deliveryRate(w.sent, w.failed);
+              const label = window === 'last_24h' ? 'Last 24 hours' : 'Last 7 days';
+              return (
+                <div key={window} className="rounded-lg border border-[#e8e3dc] bg-white p-4">
+                  <div className="mb-2 text-xs uppercase tracking-wide text-[#6b5e4e]">{label}</div>
+                  <div className="flex items-baseline gap-3">
+                    <div className="text-2xl font-semibold text-[#1a1a1a]">{rate}</div>
+                    <div className="text-xs text-[#9a9a9a]">delivery rate</div>
+                  </div>
+                  <div className="mt-3 flex gap-4 text-xs text-[#4a4a5a]">
+                    <span><span className="font-medium text-green-700">{w.sent}</span> sent</span>
+                    <span><span className={`font-medium ${w.failed > 0 ? 'text-red-700' : 'text-[#1a1a1a]'}`}>{w.failed}</span> failed</span>
+                    <span className="text-[#9a9a9a]">{total} total</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
