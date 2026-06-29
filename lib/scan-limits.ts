@@ -1,8 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 
-type Tier = 'free' | 'starter' | 'pro' | 'power'
+export type Tier = 'free' | 'starter' | 'pro' | 'power'
 
-const MONTHLY_CAPS: Record<Tier, number> = {
+export const MONTHLY_CAPS: Record<Tier, number> = {
   free: 25,
   starter: 150,
   pro: 250,
