@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Settings,
   ScrollText,
+  Activity,
   type LucideIcon,
 } from 'lucide-react';
 import { AdminStatusIndicator } from './AdminStatusIndicator';
@@ -19,6 +20,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon; comingSoon?: boo
 const NAV_ITEMS: NavItem[] = [
   { href: '/admin/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/operations', label: 'Operations', icon: Activity },
   { href: '/admin/support', label: 'Support Center', icon: LifeBuoy },
   { href: '/admin/analytics', label: 'Analytics', icon: TrendingUp },
   { href: '/admin/settings', label: 'Platform Settings', icon: Settings },
