@@ -32,7 +32,17 @@ import {
   type ExtractedFields,
   type NormalizedEvent,
 } from '@/lib/instantly-webhook-mapping'
+import { logWebhookEvent, type WebhookEventType, type WebhookProcessingStatus } from '@/lib/webhook-log'
 import crypto from 'crypto'
+
+const EVENT_TYPE_DB: Record<NormalizedEvent, WebhookEventType> = {
+  REPLY:         'reply',
+  SENT:          'sent',
+  BOUNCED:       'bounced',
+  ACCOUNT_ERROR: 'account_error',
+  UNSUBSCRIBED:  'unsubscribed',
+  UNKNOWN:       'unknown',
+}
 
 export const runtime = 'nodejs'
 
@@ -98,15 +108,41 @@ export async function POST(req: Request) {
   // never exposed to the client.
   console.log('[webhook/instantly] raw', JSON.stringify(payload))
 
+  const receivedAt = new Date().toISOString()
+  const t0 = Date.now()
+
   const event = normalizeEvent(payload.event)
   const fields = extractFields(payload)
 
+  let processingStatus: WebhookProcessingStatus = 'success'
+  let errorMessage: string | null = null
+  let workspaceId: string | null = null
+
   try {
-    await routeEvent(event, fields)
+    const result = await routeEvent(event, fields)
+    processingStatus = result.processing_status
+    workspaceId = result.workspace_id
   } catch (err) {
-    console.error('[webhook/instantly] handler failed:', err instanceof Error ? err.message : err)
+    processingStatus = 'error'
+    errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('[webhook/instantly] handler failed:', errorMessage)
     // Still 200 — we don't want a retry storm on a transient handler bug.
   }
+
+  // Fire-and-forget row in webhook_events. signature-fail and parse-fail
+  // are intentionally NOT logged (attacker-controlled body, log-flood risk
+  // — same posture as the cron CRON_SECRET 401s).
+  await logWebhookEvent({
+    provider:            'instantly',
+    event_type:          EVENT_TYPE_DB[event],
+    provider_event_id:   fields.eventId,
+    workspace_id:        workspaceId,
+    raw_payload:         payload as Record<string, unknown>,
+    processing_status:   processingStatus,
+    error_message:       errorMessage,
+    handler_duration_ms: Date.now() - t0,
+    received_at:         receivedAt,
+  })
 
   return NextResponse.json({ ok: true })
 }
@@ -115,12 +151,17 @@ export async function POST(req: Request) {
 // Event router
 // ---------------------------------------------------------------------------
 
-async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Promise<void> {
+type RouteResult = {
+  processing_status: WebhookProcessingStatus
+  workspace_id:      string | null
+}
+
+async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Promise<RouteResult> {
   const admin = createAdminClient()
 
   if (event === 'UNKNOWN') {
     console.log('[webhook/instantly] unhandled event (UNKNOWN)')
-    return
+    return { processing_status: 'ignored', workspace_id: null }
   }
 
   // Resolve workspace. Primary: inbox_email → email_accounts. Fallback:
@@ -131,7 +172,7 @@ async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Prom
     console.warn('[webhook/instantly] could not resolve workspace', {
       event, inbox: fields.inboxEmail, providerCampaign: fields.providerCampaignId,
     })
-    return
+    return { processing_status: 'ignored', workspace_id: null }
   }
 
   // ACCOUNT_ERROR: pause the box immediately + log. No dedup (no inbox row).
@@ -143,7 +184,7 @@ async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Prom
     if (account) {
       await autoPauseAccount(admin, workspaceId, account, 'account_error')
     }
-    return
+    return { processing_status: 'success', workspace_id: workspaceId }
   }
 
   // Dedup by (workspace_id, provider_event_id) when an event id is present.
@@ -156,16 +197,17 @@ async function routeEvent(event: NormalizedEvent, fields: ExtractedFields): Prom
       .maybeSingle()
     if (existing) {
       console.log('[webhook/instantly] dedup hit', { eventId: fields.eventId })
-      return
+      return { processing_status: 'ignored', workspace_id: workspaceId }
     }
   }
 
   switch (event) {
-    case 'REPLY':       return handleReply(admin, workspaceId, fields)
-    case 'SENT':        return handleSent(admin, workspaceId, fields)
-    case 'BOUNCED':     return handleBounced(admin, workspaceId, fields)
-    case 'UNSUBSCRIBED':return handleUnsubscribed(admin, workspaceId, fields)
+    case 'REPLY':        await handleReply(admin, workspaceId, fields); break
+    case 'SENT':         await handleSent(admin, workspaceId, fields); break
+    case 'BOUNCED':      await handleBounced(admin, workspaceId, fields); break
+    case 'UNSUBSCRIBED': await handleUnsubscribed(admin, workspaceId, fields); break
   }
+  return { processing_status: 'success', workspace_id: workspaceId }
 }
 
 // ---------------------------------------------------------------------------
@@ -376,8 +418,8 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
 
 async function handleSent(admin: Admin, workspaceId: string, fields: ExtractedFields): Promise<void> {
   const pe = await findProspectEmail(admin, workspaceId, fields)
+  const now = new Date().toISOString()
   if (pe && (pe.status === 'sending' || pe.status === 'approved')) {
-    const now = new Date().toISOString()
     await admin
       .from('prospect_emails')
       .update({ status: 'sent', sent_at: now })
@@ -388,6 +430,18 @@ async function handleSent(admin: Admin, workspaceId: string, fields: ExtractedFi
       providerMessageId: fields.providerMessageId, threadId: fields.threadId,
     })
   }
+
+  // Source of truth for the deliverability rate: 'sent' is written here, at
+  // the moment the provider confirms the email actually left their SMTP.
+  // (Approve route writes only 'failed' on enqueue failure — never 'sent'.)
+  await admin.from('email_send_log').insert({
+    workspace_id:        workspaceId,
+    prospect_email_id:   pe?.id ?? null,
+    provider:            'instantly',
+    provider_message_id: fields.providerMessageId,
+    status:              'sent',
+    created_at:          now,
+  })
 
   // Record the send on the mailbox counter regardless of whether we found
   // the prospect_email — the denominator must reflect every send the box
@@ -419,6 +473,18 @@ async function handleBounced(admin: Admin, workspaceId: string, fields: Extracte
 
     await maybeStopFollowups(admin, workspaceId, pe, 'smart_stop_on_bounce', 'mailbox bounced')
   }
+
+  // A bounce is a delivery failure as far as the deliverability rate is
+  // concerned — log it as 'failed' with the provider's bounce reason.
+  await admin.from('email_send_log').insert({
+    workspace_id:        workspaceId,
+    prospect_email_id:   pe?.id ?? null,
+    provider:            'instantly',
+    provider_message_id: fields.providerMessageId,
+    status:              'failed',
+    error:               clip(fields.bounceReason, 500) ?? 'bounce',
+    created_at:          now,
+  })
 
   // Best-effort inbound record so the user sees the bounce in the inbox.
   if (isPlausibleEmail(fields.leadEmail) && isPlausibleEmail(fields.inboxEmail)) {

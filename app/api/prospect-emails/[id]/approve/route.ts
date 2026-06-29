@@ -204,27 +204,22 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   // 8. Record success (status='sending' is already set; just store the link).
   //    Clear any stale send_error from a prior failed attempt so a retry
   //    doesn't carry an old provider-branded message forward.
-  const now = new Date().toISOString()
-  const [{ data: email }, _log] = await Promise.all([
-    admin
-      .from('prospect_emails')
-      .update({
-        provider:            providerName,
-        provider_message_id: providerLeadId,
-        send_error:          null,
-      })
-      .eq('id', pe.id)
-      .select(CLIENT_COLUMNS)
-      .single(),
-    admin.from('email_send_log').insert({
-      workspace_id:        guard.workspaceId,
-      prospect_email_id:   pe.id,
+  //
+  // email_send_log: we used to insert status='queued' here, which violated
+  // the table's CHECK (status IN ('sent', 'failed')) and was silently
+  // dropping every "success" row. The deliverability rate is now sourced
+  // exclusively from the webhook: SENT → 'sent', BOUNCED → 'failed',
+  // markFailed() (below) → 'failed' on enqueue failure. No 'queued' state.
+  const { data: email } = await admin
+    .from('prospect_emails')
+    .update({
       provider:            providerName,
       provider_message_id: providerLeadId,
-      status:              'queued',
-      created_at:          now,
-    }),
-  ])
+      send_error:          null,
+    })
+    .eq('id', pe.id)
+    .select(CLIENT_COLUMNS)
+    .single()
 
   return NextResponse.json({ email })
 }
