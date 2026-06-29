@@ -5,6 +5,7 @@ import { campaignStepAiWriteSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { HUMAN_VOICE_RULES, selfRevisionBlock, languageDirective } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 export async function POST(request: Request, context: { params: Promise<{ id: string; step_id: string }> }) {
   const params = await context.params
@@ -92,6 +93,14 @@ Return ONLY valid JSON (no markdown):
     max_tokens: 800,
     temperature: 0.7,
     messages: [{ role: 'user', content: prompt }],
+  })
+  void logAiCall({
+    source:        'campaign_ai_write',
+    workspace_id:  guard.workspaceId,
+    model:         'claude-sonnet-4-6',
+    input_tokens:  msg.usage?.input_tokens  ?? 0,
+    output_tokens: msg.usage?.output_tokens ?? 0,
+    metadata:      { step_id: params.step_id },
   })
 
   const text = msg.content[0].type === 'text' ? msg.content[0].text : '{}'

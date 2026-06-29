@@ -27,6 +27,7 @@ import { getAnthropicClient } from '@/lib/anthropic';
 import { sendAdminBugReportEmail } from '@/lib/email';
 import type Anthropic from '@anthropic-ai/sdk';
 import { bugReportSchema, badRequest } from '@/lib/schemas';
+import { logAiCall } from '@/lib/ai-cost';
 
 export const runtime = 'nodejs';
 
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
   }
   const workspaceId = membership.workspace_id as string;
 
-  const priority = await classifyBugPriority(title, description);
+  const priority = await classifyBugPriority(title, description, workspaceId, user.id);
 
   const { data: bug, error: insertErr } = await supabase
     .from('bug_reports')
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ bug_report_id: bug.id, priority });
 }
 
-async function classifyBugPriority(title: string, description: string): Promise<Priority> {
+async function classifyBugPriority(title: string, description: string, workspaceId: string, userId: string): Promise<Priority> {
   try {
     const client = getAnthropicClient();
     const result = await client.messages.create({
@@ -113,6 +114,14 @@ async function classifyBugPriority(title: string, description: string): Promise<
           content: `Title: ${title}\n\nDescription: ${description.slice(0, 1500)}`,
         },
       ],
+    });
+    void logAiCall({
+      source:        'bug_classification',
+      workspace_id:  workspaceId,
+      user_id:       userId,
+      model:         'claude-haiku-4-5-20251001',
+      input_tokens:  result.usage?.input_tokens  ?? 0,
+      output_tokens: result.usage?.output_tokens ?? 0,
     });
     const text = result.content
       .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')

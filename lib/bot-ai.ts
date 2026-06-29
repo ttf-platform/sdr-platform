@@ -37,6 +37,7 @@ import {
   ESCALATION_KEYWORDS,
   NEGATIVE_SENTIMENT_PATTERNS,
 } from './bot-system-prompt';
+import { logAiCall } from './ai-cost';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -488,6 +489,18 @@ export async function sendBotMessage(
       system: [{ type: 'text', text: BOT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       tools: BOT_TOOLS,
       messages,
+    });
+    // Per-iteration log: each loop iteration is a real Anthropic call with
+    // its own usage. Aggregating would lose the granularity needed to debug
+    // expensive multi-turn conversations.
+    void logAiCall({
+      source:        'bot',
+      workspace_id:  ctx.workspaceId,
+      user_id:       ctx.userId,
+      model:         BOT_MODEL,
+      input_tokens:  response.usage?.input_tokens  ?? 0,
+      output_tokens: response.usage?.output_tokens ?? 0,
+      metadata:      { iter, stop_reason: response.stop_reason },
     });
 
     const textBlocks = response.content.filter(

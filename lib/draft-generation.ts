@@ -7,6 +7,7 @@ import {
 import { renderSignature, appendSignature } from '@/lib/signature'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { HUMAN_VOICE_RULES, selfRevisionBlock, languageDirective } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 export interface GenerateResult {
   generated_count:   number
@@ -63,6 +64,7 @@ async function ensureInitialStep(
   anthropic: ReturnType<typeof getAnthropicClient>,
   admin: AdminClient,
   campaignId: string,
+  workspaceId: string,
   campaign: CampaignForStep,
   profile: Record<string, unknown> | null,
 ): Promise<StepRow | null> {
@@ -149,6 +151,14 @@ Return ONLY valid JSON (no markdown):
         temperature: 0.7,
         messages: [{ role: 'user', content: prompt }],
       })
+      void logAiCall({
+        source:        'draft_initial',
+        workspace_id:  workspaceId,
+        model:         'claude-sonnet-4-6',
+        input_tokens:  msg.usage?.input_tokens  ?? 0,
+        output_tokens: msg.usage?.output_tokens ?? 0,
+        metadata:      { campaign_id: campaignId },
+      })
       const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
       const start = text.indexOf('{')
       const end   = text.lastIndexOf('}')
@@ -222,7 +232,7 @@ export async function generateDraftsForCampaign(
   let steps: StepRow[] | null = existingSteps as StepRow[] | null
 
   if (!steps || steps.length === 0) {
-    const generated = await ensureInitialStep(anthropic, admin, campaignId, campaign as any, profile as any)
+    const generated = await ensureInitialStep(anthropic, admin, campaignId, workspaceId, campaign as any, profile as any)
     if (!generated) return { error: 'Failed to auto-generate initial email step.', status: 500 }
     steps = [generated]
   }
@@ -314,7 +324,7 @@ export async function generateDraftsForCampaign(
     for (let i = 0; i < initialItems.length; i += 5) {
       const batch = initialItems.slice(i, i + 5)
       await Promise.all(batch.map(async item => {
-        const opening = await generateOpeningLine(anthropic, item.vars, context, item.body_template)
+        const opening = await generateOpeningLine(anthropic, item.vars, context, item.body_template, workspaceId)
         if (opening === null) {
           errors.push({ prospect_id: item.prospect_id, step_order: 0, error: 'AI generation failed, using template fallback' })
         }

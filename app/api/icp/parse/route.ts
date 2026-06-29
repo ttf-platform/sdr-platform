@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { billingGuard } from '@/lib/billing-guard'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
+import { logAiCall } from '@/lib/ai-cost'
 
 const schema = z.object({
   description: z.string().min(1).max(5000),
@@ -68,6 +69,13 @@ pain_points: 1-2 sentence description of the main problems this ICP faces. Empty
 
 Do NOT invent values. Do NOT use values outside the exact lists above.`
     }]
+  })
+  void logAiCall({
+    source:        'icp_parse',
+    workspace_id:  guard.workspaceId,
+    model:         'claude-haiku-4-5-20251001',
+    input_tokens:  msg.usage?.input_tokens  ?? 0,
+    output_tokens: msg.usage?.output_tokens ?? 0,
   })
 
   const text = msg.content[0].type === 'text' ? msg.content[0].text : ''

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { estimateCostUsd as estimateAiCostUsd } from '@/lib/ai-cost'
 
 export type Tier = 'free' | 'starter' | 'pro' | 'power'
 
@@ -11,18 +12,15 @@ export const MONTHLY_CAPS: Record<Tier, number> = {
 
 const RATE_LIMIT_10MIN = 200
 
-// Claude Sonnet 4.6 pricing (per million tokens / per request)
-const CLAUDE_PRICING = {
-  input_per_million: 3,
-  output_per_million: 15,
-  web_search_per_request: 0.01,
-}
-
+/**
+ * Historic signal-scan cost helper — kept for backward compatibility with
+ * signal_scan_events.estimated_cost_usd (no model column). Delegates to the
+ * unified model-aware helper in lib/ai-cost.ts, assuming Sonnet 4.6 (the
+ * model signal scans use). Newer call sites should call lib/ai-cost.ts
+ * directly with their actual model.
+ */
 export function estimateCostUsd(inputTokens: number, outputTokens: number, webSearchRequests = 0): number {
-  return (
-    (inputTokens * CLAUDE_PRICING.input_per_million + outputTokens * CLAUDE_PRICING.output_per_million) / 1_000_000 +
-    webSearchRequests * CLAUDE_PRICING.web_search_per_request
-  )
+  return estimateAiCostUsd('claude-sonnet-4-6', inputTokens, outputTokens, webSearchRequests)
 }
 
 export async function getWorkspaceTier(workspaceId: string): Promise<Tier> {

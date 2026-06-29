@@ -12,6 +12,7 @@
 
 import { getAnthropicClient } from '@/lib/anthropic'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logAiCall } from '@/lib/ai-cost'
 
 export type SentimentLabel =
   | 'positive'
@@ -112,6 +113,17 @@ export async function analyzeMessageSentiment(
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 80,
       messages: [{ role: 'user', content: prompt }],
+    })
+    // No cheap workspace_id resolution from a message id at this layer
+    // (webhook fire-and-forget). Log with workspace_id=null and stash the
+    // message_id in metadata for forensic joins if ever needed.
+    void logAiCall({
+      source:        'inbox_sentiment',
+      workspace_id:  null,
+      model:         'claude-haiku-4-5-20251001',
+      input_tokens:  response.usage?.input_tokens  ?? 0,
+      output_tokens: response.usage?.output_tokens ?? 0,
+      metadata:      { message_id: messageId },
     })
 
     const text = response.content[0].type === 'text' ? response.content[0].text : ''

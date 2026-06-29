@@ -5,6 +5,7 @@ import { campaignSuggestSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { STRATEGY_VOICE_RULES } from '@/lib/ai-voice'
+import { logAiCall } from '@/lib/ai-cost'
 
 export async function POST(request: Request) {
   const client = getAnthropicClient()
@@ -62,6 +63,14 @@ Return ONLY a JSON array of 3 strings. No markdown, no explanation:
 ["persona 1", "persona 2", "persona 3"]`,
       }],
     })
+    void logAiCall({
+      source:        'campaign_suggest',
+      workspace_id:  guard.workspaceId,
+      model:         'claude-sonnet-4-6',
+      input_tokens:  msg.usage?.input_tokens  ?? 0,
+      output_tokens: msg.usage?.output_tokens ?? 0,
+      metadata:      { stage: 'persona' },
+    })
 
     const text = msg.content[0].type === 'text' ? msg.content[0].text : '[]'
     const start = text.indexOf('['); const end = text.lastIndexOf(']')
@@ -94,6 +103,14 @@ Keep each angle to 1-2 concise sentences max.
 Return ONLY a JSON array of 3 strings. No markdown, no explanation:
 ["angle 1", "angle 2", "angle 3"]`,
       }],
+    })
+    void logAiCall({
+      source:        'campaign_suggest',
+      workspace_id:  guard.workspaceId,
+      model:         'claude-sonnet-4-6',
+      input_tokens:  msg.usage?.input_tokens  ?? 0,
+      output_tokens: msg.usage?.output_tokens ?? 0,
+      metadata:      { stage: 'angle' },
     })
 
     const text = msg.content[0].type === 'text' ? msg.content[0].text : '[]'
@@ -129,6 +146,14 @@ Each should be a single punchy sentence (10-20 words). Different framing each ti
 Return ONLY a JSON array of 3 strings. No markdown, no explanation:
 ["value prop 1", "value prop 2", "value prop 3"]`,
     }],
+  })
+  void logAiCall({
+    source:        'campaign_suggest',
+    workspace_id:  guard.workspaceId,
+    model:         'claude-sonnet-4-6',
+    input_tokens:  msg.usage?.input_tokens  ?? 0,
+    output_tokens: msg.usage?.output_tokens ?? 0,
+    metadata:      { stage: 'value_prop' },
   })
 
   const text = msg.content[0].type === 'text' ? msg.content[0].text : '[]'

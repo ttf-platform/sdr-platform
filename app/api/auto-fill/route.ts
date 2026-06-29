@@ -5,6 +5,7 @@ import { scrapeWebsite } from '@/lib/website-scraper'
 import { mapCompanySize, mapUserCompanySize } from '@/lib/company-size-mapper'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { autoFillSchema, badRequest } from '@/lib/schemas'
+import { logAiCall } from '@/lib/ai-cost'
 
 // In-memory 30-second rate limit per workspace (resets on server restart — acceptable for this use case)
 const lastUsed = new Map<string, number>()
@@ -127,6 +128,13 @@ JSON:`
       max_tokens:  1500,
       temperature: 0,
       messages:    [{ role: 'user', content: prompt }],
+    })
+    void logAiCall({
+      source:        'auto_fill',
+      workspace_id:  guard.workspaceId,
+      model:         'claude-haiku-4-5-20251001',
+      input_tokens:  msg.usage?.input_tokens  ?? 0,
+      output_tokens: msg.usage?.output_tokens ?? 0,
     })
     const text  = msg.content[0].type === 'text' ? msg.content[0].text : '{}'
     const start = text.indexOf('{')
