@@ -12,6 +12,15 @@ export type LimitsData = {
     workspace_id:   string;
     total_cost_usd: number;
   }>;
+  bySource: Array<{
+    source:         string;
+    total_cost_usd: number;
+  }>;
+  byModel: {
+    sonnet: number;
+    haiku:  number;
+    other:  number;
+  };
   scanCap: Array<{
     workspace_id: string;
     plan_tier:    string | null;
@@ -92,7 +101,7 @@ export function LimitsClient({ data }: { data: LimitsData }) {
       <section aria-labelledby="ai-cost-heading">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 id="ai-cost-heading" className="text-base font-semibold text-[#1a1a1a]">AI cost</h2>
-          <p className="text-xs text-[#9a9a9a]">signal scans only — draft/bot AI cost not yet tracked</p>
+          <p className="text-xs text-[#9a9a9a]">all sources · unified ledger</p>
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -108,33 +117,72 @@ export function LimitsClient({ data }: { data: LimitsData }) {
           ))}
         </div>
 
-        {data.topSpenders.length === 0 ? (
-          <EmptyState message="No AI spend recorded in the last 30 days." />
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
-            <div className="border-b border-[#e8e3dc] bg-[#fafaf9] px-4 py-2 text-xs font-medium uppercase tracking-wide text-[#6b5e4e]">
-              Top {data.topSpenders.length} workspaces by 30-day signal scan cost
-            </div>
-            <table className="w-full text-sm">
-              <thead className="sr-only">
-                <tr>
-                  <th scope="col">Rank</th>
-                  <th scope="col">Workspace</th>
-                  <th scope="col">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.topSpenders.map((s, i) => (
-                  <tr key={s.workspace_id} className="border-b border-[#f0ebe4] last:border-b-0">
-                    <td className="w-12 px-4 py-3 text-xs text-[#9a9a9a]">#{i + 1}</td>
-                    <td className="px-4 py-3 text-xs text-[#4a4a5a]">{truncateId(s.workspace_id)}</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-[#1a1a1a]">{formatCost(s.total_cost_usd)}</td>
+        {/* Model breakdown (30d) — mini KPI cards */}
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <ModelCard label="Sonnet · 30d" value={data.byModel.sonnet} />
+          <ModelCard label="Haiku · 30d"  value={data.byModel.haiku} />
+          <ModelCard label="Other · 30d"  value={data.byModel.other} muted />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Top workspaces */}
+          {data.topSpenders.length === 0 ? (
+            <EmptyState message="No AI spend recorded in the last 30 days." />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
+              <div className="border-b border-[#e8e3dc] bg-[#fafaf9] px-4 py-2 text-xs font-medium uppercase tracking-wide text-[#6b5e4e]">
+                Top {data.topSpenders.length} workspaces · 30d
+              </div>
+              <table className="w-full text-sm">
+                <thead className="sr-only">
+                  <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Workspace</th>
+                    <th scope="col">Cost</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {data.topSpenders.map((s, i) => (
+                    <tr key={s.workspace_id} className="border-b border-[#f0ebe4] last:border-b-0">
+                      <td className="w-12 px-4 py-3 text-xs text-[#9a9a9a]">#{i + 1}</td>
+                      <td className="px-4 py-3 text-xs text-[#4a4a5a]">{truncateId(s.workspace_id)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-[#1a1a1a]">{formatCost(s.total_cost_usd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Top sources */}
+          {data.bySource.length === 0 ? (
+            <EmptyState message="No AI sources logged in the last 30 days." />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
+              <div className="border-b border-[#e8e3dc] bg-[#fafaf9] px-4 py-2 text-xs font-medium uppercase tracking-wide text-[#6b5e4e]">
+                Top {data.bySource.length} sources · 30d
+              </div>
+              <table className="w-full text-sm">
+                <thead className="sr-only">
+                  <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.bySource.map((s, i) => (
+                    <tr key={s.source} className="border-b border-[#f0ebe4] last:border-b-0">
+                      <td className="w-12 px-4 py-3 text-xs text-[#9a9a9a]">#{i + 1}</td>
+                      <td className="px-4 py-3 text-xs text-[#4a4a5a]">{s.source}</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-[#1a1a1a]">{formatCost(s.total_cost_usd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* ──────────────────────────────────────────────────────────────── */}
@@ -338,6 +386,17 @@ function DnsIndicators({ spf, dkim, dmarc }: { spf: boolean; dkim: boolean; dmar
         </li>
       ))}
     </ul>
+  );
+}
+
+function ModelCard({ label, value, muted = false }: { label: string; value: number; muted?: boolean }) {
+  return (
+    <div className="rounded-lg border border-[#e8e3dc] bg-white p-3">
+      <div className="text-[10px] uppercase tracking-wide text-[#6b5e4e]">{label}</div>
+      <div className={`mt-0.5 text-base font-semibold ${muted ? 'text-[#6b5e4e]' : 'text-[#1a1a1a]'}`}>
+        {formatCost(value)}
+      </div>
+    </div>
   );
 }
 

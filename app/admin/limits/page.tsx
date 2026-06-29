@@ -6,10 +6,18 @@ import { LimitsClient, type LimitsData } from './_components/LimitsClient';
 export const dynamic = 'force-dynamic';
 
 const TOP_AI_SPEND_LIMIT       = 5;
+const TOP_AI_SOURCES_LIMIT     = 5;
 const MAILBOX_LIMIT            = 200;
 const COST_EVENTS_FETCH_LIMIT  = 5000;
 const USAGE_ROWS_FETCH_LIMIT   = 5000;
 const SCAN_EVENTS_FETCH_LIMIT  = 5000;
+
+function modelBucket(model: string | null | undefined): 'sonnet' | 'haiku' | 'other' {
+  if (!model) return 'other';
+  if (model.toLowerCase().includes('sonnet')) return 'sonnet';
+  if (model.toLowerCase().includes('haiku'))  return 'haiku';
+  return 'other';
+}
 
 function isScanTier(tier: string | null | undefined): tier is Tier {
   return !!tier && tier in MONTHLY_CAPS;
@@ -33,34 +41,55 @@ export default async function LimitsPage() {
   const monthStartIso = monthStart.toISOString();
   const monthStartDate = monthStartIso.split('T')[0];
 
-  // ── AI cost (signal scans only) ─────────────────────────────────────────
-  //    Sum estimated_cost_usd over 3 windows. Status filter: only 'executed'
-  //    runs incur real spend.
-  const [cost24h, cost7d, cost30d] = await Promise.all([
-    admin.from('signal_scan_events').select('estimated_cost_usd').eq('status', 'executed').gte('created_at', day1Iso),
-    admin.from('signal_scan_events').select('estimated_cost_usd').eq('status', 'executed').gte('created_at', day7Iso),
-    admin.from('signal_scan_events').select('workspace_id, estimated_cost_usd').eq('status', 'executed').gte('created_at', day30Iso).limit(COST_EVENTS_FETCH_LIMIT),
-  ]);
+  // ── AI cost (all sources, unified ledger) ──────────────────────────────
+  //    Single source of truth: ai_call_log. signal_scan_events still
+  //    receives the same data via dual-write, but reading both would
+  //    double-count signal scan spend. Fetch last 30d once, aggregate in JS.
+  const { data: aiRows } = await admin
+    .from('ai_call_log')
+    .select('workspace_id, source, model, estimated_cost_usd, created_at')
+    .gte('created_at', day30Iso)
+    .limit(COST_EVENTS_FETCH_LIMIT);
 
-  const sumCost = (rows: Array<{ estimated_cost_usd: number | string | null }> | null | undefined): number =>
-    (rows ?? []).reduce((s, r) => s + Number(r.estimated_cost_usd ?? 0), 0);
-
-  const aiCost = {
-    last_24h: sumCost(cost24h.data),
-    last_7d:  sumCost(cost7d.data),
-    last_30d: sumCost(cost30d.data),
-  };
-
-  // Top 5 workspaces by 30d AI cost
+  let total24h = 0;
+  let total7d  = 0;
+  let total30d = 0;
   const costByWorkspace = new Map<string, number>();
-  for (const r of cost30d.data ?? []) {
-    const wsId = r.workspace_id as string;
-    costByWorkspace.set(wsId, (costByWorkspace.get(wsId) ?? 0) + Number(r.estimated_cost_usd ?? 0));
+  const costBySource    = new Map<string, number>();
+  const costByModel     = { sonnet: 0, haiku: 0, other: 0 };
+
+  for (const r of aiRows ?? []) {
+    const cost      = Number(r.estimated_cost_usd ?? 0);
+    const createdAt = r.created_at as string | null;
+    if (!cost || !createdAt) continue;
+
+    total30d += cost;
+    if (createdAt >= day7Iso) total7d  += cost;
+    if (createdAt >= day1Iso) total24h += cost;
+
+    // Top workspaces: exclude null workspace_id (e.g. inbox_sentiment)
+    const wsId = r.workspace_id as string | null;
+    if (wsId) costByWorkspace.set(wsId, (costByWorkspace.get(wsId) ?? 0) + cost);
+
+    const src = (r.source as string | null) ?? 'unknown';
+    costBySource.set(src, (costBySource.get(src) ?? 0) + cost);
+
+    costByModel[modelBucket(r.model as string | null)] += cost;
   }
+
+  const aiCost = { last_24h: total24h, last_7d: total7d, last_30d: total30d };
+
   const topSpenders = Array.from(costByWorkspace.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, TOP_AI_SPEND_LIMIT)
     .map(([workspace_id, total_cost_usd]) => ({ workspace_id, total_cost_usd }));
+
+  const bySource = Array.from(costBySource.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOP_AI_SOURCES_LIMIT)
+    .map(([source, total_cost_usd]) => ({ source, total_cost_usd }));
+
+  const byModel = costByModel;
 
   // ── Monthly scan cap saturation ─────────────────────────────────────────
   //    Sum prospect_count per workspace this month, then compare to MONTHLY_CAPS
@@ -219,6 +248,8 @@ export default async function LimitsPage() {
   const data: LimitsData = {
     aiCost,
     topSpenders,
+    bySource,
+    byModel,
     scanCap: scanCapRows,
     usageQuota: usageRowsForDisplay,
     mailboxes,
