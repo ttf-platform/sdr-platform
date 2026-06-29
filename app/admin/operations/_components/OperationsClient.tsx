@@ -4,7 +4,19 @@ import { StatusBadge } from '@/components/StatusBadge';
 
 type DfyStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
+export type CronHealthRow = {
+  name:                   string;
+  schedule_label:         string;
+  expected_max_gap_hours: number;
+  latest_status:          'success' | 'failed' | null;
+  latest_started_at:      string | null;
+  latest_duration_ms:     number | null;
+  latest_error_message:   string | null;
+  stale:                  boolean;
+};
+
 export type OperationsData = {
+  cronHealth: CronHealthRow[];
   dfyCounts: Record<DfyStatus, number>;
   dfyRecent: Array<{
     id:                 string;
@@ -101,8 +113,78 @@ export function OperationsClient({ data }: { data: OperationsData }) {
     <div className="mx-auto max-w-7xl space-y-8 p-8">
       <div>
         <h1 className="text-2xl font-semibold text-[#1a1a1a]">Operations</h1>
-        <p className="mt-1 text-sm text-[#4a4a5a]">Platform tech health: DFY pipeline, webhook activity, and auto-paused mailboxes.</p>
+        <p className="mt-1 text-sm text-[#4a4a5a]">Platform tech health: cron jobs, DFY pipeline, webhook activity, and auto-paused mailboxes.</p>
       </div>
+
+      {/* ──────────────────────────────────────────────────────────────── */}
+      <section aria-labelledby="cron-health-heading">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 id="cron-health-heading" className="text-base font-semibold text-[#1a1a1a]">Cron health</h2>
+          <p className="text-xs text-[#9a9a9a]">{data.cronHealth.length} scheduled jobs</p>
+        </div>
+
+        {data.cronHealth.every((c) => c.latest_started_at === null) ? (
+          <EmptyState message="No cron runs recorded yet — jobs will appear here after their next scheduled run." />
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[#e8e3dc] bg-[#fafaf9] text-left text-xs font-medium uppercase tracking-wide text-[#6b5e4e]">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Job</th>
+                  <th scope="col" className="px-4 py-3">Schedule</th>
+                  <th scope="col" className="px-4 py-3">Last run</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3">Duration</th>
+                  <th scope="col" className="px-4 py-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.cronHealth.map((c) => {
+                  const isFailed = c.latest_status === 'failed';
+                  const isStale = c.stale;
+                  const isNeverRan = c.latest_started_at === null;
+                  const rowCls =
+                    isFailed ? 'bg-red-50' :
+                    isStale  ? 'bg-amber-50' :
+                    '';
+                  return (
+                    <tr key={c.name} className={`border-b border-[#f0ebe4] last:border-b-0 ${rowCls}`}>
+                      <td className="px-4 py-3 font-medium text-[#1a1a1a]">{c.name}</td>
+                      <td className="px-4 py-3 text-xs text-[#4a4a5a]">{c.schedule_label}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]" title={c.latest_started_at ?? ''}>
+                        {isNeverRan ? <span className="text-[#9a9a9a]">never</span> : formatRelative(c.latest_started_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isNeverRan ? (
+                          <StatusBadge variant="gray">no data</StatusBadge>
+                        ) : isFailed ? (
+                          <StatusBadge variant="red">failed</StatusBadge>
+                        ) : isStale ? (
+                          <StatusBadge variant="amber">stale</StatusBadge>
+                        ) : (
+                          <StatusBadge variant="green">success</StatusBadge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#4a4a5a]">
+                        {c.latest_duration_ms != null ? `${c.latest_duration_ms} ms` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {isFailed && c.latest_error_message ? (
+                          <span className="text-red-700">{c.latest_error_message}</span>
+                        ) : isStale ? (
+                          <span className="text-amber-800">expected within {c.expected_max_gap_hours}h</span>
+                        ) : (
+                          <span className="text-[#9a9a9a]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* ──────────────────────────────────────────────────────────────── */}
       <section aria-labelledby="dfy-pipeline-heading">

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { cronComplete } from '@/lib/cron-log'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
+
+const CRON_NAME = 'trial-expiry'
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
@@ -19,38 +22,78 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = createAdminClient()
+  const startedAt = new Date().toISOString()
+  const t0 = Date.now()
 
-  const { data: expired, error: selectError } = await admin
-    .from('workspaces')
-    .select('id, name, trial_end_date')
-    .eq('subscription_status', 'trialing')
-    .lt('trial_end_date', new Date().toISOString())
+  try {
+    const admin = createAdminClient()
 
-  if (selectError) {
-    console.error('[cron/trial-expiry] Select error:', selectError)
-    return NextResponse.json({ error: 'Select failed', detail: selectError.message }, { status: 500 })
+    const { data: expired, error: selectError } = await admin
+      .from('workspaces')
+      .select('id, name, trial_end_date')
+      .eq('subscription_status', 'trialing')
+      .lt('trial_end_date', new Date().toISOString())
+
+    if (selectError) {
+      console.error('[cron/trial-expiry] Select error:', selectError)
+      return cronComplete({
+        cron_name: CRON_NAME,
+        http_status_code: 500,
+        payload: { error: 'Select failed', detail: selectError.message },
+        started_at: startedAt,
+        t0,
+        error_message: selectError.message,
+      })
+    }
+
+    if (!expired || expired.length === 0) {
+      return cronComplete({
+        cron_name: CRON_NAME,
+        http_status_code: 200,
+        payload: { message: 'No expired trials to update', count: 0 },
+        started_at: startedAt,
+        t0,
+      })
+    }
+
+    const ids = expired.map(w => w.id)
+    const { error: updateError } = await admin
+      .from('workspaces')
+      .update({ subscription_status: 'expired' })
+      .in('id', ids)
+
+    if (updateError) {
+      console.error('[cron/trial-expiry] Update error:', updateError)
+      return cronComplete({
+        cron_name: CRON_NAME,
+        http_status_code: 500,
+        payload: { error: 'Update failed', detail: updateError.message },
+        started_at: startedAt,
+        t0,
+        error_message: updateError.message,
+      })
+    }
+
+    console.log(`[cron/trial-expiry] Transitioned ${expired.length} workspaces to expired`)
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 200,
+      payload: {
+        message: 'Trial expiry transition complete',
+        count: expired.length,
+        workspace_ids: ids,
+      },
+      started_at: startedAt,
+      t0,
+    })
+  } catch (err) {
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 500,
+      payload: { error: 'unexpected_failure', detail: err instanceof Error ? err.message : 'unknown' },
+      started_at: startedAt,
+      t0,
+      error_message: err instanceof Error ? err.message : 'unknown',
+    })
   }
-
-  if (!expired || expired.length === 0) {
-    return NextResponse.json({ message: 'No expired trials to update', count: 0 })
-  }
-
-  const ids = expired.map(w => w.id)
-  const { error: updateError } = await admin
-    .from('workspaces')
-    .update({ subscription_status: 'expired' })
-    .in('id', ids)
-
-  if (updateError) {
-    console.error('[cron/trial-expiry] Update error:', updateError)
-    return NextResponse.json({ error: 'Update failed', detail: updateError.message }, { status: 500 })
-  }
-
-  console.log(`[cron/trial-expiry] Transitioned ${expired.length} workspaces to expired`)
-  return NextResponse.json({
-    message: 'Trial expiry transition complete',
-    count: expired.length,
-    workspace_ids: ids,
-  })
 }

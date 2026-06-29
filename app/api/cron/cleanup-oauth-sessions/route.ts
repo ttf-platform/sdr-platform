@@ -14,10 +14,13 @@
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { cronComplete } from '@/lib/cron-log'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
+
+const CRON_NAME = 'cleanup-oauth-sessions'
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
@@ -33,22 +36,49 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = createAdminClient()
-  const now = new Date().toISOString()
+  const startedAt = new Date().toISOString()
+  const t0 = Date.now()
 
-  const { data, error } = await admin
-    .from('oauth_sessions')
-    .delete()
-    .lt('expires_at', now)
-    .select('session_id')
+  try {
+    const admin = createAdminClient()
+    const now = new Date().toISOString()
 
-  if (error) {
-    console.error('[cron/cleanup-oauth-sessions] delete failed:', error)
-    return NextResponse.json({ error: 'db_error' }, { status: 500 })
+    const { data, error } = await admin
+      .from('oauth_sessions')
+      .delete()
+      .lt('expires_at', now)
+      .select('session_id')
+
+    if (error) {
+      console.error('[cron/cleanup-oauth-sessions] delete failed:', error)
+      return cronComplete({
+        cron_name: CRON_NAME,
+        http_status_code: 500,
+        payload: { error: 'db_error' },
+        started_at: startedAt,
+        t0,
+        error_message: error.message,
+      })
+    }
+
+    const purged = data?.length ?? 0
+    console.log(`[cron/cleanup-oauth-sessions] purged ${purged} expired session(s)`)
+
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 200,
+      payload: { ok: true, purged },
+      started_at: startedAt,
+      t0,
+    })
+  } catch (err) {
+    return cronComplete({
+      cron_name: CRON_NAME,
+      http_status_code: 500,
+      payload: { error: 'unexpected_failure', detail: err instanceof Error ? err.message : 'unknown' },
+      started_at: startedAt,
+      t0,
+      error_message: err instanceof Error ? err.message : 'unknown',
+    })
   }
-
-  const purged = data?.length ?? 0
-  console.log(`[cron/cleanup-oauth-sessions] purged ${purged} expired session(s)`)
-
-  return NextResponse.json({ ok: true, purged })
 }
