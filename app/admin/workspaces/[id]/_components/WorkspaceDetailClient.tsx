@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Eye } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 
 export type WorkspaceDetailData = {
@@ -224,13 +225,20 @@ export function WorkspaceDetailClient({ data }: { data: WorkspaceDetailData }) {
           </Stat>
         </div>
 
-        {stripeUrl && (
-          <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <Link
+            href={`/admin/workspaces/${ws.id}/view-as` as `/admin/workspaces/${string}/view-as`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee]"
+          >
+            <Eye size={14} aria-hidden="true" />
+            <span>View as user (read-only)</span>
+          </Link>
+          {stripeUrl && (
             <a href={stripeUrl} target="_blank" rel="noreferrer" className="text-xs text-[#2563eb] hover:underline">
               Open in Stripe ↗
             </a>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       {/* MEMBERS */}
