@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 
 type SettingValue = { value: unknown; description: string | null; updated_at: string };
 type Settings = Record<string, SettingValue>;
@@ -252,7 +253,7 @@ function BroadcastCard() {
       </div>
       <div className="mt-2 flex items-center justify-end gap-2">
         {status.kind === 'error' && <span className="text-xs text-red-700">{status.msg}</span>}
-        <SaveButton status={status} onClick={save} disabled={!valid} label="Send broadcast" savedLabel="✓ Sent" />
+        <SaveButton status={status} onClick={save} disabled={!valid} label="Send broadcast" savedLabel="Sent" />
       </div>
     </Card>
   );
@@ -344,7 +345,7 @@ function CreditsCard() {
       </div>
       <div className="mt-2 flex items-center justify-end gap-2">
         {status.kind === 'error' && <span className="text-xs text-red-700">{status.msg}</span>}
-        <SaveButton status={status} onClick={save} disabled={!valid} label="Grant credits" savedLabel="✓ Granted" />
+        <SaveButton status={status} onClick={save} disabled={!valid} label="Grant credits" savedLabel="Granted" />
       </div>
     </Card>
   );
@@ -385,7 +386,7 @@ function SaveButton({
   onClick,
   disabled,
   label = 'Save',
-  savedLabel = '✓ Saved',
+  savedLabel = 'Saved',
 }: {
   status: { kind: string };
   onClick: () => void;
@@ -393,17 +394,19 @@ function SaveButton({
   label?: string;
   savedLabel?: string;
 }) {
-  const text = status.kind === 'saving' ? 'Saving…' : status.kind === 'saved' ? savedLabel : label;
+  const isSaved  = status.kind === 'saved';
+  const isSaving = status.kind === 'saving';
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled || status.kind === 'saving'}
-      className={`rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        status.kind === 'saved' ? 'bg-green-600 text-white' : 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]'
+      disabled={disabled || isSaving}
+      className={`inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        isSaved ? 'bg-green-600 text-white' : 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]'
       }`}
     >
-      {text}
+      {isSaved && <Check size={14} aria-hidden="true" />}
+      <span>{isSaving ? 'Saving…' : isSaved ? savedLabel : label}</span>
     </button>
   );
 }

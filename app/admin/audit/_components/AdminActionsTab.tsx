@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { ScrollText, type LucideIcon } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatRelative, truncateId } from './utils';
 
@@ -110,8 +111,9 @@ export function AdminActionsTab({ rows, rowLimit }: { rows: AdminActionRow[]; ro
 
       {rows.length === 0 ? (
         <EmptyState
-          title="No admin actions logged yet."
+          message="No admin actions logged yet."
           subtitle="Actions like suspending a user, granting credits, or updating platform settings will appear here."
+          icon={ScrollText}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
@@ -165,10 +167,15 @@ export function AdminActionsTab({ rows, rowLimit }: { rows: AdminActionRow[]; ro
   );
 }
 
-function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
+function EmptyState({ message, icon: Icon, tone = 'neutral', subtitle }: { message: string; icon?: LucideIcon; tone?: 'neutral' | 'positive'; subtitle?: string }) {
+  const cls = tone === 'positive'
+    ? 'border-green-200 bg-green-50 text-green-800'
+    : 'border-[#e8e3dc] bg-white text-[#4a4a5a]';
+  const iconCls = tone === 'positive' ? 'text-green-700' : 'text-[#9a9a9a]';
   return (
-    <div className="rounded-lg border border-[#e8e3dc] bg-white p-12 text-center">
-      <p className="text-sm text-[#4a4a5a]">{title}</p>
+    <div className={`rounded-lg border ${cls} p-8 text-center text-sm`}>
+      {Icon && <Icon size={32} aria-hidden="true" className={`mx-auto mb-2 ${iconCls}`} />}
+      <p className="text-sm font-medium">{message}</p>
       {subtitle && <p className="mt-1 text-xs text-[#9a9a9a]">{subtitle}</p>}
     </div>
   );
