@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Tooltip } from '@/components/Tooltip'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { safeExternalHref } from '@/lib/url-safety'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Deal = {
@@ -483,13 +484,18 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
                   <span className="text-xs text-gray-700">{deal.contact_title}</span>
                 </div>
               )}
-              {deal.contact_linkedin && (
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-300 text-xs w-4 font-bold">in</span>
-                  <a href={deal.contact_linkedin} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:underline truncate">LinkedIn</a>
-                </div>
-              )}
+              {deal.contact_linkedin && (() => {
+                const safe = safeExternalHref(deal.contact_linkedin);
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300 text-xs w-4 font-bold">in</span>
+                    {safe
+                      ? <a href={safe} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-500 hover:underline truncate">LinkedIn</a>
+                      : <span className="text-xs text-gray-400 truncate" title={deal.contact_linkedin}>LinkedIn (invalid)</span>}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

@@ -17,6 +17,7 @@ import { TagFilterDropdown } from '@/components/TagFilterDropdown'
 import { ExportProspectsModal } from '@/components/ExportProspectsModal'
 import { Spinner } from '@/components/ui/Spinner'
 import { ProspectMobileCard } from './_components/ProspectMobileCard'
+import { safeExternalHref } from '@/lib/url-safety'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LifecycleCounts = {
@@ -358,20 +359,30 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                     <span className="text-[#1a1a2e]">{detail.company}</span>
                   </div>
                 )}
-                {detail.linkedin_url && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[#8a7e6e] text-xs w-4 font-bold">in</span>
-                    <a href={detail.linkedin_url} target="_blank" rel="noopener noreferrer"
-                      className="text-[#3b6bef] hover:underline truncate flex-1">{detail.linkedin_url}</a>
-                  </div>
-                )}
-                {detail.website && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[#8a7e6e] text-xs w-4">🌐</span>
-                    <a href={detail.website} target="_blank" rel="noopener noreferrer"
-                      className="text-[#3b6bef] hover:underline truncate flex-1">{detail.website}</a>
-                  </div>
-                )}
+                {detail.linkedin_url && (() => {
+                  const safe = safeExternalHref(detail.linkedin_url);
+                  return (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-[#8a7e6e] text-xs w-4 font-bold">in</span>
+                      {safe
+                        ? <a href={safe} target="_blank" rel="noopener noreferrer"
+                            className="text-[#3b6bef] hover:underline truncate flex-1">{detail.linkedin_url}</a>
+                        : <span className="text-[#8a7e6e] truncate flex-1" title={detail.linkedin_url}>{detail.linkedin_url} (invalid)</span>}
+                    </div>
+                  );
+                })()}
+                {detail.website && (() => {
+                  const safe = safeExternalHref(detail.website);
+                  return (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-[#8a7e6e] text-xs w-4">🌐</span>
+                      {safe
+                        ? <a href={safe} target="_blank" rel="noopener noreferrer"
+                            className="text-[#3b6bef] hover:underline truncate flex-1">{detail.website}</a>
+                        : <span className="text-[#8a7e6e] truncate flex-1" title={detail.website}>{detail.website} (invalid)</span>}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

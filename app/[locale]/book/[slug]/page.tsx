@@ -1,6 +1,7 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
+import { safeExternalHref } from '@/lib/url-safety'
 
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
 
@@ -398,9 +399,12 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               <div className="bg-[#f5f2ee] rounded-lg p-3 mb-4 text-sm">
                 <p className="font-medium text-[#1a1a2e]">{fmtDateStr(selDateStr)} at {fmtSlot(selSlot, prospectTz)}</p>
                 <p className="text-[#8a7e6e]">{duration} min · {prospectTz}
-                  {data.video_meeting_url && (
-                    <> · <a href={data.video_meeting_url} target="_blank" rel="noopener noreferrer" className="text-[#3b6bef]">{t('videoLink')}</a></>
-                  )}
+                  {data.video_meeting_url && (() => {
+                    const safe = safeExternalHref(data.video_meeting_url);
+                    return safe
+                      ? <> · <a href={safe} target="_blank" rel="noopener noreferrer" className="text-[#3b6bef]">{t('videoLink')}</a></>
+                      : null;
+                  })()}
                 </p>
               </div>
 
@@ -443,10 +447,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                     {confTime} · {confirmed.meeting.duration_min} min
                     <span className="text-xs ml-1">({prospectTz})</span>
                   </p>
-                  {data.video_meeting_url && (
-                    <a href={data.video_meeting_url} target="_blank" rel="noopener noreferrer"
-                      className="text-[#3b6bef] mt-2 block truncate text-xs">{data.video_meeting_url}</a>
-                  )}
+                  {data.video_meeting_url && (() => {
+                    const safe = safeExternalHref(data.video_meeting_url);
+                    return safe
+                      ? <a href={safe} target="_blank" rel="noopener noreferrer"
+                          className="text-[#3b6bef] mt-2 block truncate text-xs">{data.video_meeting_url}</a>
+                      : <span className="text-[#8a7e6e] mt-2 block truncate text-xs" title={data.video_meeting_url}>{data.video_meeting_url} (invalid)</span>;
+                  })()}
                 </div>
 
                 <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-1">{t('addToCalendar')}</p>
