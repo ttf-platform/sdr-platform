@@ -1,68 +1,56 @@
 ---
 title: Mailbox warmup explained
-description: Why traditional warmup takes weeks, how Mirvo bypasses it, and what you can actually send on day one.
+description: What warmup is, why a fresh domain needs it, and what you can actually send on day one with Mirvo.
 slug: mailbox-warmup-explained
 category: sending-infrastructure
 order: 5
-last_updated: 2026-05-29
+last_updated: 2026-06-30
 ---
 
 # Mailbox warmup explained
 
-Traditional cold email tools tell you to wait two to four weeks before sending real emails. Mirvo doesn't. This article explains why, and what you can actually send from day one.
+Warmup is the reason cold email tools tell you to wait before sending. This article explains what it is, why it exists, and what you can actually send on day one with Mirvo — without the wait, when you start from your own mailbox.
 
-## Why traditional warmup exists
+## Why warmup exists
 
-Email service providers judge sender reputation by behavior patterns. A fresh domain or mailbox that suddenly sends 500 emails per day looks like a spammer. To build reputation gradually, traditional tools warm up a mailbox by sending increasing volumes of low-risk emails (often to their own warmup network) over several weeks.
+Mailbox providers like Gmail and Outlook judge a sender by behavior. A fresh domain or mailbox that suddenly sends hundreds of emails a day looks like a spammer, so it gets filtered. To avoid that, a new domain has to build reputation gradually: it sends a low volume at first, then increases over several weeks as providers learn to trust it.
 
-The problem: you sign up, set everything up, and then wait. No outbound for 2-4 weeks.
+This is real and unavoidable for a **new** domain. There's no trick that skips it — anyone who promises a brand-new domain at full volume on day one is setting you up for the spam folder.
 
-## How Mirvo handles it differently
+## How Mirvo lets you send on day one anyway
 
-Mirvo sends through a managed deliverability infrastructure: a pool of pre-warmed mailboxes and domains with established reputation. When you connect your mailbox, your outbound traffic goes through that pool, not directly from a cold mailbox.
+The shortcut isn't skipping warmup — it's **not starting from a cold domain in the first place.**
 
-Your real inbox stays clean. Recipients see your domain in the reply-to and signature. Your sending reputation builds over time on the infrastructure side, invisibly to you.
+When you connect your own Google Workspace or Microsoft 365 mailbox, that mailbox is already in daily use and already has reputation. There's nothing to warm up, so you can start sending the same day. This is the recommended way to begin, and it's why your first campaign can go out right after setup.
 
-This means:
+The trade-off is volume: to protect your main address, Mirvo caps daily sending on a personal mailbox to a low number. Great for testing and steady low-volume outreach, not for high volume.
 
-- No waiting period
-- First emails can go out within an hour of completing setup
-- Volume ramps up progressively in the background (low in week 1, full capacity by week 4+)
-- You don't manage any of this
+<Callout type="tip">
+Start small. For your first batch, send to 20–50 verified prospects so your account establishes a clean, consistent pattern before you scale up.
+</Callout>
+
+## When warmup does apply: a dedicated domain
+
+When you move to a dedicated sending domain (Mirvo registers and manages it for you), that domain is brand new — so warmup applies to it. **Plan on around four weeks** before it runs at full volume. Sending starts low and ramps up gradually as the domain earns reputation.
+
+You're not stuck waiting during those weeks. Your connected personal mailbox keeps carrying your real outreach as a bridge while the dedicated domain warms up in the background. The dedicated domain takes on volume gradually, and by around week four it's running at full capacity.
 
 <Callout type="info">
-Your first campaign may process slowly if you launch with a large prospect list on day one. Start with 20-50 prospects for your first batch to let the infrastructure establish a pattern for your account.
+Warmup is a gradual ramp, never a switch. A new domain takes on real volume a little at a time as it earns trust — pushing it to full volume overnight is exactly what triggers spam filtering.
 </Callout>
 
 ## What "warmup progress" means in your dashboard
 
-You'll see a warmup status indicator under **Settings, Mailboxes**. It shows where you are in the ramp-up period.
+When a dedicated domain is warming up, your dashboard shows its progress:
 
-- **Warming (0-30%):** Send volume limited. Drafts approved go into a queue and are sent progressively.
-- **Building (30-70%):** Normal volume available. Most campaigns run without delay.
-- **Ready (70-100%):** Full sending capacity. No restrictions.
+- **Warming (0–30%)** — early reputation building, lowest volume.
+- **Building (30–70%)** — reputation growing, volume ramping up.
+- **Ready (70–100%)** — trusted, running at or near full volume.
 
-<Screenshot src='/help/screenshots/mailbox-warmup-explained-1.png' alt='Mailbox status page showing warmup progress bar at different stages' caption='Mailbox status page showing warmup progress bar at different stages' />
+## Choosing the right setup
 
-The ramp happens automatically. You don't need to do anything.
+Warmup only matters once you understand which sending setup you're on. If you haven't picked yet, start here:
 
-## What you can send on day one
-
-All of these work immediately:
-
-- Single emails via Approval Queue
-- Test drafts to yourself
-- Small campaigns (under 50 prospects)
-
-Large campaigns (200+ prospects, multiple follow-up steps) work better once warmup is above 50%.
-
-## Custom domain warmup
-
-If you add a custom sending domain, a separate warmup period applies to that domain. Plan on 2-4 weeks before running high-volume campaigns from a fresh custom domain.
-
-<Callout type="tip">
-Run your first campaigns through Mirvo's shared infrastructure while your custom domain warms up. Switch campaigns to your custom domain once it hits "Ready" status.
-</Callout>
-
+- [Choosing your sending setup](/help/choosing-your-sending-setup)
 - [Adding a sending domain](/help/adding-a-sending-domain)
 - [Why emails go to spam](/help/why-emails-go-to-spam)

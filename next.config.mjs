@@ -3,12 +3,15 @@ import createNextIntlPlugin from 'next-intl/plugin'
 import createMDX from '@next/mdx'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
+import remarkGfm from 'remark-gfm'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 const withMDX = createMDX({
   extension: /\.mdx?$/,
   options: {
-    remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter],
+    // Order matters: frontmatter MUST run before gfm so it strips the YAML
+    // block out of the tree before gfm starts parsing tables/lists/etc.
+    remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter, remarkGfm],
   },
 })
 
