@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { safeExternalHref } from '@/lib/url-safety';
 
 export type SelectedItem =
   | { type: 'escalation'; id: string }
@@ -201,7 +202,16 @@ function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
       <div className="mb-4 flex gap-2"><PriorityPill priority={data.priority} /><StatusPill status={data.status} /></div>
       <Section label="User">{data.user_email ?? '—'}</Section>
       <Section label="Created">{new Date(data.created_at).toLocaleString()}</Section>
-      {data.page_url && <Section label="Page"><a href={data.page_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{data.page_url}</a></Section>}
+      {data.page_url && (() => {
+        const safe = safeExternalHref(data.page_url);
+        return (
+          <Section label="Page">
+            {safe
+              ? <a href={safe} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline break-all">{safe}</a>
+              : <span className="text-xs text-[#9a9a9a] break-all" title={data.page_url}>{data.page_url} (invalid URL — not linked)</span>}
+          </Section>
+        );
+      })()}
       {data.browser && <Section label="Browser"><span className="text-xs text-[#4a4a5a]">{data.browser}</span></Section>}
       <Section label="Description"><p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1a1a1a]">{data.description}</p></Section>
       <div className="flex flex-wrap gap-2">
