@@ -4,6 +4,7 @@ import HowMirvoWorks from '@/content/help/how-mirvo-works.mdx'
 import SevenStepSetup from '@/content/help/7-step-setup.mdx'
 import MasterICP from '@/content/help/master-icp.mdx'
 import AddingSendingDomain from '@/content/help/adding-a-sending-domain.mdx'
+import ChoosingYourSendingSetup from '@/content/help/choosing-your-sending-setup.mdx'
 import MailboxWarmupExplained from '@/content/help/mailbox-warmup-explained.mdx'
 import WhatAreSignals from '@/content/help/what-are-signals.mdx'
 import CreateYourFirstCampaign from '@/content/help/create-your-first-campaign.mdx'
@@ -27,6 +28,7 @@ export const MDX_MODULES: Record<string, ComponentType> = {
   '7-step-setup': SevenStepSetup,
   'master-icp': MasterICP,
   'adding-a-sending-domain': AddingSendingDomain,
+  'choosing-your-sending-setup': ChoosingYourSendingSetup,
   'mailbox-warmup-explained': MailboxWarmupExplained,
   'what-are-signals': WhatAreSignals,
   'create-your-first-campaign': CreateYourFirstCampaign,
