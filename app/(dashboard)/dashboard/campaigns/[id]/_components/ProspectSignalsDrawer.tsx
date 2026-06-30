@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { safeExternalHref } from '@/lib/url-safety'
 
 type SignalDetail = {
   id: string
@@ -130,16 +131,23 @@ export function ProspectSignalsDrawer({
                     </pre>
                   </div>
                 )}
-                {s.source_url && (
-                  <a
-                    href={s.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-[#3b6bef] hover:underline break-all"
-                  >
-                    Source ↗ {s.source_url}
-                  </a>
-                )}
+                {s.source_url && (() => {
+                  const safe = safeExternalHref(s.source_url);
+                  return safe ? (
+                    <a
+                      href={safe}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#3b6bef] hover:underline break-all"
+                    >
+                      Source ↗ {s.source_url}
+                    </a>
+                  ) : (
+                    <span className="text-xs text-[#8a7e6e] break-all" title={s.source_url}>
+                      Source: {s.source_url} (invalid URL — not linked)
+                    </span>
+                  );
+                })()}
               </div>
             ))}
           </div>
