@@ -1,5 +1,14 @@
 'use client';
 
+import {
+  DollarSign,
+  Users,
+  Building2,
+  Clock,
+  CheckCircle2,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react';
 import { SignupsChart } from './SignupsChart';
 
 type OverviewData = {
@@ -31,19 +40,19 @@ export function OverviewClient({ data }: { data: OverviewData }) {
     data.deliverability.failed;
 
   return (
-    <div className="mx-auto max-w-6xl p-8">
+    <div className="mx-auto max-w-7xl p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-[#1a1a1a]">Overview</h1>
         <p className="mt-1 text-sm text-[#4a4a5a]">Platform health at a glance.</p>
       </div>
 
       <div className="mb-6 grid grid-cols-3 gap-3 lg:grid-cols-6">
-        <KpiCard label="MRR" value={formatMRR(data.kpis.mrr)} icon="💰" />
-        <KpiCard label="Total users" value={formatNumber(data.kpis.totalUsers)} icon="👥" />
-        <KpiCard label="Workspaces" value={formatNumber(data.kpis.totalWorkspaces)} icon="🏢" />
-        <KpiCard label="Trial" value={formatNumber(data.kpis.trialUsers)} icon="⏱️" />
-        <KpiCard label="Paid" value={formatNumber(data.kpis.paidUsers)} icon="✅" />
-        <KpiCard label="Signups (7d)" value={formatNumber(data.kpis.signupsLast7Days)} icon="📈" />
+        <KpiCard label="MRR" value={formatMRR(data.kpis.mrr)} icon={DollarSign} />
+        <KpiCard label="Total users" value={formatNumber(data.kpis.totalUsers)} icon={Users} />
+        <KpiCard label="Workspaces" value={formatNumber(data.kpis.totalWorkspaces)} icon={Building2} />
+        <KpiCard label="Trial" value={formatNumber(data.kpis.trialUsers)} icon={Clock} />
+        <KpiCard label="Paid" value={formatNumber(data.kpis.paidUsers)} icon={CheckCircle2} />
+        <KpiCard label="Signups (7d)" value={formatNumber(data.kpis.signupsLast7Days)} icon={TrendingUp} />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -90,12 +99,12 @@ export function OverviewClient({ data }: { data: OverviewData }) {
   );
 }
 
-function KpiCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+function KpiCard({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <div className="rounded-lg border border-[#e8e3dc] bg-white p-4">
       <div className="mb-1 flex items-center justify-between">
         <div className="text-xs text-[#4a4a5a]">{label}</div>
-        <div className="text-base">{icon}</div>
+        <Icon size={16} aria-hidden="true" className="text-[#6b5e4e]" />
       </div>
       <div className="text-2xl font-semibold text-[#1a1a1a]">{value}</div>
     </div>

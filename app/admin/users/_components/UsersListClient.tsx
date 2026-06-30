@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Users, X } from 'lucide-react';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { Modal } from '@/components/ui/Modal';
 
@@ -98,7 +99,7 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-8">
+    <div className="mx-auto max-w-7xl p-8">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#1a1a1a]">Users</h1>
@@ -122,7 +123,9 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
             : 'border-red-200 bg-red-50 text-red-700'
         }`}>
           <span>{notification.message}</span>
-          <button type="button" onClick={() => setNotification(null)} className="ml-4 shrink-0 opacity-60 hover:opacity-100">✕</button>
+          <button type="button" onClick={() => setNotification(null)} aria-label="Dismiss notification" className="ml-4 shrink-0 opacity-60 hover:opacity-100">
+            <X size={16} aria-hidden="true" />
+          </button>
         </div>
       )}
 
@@ -130,7 +133,7 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
       {!error && users === null && <div className="rounded-lg border border-[#e8e3dc] bg-white p-8 text-center text-sm text-[#9a9a9a]">Loading…</div>}
       {!error && users && users.length === 0 && (
         <div className="rounded-lg border border-[#e8e3dc] bg-white p-12 text-center">
-          <div className="mb-2 text-3xl">👥</div>
+          <Users size={32} aria-hidden="true" className="mx-auto mb-2 text-[#9a9a9a]" />
           <p className="text-sm font-medium text-[#1a1a1a]">{search ? 'No users match your search' : 'No users yet'}</p>
         </div>
       )}
