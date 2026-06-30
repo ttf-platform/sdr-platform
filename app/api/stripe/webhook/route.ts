@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolvePlanFromPriceId } from '@/lib/stripe-plans'
 import { monthlyMrrForWorkspace } from '@/lib/pricing'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
+import { sendUpgradeEmail } from '@/lib/email'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -46,6 +47,87 @@ export async function POST(request: Request) {
 
   async function updateWorkspace(workspaceId: string, fields: Record<string, unknown>) {
     await admin.from('workspaces').update(fields).eq('id', workspaceId)
+  }
+
+  // Helper: send the "first upgrade" lifecycle email, idempotent and
+  // strictly fire-and-forget. The webhook MUST stay 200 to Stripe, so
+  // every failure (lookup, insert, Resend) is swallowed via try/catch
+  // and console.error'd. Dedup is enforced by lifecycle_emails UNIQUE
+  // (workspace_id, kind) — Stripe retries hit ON CONFLICT DO NOTHING
+  // and skip the send.
+  async function maybeSendUpgradeEmail(workspaceId: string, planTier: string | null): Promise<void> {
+    if (!planTier) return
+    try {
+      // 1. Reserve the slot. If a row already exists, this returns null
+      //    (a Stripe retry, or a prior duplicate transition) → skip the
+      //    send to guarantee at-most-once delivery.
+      const { data: reservation, error: insertErr } = await admin
+        .from('lifecycle_emails')
+        .insert({ workspace_id: workspaceId, kind: 'first_upgrade' })
+        .select('id')
+        .maybeSingle()
+
+      if (insertErr) {
+        const code = (insertErr as { code?: string }).code
+        if (code === '23505') {
+          // unique_violation — already sent for this workspace. Expected
+          // on Stripe retries. Silent skip.
+          return
+        }
+        console.error('[stripe-webhook] lifecycle_emails reserve failed', insertErr.message)
+        return
+      }
+      if (!reservation?.id) return
+
+      // 2. Resolve recipient context. All lookups are best-effort.
+      const { data: member } = await admin
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', workspaceId)
+        .eq('role', 'owner')
+        .limit(1)
+        .maybeSingle()
+      const ownerUserId = member?.user_id as string | undefined
+      if (!ownerUserId) {
+        console.error('[stripe-webhook] no owner for workspace', workspaceId)
+        return
+      }
+
+      const { data: ownerResp } = await admin.auth.admin.getUserById(ownerUserId)
+      const email     = ownerResp?.user?.email ?? null
+      const firstName = (ownerResp?.user?.user_metadata?.first_name as string | null) ?? null
+      if (!email) return
+
+      const { data: ws } = await admin
+        .from('workspaces')
+        .select('name')
+        .eq('id', workspaceId)
+        .maybeSingle()
+      const workspaceName = (ws?.name as string | null) ?? 'your workspace'
+
+      const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
+
+      // 3. Send. Resend itself is best-effort — failure leaves the
+      //    lifecycle_emails row in place (no retry next webhook hit),
+      //    intentional: avoiding doublons matters more than guaranteed
+      //    delivery for this notification.
+      const result = await sendUpgradeEmail({
+        to: email,
+        firstName,
+        workspaceName,
+        planTier,
+        appBaseUrl,
+      })
+
+      if (result.ok && result.messageId) {
+        await admin
+          .from('lifecycle_emails')
+          .update({ resend_message_id: result.messageId })
+          .eq('id', reservation.id)
+      }
+    } catch (err) {
+      console.error('[stripe-webhook] maybeSendUpgradeEmail unexpected failure', err)
+    }
   }
 
   // Helper: read the workspace BEFORE any UPDATE so we can capture from_*
@@ -109,6 +191,12 @@ export async function POST(request: Request) {
         to_mrr_usd:      mrrUsdFor(toPlan, toInterval),
         occurred_at:     occurredAt,
       })
+
+      // Lifecycle email — first upgrade. Fire-and-forget. checkout.session
+      // .completed is by construction a "first upgrade" event (Stripe
+      // Checkout is used to create a sub, not to renew), so no extra status
+      // gating is needed here. lifecycle_emails UNIQUE handles Stripe retries.
+      await maybeSendUpgradeEmail(workspaceId, toPlan)
       break
     }
 
@@ -152,6 +240,16 @@ export async function POST(request: Request) {
         to_mrr_usd:      mrrUsdFor(toPlan, toInterval),
         occurred_at:     occurredAt,
       })
+
+      // Lifecycle email — first upgrade triggered via Stripe-side activation
+      // (rare path, e.g. trial-end auto-convert without going through the
+      // Checkout we own). Only fires when the workspace transitioned FROM
+      // a non-active state TO 'active'. lifecycle_emails UNIQUE protects
+      // against a later re-entry into 'active' (post past_due recovery).
+      const wasNotActive = before.subscription_status !== 'active'
+      if (wasNotActive && status === 'active') {
+        await maybeSendUpgradeEmail(workspaceId, toPlan)
+      }
       break
     }
 
