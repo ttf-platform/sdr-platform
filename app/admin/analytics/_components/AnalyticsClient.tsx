@@ -1,5 +1,6 @@
 'use client';
 
+import { TrendingUp, TrendingDown, Zap, DollarSign, type LucideIcon } from 'lucide-react';
 import { FunnelChart } from './FunnelChart';
 import { CohortsTable } from './CohortsTable';
 
@@ -16,17 +17,17 @@ type AnalyticsData = {
 
 export function AnalyticsClient({ data }: { data: AnalyticsData }) {
   return (
-    <div className="mx-auto max-w-6xl p-8">
+    <div className="mx-auto max-w-7xl p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-[#1a1a1a]">Analytics</h1>
         <p className="mt-1 text-sm text-[#4a4a5a]">Acquisition & activation metrics.</p>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard label="Signups (30d)" value={formatNumber(data.kpis.signupsLast30Days)} icon="📈" />
-        <KpiCard label="Activation rate" value={formatPct(data.kpis.activationRate)} icon="⚡" hint="≥1 campaign within 7d" />
-        <KpiCard label="Trial → Paid" value={formatPct(data.kpis.trialToPaidRate)} icon="💰" hint="of expired trials" />
-        <KpiCard label="Churn (30d)" value={formatPct(data.kpis.churnRate30d)} icon="📉" hint="dormant >30d"
+        <KpiCard label="Signups (30d)" value={formatNumber(data.kpis.signupsLast30Days)} icon={TrendingUp} />
+        <KpiCard label="Activation rate" value={formatPct(data.kpis.activationRate)} icon={Zap} hint="≥1 campaign within 7d" />
+        <KpiCard label="Trial → Paid" value={formatPct(data.kpis.trialToPaidRate)} icon={DollarSign} hint="of expired trials" />
+        <KpiCard label="Churn (30d)" value={formatPct(data.kpis.churnRate30d)} icon={TrendingDown} hint="dormant >30d"
           tone={data.kpis.churnRate30d != null && data.kpis.churnRate30d > 50 ? 'warning' : 'neutral'} />
       </div>
 
@@ -54,13 +55,14 @@ export function AnalyticsClient({ data }: { data: AnalyticsData }) {
   );
 }
 
-function KpiCard({ label, value, icon, hint, tone = 'neutral' }: { label: string; value: string; icon: string; hint?: string; tone?: 'neutral' | 'warning' }) {
+function KpiCard({ label, value, icon: Icon, hint, tone = 'neutral' }: { label: string; value: string; icon: LucideIcon; hint?: string; tone?: 'neutral' | 'warning' }) {
   const valueClass = tone === 'warning' ? 'text-amber-700' : 'text-[#1a1a1a]';
+  const iconClass  = tone === 'warning' ? 'text-amber-700' : 'text-[#6b5e4e]';
   return (
     <div className="rounded-lg border border-[#e8e3dc] bg-white p-4">
       <div className="mb-1 flex items-center justify-between">
         <div className="text-xs text-[#4a4a5a]">{label}</div>
-        <div className="text-base">{icon}</div>
+        <Icon size={16} aria-hidden="true" className={iconClass} />
       </div>
       <div className={`text-2xl font-semibold ${valueClass}`}>{value}</div>
       {hint && <div className="mt-1 text-[10px] text-[#9a9a9a]">{hint}</div>}
