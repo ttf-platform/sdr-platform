@@ -197,6 +197,49 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
   }),
 };
 
+export async function sendUpgradeEmail(params: {
+  to:            string;
+  firstName:     string | null;
+  workspaceName: string;
+  planTier:      string;
+  appBaseUrl:    string;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const { to, firstName, workspaceName, planTier, appBaseUrl } = params;
+  const greeting       = firstName ? `Hi ${escapeHtml(firstName)},` : 'Hi,';
+  const planLabel      = planTier ? escapeHtml(planTier.charAt(0).toUpperCase() + planTier.slice(1)) : 'your new plan';
+  const safeWorkspace  = escapeHtml(workspaceName);
+  const baseUrl        = appBaseUrl;
+
+  const subject = `You're on Mirvo ${planLabel} — here's what's now unlocked`;
+  const html = wrapEmail(`
+    <span style="display:none;max-height:0;overflow:hidden;opacity:0;">Your upgrade is live. You've now got a dedicated sending domain available whenever you're ready to scale.</span>
+    <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">You're on Mirvo ${planLabel}</h2>
+    <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
+    <p style="color: #1a1a1a; line-height: 1.6;">Your upgrade is live for ${safeWorkspace}. Thank you — here's what you've unlocked.</p>
+    <p style="color: #1a1a1a; line-height: 1.6;"><strong>Higher sending limits.</strong> Your quotas just went up. Keep sending from your connected mailbox as you always have — there's nothing to change.</p>
+    <p style="color: #1a1a1a; line-height: 1.6;"><strong>A dedicated sending domain, whenever you're ready.</strong> You can now have Mirvo set up a sending domain that's fully yours — it keeps your cold outreach separate from your main address and scales to full volume. A new domain warms up gradually over about four weeks, and your connected mailbox keeps your outreach going the whole time. No rush: set it up when it suits you.</p>
+    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open Mirvo &#x2192;</a></p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Want to understand your sending options before you decide? <a href="${baseUrl}/help/choosing-your-sending-setup" style="color: #2563eb; text-decoration: underline;">Here's how each setup works</a>.</p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Questions about your plan? Just reply — we read every message.</p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
+  `);
+
+  try {
+    const resend = getResendClient();
+    const result = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    return { ok: true, messageId: result.data?.id };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[email] sendUpgradeEmail failed:', msg);
+    return { ok: false, error: msg };
+  }
+}
+
 function wrapEmail(inner: string): string {
   return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a1a;">${inner}<p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0; border-top: 1px solid #e8e3dc; padding-top: 16px;">Mirvo &middot; <a href="https://www.mirvo.ai" style="color: #9a9a9a; text-decoration: none;">mirvo.ai</a></p></div>`;
 }
