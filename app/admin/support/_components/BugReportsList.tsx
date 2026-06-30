@@ -1,6 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Bug, type LucideIcon } from 'lucide-react';
+import { StatusBadge } from '@/components/StatusBadge';
+
+const BUG_STATUS_VARIANT: Record<string, 'blue' | 'amber' | 'green' | 'gray'> = {
+  new:          'blue',
+  acknowledged: 'amber',
+  in_progress:  'amber',
+  resolved:     'green',
+  closed:       'gray',
+};
+
+const BUG_PRIORITY_VARIANT: Record<string, 'gray' | 'blue' | 'amber' | 'red'> = {
+  low:      'gray',
+  medium:   'blue',
+  high:     'amber',
+  critical: 'red',
+};
 
 type BugReport = {
   id: string; user_email: string | null; user_id: string; title: string; priority: string; status: string; created_at: string;
@@ -51,10 +68,7 @@ export function BugReportsList({ onSelect }: { onSelect: (id: string) => void })
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Failed to load: {error}</div>}
       {!error && items === null && <div className="rounded-lg border border-[#e8e3dc] bg-white p-8 text-center text-sm text-[#9a9a9a]">Loading…</div>}
       {!error && items && items.length === 0 && (
-        <div className="rounded-lg border border-[#e8e3dc] bg-white p-12 text-center">
-          <div className="mb-2 text-3xl">🐛</div>
-          <p className="text-sm font-medium text-[#1a1a1a]">No {filter} bugs</p>
-        </div>
+        <EmptyState message={`No ${filter} bugs`} icon={Bug} />
       )}
       {!error && items && items.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
@@ -63,7 +77,10 @@ export function BugReportsList({ onSelect }: { onSelect: (id: string) => void })
               <li key={b.id}>
                 <button type="button" onClick={() => onSelect(b.id)} className="block w-full p-4 text-left transition-colors hover:bg-[#f5f2ee]">
                   <div className="mb-1 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2"><PriorityPill priority={b.priority} /><StatusPill status={b.status} /></div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge variant={BUG_PRIORITY_VARIANT[b.priority] ?? 'blue'}>{b.priority}</StatusBadge>
+                      <StatusBadge variant={BUG_STATUS_VARIANT[b.status]     ?? 'gray'}>{b.status.replace('_', ' ')}</StatusBadge>
+                    </div>
                     <span className="text-xs text-[#9a9a9a]">{formatRelative(b.created_at)}</span>
                   </div>
                   <p className="text-sm font-medium text-[#1a1a1a]">{b.title}</p>
@@ -91,21 +108,18 @@ function SubFilter({ active, onClick, count, children }: { active: boolean; onCl
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    new: 'bg-blue-50 text-blue-700 border-blue-200', acknowledged: 'bg-amber-50 text-amber-700 border-amber-200',
-    in_progress: 'bg-amber-50 text-amber-700 border-amber-200', resolved: 'bg-green-50 text-green-700 border-green-200', closed: 'bg-gray-50 text-gray-700 border-gray-200',
-  };
-  const cls = colors[status] ?? 'bg-gray-50 text-gray-700 border-gray-200';
-  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{status.replace('_', ' ')}</span>;
-}
-
-function PriorityPill({ priority }: { priority: string }) {
-  const colors: Record<string, string> = {
-    low: 'bg-gray-50 text-gray-700 border-gray-200', medium: 'bg-blue-50 text-blue-700 border-blue-200',
-    high: 'bg-amber-50 text-amber-700 border-amber-200', critical: 'bg-red-50 text-red-700 border-red-200',
-  };
-  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${colors[priority] ?? colors.medium}`}>{priority}</span>;
+function EmptyState({ message, icon: Icon, tone = 'neutral', subtitle }: { message: string; icon?: LucideIcon; tone?: 'neutral' | 'positive'; subtitle?: string }) {
+  const cls = tone === 'positive'
+    ? 'border-green-200 bg-green-50 text-green-800'
+    : 'border-[#e8e3dc] bg-white text-[#4a4a5a]';
+  const iconCls = tone === 'positive' ? 'text-green-700' : 'text-[#9a9a9a]';
+  return (
+    <div className={`rounded-lg border ${cls} p-8 text-center text-sm`}>
+      {Icon && <Icon size={32} aria-hidden="true" className={`mx-auto mb-2 ${iconCls}`} />}
+      <p className="text-sm font-medium">{message}</p>
+      {subtitle && <p className="mt-1 text-xs text-[#9a9a9a]">{subtitle}</p>}
+    </div>
+  );
 }
 
 function formatRelative(iso: string): string {

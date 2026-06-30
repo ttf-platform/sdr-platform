@@ -1,6 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CheckCircle2, Mail, type LucideIcon } from 'lucide-react';
+import { StatusBadge } from '@/components/StatusBadge';
+
+const ESC_REASON_VARIANT: Record<string, 'blue' | 'red' | 'purple' | 'amber' | 'gray'> = {
+  user_request:       'blue',
+  critical_bug:       'red',
+  billing:            'purple',
+  legal:              'purple',
+  repeated_failure:   'amber',
+  negative_sentiment: 'amber',
+  tool_failure:       'amber',
+  other:              'gray',
+};
+
+const ESC_STATUS_VARIANT: Record<string, 'red' | 'amber' | 'green' | 'gray'> = {
+  pending:     'red',
+  in_progress: 'amber',
+  resolved:    'green',
+};
 
 type Escalation = {
   id: string; conversation_id: string; workspace_id: string; user_id: string;
@@ -52,11 +71,7 @@ export function EscalationsList({ onSelect }: { onSelect: (id: string) => void }
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Failed to load escalations: {error}</div>}
       {!error && items === null && <div className="rounded-lg border border-[#e8e3dc] bg-white p-8 text-center text-sm text-[#9a9a9a]">Loading…</div>}
       {!error && items && items.length === 0 && (
-        <div className="rounded-lg border border-[#e8e3dc] bg-white p-12 text-center">
-          <div className="mb-2 text-3xl">✅</div>
-          <p className="text-sm font-medium text-[#1a1a1a]">No {filter} escalations</p>
-          <p className="mt-1 text-xs text-[#9a9a9a]">All clear.</p>
-        </div>
+        <EmptyState message={`No ${filter} escalations`} icon={CheckCircle2} tone="positive" subtitle="All clear." />
       )}
       {!error && items && items.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
@@ -65,14 +80,22 @@ export function EscalationsList({ onSelect }: { onSelect: (id: string) => void }
               <li key={e.id}>
                 <button type="button" onClick={() => onSelect(e.id)} className="block w-full p-4 text-left transition-colors hover:bg-[#f5f2ee]">
                   <div className="mb-1 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2"><ReasonPill reason={e.reason} /><StatusPill status={e.status} /></div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge variant={ESC_REASON_VARIANT[e.reason] ?? 'gray'}>{e.reason.replace('_', ' ')}</StatusBadge>
+                      <StatusBadge variant={ESC_STATUS_VARIANT[e.status] ?? 'gray'}>{e.status.replace('_', ' ')}</StatusBadge>
+                    </div>
                     <span className="text-xs text-[#9a9a9a]">{formatRelative(e.created_at)}</span>
                   </div>
                   <p className="text-sm text-[#1a1a1a]">{e.summary}</p>
                   <div className="mt-2 flex items-center gap-3 text-xs text-[#4a4a5a]">
                     <span><span className="text-[#9a9a9a]">User:</span> <span className="font-mono">{e.user_email ?? e.user_id.slice(0, 8) + '…'}</span></span>
                     <span><span className="text-[#9a9a9a]">Workspace:</span> <span className="font-mono">{e.workspace_id.slice(0, 8)}…</span></span>
-                    {e.admin_notified_at && <span className="text-green-700">📧 emailed</span>}
+                    {e.admin_notified_at && (
+                      <span className="inline-flex items-center gap-1 text-green-700">
+                        <Mail size={12} aria-hidden="true" />
+                        emailed
+                      </span>
+                    )}
                   </div>
                 </button>
               </li>
@@ -95,23 +118,18 @@ function SubFilter({ active, onClick, count, children }: { active: boolean; onCl
   );
 }
 
-function ReasonPill({ reason }: { reason: string }) {
-  const colors: Record<string, string> = {
-    user_request: 'bg-blue-50 text-blue-700 border-blue-200', critical_bug: 'bg-red-50 text-red-700 border-red-200',
-    billing: 'bg-purple-50 text-purple-700 border-purple-200', legal: 'bg-purple-50 text-purple-700 border-purple-200',
-    repeated_failure: 'bg-amber-50 text-amber-700 border-amber-200', negative_sentiment: 'bg-amber-50 text-amber-700 border-amber-200',
-    tool_failure: 'bg-amber-50 text-amber-700 border-amber-200', other: 'bg-gray-50 text-gray-700 border-gray-200',
-  };
-  const cls = colors[reason] ?? colors.other;
-  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{reason.replace('_', ' ')}</span>;
-}
-
-function StatusPill({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    pending: 'bg-red-50 text-red-700 border-red-200', in_progress: 'bg-amber-50 text-amber-700 border-amber-200', resolved: 'bg-green-50 text-green-700 border-green-200',
-  };
-  const cls = colors[status] ?? 'bg-gray-50 text-gray-700 border-gray-200';
-  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{status.replace('_', ' ')}</span>;
+function EmptyState({ message, icon: Icon, tone = 'neutral', subtitle }: { message: string; icon?: LucideIcon; tone?: 'neutral' | 'positive'; subtitle?: string }) {
+  const cls = tone === 'positive'
+    ? 'border-green-200 bg-green-50 text-green-800'
+    : 'border-[#e8e3dc] bg-white text-[#4a4a5a]';
+  const iconCls = tone === 'positive' ? 'text-green-700' : 'text-[#9a9a9a]';
+  return (
+    <div className={`rounded-lg border ${cls} p-8 text-center text-sm`}>
+      {Icon && <Icon size={32} aria-hidden="true" className={`mx-auto mb-2 ${iconCls}`} />}
+      <p className="text-sm font-medium">{message}</p>
+      {subtitle && <p className="mt-1 text-xs">{subtitle}</p>}
+    </div>
+  );
 }
 
 function formatRelative(iso: string): string {
