@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ShieldAlert, Eye, ArrowLeft } from 'lucide-react';
+import { safeExternalHref } from '@/lib/url-safety';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PII GUARD-RAILS (Sprint 5 V1 — DO NOT extend without explicit founder approval)
@@ -278,9 +279,16 @@ function ProspectsPanel({ rows, limit }: { rows: ViewAsData['prospects']; limit:
                     <td className="px-4 py-3"><StatusBadge variant={variant}>{p.status}</StatusBadge></td>
                     <td className="px-4 py-3 text-xs text-[#4a4a5a]">{p.source}</td>
                     <td className="px-4 py-3 text-xs">
-                      {p.linkedin_url ? (
-                        <a href={p.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">link →</a>
-                      ) : <span className="text-[#9a9a9a]">—</span>}
+                      {(() => {
+                        const safe = safeExternalHref(p.linkedin_url);
+                        if (safe) {
+                          return <a href={safe} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">link →</a>;
+                        }
+                        if (p.linkedin_url) {
+                          return <span className="text-[#9a9a9a]" title={p.linkedin_url}>(invalid)</span>;
+                        }
+                        return <span className="text-[#9a9a9a]">—</span>;
+                      })()}
                     </td>
                   </tr>
                 );
