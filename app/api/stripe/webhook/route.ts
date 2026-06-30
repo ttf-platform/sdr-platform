@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolvePlanFromPriceId } from '@/lib/stripe-plans'
 import { monthlyMrrForWorkspace } from '@/lib/pricing'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
-import { sendUpgradeEmail } from '@/lib/email'
+import { sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -127,6 +127,87 @@ export async function POST(request: Request) {
       }
     } catch (err) {
       console.error('[stripe-webhook] maybeSendUpgradeEmail unexpected failure', err)
+    }
+  }
+
+  // Helper: send the "payment failed" dunning email. Same fire-and-forget
+  // discipline as maybeSendUpgradeEmail. Dedup key is per-invoice so each
+  // failed billing cycle gets its own one-shot email — Stripe retries on
+  // the SAME invoice are absorbed by the lifecycle_emails UNIQUE constraint.
+  async function maybeSendDunningEmail(
+    workspaceId: string,
+    invoice: { id: string; amount_due: number | null; currency: string | null; hosted_invoice_url: string | null },
+    planTier: string | null,
+  ): Promise<void> {
+    try {
+      // 1. Idempotence per invoice: kind = past_due:{invoice_id}
+      //    Retries Stripe on the SAME invoice = same kind = silent dedup.
+      //    New billing cycle = new invoice id = new row = email resent.
+      const kind = `past_due:${invoice.id}`
+      const { data: reservation, error: insertErr } = await admin
+        .from('lifecycle_emails')
+        .insert({ workspace_id: workspaceId, kind })
+        .select('id')
+        .maybeSingle()
+      if (insertErr) {
+        const code = (insertErr as { code?: string }).code
+        if (code === '23505') return  // already sent for this invoice
+        console.error('[stripe-webhook] dunning reserve failed', insertErr.message)
+        return
+      }
+      if (!reservation?.id) return
+
+      // 2. Resolve recipient (same pattern as maybeSendUpgradeEmail).
+      const { data: member } = await admin
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', workspaceId)
+        .eq('role', 'owner')
+        .limit(1)
+        .maybeSingle()
+      const ownerUserId = member?.user_id as string | undefined
+      if (!ownerUserId) {
+        console.error('[stripe-webhook] no owner for workspace', workspaceId)
+        return
+      }
+
+      const { data: ownerResp } = await admin.auth.admin.getUserById(ownerUserId)
+      const email     = ownerResp?.user?.email ?? null
+      const firstName = (ownerResp?.user?.user_metadata?.first_name as string | null) ?? null
+      if (!email) return
+
+      const { data: ws } = await admin
+        .from('workspaces')
+        .select('name')
+        .eq('id', workspaceId)
+        .maybeSingle()
+      const workspaceName = (ws?.name as string | null) ?? 'your workspace'
+
+      const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
+
+      // Currency symbol mapping. Falls back to empty string for unsupported
+      // currencies (the amount stays numeric, just without a leading symbol).
+      const sym = ({ usd: '$', eur: '€', gbp: '£' } as Record<string, string>)[invoice.currency ?? ''] ?? ''
+      const amountLabel = invoice.amount_due ? `${sym}${(invoice.amount_due / 100).toFixed(2)}` : null
+
+      // 3. Send.
+      const result = await sendDunningEmail({
+        to:               email,
+        firstName,
+        workspaceName,
+        planTier,
+        amountLabel,
+        appBaseUrl,
+        hostedInvoiceUrl: invoice.hosted_invoice_url,
+      })
+      if (result.ok && result.messageId) {
+        await admin
+          .from('lifecycle_emails')
+          .update({ resend_message_id: result.messageId })
+          .eq('id', reservation.id)
+      }
+    } catch (err) {
+      console.error('[stripe-webhook] maybeSendDunningEmail unexpected failure', err)
     }
   }
 
@@ -320,6 +401,31 @@ export async function POST(request: Request) {
         to_mrr_usd:      mrrUsdFor(before.plan_tier, before.billing_interval),
         occurred_at:     occurredAt,
       })
+
+      // Dunning email — first failure only, real subscription invoices only,
+      // and not for an already-canceled workspace. Fire-and-forget; the
+      // helper guards itself and never throws past its own try/catch.
+      const isFirstAttempt = inv.attempt_count === 1
+      const isSubInvoice   = inv.billing_reason === 'subscription_cycle' || inv.billing_reason === 'subscription_create'
+      const wid            = workspaceId ?? before.id
+      if (
+        wid &&
+        inv.id &&
+        isFirstAttempt &&
+        isSubInvoice &&
+        before.subscription_status !== 'canceled'
+      ) {
+        await maybeSendDunningEmail(
+          wid,
+          {
+            id:                 inv.id,
+            amount_due:         inv.amount_due ?? null,
+            currency:           inv.currency ?? null,
+            hosted_invoice_url: inv.hosted_invoice_url ?? null,
+          },
+          before.plan_tier ?? null,
+        )
+      }
       break
     }
 
