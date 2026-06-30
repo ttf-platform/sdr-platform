@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { getAdminNotificationEmail } from './admin-settings';
+import { safeExternalHref } from './url-safety';
 
 const FROM_ADDRESS = 'Mirvo <hello@mirvo.ai>';
 
@@ -236,6 +237,59 @@ export async function sendUpgradeEmail(params: {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown';
     console.error('[email] sendUpgradeEmail failed:', msg);
+    return { ok: false, error: msg };
+  }
+}
+
+export async function sendDunningEmail(params: {
+  to:               string;
+  firstName:        string | null;
+  workspaceName:    string;
+  planTier:         string | null;
+  amountLabel:      string | null;
+  appBaseUrl:       string;
+  hostedInvoiceUrl: string | null;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const { to, firstName, workspaceName, planTier, amountLabel, appBaseUrl, hostedInvoiceUrl } = params;
+  const greeting       = firstName ? `Hi ${escapeHtml(firstName)},` : 'Hi,';
+  const planLabel      = planTier ? escapeHtml(planTier.charAt(0).toUpperCase() + planTier.slice(1)) : null;
+  const safeWorkspace  = escapeHtml(workspaceName);
+  const planPhrase     = planLabel   ? ` ${planLabel}` : '';
+  const amountPhrase   = amountLabel ? ` of ${escapeHtml(amountLabel)}` : '';
+  const baseUrl        = appBaseUrl;
+
+  // Validate the externally-supplied invoice URL before rendering it as an
+  // href. safeExternalHref returns null for anything that is not http(s)
+  // (javascript:, data:, malformed, empty). When null, the secondary
+  // "pay this invoice directly" link is simply omitted.
+  const safeHostedUrl  = safeExternalHref(hostedInvoiceUrl);
+
+  const subject = `Your Mirvo payment didn't go through — quick fix inside`;
+  const html = wrapEmail(`
+    <span style="display:none;max-height:0;overflow:hidden;opacity:0;">Your card was likely just declined or expired. Updating it takes about 30 seconds and your campaigns keep running.</span>
+    <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">A quick heads-up about your payment</h2>
+    <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
+    <p style="color: #1a1a1a; line-height: 1.6;">We tried to process a payment${amountPhrase} for your Mirvo${planPhrase} subscription on ${safeWorkspace}, and it didn't go through. This is almost always something small — an expired card, a new card number, or a temporary hold from the bank.</p>
+    <p style="color: #1a1a1a; line-height: 1.6;">Updating your payment details takes about 30 seconds, and we'll retry automatically once it's sorted.</p>
+    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/billing" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Update payment method &#x2192;</a></p>
+    ${safeHostedUrl ? `<p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">In a hurry? You can also <a href="${safeHostedUrl}" style="color: #2563eb; text-decoration: underline;">pay this invoice directly</a>.</p>` : ''}
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Your account stays active while you sort this out — there's no rush, and nothing is lost. If your card keeps declining over the next couple of weeks, your subscription may pause, but you can reactivate anytime.</p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Questions, or think this is a mistake? Just reply — we read every message.</p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
+  `);
+
+  try {
+    const resend = getResendClient();
+    const result = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    return { ok: true, messageId: result.data?.id };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[email] sendDunningEmail failed:', msg);
     return { ok: false, error: msg };
   }
 }
