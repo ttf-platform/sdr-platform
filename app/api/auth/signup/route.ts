@@ -64,12 +64,24 @@ export async function POST(request: NextRequest) {
       signupError.message?.toLowerCase().includes('already exists') ||
       (signupError as any).code === 'user_already_exists'
     if (isExisting) {
-      return respond({ success: false, error: 'email_exists', message: 'An account with this email already exists. Please sign in instead.' }, 400)
+      const recovery = await detectPurgedAccount(admin, email)
+      return respond(
+        recovery
+          ? { success: false, error: 'email_exists_purged', message: 'Your account still exists, but your workspace was removed. Log in to start fresh.' }
+          : { success: false, error: 'email_exists',        message: 'An account with this email already exists. Please sign in instead.' },
+        400
+      )
     }
     return respond({ success: false, error: 'signup_failed', message: signupError.message }, 400)
   }
   if (!signupData.user || signupData.user.identities?.length === 0) {
-    return respond({ success: false, error: 'email_exists', message: 'An account with this email already exists. Please sign in instead.' }, 400)
+    const recovery = await detectPurgedAccount(admin, email)
+    return respond(
+      recovery
+        ? { success: false, error: 'email_exists_purged', message: 'Your account still exists, but your workspace was removed. Log in to start fresh.' }
+        : { success: false, error: 'email_exists',        message: 'An account with this email already exists. Please sign in instead.' },
+      400
+    )
   }
 
   await admin.auth.admin.updateUserById(signupData.user.id, { email_confirm: true })
@@ -128,4 +140,48 @@ export async function POST(request: NextRequest) {
   })
 
   return respond({ success: true })
+}
+
+// Given a signup attempt on an already-registered email, detect whether the
+// account is in the "purged workspace" state (auth.users row still there, zero
+// workspace_members rows) — the post-J+30-purge shape produced by
+// /api/cron/purge-canceled-workspaces. Returns true only when we're confident.
+//
+// Cost: one admin.auth.admin.listUsers() page + one workspace_members SELECT.
+// Supabase JS caps perPage at 200 with no email-filter support, so we scan
+// pages until we find the row or hit MAX_PAGES. The signup endpoint is rate-
+// limited to 5/10 min per IP (line 9), so scan cost is bounded per attacker.
+// If the user base grows past MAX_PAGES × 200 = 2000 users, migrate to a
+// dedicated RPC (auth.users is not accessible via the .from() interface).
+//
+// Never throws. On any failure the return is false, which surfaces the
+// original generic "sign in instead" message — the recovery message is a UX
+// enhancement, not a correctness contract.
+async function detectPurgedAccount(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+): Promise<boolean> {
+  const MAX_PAGES = 10
+  const PER_PAGE  = 200
+  const target    = email.trim().toLowerCase()
+  try {
+    let userId: string | null = null
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PER_PAGE })
+      if (error || !data) return false
+      const match = data.users.find((u) => (u.email ?? '').toLowerCase() === target)
+      if (match) { userId = match.id; break }
+      if (data.users.length < PER_PAGE) break
+    }
+    if (!userId) return false
+    const { data: rows, error: memberErr } = await admin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .limit(1)
+    if (memberErr) return false
+    return (rows?.length ?? 0) === 0
+  } catch {
+    return false
+  }
 }
