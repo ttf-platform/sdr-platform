@@ -294,6 +294,49 @@ export async function sendDunningEmail(params: {
   }
 }
 
+export async function sendCancellationEmail(params: {
+  to:            string;
+  firstName:     string | null;
+  workspaceName: string;
+  planTier:      string | null;
+  appBaseUrl:    string;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const { to, firstName, workspaceName, planTier, appBaseUrl } = params;
+  const greeting       = firstName ? `Hi ${escapeHtml(firstName)},` : 'Hi,';
+  const planLabel      = planTier ? escapeHtml(planTier.charAt(0).toUpperCase() + planTier.slice(1)) : null;
+  const safeWorkspace  = escapeHtml(workspaceName);
+  const planPhrase     = planLabel ? ` ${planLabel}` : '';
+  const baseUrl        = appBaseUrl;
+
+  const subject = `Your Mirvo subscription is canceled — your data is kept for 30 days`;
+  const html = wrapEmail(`
+    <span style="display:none;max-height:0;overflow:hidden;opacity:0;">Your subscription has ended. Your workspace and data are kept for 30 days — re-subscribe before then to keep everything.</span>
+    <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">Your subscription is canceled</h2>
+    <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
+    <p style="color: #1a1a1a; line-height: 1.6;">We've canceled your Mirvo${planPhrase} subscription for ${safeWorkspace}. No more charges — and thank you for the time you spent with us.</p>
+    <p style="color: #1a1a1a; line-height: 1.6;"><strong>Your workspace stays available for 30 days.</strong> Your prospects, campaigns, and everything you built are kept for the next 30 days. Re-subscribe within that window and you pick up exactly where you left off — nothing lost.</p>
+    <p style="color: #1a1a1a; line-height: 1.6;">After 30 days, your data is permanently deleted and can't be recovered. So if there's any chance you'll come back, re-subscribing before then keeps all your work intact.</p>
+    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/billing" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Re-subscribe &#x2192;</a></p>
+    <p style="color: #1a1a1a; line-height: 1.6;">One quick favor: if you have a minute, what made you cancel? Just reply — a real person reads every message, and your answer helps us build something better.</p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
+  `);
+
+  try {
+    const resend = getResendClient();
+    const result = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    return { ok: true, messageId: result.data?.id };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[email] sendCancellationEmail failed:', msg);
+    return { ok: false, error: msg };
+  }
+}
+
 function wrapEmail(inner: string): string {
   return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a1a;">${inner}<p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0; border-top: 1px solid #e8e3dc; padding-top: 16px;">Mirvo &middot; <a href="https://www.mirvo.ai" style="color: #9a9a9a; text-decoration: none;">mirvo.ai</a></p></div>`;
 }

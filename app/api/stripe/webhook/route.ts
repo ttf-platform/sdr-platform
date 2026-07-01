@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolvePlanFromPriceId } from '@/lib/stripe-plans'
 import { monthlyMrrForWorkspace } from '@/lib/pricing'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
-import { sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
+import { sendCancellationEmail, sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -211,6 +211,82 @@ export async function POST(request: Request) {
     }
   }
 
+  // Helper: send the "subscription canceled" lifecycle email. Same
+  // fire-and-forget discipline. Skips trial expirations (handled inline
+  // via fromStatus check) — a trial that quietly expires is not an
+  // active cancellation, no confirmation owed. Idempotence is per
+  // Stripe subscription id so a user who re-subscribes and re-cancels
+  // later receives a fresh confirmation.
+  async function maybeSendCancellationEmail(
+    workspaceId: string,
+    subscriptionId: string,
+    planTier: string | null,
+    fromStatus: string | null,
+  ): Promise<void> {
+    if (fromStatus === 'trialing') return
+    try {
+      // Idempotence per-subscription: re-sub then re-cancel produces a
+      // new Stripe sub.id, hence a new row + a new email.
+      const kind = `cancellation_confirmed:${subscriptionId}`
+      const { data: reservation, error: insertErr } = await admin
+        .from('lifecycle_emails')
+        .insert({ workspace_id: workspaceId, kind })
+        .select('id')
+        .maybeSingle()
+      if (insertErr) {
+        const code = (insertErr as { code?: string }).code
+        if (code === '23505') return  // already sent for this subscription
+        console.error('[stripe-webhook] cancellation reserve failed', insertErr.message)
+        return
+      }
+      if (!reservation?.id) return
+
+      // Resolve recipient (same pattern as other helpers).
+      const { data: member } = await admin
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', workspaceId)
+        .eq('role', 'owner')
+        .limit(1)
+        .maybeSingle()
+      const ownerUserId = member?.user_id as string | undefined
+      if (!ownerUserId) {
+        console.error('[stripe-webhook] no owner for workspace', workspaceId)
+        return
+      }
+
+      const { data: ownerResp } = await admin.auth.admin.getUserById(ownerUserId)
+      const email     = ownerResp?.user?.email ?? null
+      const firstName = (ownerResp?.user?.user_metadata?.first_name as string | null) ?? null
+      if (!email) return
+
+      const { data: ws } = await admin
+        .from('workspaces')
+        .select('name')
+        .eq('id', workspaceId)
+        .maybeSingle()
+      const workspaceName = (ws?.name as string | null) ?? 'your workspace'
+
+      const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
+
+      const result = await sendCancellationEmail({
+        to: email,
+        firstName,
+        workspaceName,
+        planTier,
+        appBaseUrl,
+      })
+      if (result.ok && result.messageId) {
+        await admin
+          .from('lifecycle_emails')
+          .update({ resend_message_id: result.messageId })
+          .eq('id', reservation.id)
+      }
+    } catch (err) {
+      console.error('[stripe-webhook] maybeSendCancellationEmail unexpected failure', err)
+    }
+  }
+
   // Helper: read the workspace BEFORE any UPDATE so we can capture from_*
   // for the subscription_events ledger. Never throws — returns EMPTY_BEFORE
   // on any failure so the webhook flow keeps moving toward the 200 reply.
@@ -360,6 +436,20 @@ export async function POST(request: Request) {
         to_mrr_usd:      0,
         occurred_at:     occurredAt,
       })
+
+      // Cancellation confirmation email. Fire-and-forget. Skips trial
+      // expirations (handled inside the helper via fromStatus check).
+      // before.plan_tier carries the plan the user was on. sub.id keys
+      // idempotency per-subscription so a re-sub + re-cancel later
+      // triggers a fresh email.
+      if (workspaceId && sub.id) {
+        await maybeSendCancellationEmail(
+          workspaceId,
+          sub.id,
+          before.plan_tier ?? null,
+          before.subscription_status ?? null,
+        )
+      }
       break
     }
 
