@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Mirvo — Cold outreach that books meetings',
     description:
-      'All-in-one outbound for founders and first sales hires. Setup in under an hour.',
+      'All-in-one outbound for founders and first sales hires. Send from your own inbox on day one.',
   },
   robots: { index: true, follow: true },
   manifest: '/manifest.webmanifest',
