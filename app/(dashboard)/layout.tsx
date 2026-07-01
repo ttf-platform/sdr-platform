@@ -36,12 +36,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const { data: member } = await supabase.from('workspace_members')
         .select('workspace_id, workspaces(name, plan, plan_tier, credits, subscription_status, trial_end_date)')
         .eq('user_id', session.user.id).single()
-      if (member) {
-        setWorkspace(member)
-        const ws = member.workspaces as any
-        const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
-        setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
-      }
+      // Authenticated user with no workspace membership — most commonly the
+      // aftermath of the J+30 post-cancellation purge. The account still
+      // exists; the workspace does not. Send them to the recovery page
+      // instead of rendering an empty dashboard shell.
+      if (!member) { window.location.href = '/no-workspace'; return }
+      setWorkspace(member)
+      const ws = member.workspaces as any
+      const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
+      setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
       fetch('/api/admin/check').then(r => r.json()).then(d => { if (d?.isAdmin) setIsSentraAdmin(true) }).catch(() => {})
     })
   }, [])
