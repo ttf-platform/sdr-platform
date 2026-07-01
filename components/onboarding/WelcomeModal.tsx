@@ -6,12 +6,12 @@ import { motion } from 'framer-motion'
 
 const STEPS = [
   { icon: '🎯', title: 'Define your ICP',            desc: 'Tell Mirvo who you target — AI uses this to personalize every email.' },
-  { icon: '🌐', title: 'Add your sending domain',    desc: 'Configure DNS for long-term deliverability — sending starts immediately via shared infrastructure.' },
-  { icon: '✉️', title: 'Connect your mailbox',       desc: 'Link Gmail or Outlook — Mirvo handles domain warmup in parallel while you send.' },
+  { icon: '🌐', title: 'Add your sending domain',    desc: 'Configure DNS for long-term deliverability — connect a mailbox you already use, and you can start sending today.' },
+  { icon: '✉️', title: 'Connect your mailbox',       desc: 'Link Gmail or Outlook — Mirvo warms up your dedicated domain over about 3 weeks, while your connected mailbox keeps your outreach running.' },
   { icon: '🚀', title: 'Create your first campaign', desc: 'Mirvo AI generates a personalized multi-step sequence tailored to your ICP.' },
   { icon: '👥', title: 'Add your prospects',         desc: 'CSV import or AI prospect discovery — no credits consumed for CSV.' },
   { icon: '✓',  title: 'Review AI-generated emails', desc: 'Approval Queue lets you validate every email before it reaches a prospect.' },
-  { icon: '📤', title: 'Launch — send today',        desc: 'No waiting weeks. Mirvo sends day 1 at full capacity.' },
+  { icon: '📤', title: 'Launch — send today',        desc: "Connect your existing mailbox and start sending right away. Scaling to a dedicated sending domain comes later, when you're ready." },
 ] as const
 
 interface WelcomeModalProps {
@@ -47,7 +47,7 @@ export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
       onClose={handleClose}
       size="lg"
       title="Welcome to Mirvo"
-      description="Your AI sales agent is ready. Here's your 7-step setup — your first email goes out in under an hour."
+      description="Your AI sales agent is ready. Here's your 7-step setup — connect your mailbox and you can send your first emails today."
       closeOnBackdropClick={false}
       footer={
         <div className="flex flex-col gap-2 w-full">
@@ -86,7 +86,7 @@ export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
         ))}
       </div>
       <div className="mt-4 p-3 bg-[#f5f2ee] rounded-lg text-xs text-[#6b5e4e] leading-relaxed">
-        <strong>Day-1 sending:</strong> Mirvo routes your emails through managed infrastructure while your own domain warms up in the background. No waiting period.
+        <strong>Day-1 sending:</strong> connect a mailbox you already use and start today — it&rsquo;s already trusted by inboxes. When you move to a dedicated sending domain, it warms up gradually while your connected mailbox keeps things running.
       </div>
     </Modal>
   )

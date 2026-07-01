@@ -32,7 +32,7 @@ const STEPS: ChecklistStep[] = [
   {
     key: 'mailbox_connected',
     title: 'Connect your mailbox',
-    description: 'Verify DNS — sending starts day 1',
+    description: 'Connect your mailbox — start sending today',
     href: () => '/dashboard/settings/sending-domains/order-dfy',
   },
   {
@@ -56,7 +56,7 @@ const STEPS: ChecklistStep[] = [
   {
     key: 'campaign_launched',
     title: 'Launch campaign',
-    description: 'Send today — no waiting period',
+    description: 'Send today from your connected mailbox',
     href: () => '/dashboard/campaigns',
   },
 ]
