@@ -21,9 +21,13 @@
  * so the trend still has a data point.
  *
  * This cron is strictly read-only on the provider side (getWarmupStatus
- * only) and writes ONLY mailbox_health_snapshots. It does NOT touch
- * email_accounts — the live overwrite of reputation_score remains the
- * responsibility of the user-facing route.
+ * only). It writes the trend row to mailbox_health_snapshots, and — as of
+ * Sprint warmup-e2e — also syncs email_accounts.warmup_status to the value
+ * live-confirmed by the provider on this run (best-effort, only when the
+ * live value differs and maps cleanly to the DB enum; never fabricates
+ * 'active' without a provider confirmation). email_accounts.reputation_score
+ * is still left to the user-facing GET route; no other email_accounts
+ * columns are ever touched by this cron.
  *
  * Auth: standard CRON_SECRET via timingSafeEqual.
  */
@@ -86,15 +90,19 @@ export async function GET(request: Request) {
     }
 
     // ---- Eligible mailboxes ------------------------------------------------
-    //   setup_status='verified'      → DNS finalisée, provider renvoie des données utiles
-    //   warmup_status active/completed/paused → exclut 'pending' (score=0) et 'failed'
-    //   provider_inbox_id NOT NULL   → garde-fou
+    //   setup_status='verified'      → DNS finalisée / OAuth callback OK, provider renvoie des données utiles
+    //   warmup_status pending/active/completed/paused → exclut 'failed' uniquement
+    //     'pending' est inclus depuis Sprint warmup-e2e : les mailboxes OAuth
+    //     fraîchement connectées entrent avec 'pending' juste après
+    //     triggerWarmup, et le cron confirme la bascule vers 'active' en lisant
+    //     l'état live provider (voir bloc write-back plus bas).
+    //   provider_inbox_id NOT NULL   → garde-fou (= email pour les OAuth)
     //   LIMIT 100                    → hard cap Sprint 2b-1
     const { data: mailboxes, error: fetchErr } = await admin
       .from('email_accounts')
       .select('id, workspace_id, provider_inbox_id, warmup_status, sent_count_24h, bounce_count_24h')
       .eq('setup_status', 'verified')
-      .in('warmup_status', ['active', 'completed', 'paused'])
+      .in('warmup_status', ['pending', 'active', 'completed', 'paused'])
       .not('provider_inbox_id', 'is', null)
       .order('id', { ascending: true })
       .limit(MAX_MAILBOXES_PER_RUN)
@@ -180,6 +188,35 @@ export async function GET(request: Request) {
         summary.errors.push(`${mb.id}: db_upsert ${upsertErr.message.slice(0, 200)}`)
       } else {
         summary.snapshotted++
+      }
+
+      // Best-effort sync of email_accounts.warmup_status to the live provider
+      // value. Only fires when getWarmupStatus succeeded on THIS mailbox
+      // (providerError === null) AND the live phase differs from what's in
+      // DB AND the live phase is a known enum value. Never writes 'active'
+      // (or any other value) without a provider confirmation on this exact
+      // run — the DB never leads the provider. Failure of the update does
+      // NOT bump db_errors: the snapshot (primary output) has already
+      // succeeded above, this is defense-in-depth for the drawer/cron
+      // consumers that read email_accounts.warmup_status directly.
+      const KNOWN_PHASES = ['pending', 'active', 'paused', 'completed', 'failed'] as const
+      if (
+        providerError === null &&
+        warmupStatus !== mb.warmup_status &&
+        (KNOWN_PHASES as readonly string[]).includes(warmupStatus)
+      ) {
+        const { error: syncErr } = await admin
+          .from('email_accounts')
+          .update({ warmup_status: warmupStatus })
+          .eq('id', mb.id)
+        if (syncErr) {
+          console.error('[cron/reputation-snapshot] warmup_status sync failed', {
+            email_account_id: mb.id,
+            from:             mb.warmup_status,
+            to:               warmupStatus,
+            error:            syncErr.message,
+          })
+        }
       }
 
       // Throttle between mailboxes. Even on provider success the next call
