@@ -239,6 +239,13 @@ export interface ListDfyOrdersResult {
 }
 
 export interface IEmailProvider {
+  /** Identifies which concrete implementation is in play. Read by admin
+   *  diagnostic surfaces (e.g. /api/admin/email-provider) so an operator can
+   *  see at a glance whether prod is on the real Instantly integration or a
+   *  silent fallback to MockEmailProvider. Single source of truth: never
+   *  duplicate the getEmailProvider() selection logic elsewhere. */
+  readonly providerName: 'instantly' | 'mock';
+
   /** Create a new sending account on the provider for a workspace's domain. */
   provisionInbox(params: ProvisionInboxParams): Promise<ProvisionInboxResult>;
 
@@ -307,6 +314,8 @@ export interface IEmailProvider {
 // ============================================================================
 
 export class MockEmailProvider implements IEmailProvider {
+  readonly providerName = 'mock' as const;
+
   async provisionInbox(
     params: ProvisionInboxParams
   ): Promise<ProvisionInboxResult> {
@@ -552,6 +561,8 @@ export class MockEmailProvider implements IEmailProvider {
 // ============================================================================
 
 export class InstantlyProvider implements IEmailProvider {
+  readonly providerName = 'instantly' as const;
+
   private apiKey: string;
   private baseUrl: string = 'https://api.instantly.ai/api/v2';
 
