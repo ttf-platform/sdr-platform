@@ -49,6 +49,19 @@ export async function POST(request: Request) {
     await admin.from('workspaces').update(fields).eq('id', workspaceId)
   }
 
+  // Atomic "stamp canceled_at only if currently null". Used by branches that
+  // transition INTO 'canceled'. Guarantees a webhook replay cannot restart
+  // the J+30 purge clock, even if a readWorkspaceBefore() read failed and
+  // returned EMPTY_BEFORE (which would otherwise mislead the caller into
+  // thinking this is a first-time transition).
+  async function stampCanceledAtIfMissing(workspaceId: string): Promise<void> {
+    await admin
+      .from('workspaces')
+      .update({ canceled_at: new Date().toISOString() })
+      .eq('id', workspaceId)
+      .is('canceled_at', null)
+  }
+
   // Helper: send the "first upgrade" lifecycle email, idempotent and
   // strictly fire-and-forget. The webhook MUST stay 200 to Stripe, so
   // every failure (lookup, insert, Resend) is swallowed via try/catch
@@ -329,6 +342,8 @@ export async function POST(request: Request) {
         stripe_subscription_id: session.subscription,
         plan_tier:              plan,
         billing_interval:       interval,
+        // Clear the purge anchor on reactivation (re-subscription after cancel).
+        canceled_at:            null,
       })
 
       // History — checkout has no "before" subscription state.
@@ -375,11 +390,23 @@ export async function POST(request: Request) {
       if (priceId && !resolved) {
         console.warn(`[stripe-webhook] Unknown priceId ${priceId} for subscription ${sub.id}`)
       }
+      // Any transition OUT of 'canceled' clears the purge anchor so a
+      // stale timestamp cannot booby-trap a future purge if the status
+      // filter is ever relaxed.
+      const exitingCanceled = status !== 'canceled' && before.subscription_status === 'canceled'
       await updateWorkspace(workspaceId, {
         subscription_status:    status,
         stripe_subscription_id: sub.id,
         ...(resolved ? { plan_tier: resolved.tier, billing_interval: resolved.interval } : {}),
+        ...(exitingCanceled ? { canceled_at: null } : {}),
       })
+
+      // canceled_at anchors the J+30 purge cron. Stamped only when currently
+      // NULL (atomic conditional write) so a webhook replay never restarts
+      // the clock, and independent of whether readWorkspaceBefore succeeded.
+      if (status === 'canceled') {
+        await stampCanceledAtIfMissing(workspaceId)
+      }
 
       const toPlan     = resolved ? resolved.tier     : before.plan_tier
       const toInterval = resolved ? resolved.interval : before.billing_interval
@@ -421,6 +448,10 @@ export async function POST(request: Request) {
         subscription_status:    'canceled',
         stripe_subscription_id: null,
       })
+      // canceled_at anchors the J+30 purge cron. Atomic conditional write:
+      // stamped only when currently NULL, so a webhook replay of the same
+      // cancellation never restarts the clock.
+      await stampCanceledAtIfMissing(workspaceId)
 
       await logSubscriptionEvent(admin, {
         workspace_id:    workspaceId,
@@ -527,8 +558,10 @@ export async function POST(request: Request) {
       const before = await readWorkspaceBefore({ customerId })
 
       if (customerId) {
+        // Reactivation clears the purge anchor: a successful payment means
+        // the workspace is no longer eligible for J+30 deletion.
         await admin.from('workspaces')
-          .update({ subscription_status: 'active' })
+          .update({ subscription_status: 'active', canceled_at: null })
           .eq('stripe_customer_id', customerId)
       }
 
