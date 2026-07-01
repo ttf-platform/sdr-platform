@@ -174,7 +174,7 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
     <div>
       <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">Choose your sending domain</h2>
       <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">
-        A new dedicated domain warms up in the background over 14-21 days. A pre-warmed domain
+        A new dedicated domain warms up in the background over about 3 weeks. A pre-warmed domain
         from our pool can start sending immediately.
       </p>
 
@@ -184,7 +184,7 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
           checked={orderType === 'dfy'}
           onSelect={() => switchMode('dfy')}
           title="New dedicated domain"
-          sub="Pick a fresh domain · 14-21 day warm-up · best for high volume"
+          sub="Pick a fresh domain · 3-week warm-up · best for high volume"
         />
         <ModeCard
           checked={orderType === 'pre_warmed_up'}
