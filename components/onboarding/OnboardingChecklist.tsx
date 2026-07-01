@@ -33,7 +33,7 @@ const STEPS: ChecklistStep[] = [
     key: 'mailbox_connected',
     title: 'Connect your mailbox',
     description: 'Connect your mailbox — start sending today',
-    href: () => '/dashboard/settings/sending-domains/order-dfy',
+    href: () => '/dashboard/settings/sending-domains',
   },
   {
     key: 'campaign_created',
