@@ -288,7 +288,7 @@ export default function CampaignsPage() {
             <div className="text-3xl mb-3">✨</div>
             <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">Your first campaign</h2>
             <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
-              Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today via managed infrastructure.
+              Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today from your connected mailbox.
             </p>
             <button
               onClick={openChooseTemplate}

@@ -81,7 +81,7 @@ export default function DashboardPage() {
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-semibold text-[#1a1a2e]">Welcome to Mirvo</h2>
               <p className="text-sm text-[#6b5e4e] mt-0.5">
-                {onboarding.steps_completed} of {onboarding.total_steps} setup steps done — first emails can send today.
+                {onboarding.steps_completed} of {onboarding.total_steps} setup steps done — connect your mailbox to send your first emails today.
               </p>
               <div className="mt-3 flex items-center gap-2">
                 <div className="flex-1 h-1.5 bg-[#e5e0d6] rounded-full overflow-hidden">
