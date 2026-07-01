@@ -285,7 +285,7 @@ function WarmupBadge({ title, body }: { title: string; body: string }) {
           </div>
 
           {/* Text */}
-          <div className="text-center sm:text-left">
+          <div className="text-left">
             <p className="text-base text-[#1a1a1a]" style={{ fontWeight: 500 }}>
               {title}
             </p>
