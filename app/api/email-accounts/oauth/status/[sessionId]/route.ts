@@ -200,8 +200,19 @@ export async function GET(
       sender_name:         safeName,
       provider_name:       providerName,
       provider_account_id: safeAccountId,
+      // provider_inbox_id is the natural identifier the provider uses in its
+      // warmup APIs (POST /accounts/warmup/enable body { emails: [email] },
+      // GET /accounts/{email}). Populate it with the email so triggerWarmup
+      // and the reputation-snapshot cron can address this mailbox. Kept in
+      // parallel with provider_account_id (Instantly's OAuth UUID) — the two
+      // are distinct provider identifiers, not a duplicate.
+      provider_inbox_id:   normalizedEmail,
       warmup_status:       'pending',
-      setup_status:        'connected',
+      // OAuth mailboxes are validated by the provider at the callback; there
+      // is no user-side DNS to publish. 'verified' aligns with the DFY flow
+      // and lets the reputation-snapshot cron pick this row up (it filters
+      // setup_status='verified').
+      setup_status:        'verified',
     })
     .select('id, workspace_id, domain, email_address, sender_name, warmup_status, setup_status, connection_type, provider_account_id, provider_name, created_at')
     .single()
@@ -230,5 +241,22 @@ export async function GET(
 
   // Mailbox persisted — cleanup the binding row (fire-and-forget).
   void admin.from('oauth_sessions').delete().eq('session_id', sessionId)
+
+  // Kick off provider-side warmup for the newly connected mailbox. Fire-and-
+  // forget: a failure here doesn't block the mailbox from being connected —
+  // the row is already persisted, the response has been decided. The
+  // reputation-snapshot cron reflects the actual provider-side warmup phase
+  // daily; if triggerWarmup silently failed, an operator can retry manually.
+  // Only fires on the fresh-INSERT branch — the "existing row" and race
+  // paths (above) return early without hitting this code, so warmup is
+  // triggered exactly once per (workspace, email) tuple.
+  void (async () => {
+    try {
+      await getEmailProvider().triggerWarmup(normalizedEmail)
+    } catch (err) {
+      console.error('[oauth/status] triggerWarmup failed', normalizedEmail, err instanceof Error ? err.message : err)
+    }
+  })()
+
   return NextResponse.json({ status: 'success', account: inserted })
 }
