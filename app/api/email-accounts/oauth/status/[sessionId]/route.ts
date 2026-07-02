@@ -246,15 +246,53 @@ export async function GET(
   // forget: a failure here doesn't block the mailbox from being connected —
   // the row is already persisted, the response has been decided. The
   // reputation-snapshot cron reflects the actual provider-side warmup phase
-  // daily; if triggerWarmup silently failed, an operator can retry manually.
+  // daily; if triggerWarmup silently failed, an operator or user can retry
+  // via /api/email-accounts/[id]/retry-warmup.
+  //
   // Only fires on the fresh-INSERT branch — the "existing row" and race
   // paths (above) return early without hitting this code, so warmup is
   // triggered exactly once per (workspace, email) tuple.
+  //
+  // Sprint B2: writes the outcome to the warmup_trigger_* tracking columns
+  // on the row we just inserted. Best-effort — an UPDATE failure just logs
+  // and never throws past the IIFE.
   void (async () => {
+    const insertedId = inserted.id
+    const now        = new Date().toISOString()
     try {
       await getEmailProvider().triggerWarmup(normalizedEmail)
+      const { error: syncErr } = await admin
+        .from('email_accounts')
+        .update({
+          warmup_trigger_attempts:        1,
+          warmup_trigger_last_attempt_at: now,
+          warmup_triggered_at:            now,
+        })
+        .eq('id', insertedId)
+      if (syncErr) {
+        console.error('[oauth/status] warmup_trigger success sync failed', insertedId, syncErr.message)
+      }
     } catch (err) {
-      console.error('[oauth/status] triggerWarmup failed', normalizedEmail, err instanceof Error ? err.message : err)
+      const message    = err instanceof Error ? err.message : String(err)
+      const httpStatus = (err as { httpStatus?: number } | null)?.httpStatus
+      const nonRetryable = httpStatus === 400 || httpStatus === 403
+      console.error('[oauth/status] triggerWarmup failed', normalizedEmail, httpStatus ?? '(no-status)', message)
+      const patch: Record<string, unknown> = {
+        warmup_trigger_attempts:        1,
+        warmup_trigger_last_attempt_at: now,
+        warmup_trigger_last_error:      message.slice(0, 500),
+      }
+      // Non-retryable = mailbox will never warm up as-is (400 provider says
+      // ineligible, 403 says quota gone). Flip to 'failed' so the cron
+      // stops considering it and the admin/user surfaces mark it visible.
+      if (nonRetryable) patch.warmup_status = 'failed'
+      const { error: syncErr } = await admin
+        .from('email_accounts')
+        .update(patch)
+        .eq('id', insertedId)
+      if (syncErr) {
+        console.error('[oauth/status] warmup_trigger error sync failed', insertedId, syncErr.message)
+      }
     }
   })()
 

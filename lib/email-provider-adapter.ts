@@ -599,7 +599,12 @@ export class InstantlyProvider implements IEmailProvider {
     })
     if (!res.ok) {
       const body = await this.parseBody(res)
-      throw new Error(`[InstantlyProvider.triggerWarmup] ${this.errorMessage(body, res.status)}`)
+      const err = new Error(`[InstantlyProvider.triggerWarmup] ${this.errorMessage(body, res.status)}`)
+      // Attach the HTTP status so callers can classify retryable (429, 5xx)
+      // vs non-retryable (400 ineligible, 403 quota) failures without
+      // re-parsing the message. Sprint B2.
+      ;(err as Error & { httpStatus?: number }).httpStatus = res.status
+      throw err
     }
   }
 
