@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cronComplete } from '@/lib/cron-log'
+import { getAdminNotificationEmail } from '@/lib/admin-settings'
 import { Resend } from 'resend'
 import { timingSafeEqual } from 'crypto'
 
@@ -57,6 +58,8 @@ export async function GET(request: Request) {
     const totalCost = (data ?? []).reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0)
     const alertSent = totalCost > COST_THRESHOLD_USD
 
+    let alertSkippedReason: string | null = null
+
     if (alertSent) {
       const byWorkspace = new Map<string, number>()
       for (const row of data ?? []) {
@@ -68,15 +71,25 @@ export async function GET(request: Request) {
         .map(([id, cost]) => `${id}: $${cost.toFixed(4)}`)
         .join('\n')
 
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL ?? 'maximebertinmourot@hotmail.com'
-
-      await resend.emails.send({
-        from: process.env.FROM_ADDRESS ?? 'onboarding@resend.dev',
-        to: adminEmail,
-        subject: `Mirvo daily Claude cost > $${COST_THRESHOLD_USD}: $${totalCost.toFixed(2)}`,
-        text: `Daily Claude scan cost for ${yesterday.toISOString().slice(0, 10)}: $${totalCost.toFixed(2)} (threshold $${COST_THRESHOLD_USD}).\n\nTop 5 workspaces by cost:\n${topWorkspaces}\n\nReview signal_scan_events table to investigate.`,
-      })
+      const adminEmail = await getAdminNotificationEmail()
+      if (!adminEmail) {
+        // Config missing (neither admin_settings.admin_notification_email nor
+        // env var ADMIN_NOTIFICATION_EMAIL set). Fail-safe: skip send + surface
+        // in cron_runs payload so it's visible in admin observability instead
+        // of silently delivering to a personal address.
+        console.error(
+          `[cron/daily-cost-check] alert skipped: no admin email configured (would-be cost $${totalCost.toFixed(2)} for ${yesterday.toISOString().slice(0, 10)})`
+        )
+        alertSkippedReason = 'no_admin_email'
+      } else {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: process.env.FROM_ADDRESS ?? 'onboarding@resend.dev',
+          to: adminEmail,
+          subject: `Mirvo daily Claude cost > $${COST_THRESHOLD_USD}: $${totalCost.toFixed(2)}`,
+          text: `Daily Claude scan cost for ${yesterday.toISOString().slice(0, 10)}: $${totalCost.toFixed(2)} (threshold $${COST_THRESHOLD_USD}).\n\nTop 5 workspaces by cost:\n${topWorkspaces}\n\nReview signal_scan_events table to investigate.`,
+        })
+      }
     }
 
     return cronComplete({
@@ -86,7 +99,8 @@ export async function GET(request: Request) {
         date: yesterday.toISOString().slice(0, 10),
         total_cost_usd: totalCost.toFixed(4),
         threshold_usd: COST_THRESHOLD_USD,
-        alert_sent: alertSent,
+        alert_sent: alertSent && !alertSkippedReason,
+        alert_skipped_reason: alertSkippedReason,
         events_count: (data ?? []).length,
       },
       started_at: startedAt,
