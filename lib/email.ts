@@ -107,6 +107,54 @@ export async function sendAdminBugReportEmail(params: {
   }
 }
 
+export async function sendAdminHealthAlertEmail(params: {
+  status:     'degraded' | 'down';
+  summary:    string;
+  appBaseUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const adminEmail = await getAdminNotificationEmail();
+  if (!adminEmail) {
+    console.warn('[email] no admin_notification_email configured (DB or env), skipping health alert email');
+    return { ok: false, error: 'admin_email_not_configured' };
+  }
+
+  const isDown        = params.status === 'down';
+  const bannerColor   = isDown ? '#dc2626' : '#d97706';
+  const bannerLabel   = isDown ? 'CRITICAL — one or more checks are DOWN' : 'DEGRADED — one or more checks are misconfigured';
+  const adminLink     = `${params.appBaseUrl}/api/admin/health-detail`;
+  // The summary is a plaintext list of "check_name: error" lines. We escape
+  // to HTML entities and preserve line breaks. The strings themselves come
+  // from runHealthChecks() which never surfaces secret values — only env-var
+  // names and provider error messages.
+  const summaryHtml = escapeHtml(params.summary).replace(/\n/g, '<br />');
+
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h2 style="color: ${bannerColor}; margin: 0 0 8px 0;">${bannerLabel}</h2>
+  <p style="color: #4a4a5a; margin: 0 0 24px 0;">The daily health-alert cron detected a misconfiguration or outage. This is likely a missing env var in the current Vercel deployment. Fix it in Vercel dashboard → Settings → Environment Variables, then redeploy.</p>
+  <h3 style="color: #1a1a1a; margin: 24px 0 8px 0;">Failing checks</h3>
+  <div style="background: #f5f2ee; border-radius: 8px; padding: 16px; color: #1a1a1a; font-family: monospace; font-size: 13px; line-height: 1.6;">${summaryHtml}</div>
+  <a href="${adminLink}" style="display: inline-block; background: ${bannerColor}; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 24px;">Open health detail →</a>
+  <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Mirvo · This is a one-per-day summary; if the misconfig persists you'll get one more tomorrow.</p>
+</div>
+`.trim();
+
+  try {
+    const resend = getResendClient();
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: adminEmail,
+      subject: `[Mirvo Health] ${bannerLabel}`,
+      html,
+    });
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[email] sendAdminHealthAlertEmail failed:', msg);
+    return { ok: false, error: msg };
+  }
+}
+
 export type OnboardingDayOffset = 0 | 2 | 4 | 7;
 
 export async function sendOnboardingEmail(params: {

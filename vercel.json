@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/purge-canceled-workspaces",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/health-alert",
+      "schedule": "0 8 * * *"
     }
   ]
 }
