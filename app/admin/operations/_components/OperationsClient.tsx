@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { StatusBadge } from '@/components/StatusBadge';
 
 type DfyStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -63,7 +65,17 @@ export type OperationsData = {
     auto_paused_at:     string | null;
     auto_pause_reason:  string | null;
   }>;
-  limits: { dfyRecent: number; webhookFeed: number; webhookEvents: number; pausedMailboxes: number };
+  stuckWarmup: Array<{
+    id:                             string;
+    workspace_id:                   string;
+    email_address:                  string;
+    warmup_status:                  string;
+    warmup_trigger_attempts:        number | null;
+    warmup_trigger_last_error:      string | null;
+    warmup_trigger_last_attempt_at: string | null;
+    created_at:                     string;
+  }>;
+  limits: { dfyRecent: number; webhookFeed: number; webhookEvents: number; pausedMailboxes: number; stuckWarmup: number };
 };
 
 const WEBHOOK_EVENT_VARIANT: Record<
@@ -147,6 +159,34 @@ export function OperationsClient({ data }: { data: OperationsData }) {
     data.dfyCounts.failed +
     data.dfyCounts.cancelled;
   const dfyFailed = data.dfyRecent.filter((o) => o.status === 'failed');
+
+  // Sprint B2 — retry-now handler for the stuck-warmup table. Per-row busy
+  // state prevents a double-click from firing two requests, and blocks the
+  // rest of the table only after the click (other rows stay clickable).
+  const router = useRouter();
+  const [retryBusyId, setRetryBusyId] = useState<string | null>(null);
+  async function handleRetryStuck(mailboxId: string) {
+    if (retryBusyId) return;
+    setRetryBusyId(mailboxId);
+    try {
+      const res  = await fetch(`/api/email-accounts/${mailboxId}/retry-warmup`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (body?.alreadyActive) {
+          alert(body.message ?? 'Warmup is already running.');
+        } else {
+          alert(body.message ?? 'Warmup retriggered.');
+        }
+        router.refresh();
+      } else {
+        alert(body?.message ?? `Retry failed (HTTP ${res.status}).`);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Retry failed.');
+    } finally {
+      setRetryBusyId(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-8">
@@ -443,6 +483,73 @@ export function OperationsClient({ data }: { data: OperationsData }) {
                 </div>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────── */}
+      <section aria-labelledby="stuck-warmup-heading">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 id="stuck-warmup-heading" className="text-base font-semibold text-[#1a1a1a]">Stuck warmup mailboxes</h2>
+          <p className="text-xs text-[#9a9a9a]">{data.stuckWarmup.length} mailbox{data.stuckWarmup.length === 1 ? '' : 'es'}</p>
+        </div>
+
+        {data.stuckWarmup.length === 0 ? (
+          <EmptyState message="No stuck warmup mailboxes — the initial trigger landed for every connected mailbox." tone="positive" />
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[#e8e3dc] bg-[#fafaf9] text-left text-xs font-medium uppercase tracking-wide text-[#6b5e4e]">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Mailbox</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3">Attempts</th>
+                  <th scope="col" className="px-4 py-3">Last attempt</th>
+                  <th scope="col" className="px-4 py-3">Last error</th>
+                  <th scope="col" className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.stuckWarmup.map((m) => {
+                  const attempts = m.warmup_trigger_attempts ?? 0;
+                  const statusVariant: 'amber' | 'red' = m.warmup_status === 'failed' ? 'red' : 'amber';
+                  const busy = retryBusyId === m.id;
+                  return (
+                    <tr key={m.id} className="border-b border-[#f0ebe4] last:border-b-0">
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        <div className="font-medium">{m.email_address}</div>
+                        <div className="text-xs text-[#9a9a9a]">workspace {truncateId(m.workspace_id)}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge variant={statusVariant}>{m.warmup_status}</StatusBadge>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]">{attempts}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]" title={m.warmup_trigger_last_attempt_at ?? ''}>
+                        {formatRelative(m.warmup_trigger_last_attempt_at)}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-red-700" title={m.warmup_trigger_last_error ?? ''}>
+                        {m.warmup_trigger_last_error
+                          ? m.warmup_trigger_last_error.length > 80
+                            ? m.warmup_trigger_last_error.slice(0, 80) + '…'
+                            : m.warmup_trigger_last_error
+                          : '—'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleRetryStuck(m.id)}
+                          disabled={busy}
+                          aria-label={`Retry warmup for ${m.email_address}`}
+                          className="rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+                        >
+                          {busy ? 'Retrying…' : 'Retry now'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
