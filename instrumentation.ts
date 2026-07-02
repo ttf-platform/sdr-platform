@@ -7,7 +7,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { PostHog } = await import('posthog-node')
     const client = new PostHog(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com',
+      host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
       flushAt: 1,
       flushInterval: 0,
     })
