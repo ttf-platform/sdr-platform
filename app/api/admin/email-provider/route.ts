@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireSentraAdminResponse } from '@/lib/admin-auth'
-import { getEmailProvider } from '@/lib/email-provider-adapter'
+import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,27 +13,18 @@ export const dynamic = 'force-dynamic'
 // MockEmailProvider silently when INSTANTLY_API_KEY is missing (see Sprint
 // audit), so an operator had no way to confirm which provider prod was on.
 //
-// Only booleans are returned for env vars. The value of INSTANTLY_API_KEY is
-// never read out, never logged, never surfaced in the response.
+// The env inspection logic lives in lib/email-provider-health.ts so it can be
+// reused by the public /api/health check and the daily health-alert cron
+// (Sprint B1+B3). Only booleans are returned for env vars; the value of
+// INSTANTLY_API_KEY is never read out, never logged, never surfaced.
 export async function GET() {
   const guard = await requireSentraAdminResponse()
   if (guard) return guard
 
-  const provider      = getEmailProvider()
-  const mockFlagSet   = process.env.MOCK_EMAIL_PROVIDER === 'true'
-  const apiKeyPresent = !!process.env.INSTANTLY_API_KEY
-
-  const reason = mockFlagSet
-    ? 'MOCK_EMAIL_PROVIDER=true'
-    : !apiKeyPresent
-      ? 'INSTANTLY_API_KEY not set'
-      : 'INSTANTLY_API_KEY present'
+  const diagnostic = getEmailProviderDiagnostic()
 
   return NextResponse.json({
-    provider:  provider.providerName,
-    isMock:    provider.providerName === 'mock',
-    env:       { mockFlagSet, apiKeyPresent },
-    reason,
+    ...diagnostic,
     timestamp: new Date().toISOString(),
   })
 }
