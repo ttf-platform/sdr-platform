@@ -14,13 +14,14 @@ export type HealthResponse = {
   status: CheckStatus
   timestamp: string
   checks: {
-    database:           CheckResult
-    stripe:             CheckResult
-    stripe_webhook:     CheckResult
-    anthropic:          CheckResult
-    resend:             CheckResult
-    instantly_provider: CheckResult
-    instantly_webhook:  CheckResult
+    database:                   CheckResult
+    stripe:                     CheckResult
+    stripe_webhook:             CheckResult
+    anthropic:                  CheckResult
+    resend:                     CheckResult
+    instantly_provider:         CheckResult
+    instantly_webhook:          CheckResult
+    instantly_webhook_activity: CheckResult
   }
 }
 
@@ -114,8 +115,82 @@ function checkInstantlyWebhook(): CheckResult {
   return { status: 'ok' }
 }
 
+// Sprint B4 — detects the "Instantly webhook silence" outage: the app is
+// producing send activity (users approve emails, which triggers Instantly
+// ensureCampaign/enqueueLead/activateCampaign within seconds) but no webhook
+// has been received in > 48h. Almost certainly means the webhook URL is not
+// registered in the Instantly dashboard, so REPLY/SENT/BOUNCED events never
+// come back — replies vanish silently to the user.
+//
+// Activity signal is prospect_emails.status='approved' + updated_at within
+// the last 24h — NOT email_send_log (which is populated BY the SENT webhook
+// itself, so a silent webhook would starve that signal and cause a permanent
+// false negative). Approvals are user-driven and land on the DB regardless
+// of the webhook state.
+//
+// Query pair uses idx_webhook_events_provider_type (migration 061). No
+// user input in either query — all values are constants defined above.
+// Error strings surface only counts, table names, and durations. Never PII
+// (no email addresses, no workspace ids), never any secret.
+const INSTANTLY_ACTIVITY_WINDOW_HOURS   = 24
+const INSTANTLY_SILENCE_THRESHOLD_HOURS = 48
+
+async function checkInstantlyWebhookActivity(): Promise<CheckResult> {
+  try {
+    const admin = createAdminClient()
+    const activitySince = new Date(
+      Date.now() - INSTANTLY_ACTIVITY_WINDOW_HOURS * 3600_000,
+    ).toISOString()
+
+    // 1) Is anything happening that should trigger a webhook?
+    const { count: recentApprovals, error: activityErr } = await admin
+      .from('prospect_emails')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'approved')
+      .gte('updated_at', activitySince)
+    if (activityErr) {
+      return { status: 'down', error: `activity probe failed: ${activityErr.message}` }
+    }
+    const approvals = recentApprovals ?? 0
+    if (approvals === 0) {
+      // No send activity in the window → nothing to check.
+      return { status: 'ok' }
+    }
+
+    // 2) When was the last Instantly webhook received (any workspace, any type)?
+    const { data: lastEvent, error: lastErr } = await admin
+      .from('webhook_events')
+      .select('received_at')
+      .eq('provider', 'instantly')
+      .order('received_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (lastErr) {
+      return { status: 'down', error: `webhook probe failed: ${lastErr.message}` }
+    }
+
+    const lastAt     = lastEvent?.received_at ? new Date(lastEvent.received_at).getTime() : 0
+    const hoursSince = lastAt > 0 ? (Date.now() - lastAt) / 3600_000 : Infinity
+
+    if (hoursSince > INSTANTLY_SILENCE_THRESHOLD_HOURS) {
+      const detail = lastAt > 0
+        ? `last Instantly webhook was ${Math.round(hoursSince)}h ago (threshold ${INSTANTLY_SILENCE_THRESHOLD_HOURS}h), but ${approvals} approvals in the last ${INSTANTLY_ACTIVITY_WINDOW_HOURS}h`
+        : `no Instantly webhook ever received, but ${approvals} approvals in the last ${INSTANTLY_ACTIVITY_WINDOW_HOURS}h — is the webhook URL configured in the Instantly dashboard?`
+      return { status: 'degraded', error: detail }
+    }
+
+    return { status: 'ok' }
+  } catch (err) {
+    return { status: 'down', error: err instanceof Error ? err.message : 'Unknown' }
+  }
+}
+
 export async function runHealthChecks(): Promise<HealthResponse> {
-  const [database, stripe] = await Promise.all([checkDatabase(), checkStripe()])
+  const [database, stripe, instantly_webhook_activity] = await Promise.all([
+    checkDatabase(),
+    checkStripe(),
+    checkInstantlyWebhookActivity(),
+  ])
   const stripe_webhook     = checkStripeWebhook()
   const anthropic          = checkAnthropic()
   const resend             = checkResend()
@@ -130,6 +205,7 @@ export async function runHealthChecks(): Promise<HealthResponse> {
     resend.status,
     instantly_provider.status,
     instantly_webhook.status,
+    instantly_webhook_activity.status,
   ]
   let overall: CheckStatus = 'ok'
   if (allStatuses.includes('down'))          overall = 'down'
@@ -146,6 +222,7 @@ export async function runHealthChecks(): Promise<HealthResponse> {
       resend,
       instantly_provider,
       instantly_webhook,
+      instantly_webhook_activity,
     },
   }
 }
