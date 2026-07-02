@@ -20,6 +20,10 @@ export interface EmailAccount {
   sending_phase: number;
   paused_by_user: boolean;
   setup_status?: 'dns_pending' | 'verified';
+  // Sprint B2 — populated when the initial triggerWarmup after OAuth INSERT
+  // fails or when a manual/cron retry has run. Used to gate the "Retry warmup"
+  // menu item (only shown once the first attempt has been recorded).
+  warmup_trigger_attempts?: number;
 }
 
 export function SendingDomainCard({ account }: { account: EmailAccount }) {
@@ -51,6 +55,31 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : `Failed to ${action} mailbox`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRetryWarmup() {
+    setBusy(true);
+    setMenuOpen(false);
+    try {
+      const res = await fetch(`/api/email-accounts/${account.id}/retry-warmup`, {
+        method: 'POST',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (body?.alreadyActive) {
+          alert(body.message ?? 'Warmup is already running.');
+        }
+        // Both success and alreadyActive → refresh so the card reflects the
+        // updated warmup_status / warmup_triggered_at.
+        router.refresh();
+        return;
+      }
+      throw new Error(body?.message ?? 'Failed to retry warmup');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to retry warmup');
     } finally {
       setBusy(false);
     }
@@ -137,6 +166,16 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
                 >
                   {account.paused_by_user ? 'Resume sending' : 'Pause sending'}
                 </button>
+                {account.warmup_status === 'pending' && (account.warmup_trigger_attempts ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleRetryWarmup}
+                    disabled={busy}
+                    className="block w-full px-3 py-2 text-left text-sm text-[#1a1a1a] hover:bg-[#f5f2ee] disabled:opacity-50"
+                  >
+                    Retry warmup
+                  </button>
+                )}
                 <div className="my-1 border-t border-[#e8e3dc]" />
                 <button
                   type="button"
