@@ -8,6 +8,7 @@ const WEBHOOK_FEED_LIMIT     = 30;
 const PAUSED_MAILBOX_LIMIT   = 50;
 const CRON_RUNS_FETCH_LIMIT  = 200;
 const WEBHOOK_EVENTS_LIMIT   = 30;
+const STUCK_WARMUP_LIMIT     = 50;
 
 // vercel.json schedule mirror — used to derive "stale" status when the latest
 // run is older than expected. Update this when crons are added/changed.
@@ -122,6 +123,23 @@ export default async function OperationsPage() {
     .order('auto_paused_at', { ascending: false })
     .limit(PAUSED_MAILBOX_LIMIT);
 
+  // ── Stuck warmup mailboxes (Sprint B2 part 2 — Zone 6) ─────────────────
+  // Surfaces mailboxes whose initial triggerWarmup failed at OAuth time
+  // (warmup_trigger_attempts > 0) AND the provider never confirmed a
+  // successful trigger (warmup_triggered_at IS NULL). Includes both
+  // 'pending' (retry still eligible) and 'failed' (cap hit or non-retryable
+  // 400/403). Sorted oldest-attempt-first so the admin sees the most-
+  // starved rows on top. Uses idx_email_accounts_warmup_stuck (migration
+  // 069) for the composite filter.
+  const { data: stuckWarmupRaw } = await admin
+    .from('email_accounts')
+    .select('id, workspace_id, email_address, warmup_status, warmup_trigger_attempts, warmup_trigger_last_error, warmup_trigger_last_attempt_at, created_at')
+    .in('warmup_status', ['pending', 'failed'])
+    .gt('warmup_trigger_attempts', 0)
+    .is('warmup_triggered_at', null)
+    .order('warmup_trigger_last_attempt_at', { ascending: true, nullsFirst: true })
+    .limit(STUCK_WARMUP_LIMIT);
+
   const data: OperationsData = {
     cronHealth,
     dfyCounts,
@@ -130,11 +148,13 @@ export default async function OperationsPage() {
     webhookEvents: (webhookEventsRaw ?? []) as OperationsData['webhookEvents'],
     deliverability,
     pausedMailboxes: (pausedMailboxesRaw ?? []) as OperationsData['pausedMailboxes'],
+    stuckWarmup:     (stuckWarmupRaw ?? []) as OperationsData['stuckWarmup'],
     limits: {
       dfyRecent:       DFY_RECENT_LIMIT,
       webhookFeed:     WEBHOOK_FEED_LIMIT,
       webhookEvents:   WEBHOOK_EVENTS_LIMIT,
       pausedMailboxes: PAUSED_MAILBOX_LIMIT,
+      stuckWarmup:     STUCK_WARMUP_LIMIT,
     },
   };
 
