@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BarChart2, Sun, Phone, Globe, Settings, Users, CreditCard, ChevronDown, Shield } from 'lucide-react'
+import { BarChart2, Sun, Globe, Settings, Users, CreditCard, ChevronDown, Shield } from 'lucide-react'
 
 type Props = {
   planTier: string
   isMirvoAdmin: boolean
-  hasCallRecording: boolean
   hasLinkedIn: boolean
   pathname: string
 }
@@ -47,7 +46,7 @@ function NavItem({ href, icon: Icon, label, color = '#1a1a1a', active, onClose }
   )
 }
 
-export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasCallRecording, hasLinkedIn, pathname }: Props) {
+export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasLinkedIn, pathname }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -66,7 +65,7 @@ export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasCallRecording, ha
     }
   }, [])
 
-  const hasAddOns = hasCallRecording || hasLinkedIn
+  const hasAddOns = hasLinkedIn
   const close = () => setOpen(false)
   const isActive = (href: string) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
 
@@ -98,9 +97,6 @@ export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasCallRecording, ha
             <>
               <Divider />
               <SectionHeader label="Add-ons" />
-              {hasCallRecording && (
-                <NavItem href="/dashboard/call-recording" icon={Phone} label="Call Recording" active={isActive('/dashboard/call-recording')} onClose={close} />
-              )}
               {hasLinkedIn && (
                 <NavItem href={"/dashboard/linkedin" as never} icon={Globe} label="LinkedIn" active={isActive('/dashboard/linkedin')} onClose={close} />
               )}

@@ -27,7 +27,7 @@ export async function GET() {
   const periodStart = new Date()
   periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
 
-  const [usageRows, prospectsCount] = await Promise.all([
+  const [usageRows, prospectsCount, mailboxesCount] = await Promise.all([
     admin
       .from('usage_tracking')
       .select('metric, value')
@@ -37,15 +37,19 @@ export async function GET() {
       .from('prospects')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', member.workspace_id),
+    // Mirrors the mailbox enforcement query in
+    // app/api/email-accounts/oauth/status/[sessionId]/route.ts (checkMailboxQuota).
+    // Same filter (workspace_id only, no setup_status) so the counter shown to
+    // the user matches exactly what the quota check blocks on the next OAuth
+    // connect. Falls back to 0 on transient nulls — same pattern as
+    // prospectsCount above (route never 500s on a soft count failure).
+    admin
+      .from('email_accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', member.workspace_id),
   ])
 
-  let inboxes_count = 0
-  try {
-    const { count } = await admin
-      .from('inboxes').select('*', { count: 'exact', head: true })
-      .eq('workspace_id', member.workspace_id)
-    inboxes_count = count ?? 0
-  } catch { /* inboxes table may not exist yet (Sprint 8) */ }
+  const inboxes_count = mailboxesCount.count ?? 0
 
   const usage: Record<string, number> = { enrichments_used: 0, emails_sent: 0, meetings_booked: 0 }
   for (const row of usageRows.data ?? []) {
