@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, Phone, CreditCard, BarChart2, Globe, Shield, Radio } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
@@ -83,7 +83,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href)
   const ws = (workspace?.workspaces as any)
   const planTier = ws?.plan_tier ?? 'starter'
-  const hasCallRecording = !!ws?.has_call_recording
   const hasLinkedIn = !!ws?.has_linkedin
   const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || ''
   const initials = firstName?.[0]?.toUpperCase() || '?'
@@ -128,7 +127,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <WorkspaceDropdown
               planTier={planTier}
               isMirvoAdmin={isSentraAdmin}
-              hasCallRecording={hasCallRecording}
               hasLinkedIn={hasLinkedIn}
               pathname={pathname}
             />
@@ -268,19 +266,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Sun size={16} /> Morning Brief
               </Link>
 
-              {(hasCallRecording || hasLinkedIn) && (
+              {hasLinkedIn && (
                 <>
                   <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Add-ons</p>
-                  {hasCallRecording && (
-                    <Link href="/dashboard/call-recording" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
-                      <Phone size={16} /> Call Recording
-                    </Link>
-                  )}
-                  {hasLinkedIn && (
-                    <Link href={"/dashboard/linkedin" as never} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
-                      <Globe size={16} /> LinkedIn
-                    </Link>
-                  )}
+                  <Link href={"/dashboard/linkedin" as never} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
+                    <Globe size={16} /> LinkedIn
+                  </Link>
                 </>
               )}
 

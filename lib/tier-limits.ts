@@ -17,7 +17,7 @@ export const TIER_CAPS: Record<TierKey, {
   power:   { total_prospects: 50000, prospects_sourced_per_month: 350, enrichments_per_month: 500, emails_per_month: 3000, inboxes: 3 },
 }
 
-type UsageMetric = 'enrichments_used' | 'inboxes' | 'prospects_sourced'
+type UsageMetric = 'enrichments_used' | 'prospects_sourced'
 
 // Total contacts lifetime cap — counts from contacts table.
 // Race condition under concurrent imports is an acceptable limitation.
@@ -66,17 +66,6 @@ export async function checkTierLimit(
 
   const tier = (ws?.plan_tier ?? 'starter') as TierKey
   const caps = TIER_CAPS[tier] ?? TIER_CAPS.starter
-
-  if (metric === 'inboxes') {
-    const { count } = await admin
-      .from('inboxes').select('*', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-    const current = count ?? 0
-    if (current + amount > caps.inboxes) {
-      return { allowed: false, reason: `Inbox limit reached (${caps.inboxes} on ${tier} plan). Upgrade to add more.`, currentUsage: current, cap: caps.inboxes }
-    }
-    return { allowed: true, currentUsage: current, cap: caps.inboxes }
-  }
 
   // Monthly metric — read from usage_tracking
   const periodStart = new Date()
