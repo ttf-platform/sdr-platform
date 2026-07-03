@@ -94,6 +94,13 @@ export interface ExtractedFields {
   body:              string | null
   /** Free-text bounce reason from the provider (BOUNCED only, usually). */
   bounceReason:      string | null
+  // TODO(D3): ai_interest_value / interest score — NOT present in the
+  // Instantly v2 REPLY webhook payload (verified against
+  // developer.instantly.ai/guides/webhook-events.md — only reply_text /
+  // reply_subject / step / variant / is_first + envelope fields). Would
+  // require an additional GET /leads/{id} call after receipt to hydrate
+  // the score. Deferred until the analytics side justifies the extra
+  // provider call cost.
 }
 
 type Bag = Record<string, unknown>

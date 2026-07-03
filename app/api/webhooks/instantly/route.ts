@@ -408,6 +408,35 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
     await maybeStopFollowups(admin, workspaceId, pe, 'smart_stop_on_reply', 'prospect replied')
   }
 
+  // D3 — advance prospects.status='replied'. Conditional .in() preserves
+  // 'meeting' (post-booking), 'bounced' and 'unsubscribed' terminals, and
+  // is idempotent at the second REPLY (row already 'replied' → matcher
+  // excludes it → 0 rows updated, no regression). Error logged but never
+  // fails the webhook response.
+  //
+  // TODO D3.1: the BOUNCED handler (~L468) and future OPENED events do
+  // NOT propagate to prospects.status either — global prospects.status
+  // debt, separate sprint.
+  if (pe?.prospect_id) {
+    const { error: pErr } = await admin
+      .from('prospects')
+      .update({ status: 'replied', last_activity_at: now })
+      .eq('id', pe.prospect_id)
+      .eq('workspace_id', workspaceId)
+      .in('status', ['found', 'emailed', 'opened'])
+    if (pErr) console.error('[webhook/instantly] REPLY prospects.status update failed:', pErr.message)
+  } else if (isPlausibleEmail(fields.leadEmail)) {
+    // Orphan reply — no prospect_email match. Fall back to email-based
+    // resolution, same pattern as UNSUBSCRIBED (L546-550).
+    const { error: pErr } = await admin
+      .from('prospects')
+      .update({ status: 'replied', last_activity_at: now })
+      .eq('workspace_id', workspaceId)
+      .eq('email', fields.leadEmail.toLowerCase())
+      .in('status', ['found', 'emailed', 'opened'])
+    if (pErr) console.error('[webhook/instantly] REPLY prospects.status update (email fallback) failed:', pErr.message)
+  }
+
   analyzeMessageSentiment(inserted.id).catch(err =>
     console.error('[webhook/instantly] sentiment analysis failed:', err)
   )
