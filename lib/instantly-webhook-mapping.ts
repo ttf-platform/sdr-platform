@@ -70,6 +70,14 @@ export interface ExtractedFields {
   eventId:           string | null
   /** Identifier of the message at the provider (e.g. SMTP Message-ID or lead id). */
   providerMessageId: string | null
+  /** Instantly's UUID for the parent email row. Extracted strictly from
+   *  data.email_id — the only identifier accepted by POST /api/v2/emails/reply
+   *  as `reply_to_uuid`. Distinct from providerMessageId which is fuzzy across
+   *  event types (Message-ID, lead_id, original_message_id, …). Null when the
+   *  provider payload doesn't carry data.email_id (all non-REPLY events, and
+   *  REPLY events emitted before the field lands — reply-from-inbox route
+   *  must gate on this being non-null). */
+  providerEmailUuid: string | null
   /** The prospect's email (the lead). */
   leadEmail:         string | null
   /** Free-text display name for the lead, if the provider includes one. */
@@ -129,6 +137,15 @@ export function extractFields(payload: unknown): ExtractedFields {
       data.original_message_id, data.id,
       lead.id, lead.lead_id,
     ),
+    // Instantly's email UUID — extracted ONLY from data.email_id. Feeds
+    // POST /emails/reply.reply_to_uuid. Kept separate from the fuzzy
+    // providerMessageId pick above so we never accidentally pass a
+    // Message-ID string or a lead_id to the reply endpoint. Schema-assumed
+    // until first real REPLY payload is inspected (dette D5): validate the
+    // path is truly data.email_id when the first webhook lands.
+    providerEmailUuid: typeof data.email_id === 'string' && data.email_id.length > 0
+      ? data.email_id
+      : null,
     // lead email — top-level alias varies wildly across event types
     leadEmail: pick(
       data.lead_email, data.email, data.from_email, data.reply_from,
