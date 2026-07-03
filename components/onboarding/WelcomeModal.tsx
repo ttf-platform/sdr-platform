@@ -15,17 +15,26 @@ const STEPS = [
 ] as const
 
 interface WelcomeModalProps {
-  onDismiss: () => Promise<void>
+  /** Called by the "Let's go", "Try sample data", the built-in X, and ESC.
+   *  Semantics: modal closes for the current tab session but returns at the
+   *  next login. Provider persists a sessionStorage flag only, no DB write. */
+  onDismissTemporary: () => Promise<void> | void
+  /** Called by the small "Don't show this again" link. Semantics: PATCH
+   *  welcome_dismissed_permanently=true. Modal will not auto-show again
+   *  until the user explicitly triggers Replay welcome tour from the
+   *  avatar dropdown. */
+  onDismissPermanent: () => Promise<void> | void
 }
 
-export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
+export function WelcomeModal({ onDismissTemporary, onDismissPermanent }: WelcomeModalProps) {
   const [isOpen,          setIsOpen]          = useState(true)
   const [submitting,      setSubmitting]       = useState(false)
   const [loadingSample,   setLoadingSample]    = useState(false)
+  const [confirmingNever, setConfirmingNever]  = useState(false)
 
   async function handleClose() {
     setSubmitting(true)
-    await onDismiss()
+    await onDismissTemporary()
     setIsOpen(false)
   }
 
@@ -33,12 +42,18 @@ export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
     setLoadingSample(true)
     try {
       await fetch('/api/onboarding/load-sample-data', { method: 'POST' })
-      await onDismiss()
+      await onDismissTemporary()
       setIsOpen(false)
       window.location.reload()
     } catch {
       setLoadingSample(false)
     }
+  }
+
+  async function handleNever() {
+    setConfirmingNever(true)
+    await onDismissPermanent()
+    setIsOpen(false)
   }
 
   return (
@@ -53,17 +68,25 @@ export function WelcomeModal({ onDismiss }: WelcomeModalProps) {
         <div className="flex flex-col gap-2 w-full">
           <button
             onClick={handleClose}
-            disabled={submitting || loadingSample}
+            disabled={submitting || loadingSample || confirmingNever}
             className="w-full bg-[#1a1a2e] hover:bg-[#2a2a3e] text-white font-semibold py-3 px-6 rounded-lg text-sm transition-colors disabled:opacity-50"
           >
             {submitting ? 'Loading…' : "Let's go →"}
           </button>
           <button
             onClick={handleTrySample}
-            disabled={submitting || loadingSample}
+            disabled={submitting || loadingSample || confirmingNever}
             className="w-full border border-[#e8e3dc] bg-white hover:bg-[#f7f4f0] text-[#6b5e4e] font-medium py-2.5 px-6 rounded-lg text-sm transition-colors disabled:opacity-50"
           >
             {loadingSample ? 'Loading sample data…' : 'Try with sample data first →'}
+          </button>
+          <button
+            type="button"
+            onClick={handleNever}
+            disabled={submitting || loadingSample || confirmingNever}
+            className="mt-1 mx-auto text-xs text-[#8a7e6e] hover:text-[#4a4a5a] underline underline-offset-2 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+          >
+            {confirmingNever ? 'Saving…' : "Don't show this again"}
           </button>
         </div>
       }

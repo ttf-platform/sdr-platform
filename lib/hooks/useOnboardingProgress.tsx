@@ -20,6 +20,7 @@ export interface OnboardingProgressData {
   workspace_id: string
   stored: {
     welcome_dismissed?: boolean
+    welcome_dismissed_permanently?: boolean
     checklist_dismissed?: boolean
     try_mirvo_mode?: boolean
     last_campaign_id?: string | null
@@ -59,7 +60,20 @@ interface OnboardingContextValue {
   refetch: () => Promise<void>
   dismissChecklist: () => Promise<void>
   resumeChecklist: () => Promise<void>
+  /** Nonce that increments each time the user requests a manual replay of the
+   *  welcome tour. OnboardingProvider watches this value and opens the modal
+   *  when it changes, so the same user action re-opens even after a dismiss. */
+  welcomeReplayNonce: number
+  /** Reset both the session sessionStorage flag AND the permanent DB flag,
+   *  then bump the replay nonce so the modal shows again immediately. */
+  replayWelcome: () => Promise<void>
 }
+
+// Client-only key that suppresses the welcome modal for the current browser
+// tab session without persisting anything to the server. Cleared when the tab
+// closes → the modal reappears at the next login on a new session/tab. The
+// permanent dismiss lives on workspaces.onboarding_state.
+export const WELCOME_SESSION_KEY = 'mirvo_welcome_seen_session'
 
 const OnboardingContext = createContext<OnboardingContextValue | undefined>(undefined)
 
@@ -67,6 +81,7 @@ export function OnboardingProgressProvider({ children }: { children: ReactNode }
   const [data, setData] = useState<OnboardingProgressData | null>(null)
   const [loading, setLoading] = useState(true)
   const [recentlyCompleted, setRecentlyCompleted] = useState<StepKey | null>(null)
+  const [welcomeReplayNonce, setWelcomeReplayNonce] = useState(0)
   const previousCompletions = useRef<OnboardingCompletions | null>(null)
   const pathname = usePathname()
 
@@ -126,8 +141,35 @@ export function OnboardingProgressProvider({ children }: { children: ReactNode }
     )
   }
 
+  async function replayWelcome() {
+    // Clear the per-tab suppression so OnboardingProvider's session gate stops
+    // blocking, and reset the permanent flag so future logins also see the
+    // modal (matches the user intent when they click "Replay welcome tour").
+    if (typeof window !== 'undefined') {
+      try { sessionStorage.removeItem(WELCOME_SESSION_KEY) } catch { /* private-mode / disabled */ }
+    }
+    await fetch('/api/onboarding/progress', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ welcome_dismissed_permanently: false }),
+    })
+    setData(prev =>
+      prev ? { ...prev, stored: { ...prev.stored, welcome_dismissed_permanently: false } } : prev
+    )
+    setWelcomeReplayNonce(n => n + 1)
+  }
+
   return (
-    <OnboardingContext.Provider value={{ data, loading, recentlyCompleted, refetch: fetchProgress, dismissChecklist, resumeChecklist }}>
+    <OnboardingContext.Provider value={{
+      data,
+      loading,
+      recentlyCompleted,
+      refetch: fetchProgress,
+      dismissChecklist,
+      resumeChecklist,
+      welcomeReplayNonce,
+      replayWelcome,
+    }}>
       {children}
     </OnboardingContext.Provider>
   )
