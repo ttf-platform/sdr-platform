@@ -16,6 +16,9 @@ import {
 } from '@/lib/bot-ai';
 import { BOT_SYSTEM_PROMPT } from '@/lib/bot-system-prompt';
 import { sendAdminEscalationEmail } from '@/lib/email';
+import { getAdminSetting } from '@/lib/admin-settings';
+import { rateLimitByUser } from '@/lib/rate-limit';
+import { logAiCall } from '@/lib/ai-cost';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,6 +45,18 @@ export async function POST(req: NextRequest) {
     .single();
   if (!membership) return NextResponse.json({ error: 'no_workspace' }, { status: 403 });
   const workspaceId = membership.workspace_id as string;
+
+  // D2 lot 1 — per-user bot rate limit + $ cost logging. Cap is
+  // admin-configurable via admin_settings.bot_max_messages_per_hour_per_user
+  // (0 = unlimited, per the seed description). Each call to Anthropic below
+  // costs real money; the limit protects the workspace budget against a
+  // runaway loop or an abusive session. Fallback to 30/h if the setting
+  // row is absent — matches the seed default.
+  const limit = (await getAdminSetting<number>('bot_max_messages_per_hour_per_user')) ?? 30;
+  if (limit > 0) {
+    const rl = await rateLimitByUser(user.id, { limit, window: '1 h', prefix: 'bot' });
+    if (!rl.allowed) return rl.response;
+  }
 
   let conversation: { id: string };
   try {
@@ -89,6 +104,19 @@ export async function POST(req: NextRequest) {
         system: [{ type: 'text', text: BOT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         tools: BOT_TOOLS,
         messages,
+      });
+
+      // Per-iteration log: each loop iteration is a real Anthropic call
+      // with its own usage. Aggregating would lose the granularity needed
+      // to debug expensive multi-turn conversations. Fire-and-forget.
+      void logAiCall({
+        source:        'bot',
+        workspace_id:  workspaceId,
+        user_id:       user.id,
+        model:         BOT_MODEL,
+        input_tokens:  response.usage?.input_tokens  ?? 0,
+        output_tokens: response.usage?.output_tokens ?? 0,
+        metadata:      { iter, stop_reason: response.stop_reason },
       });
 
       const textBlocks = response.content.filter(

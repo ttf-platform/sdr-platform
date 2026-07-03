@@ -27,8 +27,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [isSentraAdmin, setIsSentraAdmin] = useState(false)
+  // D2 lot 3 — non-blocking maintenance banner + widget kill switch.
+  // Defaults fail SAFE: banner off, widget on, so any /api/settings/public-flags
+  // fetch failure leaves the app fully functional.
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [widgetHelpEnabled, setWidgetHelpEnabled] = useState(true)
   const avatarRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/settings/public-flags', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { maintenance_mode?: boolean; widget_help_enabled?: boolean } | null) => {
+        if (cancelled || !data) return
+        setMaintenanceMode(data.maintenance_mode === true)
+        setWidgetHelpEnabled(data.widget_help_enabled !== false)
+      })
+      .catch(() => { /* fail-soft — keep defaults */ })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -321,13 +339,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
+      {maintenanceMode && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="border-b border-red-200 bg-red-50 text-red-800 text-sm px-4 py-2 text-center"
+        >
+          Platform under maintenance — some features may be unavailable.
+        </div>
+      )}
+
       <SampleDataBanner />
 
       <main className="max-w-7xl mx-auto px-6 py-6">
         {children}
       </main>
 
-      <FloatingHelpButton />
+      {widgetHelpEnabled && <FloatingHelpButton />}
       <OnboardingProvider />
       <OnboardingChecklist />
       <ResumeOnboardingButton />
