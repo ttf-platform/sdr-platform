@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import type { ThreadItem } from '@/app/api/inbox/messages/[id]/thread/route'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -166,18 +167,10 @@ export default function InboxPage() {
   const [generatingDraft, setGeneratingDraft] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
-  const [sendToast, setSendToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // ── Load messages ──────────────────────────────────────────────────────────
-
-  // Auto-dismiss the "Reply sent" toast after 3s (Sentra design pattern).
-  useEffect(() => {
-    if (!sendToast) return
-    const t = setTimeout(() => setSendToast(null), 3000)
-    return () => clearTimeout(t)
-  }, [sendToast])
 
   useEffect(() => {
     async function load() {
@@ -325,7 +318,7 @@ export default function InboxPage() {
         return
       }
       setAiDraft('')
-      setSendToast('Reply sent')
+      toast.success('Reply sent')
       // Re-fetch the thread so the outbound copy appears at the bottom.
       if (selected.thread_id) {
         try {
@@ -577,15 +570,6 @@ export default function InboxPage() {
                   </p>
                 )}
               </div>
-              {sendToast && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#1a1a1a] text-white text-sm px-4 py-2 rounded-lg shadow-lg"
-                >
-                  {sendToast}
-                </div>
-              )}
             </>
           )}
         </div>
