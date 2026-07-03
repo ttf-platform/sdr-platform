@@ -71,7 +71,7 @@ export async function POST(
   const subject = `Re: ${pe.subject}`
   const now = new Date().toISOString()
 
-  const [{ data: message }, _updateResult] = await Promise.all([
+  const [{ data: message }, _updateResult, _prospectResult] = await Promise.all([
     admin
       .from('inbox_messages')
       .insert({
@@ -95,6 +95,14 @@ export async function POST(
       .from('prospect_emails')
       .update({ replied_at: now, status: 'replied' })
       .eq('id', pe.id),
+    // D3 — mirror the prod webhook's prospects.status advance so simulate
+    // reflects reality. Conditional .in() preserves terminal statuses.
+    admin
+      .from('prospects')
+      .update({ status: 'replied', last_activity_at: now })
+      .eq('id', pe.prospect_id)
+      .eq('workspace_id', pe.workspace_id)
+      .in('status', ['found', 'emailed', 'opened']),
   ])
 
   // Fire-and-forget sentiment analysis
