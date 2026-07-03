@@ -258,6 +258,20 @@ export interface IEmailProvider {
   /** Queue/send an email. */
   sendEmail(params: SendEmailParams): Promise<SendEmailResult>;
 
+  /** Send a reply in-thread to an existing inbound email at the provider.
+   *  Used by the inbox reply-from-inbox flow. Distinct from sendEmail /
+   *  campaign-based send: this posts directly to the provider's reply
+   *  endpoint with the parent email's UUID. Only text body is transmitted
+   *  (no HTML) to keep the outbound surface conservative. Callers must
+   *  ensure replyToUuid and eaccount are DB-derived — this method makes no
+   *  authorization decision of its own. */
+  sendReply(params: {
+    replyToUuid: string
+    eaccount: string
+    subject: string
+    bodyText: string
+  }): Promise<{ providerMessageId: string | null }>;
+
   /** User-initiated pause on sending. */
   pauseInbox(inboxId: string): Promise<void>;
 
@@ -393,6 +407,25 @@ export class MockEmailProvider implements IEmailProvider {
       scheduledAt: new Date().toISOString(),
       threadId,
     };
+  }
+
+  async sendReply(params: {
+    replyToUuid: string
+    eaccount: string
+    subject: string
+    bodyText: string
+  }): Promise<{ providerMessageId: string | null }> {
+    await this.sleep(Math.random() * 300 + 50);
+    // Log so a dev running without INSTANTLY_API_KEY can see the send would
+    // have happened. Length-only for the body — never the content, in case
+    // the payload contains prospect PII.
+    console.log('[MockEmailProvider.sendReply]', {
+      replyToUuid: params.replyToUuid,
+      eaccount:    params.eaccount,
+      subject:     params.subject,
+      body_len:    params.bodyText.length,
+    })
+    return { providerMessageId: `mock_reply_${crypto.randomUUID()}` }
   }
 
   async pauseInbox(_inboxId: string): Promise<void> {}
@@ -709,6 +742,59 @@ export class InstantlyProvider implements IEmailProvider {
 
   async sendEmail(_params: SendEmailParams): Promise<SendEmailResult> {
     throw new Error('[InstantlyProvider] not yet implemented');
+  }
+
+  async sendReply(params: {
+    replyToUuid: string
+    eaccount: string
+    subject: string
+    bodyText: string
+  }): Promise<{ providerMessageId: string | null }> {
+    // POST /emails/reply — per developer.instantly.ai/api-reference/email/
+    // reply-to-an-email.md. Required: reply_to_uuid (parent email UUID at
+    // Instantly), eaccount (sending mailbox), subject, body.{html|text}.
+    //
+    // We deliberately send body.text ONLY (never body.html). This keeps the
+    // outbound reply surface conservative: even if the draft body contains
+    // characters that would render as HTML in an html-mode payload, the
+    // text-only pathway forbids any client-controlled tag from executing at
+    // the recipient's mail client. All Mirvo reply generation is plain-text
+    // by design (see /api/inbox/draft's Claude prompt: "Write only the email
+    // body. No subject line, no preamble, no quotes.").
+    const res = await fetch(`${this.baseUrl}/emails/reply`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        reply_to_uuid: params.replyToUuid,
+        eaccount:      params.eaccount,
+        subject:       params.subject,
+        body:          { text: params.bodyText },
+      }),
+    })
+    if (!res.ok) {
+      const body = await this.parseBody(res)
+      const err = new Error(`[InstantlyProvider.sendReply] ${this.errorMessage(body, res.status)}`)
+      // Attach the HTTP status so callers can classify retryable (429, 5xx)
+      // vs non-retryable (400 bad uuid, 401 mailbox unauth, 402 quota).
+      // Same pattern as triggerWarmup.
+      ;(err as Error & { httpStatus?: number }).httpStatus = res.status
+      throw err
+    }
+    const body = await this.parseBody(res) as { id?: unknown; email_id?: unknown; message_id?: unknown }
+    // Instantly's response is documented as a full Email object; pick the
+    // most-likely-UUID field, fall back through the aliases we observed in
+    // the webhook payload extraction. Null if none match — the caller stores
+    // whatever we return without failing (it's an observability field, not
+    // a critical join key).
+    const providerMessageId =
+      (typeof body.id         === 'string' && body.id) ||
+      (typeof body.email_id   === 'string' && body.email_id) ||
+      (typeof body.message_id === 'string' && body.message_id) ||
+      null
+    return { providerMessageId }
   }
 
   async pauseInbox(inboxId: string): Promise<void> {

@@ -386,6 +386,7 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
       body_preview:        clip(body, 200),
       provider:            'instantly',
       provider_message_id: fields.providerMessageId,
+      provider_email_uuid: fields.providerEmailUuid,
       provider_event_id:   fields.eventId,
       received_at:         now,
     })
