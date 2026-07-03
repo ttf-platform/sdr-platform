@@ -17,6 +17,7 @@ import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
 import { SampleDataBanner } from '@/components/onboarding/SampleDataBanner'
+import { ReplayWelcomeMenuItem } from '@/components/onboarding/ReplayWelcomeMenuItem'
 
 const supabase = createClient()
 
@@ -176,6 +177,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#1a1a2e] hover:bg-[#f7f4f0]">
                     <Settings size={14} /> Settings
                   </Link>
+                  <ReplayWelcomeMenuItem onClick={() => setAvatarOpen(false)} />
                   <div className="border-t border-[#f0ece6]">
                     <Link href={"/" as Route} onClick={() => setAvatarOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#6b5e4e] hover:bg-[#f7f4f0]">
