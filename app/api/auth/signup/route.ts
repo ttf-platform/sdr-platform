@@ -4,10 +4,24 @@ import { createServerClient, createChunks, DEFAULT_COOKIE_OPTIONS } from '@supab
 import { signupSchema } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
 import { verifyTurnstile } from '@/lib/turnstile'
+import { getAdminSetting } from '@/lib/admin-settings'
 
 export async function POST(request: NextRequest) {
   const rl = await rateLimitByIp(request, { limit: 5, window: '10 m', prefix: 'auth-signup' })
   if (!rl.allowed) return rl.response
+
+  // D2 lot 2 — signups_enabled kill switch. Defensive default: only block
+  // when the flag is EXPLICITLY set to false. A missing row (fresh install,
+  // accidental deletion, DB probe failure) leaves signups open — the seed
+  // in migration 035 initialises this to true, so blocking on absence
+  // would be a foot-gun that silently disables all sign-ups.
+  const signupsFlag = await getAdminSetting<boolean>('signups_enabled')
+  if (signupsFlag === false) {
+    return NextResponse.json(
+      { success: false, error: 'signups_disabled', message: 'New signups are temporarily paused. Please try again later.' },
+      { status: 403 },
+    )
+  }
 
   let rawBody: unknown
   try { rawBody = await request.json() }

@@ -124,6 +124,14 @@ export function AskAIChat({ onBack, onClose }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, conversationId: conversationId ?? undefined }),
       })
+      if (res.status === 429) {
+        setMessages(prev => prev.map(m =>
+          m.id === assistantMsgId
+            ? { ...m, content: "You've reached the message limit for this hour. Please try again later." }
+            : m
+        ))
+        return
+      }
       if (!res.ok) throw new Error('Bot request failed')
       const data = await res.json()
 

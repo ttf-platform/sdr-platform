@@ -60,3 +60,18 @@ export async function rateLimitByWorkspace(
   if (success) return { allowed: true }
   return { allowed: false, response: buildLimitedResponse(reset) }
 }
+
+/**
+ * Rate limit keyed by user id. Used for per-user protections where the
+ * cost is billed to Anthropic on a per-message basis regardless of the
+ * workspace (bot conversations). Same sliding-window backing store as
+ * rateLimitByWorkspace — only the key differs.
+ */
+export async function rateLimitByUser(
+  userId: string,
+  config: RateLimitConfig,
+): Promise<RateLimitResult> {
+  const { success, reset } = await getLimiter(config).limit(userId)
+  if (success) return { allowed: true }
+  return { allowed: false, response: buildLimitedResponse(reset) }
+}
