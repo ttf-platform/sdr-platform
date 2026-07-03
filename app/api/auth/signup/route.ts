@@ -140,18 +140,37 @@ export async function POST(request: NextRequest) {
     return respond({ error: 'Failed to create workspace. Please contact support.' }, 500)
   }
 
-  await admin.from('workspace_members').insert({
+  // D4 lot A — members INSERT check + rollback. Without the .error check,
+  // a failed member insert silently orphaned the workspace (invisible via
+  // RLS since SELECT policies require a workspace_members link) while the
+  // route still returned success:true. Cleanup DELETE is scoped to
+  // workspace.id — the row was just created and has no other members yet,
+  // so no race with concurrent writes is possible.
+  const { error: memberError } = await admin.from('workspace_members').insert({
     workspace_id: workspace.id, user_id: signupData.user.id, role: 'owner', invite_accepted: true
   })
+  if (memberError) {
+    console.error('[signup] workspace_members insert failed, rolling back workspace:', memberError.message)
+    await admin.from('workspaces').delete().eq('id', workspace.id)
+    return respond({ success: false, error: 'signup_incomplete', message: 'Failed to complete signup. Please try again.' }, 500)
+  }
 
   // booking_slug: firstname-xxxx (4 random alphanum). Collision chance is negligible at this scale.
   const firstName = name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'
   const bookingSlug = `${firstName}-${Math.random().toString(36).slice(2, 6)}`.slice(0, 30)
 
-  await admin.from('workspace_profiles').insert({
+  // D4 lot A — profiles INSERT check, NON-FATAL. Missing profile degrades
+  // features that read it (bot context, campaign LLM, morning brief,
+  // sender identity) into placeholder mode — recoverable via a later
+  // settings save. Never roll back workspace+member for this. TODO D4.1:
+  // lazy-create workspace_profiles on first read when the row is missing.
+  const { error: profileError } = await admin.from('workspace_profiles').insert({
     workspace_id: workspace.id, company_name: companyName, product_description: product,
     icp_description: icp, tone, onboarding_completed: true, booking_slug: bookingSlug,
   })
+  if (profileError) {
+    console.error('[signup] workspace_profiles insert failed (non-fatal, profile can be created later):', profileError.message)
+  }
 
   return respond({ success: true })
 }

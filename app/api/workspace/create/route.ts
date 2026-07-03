@@ -47,16 +47,31 @@ export async function POST(request: Request) {
 
   if (wsError) return NextResponse.json({ error: wsError.message }, { status: 500 })
 
-  await admin.from('workspace_members').insert({
+  // D4 lot A — members INSERT check + rollback. Mirrors the signup route
+  // hardening. Without .error the failure was silent and produced an
+  // orphan workspace invisible via RLS. Cleanup DELETE is scoped to
+  // workspace.id — the row was just created, no other members possible.
+  const { error: memberError } = await admin.from('workspace_members').insert({
     workspace_id: workspace.id,
     user_id: user.id,
     role: 'owner',
     invite_accepted: true
   })
+  if (memberError) {
+    console.error('[workspace/create] workspace_members insert failed, rolling back workspace:', memberError.message)
+    await admin.from('workspaces').delete().eq('id', workspace.id)
+    return NextResponse.json({ error: 'workspace_incomplete' }, { status: 500 })
+  }
 
-  await admin.from('workspace_profiles').insert({
+  // D4 lot A — profiles INSERT check, NON-FATAL. Same rationale as the
+  // signup route: missing profile degrades features into placeholder
+  // mode but never leaves the workspace unreachable.
+  const { error: profileError } = await admin.from('workspace_profiles').insert({
     workspace_id: workspace.id
   })
+  if (profileError) {
+    console.error('[workspace/create] workspace_profiles insert failed (non-fatal):', profileError.message)
+  }
 
   return NextResponse.json({ workspace })
 }
