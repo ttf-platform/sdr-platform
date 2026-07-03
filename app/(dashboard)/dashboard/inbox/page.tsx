@@ -164,10 +164,20 @@ export default function InboxPage() {
   const [threadLoading, setThreadLoading] = useState(false)
   const [aiDraft, setAiDraft] = useState('')
   const [generatingDraft, setGeneratingDraft] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [sendToast, setSendToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // ── Load messages ──────────────────────────────────────────────────────────
+
+  // Auto-dismiss the "Reply sent" toast after 3s (Sentra design pattern).
+  useEffect(() => {
+    if (!sendToast) return
+    const t = setTimeout(() => setSendToast(null), 3000)
+    return () => clearTimeout(t)
+  }, [sendToast])
 
   useEffect(() => {
     async function load() {
@@ -207,6 +217,7 @@ export default function InboxPage() {
   const selectMessage = useCallback(async (msg: InboxMessage) => {
     setSelected(msg)
     setAiDraft('')
+    setSendError(null)
     setThread(null)
 
     // Mark as read
@@ -256,6 +267,7 @@ export default function InboxPage() {
   async function generateDraft() {
     if (!selected) return
     setGeneratingDraft(true)
+    setSendError(null)
     try {
       const res = await fetch('/api/inbox/draft', {
         method: 'POST',
@@ -266,6 +278,66 @@ export default function InboxPage() {
       setAiDraft(data.draft || '')
     } finally {
       setGeneratingDraft(false)
+    }
+  }
+
+  // Maps the route's errorCode enum to a user-friendly message.
+  // Everything falls back to a generic "try again" — never surface a raw
+  // errorCode or provider error to the user.
+  function mapSendError(status: number, code: string | undefined): string {
+    if (status === 402) return "Your plan doesn't allow this."
+    if (status === 429) return 'Too many replies — wait a moment and try again.'
+    switch (code) {
+      case 'reply_uuid_missing':
+        return "Can't reply to this message (missing thread reference)."
+      case 'reply_context_missing':
+        return "Can't reply — original conversation context is missing."
+      case 'no_matching_mailbox':
+      case 'mailbox_not_ready':
+        return 'Connect and verify a mailbox to reply.'
+      case 'mailbox_paused':
+        return 'This mailbox is paused. Resume it to reply.'
+      case 'provider_mock_mode':
+        return 'Email sending is not active. Contact support.'
+      case 'provider_send_failed':
+        return 'Reply failed to send. Try again in a moment.'
+      default:
+        return 'Reply failed. Try again.'
+    }
+  }
+
+  async function handleSendReply() {
+    if (!selected) return
+    const trimmed = aiDraft.trim()
+    if (!trimmed || sending) return
+    setSending(true)
+    setSendError(null)
+    try {
+      const res = await fetch(`/api/inbox/messages/${selected.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: trimmed }),
+      })
+      let data: { error?: string } = {}
+      try { data = await res.json() } catch { /* empty body */ }
+      if (!res.ok) {
+        setSendError(mapSendError(res.status, data.error))
+        return
+      }
+      setAiDraft('')
+      setSendToast('Reply sent')
+      // Re-fetch the thread so the outbound copy appears at the bottom.
+      if (selected.thread_id) {
+        try {
+          const tRes = await fetch(`/api/inbox/messages/${selected.id}/thread`)
+          const t = await tRes.json()
+          setThread(t.items ?? null)
+        } catch { /* leave stale — the reply still sent */ }
+      }
+    } catch {
+      setSendError('Reply failed. Try again.')
+    } finally {
+      setSending(false)
     }
   }
 
@@ -468,24 +540,52 @@ export default function InboxPage() {
                   <span className="text-[11px] font-semibold text-[#8a7e6e] uppercase tracking-wider">
                     AI Draft Reply
                   </span>
-                  <button
-                    onClick={generateDraft}
-                    disabled={generatingDraft}
-                    className="text-xs bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#2d5ce0] transition-colors"
-                  >
-                    {generatingDraft ? 'Generating...' : '✦ Generate draft'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={generateDraft}
+                      disabled={generatingDraft || sending}
+                      className="text-xs border border-[#e8e3dc] text-[#4a4a5a] bg-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#faf8f5] transition-colors"
+                    >
+                      {generatingDraft ? 'Generating...' : '✦ Generate draft'}
+                    </button>
+                    {aiDraft && (
+                      <button
+                        onClick={handleSendReply}
+                        disabled={!aiDraft.trim() || sending}
+                        aria-busy={sending}
+                        className="text-xs bg-[#2563eb] text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#1d4ed8] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-1"
+                      >
+                        {sending ? 'Sending...' : 'Send reply'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {aiDraft && (
                   <textarea
                     value={aiDraft}
-                    onChange={e => setAiDraft(e.target.value)}
-                    className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef] resize-none text-[#4a3f32] leading-relaxed"
+                    onChange={e => { setAiDraft(e.target.value); if (sendError) setSendError(null) }}
+                    disabled={sending}
+                    className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#2563eb] resize-none text-[#4a3f32] leading-relaxed disabled:opacity-60"
                     rows={4}
                     placeholder="Your draft reply..."
+                    aria-label="Reply draft"
                   />
                 )}
+                {sendError && (
+                  <p role="alert" className="mt-2 text-xs text-red-600">
+                    {sendError}
+                  </p>
+                )}
               </div>
+              {sendToast && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#1a1a1a] text-white text-sm px-4 py-2 rounded-lg shadow-lg"
+                >
+                  {sendToast}
+                </div>
+              )}
             </>
           )}
         </div>
