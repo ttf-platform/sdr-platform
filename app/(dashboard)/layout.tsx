@@ -10,6 +10,7 @@ import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
 import { PostHogIdentify } from '@/components/PostHogIdentify'
 import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
+import { InboxUnreadBadge } from '@/components/layout/InboxUnreadBadge'
 import { Toaster } from 'sonner'
 import { OnboardingProgressProvider } from '@/lib/hooks/useOnboardingProgress'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
@@ -111,12 +112,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {navItems.map(item => {
               const Icon = item.icon
               const active = isActive(item.href)
+              const isInbox = item.href === '/dashboard/inbox'
               return (
                 <Link key={item.href} href={item.href as never}
                   className={"flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors font-medium " +
                     (active ? 'bg-[#eef1fd] text-[#2563eb]' : 'text-[#4a4a5a] hover:bg-[#f0ece6]')}>
                   <Icon size={13} strokeWidth={active ? 2.5 : 2} />
                   <span className="hidden lg:inline">{item.label}</span>
+                  {isInbox && <InboxUnreadBadge />}
                 </Link>
               )
             })}
@@ -244,11 +247,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="py-2">
               {navItems.map(item => {
                 const Icon = item.icon
+                const isInbox = item.href === '/dashboard/inbox'
                 return (
                   <Link key={item.href} href={item.href as never} onClick={() => setMenuOpen(false)}
                     className={"flex items-center gap-3 px-4 py-3 text-sm " +
                       (isActive(item.href) ? 'text-[#2563eb] font-medium bg-[#eef1fd]' : 'text-[#4a4a5a] hover:bg-[#f5f2ee]')}>
                     <Icon size={16} /> {item.label}
+                    {isInbox && <InboxUnreadBadge />}
                   </Link>
                 )
               })}
