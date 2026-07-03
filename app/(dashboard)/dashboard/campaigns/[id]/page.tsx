@@ -1,6 +1,8 @@
 'use client'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Tooltip } from '@/components/Tooltip'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
@@ -66,6 +68,12 @@ function EmailStatusBadge({ status }: { status: string }) {
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
+  // Warmup capacity toast is shown at most once per browser session to avoid
+  // spamming users who bulk-approve. Ref-based (not localStorage) — an
+  // intentional refresh resets it, which matches the "session" semantic
+  // used elsewhere in this repo.
+  const warmupToastShownRef = useRef(false)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence' | 'approval_queue'>('overview')
@@ -238,7 +246,42 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   async function approveEmail(id: string) {
     const prev = optimisticEmailStatus(id, 'approved')
     const res = await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
-    if (!res.ok) rollbackEmailStatus(prev)
+    let data: {
+      error?: string
+      warmup?: { total_daily_capacity?: number; in_warmup?: boolean }
+    } = {}
+    try { data = await res.json() } catch { /* empty body */ }
+
+    if (!res.ok) {
+      rollbackEmailStatus(prev)
+      switch (data.error) {
+        case 'no_sending_mailbox':
+          toast.error('Connect and verify a mailbox first.', {
+            action: {
+              label: 'Open Settings',
+              onClick: () => router.push('/dashboard/settings/sending-domains'),
+            },
+          })
+          break
+        case 'provider_mock_mode':
+          toast.error('Email sending is not active. Contact support.')
+          break
+        case 'send_failed':
+        default:
+          toast.error('Could not queue this email. Try again.')
+      }
+      return
+    }
+
+    // Success — surface warmup capacity once per session so bulk approvers
+    // don't get a toast per row.
+    if (data.warmup?.in_warmup && !warmupToastShownRef.current) {
+      warmupToastShownRef.current = true
+      const cap = data.warmup.total_daily_capacity && data.warmup.total_daily_capacity > 0
+        ? data.warmup.total_daily_capacity
+        : 30
+      toast.info(`Your mailboxes are warming up — sending is limited to about ${cap}/day for now.`)
+    }
   }
 
   async function rejectEmail(id: string) {

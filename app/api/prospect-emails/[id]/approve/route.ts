@@ -38,6 +38,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
+import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
 import { enforceEmptyBody } from '@/lib/schemas'
 
 const PROVIDER_TIMEOUT_MS = 10_000
@@ -112,6 +113,33 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .single()
   if (!campaign) {
     return NextResponse.json({ error: 'campaign_missing' }, { status: 404 })
+  }
+
+  // Gate A — no_sending_mailbox. Refuse before flipping status='sending' so
+  // a rejected approval never leaves an orphaned row stuck in 'sending' that
+  // no webhook will ever transition. Count-only query, workspace-scoped.
+  // Matches the "ready to send" contract: setup_status='verified' AND
+  // paused_by_user=false AND auto_paused_at IS NULL.
+  const { count: mailboxCount } = await admin
+    .from('email_accounts')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', guard.workspaceId)
+    .eq('setup_status', 'verified')
+    .eq('paused_by_user', false)
+    .is('auto_paused_at', null)
+  if (!mailboxCount || mailboxCount === 0) {
+    return NextResponse.json({ error: 'no_sending_mailbox' }, { status: 422 })
+  }
+
+  // Gate B — provider_mock_mode. If the app fell back to the mock provider
+  // (MOCK_EMAIL_PROVIDER=true OR INSTANTLY_API_KEY missing), the three
+  // campaign-based calls below all succeed silently and prospect_emails
+  // flips to 'sending' but nothing goes out. Refuse loudly. Same gate as
+  // /api/inbox/messages/[id]/reply (A2 lot 2).
+  const diag = getEmailProviderDiagnostic()
+  if (diag.isMock) {
+    console.error('[approve] blocked: provider in mock mode', { workspace_id: guard.workspaceId })
+    return NextResponse.json({ error: 'provider_mock_mode' }, { status: 422 })
   }
 
   // 3. Reserve the row — concurrent approvals race on this update.
@@ -221,7 +249,31 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .select(CLIENT_COLUMNS)
     .single()
 
-  return NextResponse.json({ email })
+  // Best-effort warmup capacity signal. Never fails the approve — the send
+  // has already been queued at the provider. UI displays this once per
+  // session so users know why volume is low during warmup.
+  let warmup: { total_daily_capacity: number; in_warmup: boolean } | undefined
+  try {
+    const { data: mailboxes } = await admin
+      .from('email_accounts')
+      .select('daily_capacity, sending_phase')
+      .eq('workspace_id', guard.workspaceId)
+      .eq('setup_status', 'verified')
+      .eq('paused_by_user', false)
+      .is('auto_paused_at', null)
+    if (mailboxes && mailboxes.length > 0) {
+      const total = mailboxes.reduce((s, m) => s + (m.daily_capacity ?? 0), 0)
+      const anyPhase1 = mailboxes.some(m => m.sending_phase === 1)
+      warmup = { total_daily_capacity: total, in_warmup: anyPhase1 }
+    }
+  } catch (err) {
+    console.error('[approve] warmup capacity probe failed (non-blocking)', {
+      workspace_id: guard.workspaceId,
+      probe_error:  err instanceof Error ? err.message : 'unknown',
+    })
+  }
+
+  return NextResponse.json({ email, ...(warmup ? { warmup } : {}) })
 }
 
 // ---------------------------------------------------------------------------
