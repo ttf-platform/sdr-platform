@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { Tooltip } from '@/components/Tooltip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { safeExternalHref } from '@/lib/url-safety'
@@ -20,13 +21,10 @@ type Stats = { totalLeads: number; activePipeline: number; winRate: number | nul
 type Contact = { id: string; first_name: string | null; last_name: string | null; company: string | null; primary_campaign_name: string | null }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+// Values only. Labels resolved at render via useTranslations('dashboard.pipeline.board.stages') → t(stage).
+// Dynamic keys declared verbatim in messages/{en,fr}.json under dashboard.pipeline.board.stages.*.
 const STAGES = ['new_lead','contacted','opened','replied','interested','meeting_booked','proposal_sent','closed_won','closed_lost'] as const
 type StageKey = typeof STAGES[number]
-const STAGE_LABELS: Record<StageKey, string> = {
-  new_lead:'New Lead', contacted:'Contacted', opened:'Opened', replied:'Replied',
-  interested:'Interested', meeting_booked:'Meeting Booked', proposal_sent:'Proposal Sent',
-  closed_won:'Closed Won', closed_lost:'Closed Lost',
-}
 const STAGE_COLORS: Record<StageKey, string> = {
   new_lead:'#8a7e6e', contacted:'#3b6bef', opened:'#6366f1', replied:'#8b5cf6',
   interested:'#f59e0b', meeting_booked:'#10b981', proposal_sent:'#06b6d4',
@@ -43,21 +41,8 @@ const STAGE_HEADER: Record<StageKey, { bg: string; border: string }> = {
   closed_won:     { bg: 'bg-emerald-50', border: 'border-b-2 border-emerald-500' },
   closed_lost:    { bg: 'bg-red-50',     border: 'border-b-2 border-red-500'     },
 }
-const CLOSED_REASONS = [
-  { value:'not_interested',    label:'Not interested' },
-  { value:'no_budget',         label:'No budget' },
-  { value:'bad_timing',        label:'Bad timing' },
-  { value:'lost_to_competitor',label:'Lost to competitor' },
-  { value:'other',             label:'Other' },
-]
-const KPI_TOOLTIPS = {
-  totalLeads:       'Total deals across all stages, including closed ones.',
-  activePipeline:   'Deals currently in progress (excludes Closed Won and Closed Lost).',
-  winRate:          'Percentage of closed deals won. Calculated as Won / (Won + Lost).',
-  meetingsThisWeek: 'Meetings scheduled between Monday and Sunday of the current week.',
-  totalCaWon:       'Sum of amounts on all Closed Won deals (USD).',
-}
-const ADD_LEAD_TOOLTIP = 'Add a lead manually — for opportunities not coming from a Mirvo campaign (e.g. inbound leads, networking, referrals).'
+// Values only. Labels resolved at render via useTranslations('dashboard.pipeline.board.closedReasons') → t(reason).
+const CLOSED_REASONS = ['not_interested','no_budget','bad_timing','lost_to_competitor','other'] as const
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function daysInStage(iso: string) {
@@ -91,6 +76,7 @@ function DealCard({ deal, dragging, onDragStart, onDragEnd, onClick }: {
   deal: Deal; dragging: boolean
   onDragStart: () => void; onDragEnd: () => void; onClick: () => void
 }) {
+  const t = useTranslations('dashboard.pipeline.board.dealCard')
   return (
     <div
       draggable
@@ -115,9 +101,9 @@ function DealCard({ deal, dragging, onDragStart, onDragEnd, onClick }: {
             {deal.campaign_name}
           </span>
         ) : (
-          <span className="text-[0.68rem] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Manual</span>
+          <span className="text-[0.68rem] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{t('manual')}</span>
         )}
-        <span className="text-[0.68rem] text-gray-400 flex-shrink-0 ml-1">{daysInStage(deal.stage_changed_at)}d</span>
+        <span className="text-[0.68rem] text-gray-400 flex-shrink-0 ml-1">{t('daysInStage', { days: daysInStage(deal.stage_changed_at) })}</span>
       </div>
     </div>
   )
@@ -130,8 +116,10 @@ function ClosedDealsModal({ stage, deals, onClose, onDealClick }: {
   onClose: () => void
   onDealClick: (deal: Deal) => void
 }) {
+  const t = useTranslations('dashboard.pipeline.board.closedModal')
+  const tStages = useTranslations('dashboard.pipeline.board.stages')
   const [query, setQuery] = useState('')
-  const title = stage === 'closed_won' ? 'Closed Won' : 'Closed Lost'
+  const stageLabel = tStages(stage)
   const filtered = deals.filter(d => {
     if (!query.trim()) return true
     const q = query.toLowerCase()
@@ -143,9 +131,9 @@ function ClosedDealsModal({ stage, deals, onClose, onDealClick }: {
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">All {title} deals</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t('title', { stage: stageLabel })}</h2>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400">{deals.length} total</span>
+            <span className="text-xs text-gray-400">{t('totalCount', { count: deals.length })}</span>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-700">✕</button>
           </div>
         </div>
@@ -154,14 +142,14 @@ function ClosedDealsModal({ stage, deals, onClose, onDealClick }: {
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search by name, company…"
+            placeholder={t('searchPlaceholder')}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
           />
         </div>
         <div className="overflow-y-auto flex-1">
           {filtered.length === 0 ? (
             <div className="p-4">
-              <EmptyState icon="📋" title="No deals found" description="Add a prospect to a campaign to start tracking deals here." />
+              <EmptyState icon="📋" title={t('emptyTitle')} description={t('emptyDescription')} />
             </div>
           ) : filtered.map(deal => (
             <div key={deal.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50">
@@ -177,13 +165,13 @@ function ClosedDealsModal({ stage, deals, onClose, onDealClick }: {
                 {deal.amount != null && (
                   <div className="text-sm font-semibold text-green-600">{fmtAmount(deal.amount)}</div>
                 )}
-                <div className="text-xs text-gray-400">Closed {fmtDate(deal.closed_at)}</div>
+                <div className="text-xs text-gray-400">{t('closedOn', { date: fmtDate(deal.closed_at) })}</div>
               </div>
               <button
                 onClick={() => { onClose(); onDealClick(deal) }}
                 className="text-xs text-blue-600 hover:text-blue-800 flex-shrink-0 ml-2 whitespace-nowrap"
               >
-                View →
+                {t('view')}
               </button>
             </div>
           ))}
@@ -203,6 +191,8 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
   onDrop: (stage: string) => void; onCardClick: (deal: Deal) => void
   onOpenClosedView: (stage: 'closed_won' | 'closed_lost') => void
 }) {
+  const tCols = useTranslations('dashboard.pipeline.board.columns')
+  const tStages = useTranslations('dashboard.pipeline.board.stages')
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft,  setCanScrollLeft]  = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -267,7 +257,7 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
                 {/* Column header */}
                 <div className={`px-4 py-3 ${bg} ${border} rounded-t-lg flex items-center justify-between`}>
                   <span className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    {STAGE_LABELS[stage]}
+                    {tStages(stage)}
                   </span>
                   <span className="text-xs font-medium text-gray-500 bg-white px-2 py-0.5 rounded-full">
                     {allInStage.length}
@@ -285,14 +275,14 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
                     />
                   ))}
                   {col.length === 0 && !isDragTarget && (
-                    <div className="text-center py-4 text-xs text-gray-300">Empty</div>
+                    <div className="text-center py-4 text-xs text-gray-300">{tCols('empty')}</div>
                   )}
                   {hasMore && (
                     <button
                       onClick={() => onOpenClosedView(stage as 'closed_won' | 'closed_lost')}
                       className="text-xs text-blue-600 hover:underline px-2 py-2 w-full text-center"
                     >
-                      View all ({allInStage.length}) →
+                      {tCols('viewAll', { count: allInStage.length })}
                     </button>
                   )}
                 </div>
@@ -307,6 +297,8 @@ function KanbanView({ deals, draggingId, dragOverStage, onDragStart, onDragEnd, 
 
 // ─── List View ─────────────────────────────────────────────────────────────────
 function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Deal) => void }) {
+  const t = useTranslations('dashboard.pipeline.board.list')
+  const tStages = useTranslations('dashboard.pipeline.board.stages')
   const [sortCol, setSortCol] = useState<string>('created_at')
   const [sortAsc, setSortAsc] = useState(false)
 
@@ -339,13 +331,13 @@ function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Dea
       <table className="w-full border-collapse">
         <thead>
           <tr>
-            <TH col="contact_first_name" label="Lead" />
-            <TH col="contact_company"    label="Company"       hidden />
-            <TH col="stage"              label="Stage" />
-            <TH col="amount"             label="Amount" />
-            <TH col="campaign_name"      label="Source"        hidden />
-            <TH col="stage_changed_at"   label="Days in stage" hidden />
-            <TH col="created_at"         label="Created"       hidden />
+            <TH col="contact_first_name" label={t('lead')} />
+            <TH col="contact_company"    label={t('company')}      hidden />
+            <TH col="stage"              label={t('stage')} />
+            <TH col="amount"             label={t('amount')} />
+            <TH col="campaign_name"      label={t('source')}       hidden />
+            <TH col="stage_changed_at"   label={t('daysInStage')}  hidden />
+            <TH col="created_at"         label={t('created')}      hidden />
           </tr>
         </thead>
         <tbody>
@@ -357,21 +349,21 @@ function ListView({ deals, onRowClick }: { deals: Deal[]; onRowClick: (deal: Dea
               <td className="border border-gray-200 px-4 py-3">
                 <span className="text-xs px-2 py-1 rounded-full font-medium text-white"
                   style={{ backgroundColor: STAGE_COLORS[deal.stage as StageKey] }}>
-                  {STAGE_LABELS[deal.stage as StageKey]}
+                  {tStages(deal.stage)}
                 </span>
               </td>
               <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">{fmtAmount(deal.amount) ?? '—'}</td>
               <td className="border border-gray-200 px-4 py-3 hidden md:table-cell">
                 {deal.campaign_name
                   ? <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{deal.campaign_name}</span>
-                  : <span className="text-xs text-gray-400">Manual</span>}
+                  : <span className="text-xs text-gray-400">{t('manual')}</span>}
               </td>
-              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600 hidden md:table-cell">{daysInStage(deal.stage_changed_at)}d</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600 hidden md:table-cell">{t('daysInStageValue', { days: daysInStage(deal.stage_changed_at) })}</td>
               <td className="border border-gray-200 px-4 py-3 text-sm text-gray-400 whitespace-nowrap hidden md:table-cell">{fmtDate(deal.created_at)}</td>
             </tr>
           ))}
           {sorted.length === 0 && (
-            <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">No deals found</td></tr>
+            <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">{t('noDeals')}</td></tr>
           )}
         </tbody>
       </table>
@@ -385,6 +377,9 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
   onUpdated: (updated: Partial<Deal>) => void
   onDeleted: () => void
 }) {
+  const t = useTranslations('dashboard.pipeline.board.sidePanel')
+  const tCommon = useTranslations('dashboard.common')
+  const tStages = useTranslations('dashboard.pipeline.board.stages')
   const [editAmount, setEditAmount] = useState(String(deal.amount ?? ''))
   const [editNotes,  setEditNotes]  = useState(deal.notes ?? '')
   const [saving,     setSaving]     = useState(false)
@@ -423,36 +418,36 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
 
         <div className="p-5 flex flex-col gap-5">
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Deal</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('dealHeading')}</div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Stage</span>
+                <span className="text-xs text-gray-500">{t('stageLabel')}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
                   style={{ backgroundColor: STAGE_COLORS[deal.stage as StageKey] }}>
-                  {STAGE_LABELS[deal.stage as StageKey]}
+                  {tStages(deal.stage)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Source</span>
+                <span className="text-xs text-gray-500">{t('sourceLabel')}</span>
                 <span className="text-xs text-gray-700 capitalize">{deal.source.replace('_', ' ')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Created</span>
+                <span className="text-xs text-gray-500">{t('createdLabel')}</span>
                 <span className="text-xs text-gray-700">{fmtDate(deal.created_at)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Stage since</span>
-                <span className="text-xs text-gray-700">{fmtDate(deal.stage_changed_at)} ({daysInStage(deal.stage_changed_at)}d)</span>
+                <span className="text-xs text-gray-500">{t('stageSinceLabel')}</span>
+                <span className="text-xs text-gray-700">{t('stageSinceValue', { date: fmtDate(deal.stage_changed_at), days: daysInStage(deal.stage_changed_at) })}</span>
               </div>
               {deal.closed_at && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Closed</span>
+                  <span className="text-xs text-gray-500">{t('closedLabel')}</span>
                   <span className="text-xs text-gray-700">{fmtDate(deal.closed_at)}</span>
                 </div>
               )}
               {deal.closed_reason && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Lost reason</span>
+                  <span className="text-xs text-gray-500">{t('lostReasonLabel')}</span>
                   <span className="text-xs text-gray-700 capitalize">{deal.closed_reason.replace(/_/g, ' ')}</span>
                 </div>
               )}
@@ -460,17 +455,17 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Amount (USD)</label>
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">{t('amountLabel')}</label>
             <input type="number" min="0" step="100"
               value={editAmount}
               onChange={e => setEditAmount(e.target.value)}
-              placeholder="e.g. 15000"
+              placeholder={t('amountPlaceholder')}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
             />
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Prospect</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('prospectHeading')}</div>
             <div className="flex flex-col gap-1.5">
               {deal.contact_email && (
                 <div className="flex items-center gap-2">
@@ -491,8 +486,8 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
                     <span className="text-gray-300 text-xs w-4 font-bold">in</span>
                     {safe
                       ? <a href={safe} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-blue-500 hover:underline truncate">LinkedIn</a>
-                      : <span className="text-xs text-gray-400 truncate" title={deal.contact_linkedin}>LinkedIn (invalid)</span>}
+                          className="text-xs text-blue-500 hover:underline truncate">{t('linkedin')}</a>
+                      : <span className="text-xs text-gray-400 truncate" title={deal.contact_linkedin}>{t('linkedinInvalid')}</span>}
                   </div>
                 );
               })()}
@@ -501,40 +496,40 @@ function DealSidePanel({ deal, onClose, onUpdated, onDeleted }: {
 
           {deal.campaign_name && (
             <div>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Campaign</div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('campaignHeading')}</div>
               <a href={`/dashboard/campaigns/${deal.campaign_id}`}
                 className="text-xs text-blue-600 hover:underline font-medium">{deal.campaign_name}</a>
             </div>
           )}
 
           <div>
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Notes</label>
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">{t('notesLabel')}</label>
             <textarea rows={3} value={editNotes} onChange={e => setEditNotes(e.target.value)}
-              placeholder="Add notes..."
+              placeholder={t('notesPlaceholder')}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-400"
             />
           </div>
 
           <button onClick={saveEdits} disabled={saving}
             className="bg-[#3b6bef] text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-opacity">
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? tCommon('saving') : t('saveChanges')}
           </button>
 
           <div className="border-t border-gray-100 pt-4">
             {!confirmDel ? (
               <button onClick={() => setConfirmDel(true)}
                 className="text-xs text-red-400 hover:text-red-600 transition-colors w-full text-center">
-                Delete deal
+                {t('deleteDeal')}
               </button>
             ) : (
               <div className="flex gap-2">
                 <button onClick={() => setConfirmDel(false)}
                   className="flex-1 border border-gray-200 text-sm text-gray-600 py-1.5 rounded-lg hover:bg-gray-50">
-                  Cancel
+                  {tCommon('cancel')}
                 </button>
                 <button onClick={handleDelete} disabled={deleting}
                   className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg font-medium disabled:opacity-40 hover:bg-red-600">
-                  {deleting ? 'Deleting…' : 'Confirm delete'}
+                  {deleting ? tCommon('deleting') : t('confirmDelete')}
                 </button>
               </div>
             )}
@@ -551,6 +546,9 @@ function CloseModal({ deal, targetStage, onCancel, onConfirm }: {
   onCancel: () => void
   onConfirm: (data: { amount?: number; closed_reason?: string; notes?: string }) => void
 }) {
+  const t = useTranslations('dashboard.pipeline.board.closeModal')
+  const tCommon = useTranslations('dashboard.common')
+  const tReasons = useTranslations('dashboard.pipeline.board.closedReasons')
   const isWon = targetStage === 'closed_won'
   const [amount, setAmount]   = useState(String(deal.amount ?? ''))
   const [reason, setReason]   = useState('')
@@ -560,35 +558,37 @@ function CloseModal({ deal, targetStage, onCancel, onConfirm }: {
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <h2 className="text-lg font-bold text-gray-900 mb-1">
-          {isWon ? '🎉 Close as Won' : '❌ Close as Lost'}
+          {isWon ? t('wonTitle') : t('lostTitle')}
         </h2>
         <p className="text-sm text-gray-500 mb-5">
-          Closing <strong>{displayName(deal)}</strong> as {isWon ? 'Won' : 'Lost'}.
+          {isWon
+            ? t.rich('wonSubtitle', { name: displayName(deal), strong: c => <strong>{c}</strong> })
+            : t.rich('lostSubtitle', { name: displayName(deal), strong: c => <strong>{c}</strong> })}
         </p>
 
         {isWon ? (
           <div className="mb-4">
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Closed amount (USD)</label>
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('wonAmountLabel')}</label>
             <input type="number" min="0" step="100" value={amount} onChange={e => setAmount(e.target.value)}
-              placeholder="e.g. 15000"
+              placeholder={t('wonAmountPlaceholder')}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
-            <p className="text-xs text-gray-400 mt-1">Optional — you can update this later</p>
+            <p className="text-xs text-gray-400 mt-1">{t('wonAmountHelper')}</p>
           </div>
         ) : (
           <div className="mb-4">
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Reason</label>
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('lostReasonLabel')}</label>
             <select value={reason} onChange={e => setReason(e.target.value)}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400">
-              <option value="">Select a reason…</option>
-              {CLOSED_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              <option value="">{t('lostReasonPlaceholder')}</option>
+              {CLOSED_REASONS.map(r => <option key={r} value={r}>{tReasons(r)}</option>)}
             </select>
           </div>
         )}
 
         <div className="mb-5">
-          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Notes (optional)</label>
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('notesLabel')}</label>
           <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder={isWon ? 'Closed after 3 follow-ups, demo on...' : 'What happened...'}
+            placeholder={isWon ? t('wonNotesPlaceholder') : t('lostNotesPlaceholder')}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-gray-400"
           />
         </div>
@@ -596,7 +596,7 @@ function CloseModal({ deal, targetStage, onCancel, onConfirm }: {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel}
             className="border border-gray-200 text-sm text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-            Cancel
+            {tCommon('cancel')}
           </button>
           <button
             onClick={() => onConfirm({
@@ -607,7 +607,7 @@ function CloseModal({ deal, targetStage, onCancel, onConfirm }: {
             className={`text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors ${
               isWon ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
             }`}>
-            {isWon ? 'Mark as Won' : 'Mark as Lost'}
+            {isWon ? t('confirmWon') : t('confirmLost')}
           </button>
         </div>
       </div>
@@ -617,6 +617,9 @@ function CloseModal({ deal, targetStage, onCancel, onConfirm }: {
 
 // ─── Add Lead Modal ────────────────────────────────────────────────────────────
 function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (deal: Deal) => void }) {
+  const t = useTranslations('dashboard.pipeline.board.addLead')
+  const tCommon = useTranslations('dashboard.common')
+  const tStages = useTranslations('dashboard.pipeline.board.stages')
   const [query,    setQuery]    = useState('')
   const [results,  setResults]  = useState<Contact[]>([])
   const [selected, setSelected] = useState<Contact | null>(null)
@@ -653,7 +656,7 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     })
     const data = await res.json()
     setSaving(false)
-    if (!res.ok) { setError(data.error ?? 'Failed to create deal'); return }
+    if (!res.ok) { setError(data.error ?? t('createFailed')); return }
     onCreated(data.deal)
   }
 
@@ -662,13 +665,13 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
         {/* Header — no tooltip here, it lives on the page next to the button */}
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900">Add Lead</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t('title')}</h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700">✕</button>
         </div>
 
         {/* Contact search */}
         <div className="mb-4">
-          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Contact</label>
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('contactLabel')}</label>
           {selected ? (
             <div className="flex items-center justify-between border border-blue-200 bg-blue-50 rounded-lg px-3 py-2">
               <div>
@@ -682,7 +685,7 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           ) : (
             <div className="relative">
               <input value={query} onChange={e => setQuery(e.target.value)}
-                placeholder="Search contacts by name or email…"
+                placeholder={t('searchPlaceholder')}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
               {results.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -690,7 +693,7 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
                     <div key={c.id} className="px-3 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0"
                       onClick={() => { setSelected(c); setQuery(''); setResults([]) }}>
                       <div className="text-sm font-medium text-gray-900">
-                        {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
+                        {[c.first_name, c.last_name].filter(Boolean).join(' ') || t('unnamedContact')}
                       </div>
                       <div className="text-xs text-gray-400">
                         {c.company}{c.primary_campaign_name ? ` · ${c.primary_campaign_name}` : ''}
@@ -704,34 +707,34 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         </div>
 
         <div className="mb-4">
-          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Stage</label>
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('stageLabel')}</label>
           <select value={stage} onChange={e => setStage(e.target.value as StageKey)}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-            {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
+            {STAGES.map(s => <option key={s} value={s}>{tStages(s)}</option>)}
           </select>
         </div>
 
         <div className="mb-4">
-          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Estimated amount (USD, optional)</label>
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('amountLabel')}</label>
           <input type="number" min="0" step="100" value={amount} onChange={e => setAmount(e.target.value)}
-            placeholder="e.g. 5000"
+            placeholder={t('amountPlaceholder')}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
         </div>
 
         <div className="mb-5">
-          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Notes (optional)</label>
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">{t('notesLabel')}</label>
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder="Context, intent signals..."
+            placeholder={t('notesPlaceholder')}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-400" />
         </div>
 
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="border border-gray-200 text-sm text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={onClose} className="border border-gray-200 text-sm text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50">{tCommon('cancel')}</button>
           <button onClick={submit} disabled={!selected || saving}
             className="bg-[#3b6bef] text-white text-sm font-semibold px-5 py-2 rounded-lg disabled:opacity-40 transition-opacity">
-            {saving ? 'Adding…' : 'Add to Pipeline'}
+            {saving ? t('adding') : t('addToPipeline')}
           </button>
         </div>
       </div>
@@ -741,6 +744,14 @@ function AddLeadModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PipelinePage() {
+  const t = useTranslations('dashboard.pipeline.board')
+  const tKpi = useTranslations('dashboard.pipeline.board.kpi')
+  const tTooltips = useTranslations('dashboard.pipeline.board.kpi.tooltips')
+  const tActions = useTranslations('dashboard.pipeline.board.actions')
+  const tFilters = useTranslations('dashboard.pipeline.board.filters')
+  const tStages = useTranslations('dashboard.pipeline.board.stages')
+  const tToasts = useTranslations('dashboard.pipeline.board.toasts')
+
   const [deals,          setDeals]          = useState<Deal[]>([])
   const [stats,          setStats]          = useState<Stats | null>(null)
   const [loading,        setLoading]        = useState(true)
@@ -784,9 +795,9 @@ export default function PipelinePage() {
     if (d.created > 0) {
       const fresh = await fetch('/api/deals').then(r => r.json())
       setDeals(fresh.deals ?? [])
-      showToast(`✓ ${d.created} deal${d.created !== 1 ? 's' : ''} added from prospects`)
+      showToast(tToasts('syncCreated', { count: d.created }))
     } else {
-      showToast('All prospects already have deals')
+      showToast(tToasts('syncNoNew'))
     }
     const s = await fetch('/api/deals/stats').then(r => r.json())
     setStats(s)
@@ -822,7 +833,7 @@ export default function PipelinePage() {
     })
     if (!res.ok) {
       setDeals(prev => prev.map(d => d.id === deal.id ? deal : d))
-      showToast('Failed to update deal — changes reverted')
+      showToast(tToasts('updateFailed'))
     } else {
       const s = await fetch('/api/deals/stats').then(r => r.json())
       setStats(s)
@@ -862,29 +873,29 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Pipeline</h1>
-          <p className="text-sm text-[#8a7e6e]">Track leads from first touch to closed deal</p>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('header.title')}</h1>
+          <p className="text-sm text-[#8a7e6e]">{t('header.subtitle')}</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <button onClick={sync} disabled={syncing}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40 transition-colors flex items-center gap-1.5">
-            {syncing ? '↻ Syncing…' : '↻ Sync'}
+            {syncing ? `↻ ${tActions('syncing')}` : `↻ ${tActions('sync')}`}
           </button>
           <button onClick={() => setView('kanban')}
             className={`border px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
-            ⊞ Kanban
+            ⊞ {tActions('kanban')}
           </button>
           <button onClick={() => setView('list')}
             className={`border px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
-            ☰ List
+            ☰ {tActions('list')}
           </button>
           {/* "+ Add Lead" button + tooltip — tight group, tooltip right-aligned to avoid viewport overflow */}
           <div className="flex items-center gap-0.5">
             <button onClick={() => setAddLeadOpen(true)}
               className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors">
-              + Add Lead
+              + {tActions('addLead')}
             </button>
-            <InfoIcon content={ADD_LEAD_TOOLTIP} placement="bottom-end" />
+            <InfoIcon content={t('addLeadTooltip')} placement="bottom-end" />
           </div>
         </div>
       </div>
@@ -893,22 +904,22 @@ export default function PipelinePage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Total Leads</span>
-            <InfoIcon content={KPI_TOOLTIPS.totalLeads} />
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{tKpi('totalLeads')}</span>
+            <InfoIcon content={tTooltips('totalLeads')} />
           </div>
           <div className="text-3xl font-bold text-[#1a1a2e]">{loading ? '—' : stats?.totalLeads ?? 0}</div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Active Pipeline</span>
-            <InfoIcon content={KPI_TOOLTIPS.activePipeline} />
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{tKpi('activePipeline')}</span>
+            <InfoIcon content={tTooltips('activePipeline')} />
           </div>
           <div className="text-3xl font-bold text-[#3b6bef]">{loading ? '—' : stats?.activePipeline ?? 0}</div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Win Rate</span>
-            <InfoIcon content={KPI_TOOLTIPS.winRate} />
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{tKpi('winRate')}</span>
+            <InfoIcon content={tTooltips('winRate')} />
           </div>
           <div className="text-3xl font-bold text-green-600">
             {loading ? '—' : stats?.winRate != null ? `${stats.winRate}%` : '—'}
@@ -916,20 +927,20 @@ export default function PipelinePage() {
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Meetings This Week</span>
-            <InfoIcon content={KPI_TOOLTIPS.meetingsThisWeek} />
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{tKpi('meetingsThisWeek')}</span>
+            <InfoIcon content={tTooltips('meetingsThisWeek')} />
           </div>
           <div className="text-3xl font-bold text-[#1a1a2e]">{loading ? '—' : stats?.meetingsThisWeek ?? 0}</div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">Total Revenue Won</span>
-            <InfoIcon content={KPI_TOOLTIPS.totalCaWon} />
+            <span className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider">{tKpi('totalRevenueWon')}</span>
+            <InfoIcon content={tTooltips('totalCaWon')} />
           </div>
           <div className="text-3xl font-bold text-green-600">
             {loading ? '—' : stats?.totalCaWon ? fmtAmount(stats.totalCaWon) : '$0'}
           </div>
-          <div className="text-xs text-gray-400 mt-1">Closed deals total</div>
+          <div className="text-xs text-gray-400 mt-1">{tKpi('closedDealsTotal')}</div>
         </div>
       </div>
 
@@ -937,17 +948,17 @@ export default function PipelinePage() {
       <div className="flex gap-3 mb-4 flex-wrap">
         <input value={search} onChange={e => setSearch(e.target.value)}
           className="flex-1 min-w-[180px] border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white"
-          placeholder="Search leads…" />
+          placeholder={tFilters('searchPlaceholder')} />
         <select value={stageFilter} onChange={e => setStageFilter(e.target.value)}
           className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#6b5e4e] bg-white focus:outline-none">
-          <option value="all">All stages</option>
-          {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
+          <option value="all">{tFilters('allStages')}</option>
+          {STAGES.map(s => <option key={s} value={s}>{tStages(s)}</option>)}
         </select>
       </div>
 
       {/* Views */}
       {loading ? (
-        <div className="text-center py-16 text-sm text-gray-400">Loading pipeline…</div>
+        <div className="text-center py-16 text-sm text-gray-400">{t('loading')}</div>
       ) : view === 'kanban' ? (
         <KanbanView
           deals={filtered}
@@ -999,7 +1010,7 @@ export default function PipelinePage() {
           onCreated={deal => {
             setDeals(prev => [deal, ...prev])
             setAddLeadOpen(false)
-            showToast('✓ Deal added to pipeline')
+            showToast(tToasts('dealAdded'))
             fetch('/api/deals/stats').then(r => r.json()).then(setStats)
           }}
         />
