@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Radio } from 'lucide-react'
 import { Tooltip } from '@/components/Tooltip'
 import { SignalCreateModal } from './_components/SignalCreateModal'
@@ -22,23 +23,28 @@ type Signal = {
   monitoring_config: Record<string, unknown>
 }
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return 'Never'
+// Relative-time helper takes a translator function so the strings are
+// resolved at render time (no top-level t() calls, which would break
+// module evaluation).
+type RelativeTimeT = (
+  key: 'never' | 'justNow' | 'minutesAgo' | 'hoursAgo' | 'daysAgo',
+  values?: { count: number },
+) => string
+
+function relativeTime(iso: string | null, t: RelativeTimeT): string {
+  if (!iso) return t('never')
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return mins <= 1 ? 'Just now' : `${mins}m ago`
+  if (mins < 60) return mins <= 1 ? t('justNow') : t('minutesAgo', { count: mins })
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return t('hoursAgo', { count: hrs })
   const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
+  if (days < 30) return t('daysAgo', { count: days })
   return new Date(iso).toLocaleDateString()
 }
 
-const TEMPLATE_LABELS: Record<string, string> = {
-  hiring_role:       'Hiring role',
-  recent_funding:    'Recent funding',
-  tech_stack_change: 'Tech stack change',
-}
+// Template labels are resolved at render time via
+// t('dashboard.signals.list.templates.<template_id>'). No module-level t().
 
 function SignalCard({
   signal,
@@ -51,6 +57,8 @@ function SignalCard({
   onDelete: (id: string) => void
   onRunClick: (id: string, name: string) => void
 }) {
+  const t = useTranslations('dashboard.signals.list')
+  const tTemplates = useTranslations('dashboard.signals.list.templates')
   const [toggling, setToggling] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -76,16 +84,16 @@ function SignalCard({
         <div className="flex items-center gap-2 flex-shrink-0">
           {signal.is_sample && (
             <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide whitespace-nowrap">
-              Demo
+              {t('demoBadge')}
             </span>
           )}
           {signal.is_active ? (
             <span className="bg-green-50 text-green-600 border border-green-200 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
-              Active
+              {t('activeBadge')}
             </span>
           ) : (
             <span className="bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
-              Paused
+              {t('pausedBadge')}
             </span>
           )}
           {/* Menu */}
@@ -94,7 +102,7 @@ function SignalCard({
               onClick={() => setMenuOpen(v => !v)}
               onBlur={() => setTimeout(() => setMenuOpen(false), 150)}
               className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-[#f0ece6] text-[#8a7e6e] hover:text-[#1a1a2e] transition-colors text-lg leading-none"
-              aria-label="Signal options"
+              aria-label={t('optionsAriaLabel')}
             >
               ···
             </button>
@@ -104,7 +112,7 @@ function SignalCard({
                   onClick={() => { setMenuOpen(false); onDelete(signal.id) }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
                 >
-                  Delete
+                  {t('deleteMenuItem')}
                 </button>
               </div>
             )}
@@ -121,13 +129,21 @@ function SignalCard({
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#8a7e6e]">
         <span>
           {signal.source_type === 'template'
-            ? `Template: ${TEMPLATE_LABELS[signal.template_id ?? ''] ?? signal.template_id}`
-            : 'Custom signal'}
+            ? t('templatePrefix', {
+                // tTemplates namespace is dashboard.signals.list.templates —
+                // template_id maps 1:1 to a key there (hiring_role,
+                // recent_funding, tech_stack_change). If the id is unknown
+                // (edge case), fall back to the raw id string.
+                label: signal.template_id
+                  ? tTemplates(signal.template_id as 'hiring_role' | 'recent_funding' | 'tech_stack_change')
+                  : '',
+              })
+            : t('customSignal')}
         </span>
         <span>·</span>
-        <span>{signal.total_matches_count} prospect{signal.total_matches_count !== 1 ? 's' : ''} matched</span>
+        <span>{t('matched', { count: signal.total_matches_count })}</span>
         <span>·</span>
-        <span>Last run {relativeTime(signal.last_run_at)}</span>
+        <span>{t('lastRun', { time: relativeTime(signal.last_run_at, t) })}</span>
       </div>
 
       {/* Actions */}
@@ -135,10 +151,10 @@ function SignalCard({
         <button
           onClick={() => onRunClick(signal.id, signal.name)}
           disabled={!signal.is_active}
-          title={signal.is_active ? undefined : 'Activate the signal to run it on a campaign.'}
+          title={signal.is_active ? undefined : t('runDisabledTitle')}
           className="flex items-center gap-1.5 text-xs text-[#3b6bef] border border-[#dde6fd] rounded-lg px-3 py-1.5 hover:bg-[#f0f4ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:text-[#8a7e6e] disabled:border-[#e8e3dc] disabled:hover:bg-transparent"
         >
-          ▶ Run on a campaign
+          ▶ {t('runOnCampaign')}
         </button>
         <div className="ml-auto">
           <button
@@ -146,7 +162,7 @@ function SignalCard({
             disabled={toggling}
             className="flex items-center gap-1.5 text-xs border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-[#6b5e4e] hover:bg-[#f7f4f0] transition-colors disabled:opacity-50"
           >
-            {toggling ? '…' : signal.is_active ? '⏸ Pause' : '▶ Activate'}
+            {toggling ? '…' : signal.is_active ? `⏸ ${t('pauseButton')}` : `▶ ${t('activateButton')}`}
           </button>
         </div>
       </div>
@@ -155,6 +171,8 @@ function SignalCard({
 }
 
 export default function SignalsPage() {
+  const t = useTranslations('dashboard.signals.list')
+  const tCommon = useTranslations('dashboard.common')
   const router = useRouter()
   const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
@@ -196,38 +214,38 @@ export default function SignalsPage() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[#1a1a2e]">Signals</h1>
-            <Tooltip content="Signals auto-detect prospects ready to buy (funding, hiring, tech changes). Mirvo scans daily at 5am UTC and generates personalized variants for every matched prospect." placement="bottom">
+            <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('title')}</h1>
+            <Tooltip content={t('titleTooltip')} placement="bottom">
               <svg className="w-4 h-4 text-[#8a7e6e] cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </Tooltip>
           </div>
-          <p className="text-sm text-[#8a7e6e]">Monitor intent signals to find warm prospects automatically</p>
+          <p className="text-sm text-[#8a7e6e]">{t('subtitle')}</p>
         </div>
         <button
           onClick={() => setModalOpen(true)}
           className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
         >
-          + New Signal
+          + {t('newSignalButton')}
         </button>
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="py-10 flex justify-center"><SpinnerWithText text="Loading signals…" /></div>
+        <div className="py-10 flex justify-center"><SpinnerWithText text={t('loadingSignals')} /></div>
       ) : signals.length === 0 ? (
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
           <div className="text-3xl mb-3">📡</div>
-          <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No signals yet</h2>
+          <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{t('emptyTitle')}</h2>
           <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
-            Signals detect prospects ready to buy — funding rounds, hiring activity, competitor mentions, growth events. Mirvo scans daily at 5am UTC and auto-generates personalized email variants for every match.
+            {t('emptyDescription')}
           </p>
           <button
             onClick={() => setModalOpen(true)}
             className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
           >
-            + Create your first signal
+            + {t('emptyCta')}
           </button>
         </div>
       ) : (
@@ -248,9 +266,9 @@ export default function SignalsPage() {
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
-            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">Delete signal?</h2>
+            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{t('deleteTitle')}</h2>
             <p className="text-sm text-[#8a7e6e] mb-6">
-              This signal and all its matched prospects data will be permanently deleted.
+              {t('deleteBody')}
             </p>
             <div className="flex gap-3">
               <button
@@ -258,14 +276,14 @@ export default function SignalsPage() {
                 disabled={deleting}
                 className="flex-1 border border-[#e8e3dc] text-[#1a1a2e] rounded-xl py-2.5 text-sm font-medium hover:bg-[#f7f4f0] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
               >
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? tCommon('deleting') : tCommon('delete')}
               </button>
             </div>
           </div>
