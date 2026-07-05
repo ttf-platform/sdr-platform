@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Tag } from '@/components/Tag'
 
 type ProspectTag = { id: string; label: string; color: string }
@@ -18,9 +19,10 @@ export type ProspectCardData = {
   tags: ProspectTag[]
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  manual: 'Manual', paste: 'Paste', csv_import: 'CSV',
-}
+// Values only. Source labels resolved at render via useTranslations('...sources') → t(source).
+// Subset of dashboard.prospects.list.sources.* used by the mobile card (no 'sample' here — the
+// table renders a distinct 'Demo' badge for sample rows; mobile card treats sample like any source).
+const KNOWN_SOURCES = ['manual', 'paste', 'csv_import'] as const
 
 function fmtDate(iso: string | null) {
   if (!iso) return '—'
@@ -35,6 +37,9 @@ type Props = {
 }
 
 export function ProspectMobileCard({ contact: c, isSelected, onToggleSelect, onClick }: Props) {
+  const tTable = useTranslations('dashboard.prospects.list.table')
+  const tSources = useTranslations('dashboard.prospects.list.sources')
+  const tSidePanel = useTranslations('dashboard.prospects.list.sidePanel')
   const name = [c.first_name, c.last_name].filter(Boolean).join(' ')
 
   return (
@@ -61,17 +66,19 @@ export function ProspectMobileCard({ contact: c, isSelected, onToggleSelect, onC
           {c.campaigns_count > 0 && (
             c.campaigns_count === 1 ? (
               <span className="text-xs text-[#3b6bef] font-medium bg-[#eef1fd] px-2 py-0.5 rounded-full max-w-[140px] truncate inline-block">
-                {c.primary_campaign_name ?? '1 campaign'}
+                {c.primary_campaign_name ?? tTable('campaignFallback')}
               </span>
             ) : (
               <span className="text-xs text-[#3b6bef] font-medium bg-[#eef1fd] px-2 py-0.5 rounded-full">
-                {c.campaigns_count} campaigns
+                {tTable('campaignsPlural', { count: c.campaigns_count })}
               </span>
             )
           )}
           {c.primary_source && (
             <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
-              {SOURCE_LABEL[c.primary_source] ?? c.primary_source}
+              {(KNOWN_SOURCES as readonly string[]).includes(c.primary_source)
+                ? tSources(c.primary_source)
+                : c.primary_source}
             </span>
           )}
           {c.tags.slice(0, 2).map(t => (
@@ -81,7 +88,7 @@ export function ProspectMobileCard({ contact: c, isSelected, onToggleSelect, onC
             <span className="text-[10px] text-[#8a7e6e] self-center">+{c.tags.length - 2}</span>
           )}
         </div>
-        <p className="text-xs text-[#a89a86] mt-2">Added {fmtDate(c.added_at)}</p>
+        <p className="text-xs text-[#a89a86] mt-2">{tSidePanel('addedOn', { date: fmtDate(c.added_at) })}</p>
       </div>
     </div>
   )

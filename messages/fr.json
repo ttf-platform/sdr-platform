@@ -891,6 +891,146 @@
           "updateFailed": "Failed to update deal — changes reverted"
         }
       }
+    },
+    "prospects": {
+      "list": {
+        "header": {
+          "title": "Prospects",
+          "countLoading": "Loading…",
+          "countSummary": "{count, plural, one {# prospect} other {# prospects}} across {campaigns, plural, one {# campaign} other {# campaigns}}"
+        },
+        "actions": {
+          "icpSettings": "ICP Settings",
+          "findProspects": "Find Prospects",
+          "findProspectsSoon": "Soon",
+          "findProspectsTooltip": "AI prospect discovery — Sprint 9",
+          "pasteList": "Paste list",
+          "addManually": "Add manually",
+          "export": "Export",
+          "importCsv": "Import CSV"
+        },
+        "masterIcp": {
+          "title": "Master ICP",
+          "sourceOfTruth": "Source of truth",
+          "description": "This is your refined ideal customer profile, the source of truth every new campaign builds on. Auto-fill from your website (in Settings) gives a first draft. Review and sharpen it here, then Save.",
+          "aiHelper": "Describe your target ICP in plain English and let AI structure it",
+          "aiPlaceholder": "e.g. I want to target B2B SaaS founders in Europe who are struggling with outbound sales and have 10-200 employees...",
+          "aiTextareaLabel": "ICP description",
+          "aiQualityAdds": "Adds {percent}% to AI quality",
+          "charsCounter": "{count}/{limit} chars",
+          "charsCounterDone": "{count}/{limit} chars ✓",
+          "parseWithAi": "Parse with AI",
+          "parsing": "Parsing…",
+          "structuredIcp": "Structured ICP",
+          "labels": {
+            "industry": "Industry",
+            "titles": "Titles",
+            "regions": "Regions",
+            "painPoints": "Pain points",
+            "companySize": "Company size (select all that apply)",
+            "companyRevenue": "Company Revenue",
+            "emailTone": "Email tone"
+          },
+          "placeholders": {
+            "industry": "e.g. SaaS, Fintech",
+            "titles": "e.g. CEO, CTO, VP Sales",
+            "regions": "e.g. US, Europe, APAC",
+            "painPoints": "e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
+          },
+          "optional": "(optional)",
+          "toneTitle": "Tone",
+          "tooltip": "These are your master defaults. They auto-fill every new campaign you create — and you can override any field per campaign at launch.",
+          "painPointsTooltip": "Describe the problems your prospects face that your product solves. Examples: struggling with low email deliverability, spending 3+ hours/day on manual prospecting, missing quota due to lack of qualified leads.",
+          "reset": "Reset",
+          "save": "Save Master ICP",
+          "saved": "✓ Saved"
+        },
+        "filters": {
+          "searchPlaceholder": "Search by name, email, company…",
+          "campaigns": "Campaigns",
+          "sources": "Sources",
+          "all": "All",
+          "sort": {
+            "newest": "Newest",
+            "oldest": "Oldest",
+            "nameAZ": "Name A–Z",
+            "nameZA": "Name Z–A"
+          }
+        },
+        "sources": {
+          "manual": "Manual",
+          "paste": "Paste",
+          "csv_import": "CSV",
+          "sample": "Demo"
+        },
+        "tones": {
+          "professional": "Professional",
+          "casual": "Casual",
+          "direct": "Direct",
+          "friendly": "Friendly",
+          "witty": "Witty"
+        },
+        "statuses": {
+          "found": "Found",
+          "emailed": "Emailed",
+          "opened": "Opened",
+          "replied": "Replied",
+          "meeting": "Meeting",
+          "bounced": "Bounced",
+          "unsubscribed": "Unsubscribed"
+        },
+        "table": {
+          "columns": {
+            "name": "NAME",
+            "company": "COMPANY",
+            "email": "EMAIL",
+            "campaigns": "CAMPAIGNS",
+            "lifecycle": "LIFECYCLE",
+            "tags": "TAGS",
+            "source": "SOURCE",
+            "added": "ADDED"
+          },
+          "loading": "Loading…",
+          "emptyTitle": "No prospects yet",
+          "emptyDescription": "Import a CSV or add prospects manually to get started.",
+          "campaignFallback": "1 campaign",
+          "campaignsPlural": "{count} campaigns",
+          "demo": "Demo"
+        },
+        "lifecycle": {
+          "positiveTooltip": "{count} of {total, plural, one {# campaign} other {# campaigns}} reached {label}",
+          "negativeTooltip": "{count, plural, one {# campaign} other {# campaigns}} {label}"
+        },
+        "pagination": {
+          "prev": "← Prev",
+          "next": "Next →",
+          "pageStatus": "{current} / {total}"
+        },
+        "bulk": {
+          "selected": "{count} selected",
+          "clear": "Clear",
+          "exportCount": "Export ({count})"
+        },
+        "sidePanel": {
+          "campaigns": "Campaigns",
+          "campaignsWithCount": "Campaigns ({count})",
+          "notAssigned": "Not assigned to any campaign",
+          "addedOn": "Added {date}",
+          "contact": "Contact",
+          "copy": "copy",
+          "invalidSuffix": "(invalid)",
+          "addedLabel": "Added",
+          "lastActivity": "Last activity",
+          "tags": "Tags",
+          "addTag": "+ Add tag",
+          "notes": "Notes",
+          "notesPlaceholder": "Add a note…",
+          "addNote": "Add note",
+          "adding": "Adding…",
+          "noNotes": "No notes yet.",
+          "deleteContact": "Delete contact & all assignments"
+        }
+      }
     }
   }
 }
