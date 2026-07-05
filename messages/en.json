@@ -521,5 +521,41 @@
   "metadata": {
     "siteTitle": "Mirvo: cold outreach you control",
     "siteDescription": "Mirvo finds the right people, writes each email, and sends only what you approve. All-in-one outbound for small teams."
+  },
+  "dashboard": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "campaigns": "Campaigns",
+      "signals": "Signals",
+      "inbox": "Inbox",
+      "prospects": "Prospects",
+      "pipeline": "Pipeline",
+      "meetings": "Meetings"
+    },
+    "shell": {
+      "loading": "Loading...",
+      "accountMenu": "Account menu",
+      "settings": "Settings",
+      "homepage": "Homepage",
+      "signOut": "Sign out",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "trialEndsBanner": "Your trial ends in {days, plural, one {# day} other {# days}}. Add a payment method to keep access.",
+      "upgradeNow": "Upgrade now",
+      "trialEndedTitle": "Your trial has ended",
+      "trialEndedBody": "Upgrade to continue sending campaigns, generating briefs, and booking meetings. Your data is safe — nothing is deleted.",
+      "accountSettings": "Account settings",
+      "sectionInsights": "Insights",
+      "sectionAddons": "Add-ons",
+      "sectionSetup": "Setup",
+      "sectionMirvoStaff": "Mirvo Staff",
+      "analytics": "Analytics",
+      "morningBrief": "Morning Brief",
+      "linkedin": "LinkedIn",
+      "team": "Team",
+      "billing": "Billing",
+      "mirvoAdmin": "Mirvo Admin",
+      "maintenanceBanner": "Platform under maintenance — some features may be unavailable."
+    }
   }
 }
