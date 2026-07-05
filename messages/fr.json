@@ -751,6 +751,146 @@
         "scanFailed": "Scan failed",
         "networkError": "Network error"
       }
+    },
+    "pipeline": {
+      "board": {
+        "header": {
+          "title": "Pipeline",
+          "subtitle": "Track leads from first touch to closed deal"
+        },
+        "actions": {
+          "sync": "Sync",
+          "syncing": "Syncing…",
+          "kanban": "Kanban",
+          "list": "List",
+          "addLead": "Add Lead"
+        },
+        "addLeadTooltip": "Add a lead manually — for opportunities not coming from a Mirvo campaign (e.g. inbound leads, networking, referrals).",
+        "filters": {
+          "searchPlaceholder": "Search leads…",
+          "allStages": "All stages"
+        },
+        "stages": {
+          "new_lead": "New Lead",
+          "contacted": "Contacted",
+          "opened": "Opened",
+          "replied": "Replied",
+          "interested": "Interested",
+          "meeting_booked": "Meeting Booked",
+          "proposal_sent": "Proposal Sent",
+          "closed_won": "Closed Won",
+          "closed_lost": "Closed Lost"
+        },
+        "closedReasons": {
+          "not_interested": "Not interested",
+          "no_budget": "No budget",
+          "bad_timing": "Bad timing",
+          "lost_to_competitor": "Lost to competitor",
+          "other": "Other"
+        },
+        "kpi": {
+          "totalLeads": "Total Leads",
+          "activePipeline": "Active Pipeline",
+          "winRate": "Win Rate",
+          "meetingsThisWeek": "Meetings This Week",
+          "totalRevenueWon": "Total Revenue Won",
+          "closedDealsTotal": "Closed deals total",
+          "tooltips": {
+            "totalLeads": "Total deals across all stages, including closed ones.",
+            "activePipeline": "Deals currently in progress (excludes Closed Won and Closed Lost).",
+            "winRate": "Percentage of closed deals won. Calculated as Won / (Won + Lost).",
+            "meetingsThisWeek": "Meetings scheduled between Monday and Sunday of the current week.",
+            "totalCaWon": "Sum of amounts on all Closed Won deals (USD)."
+          }
+        },
+        "loading": "Loading pipeline…",
+        "dealCard": {
+          "manual": "Manual",
+          "daysInStage": "{days}d"
+        },
+        "columns": {
+          "empty": "Empty",
+          "viewAll": "View all ({count}) →"
+        },
+        "closedModal": {
+          "title": "All {stage} deals",
+          "totalCount": "{count} total",
+          "searchPlaceholder": "Search by name, company…",
+          "emptyTitle": "No deals found",
+          "emptyDescription": "Add a prospect to a campaign to start tracking deals here.",
+          "closedOn": "Closed {date}",
+          "view": "View →"
+        },
+        "list": {
+          "lead": "Lead",
+          "company": "Company",
+          "stage": "Stage",
+          "amount": "Amount",
+          "source": "Source",
+          "daysInStage": "Days in stage",
+          "created": "Created",
+          "manual": "Manual",
+          "noDeals": "No deals found",
+          "daysInStageValue": "{days}d"
+        },
+        "sidePanel": {
+          "dealHeading": "Deal",
+          "stageLabel": "Stage",
+          "sourceLabel": "Source",
+          "createdLabel": "Created",
+          "stageSinceLabel": "Stage since",
+          "stageSinceValue": "{date} ({days}d)",
+          "closedLabel": "Closed",
+          "lostReasonLabel": "Lost reason",
+          "amountLabel": "Amount (USD)",
+          "amountPlaceholder": "e.g. 15000",
+          "prospectHeading": "Prospect",
+          "linkedin": "LinkedIn",
+          "linkedinInvalid": "LinkedIn (invalid)",
+          "campaignHeading": "Campaign",
+          "notesLabel": "Notes",
+          "notesPlaceholder": "Add notes...",
+          "saveChanges": "Save changes",
+          "deleteDeal": "Delete deal",
+          "confirmDelete": "Confirm delete"
+        },
+        "closeModal": {
+          "wonTitle": "🎉 Close as Won",
+          "lostTitle": "❌ Close as Lost",
+          "wonSubtitle": "Closing <strong>{name}</strong> as Won.",
+          "lostSubtitle": "Closing <strong>{name}</strong> as Lost.",
+          "wonAmountLabel": "Closed amount (USD)",
+          "wonAmountPlaceholder": "e.g. 15000",
+          "wonAmountHelper": "Optional — you can update this later",
+          "lostReasonLabel": "Reason",
+          "lostReasonPlaceholder": "Select a reason…",
+          "wonNotesPlaceholder": "Closed after 3 follow-ups, demo on...",
+          "lostNotesPlaceholder": "What happened...",
+          "notesLabel": "Notes (optional)",
+          "confirmWon": "Mark as Won",
+          "confirmLost": "Mark as Lost"
+        },
+        "addLead": {
+          "title": "Add Lead",
+          "contactLabel": "Contact",
+          "searchPlaceholder": "Search contacts by name or email…",
+          "stageLabel": "Stage",
+          "amountLabel": "Estimated amount (USD, optional)",
+          "amountPlaceholder": "e.g. 5000",
+          "notesLabel": "Notes (optional)",
+          "notesPlaceholder": "Context, intent signals...",
+          "addToPipeline": "Add to Pipeline",
+          "adding": "Adding…",
+          "createFailed": "Failed to create deal",
+          "unnamedContact": "—"
+        },
+        "toasts": {
+          "syncNoNew": "All prospects already have deals",
+          "syncCreated": "✓ {count, plural, one {# deal} other {# deals}} added from prospects",
+          "dealAdded": "✓ Deal added to pipeline",
+          "updateFailed": "Failed to update deal — changes reverted"
+        }
+      }
     }
   }
 }
