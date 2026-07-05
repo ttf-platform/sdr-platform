@@ -540,7 +540,7 @@ export function OperationsClient({ data }: { data: OperationsData }) {
                           onClick={() => handleRetryStuck(m.id)}
                           disabled={busy}
                           aria-label={`Retry warmup for ${m.email_address}`}
-                          className="rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+                          className="rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
                         >
                           {busy ? 'Retrying…' : 'Retry now'}
                         </button>

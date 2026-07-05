@@ -546,7 +546,7 @@ export default function InboxPage() {
                         onClick={handleSendReply}
                         disabled={!aiDraft.trim() || sending}
                         aria-busy={sending}
-                        className="text-xs bg-[#2563eb] text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#1d4ed8] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-1"
+                        className="text-xs bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#2a5bdf] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1"
                       >
                         {sending ? 'Sending...' : 'Send reply'}
                       </button>
@@ -558,7 +558,7 @@ export default function InboxPage() {
                     value={aiDraft}
                     onChange={e => { setAiDraft(e.target.value); if (sendError) setSendError(null) }}
                     disabled={sending}
-                    className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#2563eb] resize-none text-[#4a3f32] leading-relaxed disabled:opacity-60"
+                    className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef] resize-none text-[#4a3f32] leading-relaxed disabled:opacity-60"
                     rows={4}
                     placeholder="Your draft reply..."
                     aria-label="Reply draft"

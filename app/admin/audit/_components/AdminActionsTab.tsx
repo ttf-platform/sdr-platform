@@ -86,7 +86,7 @@ export function AdminActionsTab({ rows, rowLimit }: { rows: AdminActionRow[]; ro
             id="filter-action"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
           >
             <option value="all">All actions</option>
             {distinctActions.map((a) => <option key={a} value={a}>{a}</option>)}
@@ -98,7 +98,7 @@ export function AdminActionsTab({ rows, rowLimit }: { rows: AdminActionRow[]; ro
             id="filter-admin"
             value={adminFilter}
             onChange={(e) => setAdminFilter(e.target.value)}
-            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
           >
             <option value="all">All admins</option>
             {distinctAdmins.map((e) => <option key={e} value={e}>{e}</option>)}

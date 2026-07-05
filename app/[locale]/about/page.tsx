@@ -35,7 +35,7 @@ export default async function AboutPage({
       <nav className="mx-auto max-w-3xl px-6 pt-24 pb-0" aria-label="Breadcrumb">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-[#8a7e6e] hover:text-[#1a1a1a] transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+          className="inline-flex items-center gap-1.5 text-sm text-[#8a7e6e] hover:text-[#1a1a1a] transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 rounded"
         >
           <span aria-hidden>←</span>
           <span>{tc('backHome')}</span>

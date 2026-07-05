@@ -45,7 +45,7 @@ export function PricingSection() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-16">
-          <div className="inline-block text-[10px] font-bold uppercase tracking-[0.18em] text-[#2563eb] mb-5">
+          <div className="inline-block text-[10px] font-bold uppercase tracking-[0.18em] text-[#3b6bef] mb-5">
             {t('eyebrow')}
           </div>
           <h2
@@ -67,14 +67,14 @@ export function PricingSection() {
               key={plan.name}
               className={`relative rounded-2xl p-7 transition-all duration-200 ${
                 plan.highlighted
-                  ? 'border-2 border-[#2563eb] bg-white shadow-xl shadow-blue-100/40 scale-[1.02] z-10'
+                  ? 'border-2 border-[#3b6bef] bg-white shadow-xl shadow-blue-100/40 scale-[1.02] z-10'
                   : 'border border-[#e8e3dc] bg-white hover:shadow-md hover:border-[#d4cec7]'
               }`}
             >
               {/* Badge */}
               {plan.badge && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-                  <span className="inline-flex items-center rounded-full bg-[#2563eb] px-3.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-blue-200">
+                  <span className="inline-flex items-center rounded-full bg-[#3b6bef] px-3.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-blue-200">
                     {plan.badge}
                   </span>
                 </div>
@@ -108,7 +108,7 @@ export function PricingSection() {
                     <span
                       className={`mt-0.5 flex-shrink-0 h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
                         plan.highlighted
-                          ? 'bg-[#eff6ff] text-[#2563eb]'
+                          ? 'bg-[#eff6ff] text-[#3b6bef]'
                           : 'bg-[#f5f2ee] text-[#4a4a5a]'
                       }`}
                     >

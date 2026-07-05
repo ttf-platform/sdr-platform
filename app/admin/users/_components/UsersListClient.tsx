@@ -112,7 +112,7 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by email…"
-          className="w-72 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder:text-[#9a9a9a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-72 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder:text-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
       </div>
 

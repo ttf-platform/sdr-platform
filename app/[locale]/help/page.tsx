@@ -31,7 +31,7 @@ export default async function HelpPage({
             <span aria-hidden="true">←</span> Back to dashboard
           </Link>
           <Link href={`/${locale}`} className="text-base font-bold text-[#1a1a1a]">
-            Mir<span className="text-[#2563eb]">vo</span>
+            Mir<span className="text-[#3b6bef]">vo</span>
           </Link>
           <div className="w-32" />
         </div>
@@ -49,7 +49,7 @@ export default async function HelpPage({
 
         <p className="mt-10 text-center text-sm text-[#6b5e4e]">
           Still stuck?{' '}
-          <Link href={`/${locale}/dashboard` as Route} className="text-[#2563eb] underline">
+          <Link href={`/${locale}/dashboard` as Route} className="text-[#3b6bef] underline">
             Open the AI assistant
           </Link>{' '}
           in your dashboard.

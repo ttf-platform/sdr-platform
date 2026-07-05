@@ -11,7 +11,7 @@ function EyeIcon() {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#2563eb"
+      stroke="#3b6bef"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -29,7 +29,7 @@ function CheckCircleIcon() {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#2563eb"
+      stroke="#3b6bef"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -47,7 +47,7 @@ function DollarIcon() {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#2563eb"
+      stroke="#3b6bef"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -65,7 +65,7 @@ function UsersIcon() {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#2563eb"
+      stroke="#3b6bef"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -107,7 +107,7 @@ export function SectionBuiltForFounders() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
           <p
-            className="mb-5 font-bold uppercase text-[#2563eb]"
+            className="mb-5 font-bold uppercase text-[#3b6bef]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
             {t('eyebrow')}

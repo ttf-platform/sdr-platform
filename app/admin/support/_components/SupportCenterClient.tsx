@@ -92,7 +92,7 @@ function KpiCard({ label, value, tone, icon: Icon }: { label: string; value: num
 
 function TabButton({ active, onClick, label, badge }: { active: boolean; onClick: () => void; label: string; badge?: number }) {
   return (
-    <button type="button" onClick={onClick} className={`relative -mb-px border-b-2 px-4 py-2.5 text-sm transition-colors ${active ? 'border-[#2563eb] font-medium text-[#2563eb]' : 'border-transparent text-[#4a4a5a] hover:text-[#1a1a1a]'}`}>
+    <button type="button" onClick={onClick} className={`relative -mb-px border-b-2 px-4 py-2.5 text-sm transition-colors ${active ? 'border-[#3b6bef] font-medium text-[#3b6bef]' : 'border-transparent text-[#4a4a5a] hover:text-[#1a1a1a]'}`}>
       <span>{label}</span>
       {badge !== undefined && (
         <span className="ml-2 inline-flex items-center justify-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">{badge}</span>

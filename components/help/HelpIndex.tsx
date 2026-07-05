@@ -46,7 +46,7 @@ export function HelpIndex({
         return (
           <div
             key={cat}
-            className="bg-white border border-[#e8e3dc] rounded-xl p-5 hover:border-[#2563eb] transition-colors"
+            className="bg-white border border-[#e8e3dc] rounded-xl p-5 hover:border-[#3b6bef] transition-colors"
           >
             <div className="text-3xl mb-3" aria-hidden="true">{CATEGORY_ICONS[cat] ?? '📄'}</div>
             <h2 className="text-base font-semibold text-[#1a1a1a]">{CATEGORY_LABELS[cat]}</h2>
@@ -55,9 +55,9 @@ export function HelpIndex({
                 <li key={article.slug}>
                   <Link
                     href={`/${locale}/help/${article.slug}`}
-                    className="flex items-center gap-2 text-sm text-[#4a4a5a] hover:text-[#2563eb] transition-colors group"
+                    className="flex items-center gap-2 text-sm text-[#4a4a5a] hover:text-[#3b6bef] transition-colors group"
                   >
-                    <span className="text-xs text-[#9a9a9a] group-hover:text-[#2563eb]" aria-hidden="true">→</span>
+                    <span className="text-xs text-[#9a9a9a] group-hover:text-[#3b6bef]" aria-hidden="true">→</span>
                     <span className="group-hover:underline">{article.title}</span>
                   </Link>
                 </li>

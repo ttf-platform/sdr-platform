@@ -67,7 +67,7 @@ export default async function TermsPage({
               ['Data', 'Any personal or business information processed through the Service, including imported prospect contact data.'],
             ].map(([term, def]) => (
               <div key={term as string} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>{term}:</strong> {def}</span>
               </div>
             ))}
@@ -80,21 +80,21 @@ export default async function TermsPage({
           </h2>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Eligibility.</strong> You must be at least 18 years old and using the Service for professional B2B purposes. The Service is not intended for personal or consumer use.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Accuracy.</strong> You agree to provide accurate, complete information at signup and to keep it up to date. False or misleading registration information is grounds for account termination.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Account security.</strong> You are responsible for keeping your credentials confidential and for all activity that occurs under your account. Notify us immediately of any unauthorized access at{' '}
                 <a href="mailto:security@mirvo.ai" style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>security@mirvo.ai</a>.
               </span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>No account sharing.</strong> Subscriptions are for a single workspace. Sharing access credentials with individuals outside your organization is prohibited.</span>
             </li>
           </ul>
@@ -147,29 +147,29 @@ export default async function TermsPage({
           </p>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Comply with all applicable laws, including GDPR (EU), CAN-SPAM (US), PECR (UK), and CASL (Canada) in every jurisdiction you send to.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Adhere to our{' '}
                 <Link href={"/legal/sending-policy" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Sending Policy</Link>
                 , including prohibitions on spam, purchased lists, and B2C outreach.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Not exceed your plan&apos;s sending or prospect limits through technical workarounds.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Not attempt to circumvent security measures, rate limits, or access controls.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Not use the Service for illegal, fraudulent, harassing, or deceptive purposes.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Not resell, sublicense, or white-label the Service without explicit written permission from Mirvo.</span>
             </li>
           </ul>
@@ -232,7 +232,7 @@ export default async function TermsPage({
               'Account inactivity exceeding 12 months (with 30 days\' prior notice)',
             ].map((item) => (
               <li key={item} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed">{item}</span>
               </li>
             ))}
@@ -320,7 +320,7 @@ export default async function TermsPage({
               ['Modifications', 'Mirvo will notify you of material changes at least 30 days in advance. Continued use after the effective date constitutes acceptance.'],
             ].map(([term, desc]) => (
               <li key={term as string} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>{term}:</strong> {desc}</span>
               </li>
             ))}

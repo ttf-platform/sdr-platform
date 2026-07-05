@@ -23,7 +23,7 @@ function SignalsVisual({
       transition={reduced ? { duration: 0 } : { duration: 0.5, ease }}
       aria-hidden="true"
     >
-      <div className="uppercase text-[#2563eb] mb-2" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}>
+      <div className="uppercase text-[#3b6bef] mb-2" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}>
         {signalLabel}
       </div>
       <div className="rounded-md bg-[#f5f2ee] border border-[#e8e3dc] px-3 py-2 text-[13px] text-[#1a1a1a]" style={{ fontWeight: 500 }}>
@@ -31,7 +31,7 @@ function SignalsVisual({
       </div>
 
       <div className="mt-4 flex items-center gap-2">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b6bef" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
         </svg>
         <span className="text-[11px] text-[#4a4a5a]" style={{ fontWeight: 300 }}>{scan}</span>
@@ -43,15 +43,15 @@ function SignalsVisual({
           <div className="text-[12px] font-medium text-[#1a1a1a] truncate">{company}</div>
           <div className="text-[11px] text-[#6b6b7b]">{meta}</div>
         </div>
-        <span className="flex-shrink-0 ml-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[#2563eb]">
+        <span className="flex-shrink-0 ml-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[#3b6bef]">
           {drafted}
         </span>
       </div>
 
       <div className="mt-3" role="presentation">
-        <div className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5" style={{ border: '1px solid #2563eb', color: '#2563eb', backgroundColor: 'transparent' }}>
+        <div className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5" style={{ border: '1px solid #3b6bef', color: '#3b6bef', backgroundColor: 'transparent' }}>
           <svg width="9" height="8" viewBox="0 0 8 7" fill="none" aria-hidden="true">
-            <path d="M1 3.5L3 5.5L7 1" stroke="#2563eb" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M1 3.5L3 5.5L7 1" stroke="#3b6bef" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="text-[11px] font-medium">{approve}</span>
         </div>
@@ -81,7 +81,7 @@ export function SectionSignals() {
           viewport={{ once: true, margin: '-80px' }}
           transition={reduced ? { duration: 0 } : { duration: 0.45, ease }}
         >
-          <p className="mb-5 font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
+          <p className="mb-5 font-bold uppercase text-[#3b6bef]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
             {t('eyebrow')}
           </p>
           <h2 id="signals-heading" className="mb-4 font-medium text-[#1a1a1a] mx-auto" style={{ fontSize: 'clamp(1.875rem, 4vw, 2.5rem)', lineHeight: 1.1, letterSpacing: '-0.01em', maxWidth: '36rem' }}>
@@ -112,7 +112,7 @@ export function SectionSignals() {
               viewport={{ once: true, margin: '-60px' }}
               transition={reduced ? { duration: 0 } : { duration: 0.45, ease, delay: i * 0.1 }}
             >
-              <div className="mb-3 font-medium uppercase text-[#2563eb]" style={{ fontSize: '13px', letterSpacing: '0.06em' }}>
+              <div className="mb-3 font-medium uppercase text-[#3b6bef]" style={{ fontSize: '13px', letterSpacing: '0.06em' }}>
                 {beat.index}
               </div>
               <h3 className="mb-2 font-medium text-[#1a1a1a]" style={{ fontSize: '1.125rem', lineHeight: 1.3 }}>

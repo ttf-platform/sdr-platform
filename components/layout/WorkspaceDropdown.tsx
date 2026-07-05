@@ -38,7 +38,7 @@ function NavItem({ href, icon: Icon, label, color = '#1a1a1a', active, onClose }
       href={href as never}
       onClick={onClose}
       className={`flex items-center gap-2.5 mx-1.5 px-2.5 py-2 text-sm rounded-lg transition-colors ${active ? 'bg-[#eef1fd]' : 'hover:bg-[#f5f2ee]'}`}
-      style={{ color: active ? '#2563eb' : color }}
+      style={{ color: active ? '#3b6bef' : color }}
     >
       <Icon size={15} />
       {label}
@@ -115,7 +115,7 @@ export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasLinkedIn, pathnam
             <>
               <Divider />
               <SectionHeader label="Mirvo Staff" />
-              <NavItem href="/admin" icon={Shield} label="Mirvo Admin" color="#2563eb" active={isActive('/admin')} onClose={close} />
+              <NavItem href="/admin" icon={Shield} label="Mirvo Admin" color="#3b6bef" active={isActive('/admin')} onClose={close} />
             </>
           )}
         </div>

@@ -152,7 +152,7 @@ export function SectionProblem() {
           >
             {/* Eyebrow */}
             <p
-              className="mb-5 font-bold uppercase text-[#2563eb]"
+              className="mb-5 font-bold uppercase text-[#3b6bef]"
               style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
             >
               {t('eyebrow')}

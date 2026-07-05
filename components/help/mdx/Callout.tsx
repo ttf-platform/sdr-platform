@@ -5,7 +5,7 @@ const VARIANTS = {
     bg: 'bg-blue-50',
     border: 'border-blue-200',
     icon: 'ℹ',
-    iconColor: 'text-[#2563eb]',
+    iconColor: 'text-[#3b6bef]',
     textColor: 'text-[#1e3a8a]',
   },
   warning: {

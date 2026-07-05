@@ -96,8 +96,8 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
     1: { cls: 'bg-green-50 border border-green-200 text-green-700', label: 'Active' },
     2: { cls: 'bg-green-50 border border-green-200 text-green-700', label: 'Active' },
     3: { cls: 'bg-amber-50 border border-[#fde68a] text-[#d97706]', label: '● AWAITING REVIEW' },
-    4: { cls: 'bg-blue-50 border border-blue-200 text-[#2563eb]', label: 'Reply' },
-    5: { cls: 'bg-[#eff6ff] border border-blue-200 text-[#2563eb]', label: 'Confirmed' },
+    4: { cls: 'bg-blue-50 border border-blue-200 text-[#3b6bef]', label: 'Reply' },
+    5: { cls: 'bg-[#eff6ff] border border-blue-200 text-[#3b6bef]', label: 'Confirmed' },
   };
 
   return (
@@ -159,7 +159,7 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                     initial={{ width: '0%' }}
                     animate={{ width: '100%' }}
                     transition={reduced ? { duration: 0 } : { duration: 3.2, ease: 'linear' }}
-                    className="h-full rounded-full bg-[#2563eb]"
+                    className="h-full rounded-full bg-[#3b6bef]"
                   />
                 </div>
               </div>
@@ -245,14 +245,14 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               <div className="flex items-start gap-2.5 rounded-lg bg-[#eff6ff] border border-blue-100 px-3 py-2.5">
                 <div className="mt-0.5 flex-shrink-0 h-5 w-5 rounded-md bg-blue-100 flex items-center justify-center">
                   <svg width="10" height="9" viewBox="0 0 10 9" fill="none" aria-hidden="true">
-                    <path d="M4 1L1 4L4 7" stroke="#2563eb" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M1 4H7C8.1 4 9 4.9 9 6V8" stroke="#2563eb" strokeWidth="0.9" strokeLinecap="round" />
+                    <path d="M4 1L1 4L4 7" stroke="#3b6bef" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M1 4H7C8.1 4 9 4.9 9 6V8" stroke="#3b6bef" strokeWidth="0.9" strokeLinecap="round" />
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2 mb-0.5">
                     <span className="text-[10px] font-semibold text-[#1a1a1a]">Reply received</span>
-                    <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[#2563eb]">
+                    <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[#3b6bef]">
                       Reply
                     </span>
                   </div>
@@ -280,7 +280,7 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                 <div className="text-[10px] font-semibold text-[#1a1a1a] mb-0.5">Meeting scheduled</div>
                 <p className="text-[10px] text-[#4a4a5a]">Sarah Chen · Acme Inc</p>
               </div>
-              <div className="rounded-lg bg-[#2563eb] px-3 py-2 flex items-center gap-2">
+              <div className="rounded-lg bg-[#3b6bef] px-3 py-2 flex items-center gap-2">
                 <svg
                   width="12"
                   height="12"
@@ -405,7 +405,7 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                       },
                     }
               }
-              className="flex items-center gap-2 rounded-lg bg-[#2563eb] px-2.5 py-2"
+              className="flex items-center gap-2 rounded-lg bg-[#3b6bef] px-2.5 py-2"
             >
               <svg
                 width="14"
@@ -447,7 +447,7 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="pl-1 text-[10px] font-semibold text-[#2563eb]"
+              className="pl-1 text-[10px] font-semibold text-[#3b6bef]"
             >
               Booked just now
             </motion.p>
@@ -516,7 +516,7 @@ export function Hero() {
           >
             <motion.div variants={fadeUp} className="mb-5">
               <p
-                className="font-bold text-[#2563eb]"
+                className="font-bold text-[#3b6bef]"
                 style={{ fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase' }}
               >
                 {t('eyebrow')}

@@ -68,7 +68,7 @@ function EmailNotificationsCard({ initialEmail, description }: { initialEmail: s
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="leave empty to use ADMIN_NOTIFICATION_EMAIL env var"
-          className="flex-1 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="flex-1 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
         <SaveButton status={status} onClick={save} />
       </div>
@@ -165,7 +165,7 @@ function RateLimitsCard({ initial }: { initial: number }) {
           max={1000}
           value={value}
           onChange={(e) => setValue(Math.max(0, Math.min(1000, parseInt(e.target.value || '0', 10))))}
-          className="w-32 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-32 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
         <SaveButton status={status} onClick={save} />
       </div>
@@ -215,7 +215,7 @@ function BroadcastCard() {
           id="broadcast-target"
           value={target}
           onChange={(e) => setTarget(e.target.value as 'all' | 'trial' | 'paid')}
-          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         >
           <option value="all">All workspace owners</option>
           <option value="trial">Trial workspaces only</option>
@@ -233,7 +233,7 @@ function BroadcastCard() {
           onChange={(e) => setSubject(e.target.value)}
           maxLength={500}
           placeholder="Important update about Mirvo…"
-          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
       </div>
       <div>
@@ -247,7 +247,7 @@ function BroadcastCard() {
           maxLength={50000}
           rows={6}
           placeholder="We wanted to let you know…"
-          className="w-full resize-y rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-full resize-y rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
         <p className="mt-1 text-[11px] text-[#9a9a9a]">{bodyTrim.length} / 50000 characters</p>
       </div>
@@ -308,7 +308,7 @@ function CreditsCard() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="friend@company.com"
-          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
       </div>
       <div>
@@ -325,7 +325,7 @@ function CreditsCard() {
             const n = parseInt(e.target.value || '0', 10);
             setAmount(Number.isFinite(n) ? Math.max(0, Math.min(100000, n)) : 0);
           }}
-          className="w-40 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-40 rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
       </div>
       <div>
@@ -339,7 +339,7 @@ function CreditsCard() {
           onChange={(e) => setReason(e.target.value)}
           maxLength={500}
           placeholder="Friend, tester, bug compensation…"
-          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
         />
         <p className="mt-1 text-[11px] text-[#9a9a9a]">Logged in the admin audit trail. Minimum 3 characters.</p>
       </div>
@@ -373,7 +373,7 @@ function Toggle({ label, description, value, onChange }: { label: string; descri
         role="switch"
         aria-checked={value}
         onClick={() => onChange(!value)}
-        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${value ? 'bg-[#2563eb]' : 'bg-[#d1d5db]'}`}
+        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${value ? 'bg-[#3b6bef]' : 'bg-[#d1d5db]'}`}
       >
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-0.5'}`} />
       </button>
@@ -402,7 +402,7 @@ function SaveButton({
       onClick={onClick}
       disabled={disabled || isSaving}
       className={`inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        isSaved ? 'bg-green-600 text-white' : 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]'
+        isSaved ? 'bg-green-600 text-white' : 'bg-[#3b6bef] text-white hover:bg-[#2a5bdf]'
       }`}
     >
       {isSaved && <Check size={14} aria-hidden="true" />}

@@ -98,7 +98,7 @@ export default function NoWorkspacePage() {
             onChange={(e) => setWorkspaceName(e.target.value)}
             disabled={creating}
             maxLength={100}
-            className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] mb-4 focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb] disabled:opacity-60"
+            className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] mb-4 focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef] disabled:opacity-60"
           />
 
           {error && (
@@ -111,7 +111,7 @@ export default function NoWorkspacePage() {
             <button
               type="submit"
               disabled={creating}
-              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+              className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
             >
               {creating ? 'Creating\u2026' : 'Create a new workspace'}
             </button>
@@ -119,7 +119,7 @@ export default function NoWorkspacePage() {
               type="button"
               onClick={handleSignOut}
               disabled={creating}
-              className="w-full border border-[#e8e3dc] text-[#4a4a5a] hover:bg-[#f5f2ee] disabled:opacity-60 disabled:cursor-not-allowed rounded-xl py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+              className="w-full border border-[#e8e3dc] text-[#4a4a5a] hover:bg-[#f5f2ee] disabled:opacity-60 disabled:cursor-not-allowed rounded-xl py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
             >
               Log out
             </button>

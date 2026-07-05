@@ -38,7 +38,7 @@ export function SignupsChart({ data }: { data: Array<{ day: string; count: numbe
                 x={x} y={y}
                 width={Math.max(1, barWidth - barGap)}
                 height={Math.max(0, h)}
-                fill={d.count > 0 ? '#2563eb' : '#e8e3dc'}
+                fill={d.count > 0 ? '#3b6bef' : '#e8e3dc'}
                 rx="1"
               />
             </g>

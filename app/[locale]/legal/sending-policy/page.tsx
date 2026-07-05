@@ -66,27 +66,27 @@ export default async function SendingPolicyPage({
           </p>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>One-click unsubscribe.</strong> Mirvo attaches a standards-compliant <code>List-Unsubscribe</code> header (RFC 8058) to every outbound message. Gmail and Outlook surface this as a one-click &ldquo;Unsubscribe&rdquo; control next to the sender name — no link is added to the email body.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Honoring opt-outs.</strong> Unsubscribe requests received via the header are processed by the sending infrastructure and the contact is automatically removed from further sends within this workspace.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Sender identification.</strong> Your emails must clearly identify you as the sender — including your name, company, and a valid physical address (required by CAN-SPAM).</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Auto-stop on opt-out replies.</strong> Mirvo automatically stops sending to any contact who replies with &ldquo;stop&rdquo;, &ldquo;unsubscribe&rdquo;, &ldquo;remove me&rdquo;, &ldquo;not interested&rdquo;, or equivalent.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Accurate subject lines.</strong> Subject lines must not be deceptive. They must reflect the content of the email.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>No purchased lists.</strong> You may only contact prospects you have sourced through legitimate means. Rented or purchased bulk email lists are prohibited.</span>
             </li>
           </ul>
@@ -104,23 +104,23 @@ export default async function SendingPolicyPage({
           </p>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Illegal or fraudulent content.</strong> Phishing, impersonation, financial scams, counterfeit offers, or any content that violates applicable law.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Regulated products.</strong> Non-prescription pharmaceuticals, unlicensed gambling services, securities promotions without proper disclosure, or other regulated categories.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Spam.</strong> Mass outreach with no genuine B2B relevance, purchased contact lists, or campaigns clearly designed to maximize volume over relevance.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Harassment or deceptive messaging.</strong> Content that is offensive, threatening, or intentionally misleading about your identity or the nature of your offer.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>B2C outreach.</strong> Mirvo is a B2B tool. Emailing consumers (individuals acting outside a professional capacity) is prohibited.</span>
             </li>
           </ul>

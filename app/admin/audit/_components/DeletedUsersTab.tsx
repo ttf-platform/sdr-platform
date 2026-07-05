@@ -64,7 +64,7 @@ export function DeletedUsersTab({ rows }: { rows: DeletedUserRow[] }) {
             id="filter-bucket"
             value={bucket}
             onChange={(e) => setBucket(e.target.value as Bucket)}
-            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
           >
             <option value="all">All</option>
             <option value="grace">In grace ({counts.grace})</option>

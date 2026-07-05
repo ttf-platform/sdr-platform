@@ -109,10 +109,10 @@ export function EscalationsList({ onSelect }: { onSelect: (id: string) => void }
 
 function SubFilter({ active, onClick, count, children }: { active: boolean; onClick: () => void; count?: number; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${active ? 'border-[#2563eb] bg-[#eff6ff] text-[#2563eb]' : 'border-[#e8e3dc] bg-white text-[#4a4a5a] hover:bg-[#f5f2ee]'}`}>
+    <button type="button" onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${active ? 'border-[#3b6bef] bg-[#eff6ff] text-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#4a4a5a] hover:bg-[#f5f2ee]'}`}>
       {children}
       {count !== undefined && (
-        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${active ? 'bg-[#2563eb] text-white' : 'bg-[#e8e3dc] text-[#4a4a5a]'}`}>{count}</span>
+        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${active ? 'bg-[#3b6bef] text-white' : 'bg-[#e8e3dc] text-[#4a4a5a]'}`}>{count}</span>
       )}
     </button>
   );

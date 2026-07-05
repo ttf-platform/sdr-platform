@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               return (
                 <Link key={item.href} href={item.href as never}
                   className={"flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors font-medium " +
-                    (active ? 'bg-[#eef1fd] text-[#2563eb]' : 'text-[#4a4a5a] hover:bg-[#f0ece6]')}>
+                    (active ? 'bg-[#eef1fd] text-[#3b6bef]' : 'text-[#4a4a5a] hover:bg-[#f0ece6]')}>
                   <Icon size={13} strokeWidth={active ? 2.5 : 2} />
                   <span className="hidden lg:inline">{item.label}</span>
                   {isInbox && <InboxUnreadBadge />}
@@ -156,13 +156,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Avatar */}
             <div ref={avatarRef} className="relative">
               <button
-                className="flex items-center gap-1.5 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+                className="flex items-center gap-1.5 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
                 onClick={() => setAvatarOpen(!avatarOpen)}
                 aria-label="Account menu"
                 aria-haspopup="true"
                 aria-expanded={avatarOpen}
               >
-                <div className="w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-7 h-7 rounded-full bg-[#3b6bef] flex items-center justify-center text-white text-xs font-bold">
                   {initials}
                 </div>
                 <span className="text-sm font-medium text-[#1a1a2e] hidden lg:inline">{firstName}</span>
@@ -196,7 +196,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Mobile burger */}
           <button
             type="button"
-            className="md:hidden ml-auto p-3 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+            className="md:hidden ml-auto p-3 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 rounded"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={menuOpen}
@@ -232,7 +232,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
             <div className="flex flex-col gap-2">
               <Link href="/dashboard/billing"
-                className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-xl py-3 text-sm font-medium transition-colors">
+                className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-xl py-3 text-sm font-medium transition-colors">
                 Upgrade now →
               </Link>
               <Link href="/dashboard/settings"
@@ -260,7 +260,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
                 <span className="font-bold text-[#1a1a2e] text-lg">Mir<span className="text-[#3b6bef]">vo</span></span>
               </Link>
-              <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" className="text-[#6b5e4e] p-1.5 text-lg leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] rounded"><span aria-hidden="true">✕</span></button>
+              <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" className="text-[#6b5e4e] p-1.5 text-lg leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded"><span aria-hidden="true">✕</span></button>
             </div>
 
             {/* 6 main nav items */}
@@ -271,7 +271,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 return (
                   <Link key={item.href} href={item.href as never} onClick={() => setMenuOpen(false)}
                     className={"flex items-center gap-3 px-4 py-3 text-sm " +
-                      (isActive(item.href) ? 'text-[#2563eb] font-medium bg-[#eef1fd]' : 'text-[#4a4a5a] hover:bg-[#f5f2ee]')}>
+                      (isActive(item.href) ? 'text-[#3b6bef] font-medium bg-[#eef1fd]' : 'text-[#4a4a5a] hover:bg-[#f5f2ee]')}>
                     <Icon size={16} /> {item.label}
                     {isInbox && <InboxUnreadBadge />}
                   </Link>
@@ -315,7 +315,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {isSentraAdmin && (
                 <>
                   <p className="px-4 pt-3 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[#aaaaaa]">Mirvo Staff</p>
-                  <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#2563eb] font-medium hover:bg-[#f5f2ee]">
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#3b6bef] font-medium hover:bg-[#f5f2ee]">
                     <Shield size={16} /> Mirvo Admin
                   </Link>
                 </>

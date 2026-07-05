@@ -74,7 +74,7 @@ export function AtRiskTab({ rows }: { rows: AtRiskRow[] }) {
             id="filter-severity"
             value={filter}
             onChange={(e) => setFilter(e.target.value as 'all' | RiskSeverity)}
-            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
           >
             {severityFilter().map((s) => (
               <option key={s} value={s}>
@@ -146,7 +146,7 @@ export function AtRiskTab({ rows }: { rows: AtRiskRow[] }) {
                       <td className="px-4 py-3 text-right">
                         <a
                           href={`/admin/workspaces/${r.workspace_id}`}
-                          className="text-xs font-medium text-[#2563eb] hover:underline"
+                          className="text-xs font-medium text-[#3b6bef] hover:underline"
                         >
                           View →
                         </a>

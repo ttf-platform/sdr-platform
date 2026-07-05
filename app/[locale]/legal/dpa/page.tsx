@@ -78,7 +78,7 @@ export default async function DpaPage({
               ['DPF', 'EU-US Data Privacy Framework, recognized as adequate under GDPR for transfers to participating US organizations.'],
             ].map(([term, def]) => (
               <div key={term as string} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>{term}:</strong> {def}</span>
               </div>
             ))}
@@ -91,15 +91,15 @@ export default async function DpaPage({
           </h2>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>User = Data Controller</strong> for the prospect contact data imported into Mirvo. The User determines who to contact, for what purpose, and is responsible for having a valid legal basis (e.g., legitimate interest for B2B outbound).</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Mirvo = Data Processor</strong> for that contact data. Mirvo processes it only to deliver the Service — email generation, campaign management, deliverability monitoring — and for no other purpose.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>Mirvo = Data Controller</strong> for subscriber account data (name, email, billing information) — governed by the{' '}
                 <Link href={"/legal/privacy" as Route} style={{ color: '#1a1a1a', textDecoration: 'underline', textUnderlineOffset: '3px' }}>Privacy Policy</Link>.
               </span>
@@ -201,7 +201,7 @@ export default async function DpaPage({
               'Audit logging for administrative actions',
             ].map((item) => (
               <li key={item} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed" style={{ fontSize: '0.9rem' }}>{item}</span>
               </li>
             ))}
@@ -230,15 +230,15 @@ export default async function DpaPage({
           </h2>
           <ul className="space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Mirvo will notify the affected User within <strong style={{ color: '#1a1a1a' }}>48 hours</strong> of becoming aware of a Personal Data Breach involving that User&apos;s data.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">The notification will include: the nature of the breach, the categories and approximate number of affected data subjects, the likely consequences, and the measures taken or proposed to address the breach.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">The User retains the obligation to notify the relevant supervisory authority (e.g., CNIL) within 72 hours of becoming aware of a notifiable breach, per GDPR Article 33.</span>
             </li>
           </ul>

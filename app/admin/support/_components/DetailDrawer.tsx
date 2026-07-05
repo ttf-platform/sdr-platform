@@ -321,7 +321,7 @@ function MessagesTimeline({ messages }: { messages: Array<{ role: string; conten
         const isUser = m.role === 'user';
         return (
           <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${isUser ? 'bg-[#2563eb] text-white' : 'border border-[#e8e3dc] bg-white text-[#1a1a1a]'}`}>
+            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${isUser ? 'bg-[#3b6bef] text-white' : 'border border-[#e8e3dc] bg-white text-[#1a1a1a]'}`}>
               {!isUser && Array.isArray(m.tool_calls) && (m.tool_calls as Array<{ name: string }>).length > 0 && (
                 <div className="mb-1 italic text-[#4a4a5a]">Looked up: {(m.tool_calls as Array<{ name: string }>).map((t) => t.name).join(', ')}</div>
               )}

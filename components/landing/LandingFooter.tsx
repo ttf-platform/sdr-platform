@@ -56,7 +56,7 @@ export function LandingFooter() {
                 style={{
                   width: 28,
                   height: 28,
-                  backgroundColor: '#2563eb',
+                  backgroundColor: '#3b6bef',
                   fontSize: '0.8125rem',
                   fontWeight: 700,
                   color: '#ffffff',

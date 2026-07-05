@@ -203,7 +203,7 @@ export function ViewAsClient({ data }: { data: ViewAsData }) {
                 onClick={() => setTab(t.id)}
                 className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
                   active
-                    ? 'border-[#2563eb] text-[#2563eb] font-medium'
+                    ? 'border-[#3b6bef] text-[#3b6bef] font-medium'
                     : 'border-transparent text-[#6b5e4e] hover:text-[#1a1a1a]'
                 }`}
               >
