@@ -112,7 +112,7 @@ export function UserDetailDrawer({ userId, onClose, onMutate }: {
                       )}
                       <a
                         href={`/admin/workspaces/${m.workspace_id}`}
-                        className="mt-2 inline-block text-xs font-medium text-[#2563eb] hover:underline"
+                        className="mt-2 inline-block text-xs font-medium text-[#3b6bef] hover:underline"
                       >
                         View workspace →
                       </a>

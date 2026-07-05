@@ -106,7 +106,7 @@ export default async function SecurityPage({
               'Permissions-Policy — disables unused browser APIs',
             ].map((item) => (
               <li key={item} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span>{item}</span>
               </li>
             ))}
@@ -174,11 +174,11 @@ export default async function SecurityPage({
           </p>
           <ul className="mt-4 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>EU-only:</strong> User account data, workspace data, and product analytics are stored and processed exclusively in EU data centers (Frankfurt region). No transfer outside the EU occurs for these categories.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>US providers with safeguards:</strong> AI processing and email delivery involve US-based providers. Both operate under the EU-US Data Privacy Framework (DPF) and Standard Contractual Clauses (SCCs), which are the recognized legal mechanisms for cross-border transfers under GDPR.</span>
             </li>
           </ul>
@@ -199,15 +199,15 @@ export default async function SecurityPage({
           </p>
           <ul className="mt-4 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">We notify the French data protection authority (CNIL) within 72 hours of becoming aware of a breach affecting EU users, as required by GDPR Article 33.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">Affected users are notified directly without undue delay when the breach is likely to result in a high risk to their rights and freedoms.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed">A post-mortem describing the incident, its scope, and remediation steps will be published at <InlineCode>status.mirvo.ai</InlineCode> (coming soon) for material incidents.</span>
             </li>
           </ul>

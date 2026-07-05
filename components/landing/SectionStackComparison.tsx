@@ -16,7 +16,7 @@ function BulletList({
   featured?: boolean;
 }) {
   const icon = type === 'pro' ? '✓' : '✗';
-  const iconColor = featured && type === 'pro' ? '#2563eb' : '#9a9a9a';
+  const iconColor = featured && type === 'pro' ? '#3b6bef' : '#9a9a9a';
   return (
     <ul className="space-y-2.5">
       {items.map((item) => (
@@ -55,7 +55,7 @@ export function SectionStackComparison() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
           <p
-            className="mb-5 font-bold uppercase text-[#2563eb]"
+            className="mb-5 font-bold uppercase text-[#3b6bef]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
             {t('eyebrow')}
@@ -199,7 +199,7 @@ export function SectionStackComparison() {
             className="rounded-lg p-8 lg:scale-[1.02]"
             style={{
               backgroundColor: '#eff6ff',
-              border: '2px solid #2563eb',
+              border: '2px solid #3b6bef',
               boxShadow: '0 10px 40px rgba(37,99,235,0.12)',
             }}
             initial={{ opacity: 0, y: 24 }}
@@ -208,7 +208,7 @@ export function SectionStackComparison() {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const, delay: 0.16 }}
           >
             <p
-              className="mb-3 uppercase text-[#2563eb]"
+              className="mb-3 uppercase text-[#3b6bef]"
               style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}
             >
               {t('opt3Tag')}
@@ -229,10 +229,10 @@ export function SectionStackComparison() {
               </p>
             </div>
 
-            <div className="my-6 border-t border-[#2563eb]" style={{ opacity: 0.2 }} />
+            <div className="my-6 border-t border-[#3b6bef]" style={{ opacity: 0.2 }} />
 
             <p
-              className="mb-3 uppercase text-[#2563eb]"
+              className="mb-3 uppercase text-[#3b6bef]"
               style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em' }}
             >
               {t('strengthsLabel')}

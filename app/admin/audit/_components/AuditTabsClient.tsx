@@ -119,7 +119,7 @@ function TabButton({
       onClick={onClick}
       className={`relative -mb-px border-b-2 px-4 py-2.5 text-sm transition-colors ${
         active
-          ? 'border-[#2563eb] font-medium text-[#2563eb]'
+          ? 'border-[#3b6bef] font-medium text-[#3b6bef]'
           : 'border-transparent text-[#4a4a5a] hover:text-[#1a1a1a]'
       }`}
     >

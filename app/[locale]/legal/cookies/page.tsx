@@ -109,7 +109,7 @@ export default async function CookiesPage({
             Analytics cookies
             <span
               className="ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-              style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', verticalAlign: 'middle' }}
+              style={{ backgroundColor: '#eff6ff', color: '#3b6bef', border: '1px solid #bfdbfe', verticalAlign: 'middle' }}
             >
               Consent required in EU
             </span>

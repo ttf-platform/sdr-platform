@@ -24,7 +24,7 @@ const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From fi
 
 const DEFAULT_SIGNATURE = '--\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
 
-const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#2563eb]'
+const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]'
 const labelCls  = 'text-xs font-bold text-[#6b5e4e]'
 const cardCls   = 'bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col'
 const sectionHd = 'text-xs font-bold text-[#8a7e6e] uppercase tracking-wider'
@@ -57,7 +57,7 @@ function SaveButton({ section, saving, saved, onSave, missing = [], dirty }: {
       type="button"
       onClick={!isDisabled ? onSave : undefined}
       disabled={isSaving}
-      className={`bg-[#2563eb] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity
+      className={`bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity
         ${hasMissing ? 'opacity-50 cursor-not-allowed' : isClean ? 'opacity-40 cursor-default' : 'disabled:opacity-40'}`}>
       {saved === section ? '✓ Saved' : isSaving ? 'Saving...' : 'Save'}
     </button>
@@ -388,7 +388,7 @@ export default function SettingsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#2563eb]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-3 max-w-sm`}>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${toast.type === 'error' ? 'bg-red-600' : 'bg-[#3b6bef]'} text-white px-5 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-3 max-w-sm`}>
           <span className="shrink-0 mt-0.5">{toast.type === 'error' ? '⚠' : 'ℹ'}</span>
           <div className="flex-1 min-w-0">
             <p>{toast.msg}</p>
@@ -488,13 +488,13 @@ export default function SettingsPage() {
           <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-[#2563eb]">
+                <div className="font-medium text-[#3b6bef]">
                   {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string, string>)[ws?.plan_tier] ?? ws?.plan_tier ?? 'Starter'}
                   {ws?.subscription_status === 'trialing' ? ' (Free Trial)' : ''}
                 </div>
                 <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
               </div>
-              <Link href="/dashboard/billing" className="bg-[#2563eb] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</Link>
+              <Link href="/dashboard/billing" className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</Link>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
@@ -548,7 +548,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={form.signature_in_initial}
               onChange={e => setForm({...form, signature_in_initial: e.target.checked})}
-              className="w-4 h-4 accent-[#2563eb]"
+              className="w-4 h-4 accent-[#3b6bef]"
             />
             <span className="text-sm text-[#1a1a2e]">Include in initial emails</span>
           </label>
@@ -557,7 +557,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={form.signature_in_followups}
               onChange={e => setForm({...form, signature_in_followups: e.target.checked})}
-              className="w-4 h-4 accent-[#2563eb]"
+              className="w-4 h-4 accent-[#3b6bef]"
             />
             <span className="text-sm text-[#1a1a2e]">Include in follow-ups</span>
             <span className="text-xs text-[#b0a898]">(shorter follow-ups perform better)</span>
@@ -693,7 +693,7 @@ export default function SettingsPage() {
                 onBlur={() => touch('product_description')}
                 className={`${touched.has('product_description') && !form.product_description.trim()
                   ? 'border-red-300 focus:border-red-400'
-                  : 'border-[#e8e3dc] focus:border-[#2563eb]'} w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
+                  : 'border-[#e8e3dc] focus:border-[#3b6bef]'} w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
                 rows={3}
               />
               <p className={`text-xs mt-1 ${form.product_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
@@ -729,7 +729,7 @@ export default function SettingsPage() {
         <p className="text-xs text-[#8a7e6e] mb-3">Your monthly prospect research credits.</p>
         <div className="border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 bg-[#2563eb] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
+            <div className="w-8 h-8 bg-[#3b6bef] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
             <div>
               <div className="text-sm font-medium text-[#1a1a2e]">Prospect Credits</div>
               <div className="text-xs text-[#8a7e6e]">
@@ -738,7 +738,7 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="text-xs text-[#8a7e6e]">
-            {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · <Link href="/dashboard/billing" className="text-[#2563eb] hover:underline">View usage →</Link>
+            {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · <Link href="/dashboard/billing" className="text-[#3b6bef] hover:underline">View usage →</Link>
           </div>
         </div>
       </div>

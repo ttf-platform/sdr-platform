@@ -32,7 +32,7 @@ export function SectionLimitsAndRoadmap() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
           <p
-            className="mb-5 font-bold uppercase text-[#2563eb]"
+            className="mb-5 font-bold uppercase text-[#3b6bef]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
             {t('eyebrow')}
@@ -91,7 +91,7 @@ export function SectionLimitsAndRoadmap() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
           <p
-            className="mb-6 uppercase text-[#2563eb]"
+            className="mb-6 uppercase text-[#3b6bef]"
             style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em' }}
           >
             {t('roadmapHeader')}
@@ -106,7 +106,7 @@ export function SectionLimitsAndRoadmap() {
                 transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const, delay: i * 0.08 }}
               >
                 <p
-                  className="mb-2 uppercase text-[#2563eb]"
+                  className="mb-2 uppercase text-[#3b6bef]"
                   style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}
                 >
                   {item.quarter}

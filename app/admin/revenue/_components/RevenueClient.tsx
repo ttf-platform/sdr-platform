@@ -348,7 +348,7 @@ function KpiCard({
   tone?: 'neutral' | 'blue' | 'amber' | 'red';
 }) {
   const toneCls =
-    tone === 'blue'  ? 'text-[#2563eb]' :
+    tone === 'blue'  ? 'text-[#3b6bef]' :
     tone === 'amber' ? 'text-amber-700' :
     tone === 'red'   ? 'text-red-700' :
     muted            ? 'text-[#6b5e4e]' :

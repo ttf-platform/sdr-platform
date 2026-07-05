@@ -56,7 +56,7 @@ export function SectionFAQ() {
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
           <p
-            className="mb-5 font-bold uppercase text-[#2563eb]"
+            className="mb-5 font-bold uppercase text-[#3b6bef]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
             {t('eyebrow')}
@@ -91,7 +91,7 @@ export function SectionFAQ() {
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${faq.id}`}
                   onClick={() => toggle(faq.id)}
-                  className="w-full flex items-center justify-between gap-4 py-5 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2"
+                  className="w-full flex items-center justify-between gap-4 py-5 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
                   style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   <span
@@ -140,7 +140,7 @@ export function SectionFAQ() {
           {t('closing')}{' '}
           <a
             href="mailto:hello@mirvo.ai"
-            className="text-[#2563eb] underline underline-offset-2"
+            className="text-[#3b6bef] underline underline-offset-2"
             style={{ fontWeight: 500 }}
           >
             {t('closingLink')}

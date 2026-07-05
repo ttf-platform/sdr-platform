@@ -45,7 +45,7 @@ export async function sendAdminEscalationEmail(params: {
   </table>
   <h3 style="color: #1a1a1a; margin: 24px 0 8px 0;">Summary</h3>
   <p style="color: #1a1a1a; line-height: 1.6; margin: 0 0 24px 0;">${escapeHtml(params.summary)}</p>
-  <a href="${adminLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open in Support Center →</a>
+  <a href="${adminLink}" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open in Support Center →</a>
   <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Mirvo · Sent because you're the configured admin notification email.</p>
 </div>
 `.trim();
@@ -197,8 +197,8 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
         <li><strong>Define your ICP</strong> (who you sell to + what pain you solve).</li>
         <li><strong>Launch your first campaign</strong>: Mirvo finds buyers, drafts every email, and queues them for your approval.</li>
       </ol>
-      <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open Mirvo &#x2192;</a></p>
-      <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">There are a few ways to send with Mirvo — your own mailbox is the fastest way to start, and you can add a dedicated sending domain later. <a href="${baseUrl}/help/choosing-your-sending-setup" style="color: #2563eb; text-decoration: underline;">See which setup fits you</a>.</p>
+      <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open Mirvo &#x2192;</a></p>
+      <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">There are a few ways to send with Mirvo — your own mailbox is the fastest way to start, and you can add a dedicated sending domain later. <a href="${baseUrl}/help/choosing-your-sending-setup" style="color: #3b6bef; text-decoration: underline;">See which setup fits you</a>.</p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
     `),
   }),
@@ -210,8 +210,8 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
       <p style="color: #1a1a1a; line-height: 1.6;">Most outbound tools wait for you to upload a list. Mirvo does the opposite: it watches the signals that mean "this prospect is ready to buy" (hiring SDRs, funding rounds, new tool stack) and drafts the email at the moment it matters.</p>
       <p style="color: #1a1a1a; line-height: 1.6;">Set up a signal once. Mirvo scans every night and queues drafts for your approval.</p>
-      <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/signals" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Set up your first signal &#x2192;</a></p>
-      <p style="color: #4a4a5a; font-size: 14px;"><a href="${baseUrl}/help/what-are-signals" style="color: #2563eb; text-decoration: underline;">Read: how signals work</a></p>
+      <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/signals" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Set up your first signal &#x2192;</a></p>
+      <p style="color: #4a4a5a; font-size: 14px;"><a href="${baseUrl}/help/what-are-signals" style="color: #3b6bef; text-decoration: underline;">Read: how signals work</a></p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
     `),
   }),
@@ -223,8 +223,8 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
       <p style="color: #1a1a1a; line-height: 1.6;">Reputation is the silent killer of cold outreach. Domains burn, deliverability drops, and your leads never see your messages.</p>
       <p style="color: #1a1a1a; line-height: 1.6;">Mirvo protects you two ways. Starting from your own mailbox means you send from an address that already has reputation, so there's nothing to warm up. And when you're ready for real volume, Mirvo can set up a dedicated sending domain — warmed up gradually so it earns trust the right way, while your connected mailbox keeps your outreach going in the meantime.</p>
-      <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/inbox" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">See your replies inbox &#x2192;</a></p>
-      <p style="color: #4a4a5a; font-size: 14px;"><a href="${baseUrl}/help/mailbox-warmup-explained" style="color: #2563eb; text-decoration: underline;">Read: how warmup and deliverability actually work</a></p>
+      <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/inbox" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">See your replies inbox &#x2192;</a></p>
+      <p style="color: #4a4a5a; font-size: 14px;"><a href="${baseUrl}/help/mailbox-warmup-explained" style="color: #3b6bef; text-decoration: underline;">Read: how warmup and deliverability actually work</a></p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
     `),
   }),
@@ -236,9 +236,9 @@ const ONBOARDING_TEMPLATES: Record<OnboardingDayOffset, (greeting: string, works
       <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
       <p style="color: #1a1a1a; line-height: 1.6;">You've had ${workspaceName} on Mirvo for a week. If you've launched a campaign, you should be seeing replies. If not, here's the fastest path:</p>
       <ol style="color: #1a1a1a; line-height: 1.7;">
-        <li><a href="${baseUrl}/dashboard/settings" style="color: #2563eb;">Sharpen your ICP</a> (the more specific, the better the drafts)</li>
-        <li><a href="${baseUrl}/dashboard/signals" style="color: #2563eb;">Activate at least one signal</a> (this is the moat)</li>
-        <li><a href="${baseUrl}/dashboard/campaigns/new" style="color: #2563eb;">Launch a campaign</a> (Mirvo will draft, you approve)</li>
+        <li><a href="${baseUrl}/dashboard/settings" style="color: #3b6bef;">Sharpen your ICP</a> (the more specific, the better the drafts)</li>
+        <li><a href="${baseUrl}/dashboard/signals" style="color: #3b6bef;">Activate at least one signal</a> (this is the moat)</li>
+        <li><a href="${baseUrl}/dashboard/campaigns/new" style="color: #3b6bef;">Launch a campaign</a> (Mirvo will draft, you approve)</li>
       </ol>
       <p style="color: #1a1a1a; line-height: 1.6;">Stuck? Reply to this email; we read every message.</p>
       <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
@@ -267,8 +267,8 @@ export async function sendUpgradeEmail(params: {
     <p style="color: #1a1a1a; line-height: 1.6;">Your upgrade is live for ${safeWorkspace}. Thank you — here's what you've unlocked.</p>
     <p style="color: #1a1a1a; line-height: 1.6;"><strong>Higher sending limits.</strong> Your quotas just went up. Keep sending from your connected mailbox as you always have — there's nothing to change.</p>
     <p style="color: #1a1a1a; line-height: 1.6;"><strong>A dedicated sending domain, whenever you're ready.</strong> You can now have Mirvo set up a sending domain that's fully yours — it keeps your cold outreach separate from your main address and scales to full volume. A new domain warms up gradually over about 3 weeks, and your connected mailbox keeps your outreach going the whole time. No rush: set it up when it suits you.</p>
-    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open Mirvo &#x2192;</a></p>
-    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Want to understand your sending options before you decide? <a href="${baseUrl}/help/choosing-your-sending-setup" style="color: #2563eb; text-decoration: underline;">Here's how each setup works</a>.</p>
+    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open Mirvo &#x2192;</a></p>
+    <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Want to understand your sending options before you decide? <a href="${baseUrl}/help/choosing-your-sending-setup" style="color: #3b6bef; text-decoration: underline;">Here's how each setup works</a>.</p>
     <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Questions about your plan? Just reply — we read every message.</p>
     <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
   `);
@@ -319,8 +319,8 @@ export async function sendDunningEmail(params: {
     <p style="color: #4a4a5a; line-height: 1.6;">${greeting}</p>
     <p style="color: #1a1a1a; line-height: 1.6;">We tried to process a payment${amountPhrase} for your Mirvo${planPhrase} subscription on ${safeWorkspace}, and it didn't go through. This is almost always something small — an expired card, a new card number, or a temporary hold from the bank.</p>
     <p style="color: #1a1a1a; line-height: 1.6;">Updating your payment details takes about 30 seconds, and we'll retry automatically once it's sorted.</p>
-    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/billing" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Update payment method &#x2192;</a></p>
-    ${safeHostedUrl ? `<p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">In a hurry? You can also <a href="${safeHostedUrl}" style="color: #2563eb; text-decoration: underline;">pay this invoice directly</a>.</p>` : ''}
+    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/billing" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Update payment method &#x2192;</a></p>
+    ${safeHostedUrl ? `<p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">In a hurry? You can also <a href="${safeHostedUrl}" style="color: #3b6bef; text-decoration: underline;">pay this invoice directly</a>.</p>` : ''}
     <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Your account stays active while you sort this out — there's no rush, and nothing is lost. If your card keeps declining over the next couple of weeks, your subscription may pause, but you can reactivate anytime.</p>
     <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">Questions, or think this is a mistake? Just reply — we read every message.</p>
     <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
@@ -364,7 +364,7 @@ export async function sendCancellationEmail(params: {
     <p style="color: #1a1a1a; line-height: 1.6;">We've canceled your Mirvo${planPhrase} subscription for ${safeWorkspace}. No more charges — and thank you for the time you spent with us.</p>
     <p style="color: #1a1a1a; line-height: 1.6;"><strong>Your workspace stays available for 30 days.</strong> Your prospects, campaigns, and everything you built are kept for the next 30 days. Re-subscribe within that window and you pick up exactly where you left off — nothing lost.</p>
     <p style="color: #1a1a1a; line-height: 1.6;">After 30 days, your data is permanently deleted and can't be recovered. So if there's any chance you'll come back, re-subscribing before then keeps all your work intact.</p>
-    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/billing" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Re-subscribe &#x2192;</a></p>
+    <p style="margin: 24px 0;"><a href="${baseUrl}/dashboard/billing" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Re-subscribe &#x2192;</a></p>
     <p style="color: #1a1a1a; line-height: 1.6;">One quick favor: if you have a minute, what made you cancel? Just reply — a real person reads every message, and your answer helps us build something better.</p>
     <p style="color: #4a4a5a; font-size: 14px; line-height: 1.6;">— The Mirvo team</p>
   `);

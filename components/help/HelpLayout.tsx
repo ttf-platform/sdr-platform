@@ -32,11 +32,11 @@ export function HelpLayout({
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-12">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#2563eb] mb-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#3b6bef] mb-3">
           {CATEGORY_LABELS[article.category] ?? article.category}
         </p>
 
-        <article className="prose prose-neutral max-w-none prose-headings:text-[#1a1a1a] prose-a:text-[#2563eb] prose-a:no-underline hover:prose-a:underline prose-code:text-[#1a1a1a] prose-code:bg-[#f5f2ee] prose-code:rounded prose-code:px-1 prose-code:py-0.5 prose-pre:bg-[#1a1a1a] prose-pre:text-[#f5f2ee]">
+        <article className="prose prose-neutral max-w-none prose-headings:text-[#1a1a1a] prose-a:text-[#3b6bef] prose-a:no-underline hover:prose-a:underline prose-code:text-[#1a1a1a] prose-code:bg-[#f5f2ee] prose-code:rounded prose-code:px-1 prose-code:py-0.5 prose-pre:bg-[#1a1a1a] prose-pre:text-[#f5f2ee]">
           {children}
         </article>
 
@@ -45,7 +45,7 @@ export function HelpLayout({
         <div className="mt-12 rounded-xl border border-[#e8e3dc] bg-white p-5 text-sm text-[#4a4a5a]">
           <p>
             Still stuck?{' '}
-            <Link href={`/${locale}/dashboard` as Route} className="text-[#2563eb] underline">
+            <Link href={`/${locale}/dashboard` as Route} className="text-[#3b6bef] underline">
               Open the AI assistant
             </Link>{' '}
             in your dashboard (bottom-right help button).

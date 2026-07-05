@@ -73,8 +73,8 @@ export default async function PricingPage({
             Mir<span className="text-[#3b6bef]">vo</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="inline-flex items-center min-h-[44px] text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]">{t('navLogin')}</Link>
-            <Link href="/signup" className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2">
+            <Link href="/login" className="inline-flex items-center min-h-[44px] text-sm text-[#6b5e4e] hover:text-[#1a1a2e] px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]">{t('navLogin')}</Link>
+            <Link href="/signup" className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
               {t('navStartTrial')}
             </Link>
           </div>
@@ -124,7 +124,7 @@ export default async function PricingPage({
                   ))}
                 </ul>
                 <Link href={`/signup?plan=${p.id}`}
-                  className={`block text-center w-full rounded-xl min-h-[44px] py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 ${
+                  className={`block text-center w-full rounded-xl min-h-[44px] py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 ${
                     p.popular
                       ? 'bg-[#3b6bef] hover:bg-[#2a5bdf] text-white'
                       : 'border border-[#3b6bef] text-[#3b6bef] hover:bg-[#3b6bef] hover:text-white'
@@ -194,7 +194,7 @@ export default async function PricingPage({
           <h2 className="text-3xl font-bold text-white mb-4">{t('finalHeadline')}</h2>
           <p className="text-[#8a9ab8] mb-6">{t('finalSubtext')}</p>
           <Link href="/signup"
-            className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2">
+            className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
             {t('finalCta')}
           </Link>
         </div>

@@ -29,8 +29,8 @@ function ICPVisual() {
 
 function ActivityVisual() {
   const rows = [
-    { dot: '#2563eb', text: 'Sourced 47 prospects', time: 'Today', bold: false },
-    { dot: '#2563eb', text: 'Drafted 47 emails', time: 'Today', bold: false },
+    { dot: '#3b6bef', text: 'Sourced 47 prospects', time: 'Today', bold: false },
+    { dot: '#3b6bef', text: 'Drafted 47 emails', time: 'Today', bold: false },
     { dot: '#d97706', text: 'Awaiting your approval', time: 'Now', bold: true },
   ];
   return (
@@ -47,7 +47,7 @@ function ActivityVisual() {
         </div>
       ))}
       <div className="pt-2 border-t border-[#e8e3dc]">
-        <div className="inline-block rounded border border-[#2563eb] px-3 py-1" style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', letterSpacing: '0.06em' }}>
+        <div className="inline-block rounded border border-[#3b6bef] px-3 py-1" style={{ fontSize: '11px', fontWeight: 700, color: '#3b6bef', letterSpacing: '0.06em' }}>
           Approve all
         </div>
       </div>
@@ -61,11 +61,11 @@ function CalendarVisual() {
       <div className="mb-2 uppercase text-[#4a4a5a]" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}>
         Friday · 10:00
       </div>
-      <div className="rounded-md bg-[#2563eb] px-3 py-2 mb-2">
+      <div className="rounded-md bg-[#3b6bef] px-3 py-2 mb-2">
         <div className="text-[12px] font-medium text-white">Sarah Chen · Acme Corp</div>
         <div className="text-[10px] text-white" style={{ opacity: 0.8 }}>30 min · Discovery call</div>
       </div>
-      <div className="mt-3 text-[11px] font-bold text-[#2563eb]" style={{ letterSpacing: '0.06em' }}>
+      <div className="mt-3 text-[11px] font-bold text-[#3b6bef]" style={{ letterSpacing: '0.06em' }}>
         ✓ Booked by Mirvo
       </div>
     </div>
@@ -135,8 +135,8 @@ function HTimeline({
     width: isLast(i) ? 16 : 12,
     height: isLast(i) ? 16 : 12,
     marginTop: isLast(i) ? -2 : 0,
-    backgroundColor: isActive(i) ? '#2563eb' : '#ffffff',
-    border: `2px solid ${isActive(i) ? '#2563eb' : '#e8e3dc'}`,
+    backgroundColor: isActive(i) ? '#3b6bef' : '#ffffff',
+    border: `2px solid ${isActive(i) ? '#3b6bef' : '#e8e3dc'}`,
     transition: 'background-color 0.3s ease, border-color 0.3s ease',
     boxShadow: isLast(i) && isActive(i)
       ? '0 4px 12px rgba(37,99,235,0.18), 0 0 0 4px rgba(37,99,235,0.10)'
@@ -170,7 +170,7 @@ function HTimeline({
 
         <motion.div
           key={`bar-${loopKey}`}
-          className="absolute left-0 bg-[#2563eb]"
+          className="absolute left-0 bg-[#3b6bef]"
           style={{ top: '13px', height: '2px', originX: 0 }}
           initial={{ width: '0%' }}
           animate={{ width: reduced || isInView ? '100%' : '0%' }}
@@ -201,7 +201,7 @@ function HTimeline({
 
         <motion.div
           key={`vbar-${loopKey}`}
-          className="absolute left-3 top-2 w-[2px] bg-[#2563eb]"
+          className="absolute left-3 top-2 w-[2px] bg-[#3b6bef]"
           style={{ originY: 0 }}
           initial={{ height: '0%' }}
           animate={{ height: reduced || isInView ? '100%' : '0%' }}
@@ -217,8 +217,8 @@ function HTimeline({
                   style={{
                     width: isLast(i) ? 14 : 10,
                     height: isLast(i) ? 14 : 10,
-                    backgroundColor: isActive(i) ? '#2563eb' : '#ffffff',
-                    border: `2px solid ${isActive(i) ? '#2563eb' : '#e8e3dc'}`,
+                    backgroundColor: isActive(i) ? '#3b6bef' : '#ffffff',
+                    border: `2px solid ${isActive(i) ? '#3b6bef' : '#e8e3dc'}`,
                     transition: 'background-color 0.3s ease, border-color 0.3s ease',
                   }}
                 />
@@ -270,7 +270,7 @@ function WarmupBadge({ title, body }: { title: string; body: string }) {
             <svg
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#2563eb"
+              stroke="#3b6bef"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -280,7 +280,7 @@ function WarmupBadge({ title, body }: { title: string; body: string }) {
               <path className="warmup-arc-outer" d="M3 8a13 13 0 0 1 18 0" />
               <path d="M6 11a8 8 0 0 1 12 0" />
               <path d="M9 14a4 4 0 0 1 6 0" />
-              <circle cx="12" cy="17" r="1" fill="#2563eb" stroke="none" />
+              <circle cx="12" cy="17" r="1" fill="#3b6bef" stroke="none" />
             </svg>
           </div>
 
@@ -354,7 +354,7 @@ export function SectionHowItWorks() {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          <p className="mb-5 font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
+          <p className="mb-5 font-bold uppercase text-[#3b6bef]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
             {t('eyebrow')}
           </p>
           <h2
@@ -380,7 +380,7 @@ export function SectionHowItWorks() {
               className="group rounded-lg bg-white border border-[#e8e3dc] p-8 flex flex-col transition-shadow duration-200 ease-out hover:shadow-[0_4px_12px_rgba(26,26,26,0.08),0_2px_4px_-2px_rgba(26,26,26,0.06)]"
               style={{ boxShadow: '0 1px 3px rgba(26,26,26,0.06), 0 1px 2px -1px rgba(26,26,26,0.06)' }}
             >
-              <div className="mb-6 font-medium uppercase text-[#2563eb]" style={{ fontSize: '14px', letterSpacing: '0.06em' }}>
+              <div className="mb-6 font-medium uppercase text-[#3b6bef]" style={{ fontSize: '14px', letterSpacing: '0.06em' }}>
                 {step.number}
               </div>
               <h3 className="mb-3 font-medium text-[#1a1a1a]" style={{ fontSize: '1.25rem', lineHeight: 1.3 }}>
@@ -405,7 +405,7 @@ export function SectionHowItWorks() {
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
           >
-            <p className="font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
+            <p className="font-bold uppercase text-[#3b6bef]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
               {t('timelineALabel')}
             </p>
           </motion.div>
@@ -430,7 +430,7 @@ export function SectionHowItWorks() {
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
           >
-            <p className="font-bold uppercase text-[#2563eb]" style={{ fontSize: '0.625rem', letterSpacing: '0.16em' }}>
+            <p className="font-bold uppercase text-[#3b6bef]" style={{ fontSize: '0.625rem', letterSpacing: '0.16em' }}>
               {t('timelineBLabel')}
             </p>
           </motion.div>

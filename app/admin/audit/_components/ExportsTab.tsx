@@ -61,7 +61,7 @@ export function ExportsTab({ rows, rowLimit }: { rows: ExportRow[]; rowLimit: nu
             id="filter-format"
             value={formatFilter}
             onChange={(e) => setFormatFilter(e.target.value as typeof formatFilter)}
-            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
           >
             <option value="all">All formats</option>
             <option value="csv">CSV</option>

@@ -234,7 +234,7 @@ export function WorkspaceDetailClient({ data }: { data: WorkspaceDetailData }) {
             <span>View as user (read-only)</span>
           </Link>
           {stripeUrl && (
-            <a href={stripeUrl} target="_blank" rel="noreferrer" className="text-xs text-[#2563eb] hover:underline">
+            <a href={stripeUrl} target="_blank" rel="noreferrer" className="text-xs text-[#3b6bef] hover:underline">
               Open in Stripe ↗
             </a>
           )}

@@ -84,7 +84,7 @@ export function WelcomeModal({ onDismissTemporary, onDismissPermanent }: Welcome
             type="button"
             onClick={handleNever}
             disabled={submitting || loadingSample || confirmingNever}
-            className="mt-1 mx-auto text-xs text-[#8a7e6e] hover:text-[#4a4a5a] underline underline-offset-2 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 rounded"
+            className="mt-1 mx-auto text-xs text-[#8a7e6e] hover:text-[#4a4a5a] underline underline-offset-2 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 rounded"
           >
             {confirmingNever ? 'Saving…' : "Don't show this again"}
           </button>

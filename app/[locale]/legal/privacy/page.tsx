@@ -69,7 +69,7 @@ export default async function PrivacyPage({
               ['Service', 'The Mirvo B2B outbound platform, including all features accessible via mirvo.ai.'],
             ].map(([term, def]) => (
               <div key={term as string} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>{term}:</strong> {def}</span>
               </div>
             ))}
@@ -141,7 +141,7 @@ export default async function PrivacyPage({
               ['Marketing communications', 'Only if you have explicitly opted in. You can withdraw consent at any time.'],
             ].map(([purpose, detail]) => (
               <li key={purpose as string} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>{purpose}:</strong> {detail}</span>
               </li>
             ))}
@@ -190,7 +190,7 @@ export default async function PrivacyPage({
               <ul className="space-y-2" style={{ color: '#4a4a5a', maxWidth: '60ch', fontSize: '0.9rem' }}>
                 {['Email content generation based on prospect context you provide', 'Sentiment analysis on incoming email replies (to classify response intent)', 'AI-powered help and guidance within the product'].map((item) => (
                   <li key={item} className="flex gap-3">
-                    <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                    <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                     <span className="leading-relaxed">{item}</span>
                   </li>
                 ))}
@@ -249,7 +249,7 @@ export default async function PrivacyPage({
           <ul className="mt-4 space-y-2" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             {['Hosting & CDN', 'Database & Authentication', 'Payment processing', 'AI processing', 'Email infrastructure', 'Product analytics'].map((cat) => (
               <li key={cat} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed">{cat}</span>
               </li>
             ))}
@@ -328,7 +328,7 @@ export default async function PrivacyPage({
               ['Automated decision-making (Art. 22)', 'Mirvo does not make solely automated decisions with legal or similarly significant effects. AI features are decision-support tools; humans make final decisions.'],
             ].map(([right, desc]) => (
               <div key={right as string} className="flex gap-3">
-                <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+                <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
                 <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>{right}:</strong> {desc}</span>
               </div>
             ))}
@@ -351,11 +351,11 @@ export default async function PrivacyPage({
           </p>
           <ul className="mt-4 space-y-3" style={{ color: '#4a4a5a', maxWidth: '60ch' }}>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>EU-only:</strong> Your account data and product analytics are stored and processed exclusively in EU data centers (Frankfurt region). No transfer to third countries occurs for these categories.</span>
             </li>
             <li className="flex gap-3">
-              <span style={{ color: '#2563eb', fontWeight: 600, flexShrink: 0 }}>—</span>
+              <span style={{ color: '#3b6bef', fontWeight: 600, flexShrink: 0 }}>—</span>
               <span className="leading-relaxed"><strong style={{ color: '#1a1a1a' }}>US providers under safeguards:</strong> AI processing, email delivery, and payment processing involve US-based providers. Transfers are covered by the EU-US Data Privacy Framework (DPF) and Standard Contractual Clauses (SCCs) under Commission Implementing Decision (EU) 2021/914.</span>
             </li>
           </ul>

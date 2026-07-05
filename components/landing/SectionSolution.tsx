@@ -48,7 +48,7 @@ export function SectionSolution() {
           viewport={{ once: true, margin: '-80px' }}
         >
           <p
-            className="mb-5 font-bold uppercase text-[#2563eb]"
+            className="mb-5 font-bold uppercase text-[#3b6bef]"
             style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
           >
             {t('eyebrow')}
@@ -141,7 +141,7 @@ export function SectionSolution() {
               {/* Chevron at convergence point — appears after lines complete */}
               <motion.path
                 d="M 44 24 L 50 31 L 56 24"
-                stroke="#2563eb"
+                stroke="#3b6bef"
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -169,13 +169,13 @@ export function SectionSolution() {
             }}
             animate={
               reduced
-                ? { scale: 1, borderColor: '#2563eb' }
+                ? { scale: 1, borderColor: '#3b6bef' }
                 : cardInView
                 ? {
                     scale: 1,
-                    borderColor: ['#2563eb', '#60a5fa', '#2563eb'],
+                    borderColor: ['#3b6bef', '#60a5fa', '#3b6bef'],
                   }
-                : { scale: 0.98, borderColor: '#2563eb' }
+                : { scale: 0.98, borderColor: '#3b6bef' }
             }
             transition={{
               scale: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
@@ -185,7 +185,7 @@ export function SectionSolution() {
             {/* Logo + name */}
             <div className="flex items-center gap-3 mb-6">
               <div
-                className="flex-shrink-0 flex items-center justify-center rounded-md bg-[#2563eb]"
+                className="flex-shrink-0 flex items-center justify-center rounded-md bg-[#3b6bef]"
                 style={{ width: 28, height: 28 }}
                 aria-hidden="true"
               >
@@ -202,7 +202,7 @@ export function SectionSolution() {
             {/* Capability tags */}
             <div className="border-t border-[#e8e3dc] pt-4">
               <span
-                className="uppercase text-[#2563eb]"
+                className="uppercase text-[#3b6bef]"
                 style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}
               >
                 {capabilities.join('  ·  ')}

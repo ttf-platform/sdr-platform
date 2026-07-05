@@ -76,7 +76,7 @@ export default async function LandingPage({
     <div className={`${fraunces.variable} min-h-screen bg-[#faf8f5]`}>
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-[#2563eb] focus:outline-none"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg focus:text-[#3b6bef] focus:outline-none"
       >
         Skip to main content
       </a>

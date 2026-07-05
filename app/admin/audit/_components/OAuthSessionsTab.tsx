@@ -47,7 +47,7 @@ export function OAuthSessionsTab({ rows }: { rows: OAuthSessionRow[] }) {
             id="filter-provider"
             value={providerFilter}
             onChange={(e) => setProviderFilter(e.target.value as typeof providerFilter)}
-            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            className="rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
           >
             <option value="all">All providers</option>
             <option value="google">Google</option>
