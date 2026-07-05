@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { readDashboardLocaleSync, writeDashboardLocale } from '@/lib/locale'
 import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
@@ -69,6 +70,24 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
       setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
       fetch('/api/admin/check').then(r => r.json()).then(d => { if (d?.isAdmin) setIsSentraAdmin(true) }).catch(() => {})
+
+      // Sync the dashboard locale cookie against workspace_profiles.language.
+      // If the DB language changed (e.g. admin flipped it, or a settings page
+      // update landed) and diverges from the cookie posed at login, update
+      // the cookie so the NEXT reload picks up the new locale. We deliberately
+      // do NOT force a re-hydration of the current render — avoids a visible
+      // EN↔FR flash mid-session. A hard refresh applies the change.
+      supabase
+        .from('workspace_profiles')
+        .select('language')
+        .eq('workspace_id', member.workspace_id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          const dbLang = profile?.language
+          if (dbLang === 'en' || dbLang === 'fr') {
+            if (readDashboardLocaleSync() !== dbLang) writeDashboardLocale(dbLang)
+          }
+        })
     })
   }, [])
 
