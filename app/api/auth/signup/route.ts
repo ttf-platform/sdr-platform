@@ -66,6 +66,17 @@ export async function POST(request: NextRequest) {
   function respond(body: object, status = 200) {
     const res = NextResponse.json(body, { status })
     Object.values(cookieJar).forEach(({ name, value, options }) => res.cookies.set(name, value, options))
+    // Fresh workspaces get workspace_profiles.language default 'en' (baseline
+    // L1278). Pin the dashboard locale cookie to 'en' so the first dashboard
+    // render post-signup does not fall back to the client default synchronously
+    // and then need a reload. Non-httpOnly: client reads at mount.
+    res.cookies.set('mirvo_dashboard_locale', 'en', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    })
     return res
   }
 
