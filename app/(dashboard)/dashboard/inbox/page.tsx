@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
 import type { ThreadItem } from '@/app/api/inbox/messages/[id]/thread/route'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -46,43 +47,27 @@ type TabKey = 'all' | 'unread' | 'starred' | 'archived'
 // Sentiment badge
 // ---------------------------------------------------------------------------
 
-const SENTIMENT_CONFIG: Record<
-  SentimentLabel,
-  { label: string; className: string }
-> = {
-  positive: {
-    label: 'Interested',
-    className: 'bg-green-50 text-green-700 border border-green-200',
-  },
-  meeting_request: {
-    label: 'Meeting request',
-    className: 'bg-blue-50 text-blue-700 border border-blue-200',
-  },
-  neutral: {
-    label: 'Neutral',
-    className: 'bg-zinc-50 text-zinc-600 border border-zinc-200',
-  },
-  negative: {
-    label: 'Not interested',
-    className: 'bg-red-50 text-red-600 border border-red-200',
-  },
-  unsubscribe: {
-    label: 'Unsubscribe',
-    className: 'bg-amber-50 text-amber-700 border border-amber-200',
-  },
-  bounce: {
-    label: 'Bounce',
-    className: 'bg-slate-50 text-slate-500 border border-slate-200',
-  },
+// Only className is module-level (safe, no i18n involved).
+// The label is resolved at render time via useTranslations to avoid calling
+// t() at the module top level (which would break with the client-side
+// NextIntlClientProvider context).
+const SENTIMENT_CLASSNAME: Record<SentimentLabel, string> = {
+  positive:        'bg-green-50 text-green-700 border border-green-200',
+  meeting_request: 'bg-blue-50 text-blue-700 border border-blue-200',
+  neutral:         'bg-zinc-50 text-zinc-600 border border-zinc-200',
+  negative:        'bg-red-50 text-red-600 border border-red-200',
+  unsubscribe:     'bg-amber-50 text-amber-700 border border-amber-200',
+  bounce:          'bg-slate-50 text-slate-500 border border-slate-200',
 }
 
 function SentimentBadge({ sentiment }: { sentiment: SentimentLabel | null }) {
+  const t = useTranslations('dashboard.inbox.sentiment')
   if (!sentiment) return null
-  const cfg = SENTIMENT_CONFIG[sentiment]
-  if (!cfg) return null
+  const className = SENTIMENT_CLASSNAME[sentiment]
+  if (!className) return null
   return (
-    <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-md ${cfg.className}`}>
-      {cfg.label}
+    <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-md ${className}`}>
+      {t(sentiment)}
     </span>
   )
 }
@@ -150,14 +135,20 @@ function ThreadView({ items }: { items: ThreadItem[] }) {
 // Page
 // ---------------------------------------------------------------------------
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'unread', label: 'Unread' },
-  { key: 'starred', label: 'Starred' },
-  { key: 'archived', label: 'Archived' },
-]
+// Only keys are module-level; labels resolved at render time via t().
+const TAB_KEYS: TabKey[] = ['all', 'unread', 'starred', 'archived']
+
+const TAB_LABEL_KEY: Record<TabKey, 'tabAll' | 'tabUnread' | 'tabStarred' | 'tabArchived'> = {
+  all:      'tabAll',
+  unread:   'tabUnread',
+  starred:  'tabStarred',
+  archived: 'tabArchived',
+}
 
 export default function InboxPage() {
+  const t = useTranslations('dashboard.inbox.list')
+  const tErrors = useTranslations('dashboard.inbox.errors')
+  const tToasts = useTranslations('dashboard.inbox.toasts')
   const [messages, setMessages] = useState<InboxMessage[]>([])
   const [selected, setSelected] = useState<InboxMessage | null>(null)
   const [tab, setTab] = useState<TabKey>('all')
@@ -197,13 +188,16 @@ export default function InboxPage() {
         if (dbErr) throw dbErr
         setMessages(data ?? [])
       } catch {
-        setError('Failed to load messages')
+        setError(t('loadError'))
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [])
+    // t is stable across renders (next-intl useTranslations returns a memoized
+    // function per namespace); adding it to deps is a no-op for behavior but
+    // silences exhaustive-deps.
+  }, [t])
 
   // ── Select message ─────────────────────────────────────────────────────────
 
@@ -278,24 +272,24 @@ export default function InboxPage() {
   // Everything falls back to a generic "try again" — never surface a raw
   // errorCode or provider error to the user.
   function mapSendError(status: number, code: string | undefined): string {
-    if (status === 402) return "Your plan doesn't allow this."
-    if (status === 429) return 'Too many replies — wait a moment and try again.'
+    if (status === 402) return tErrors('planNotAllowed')
+    if (status === 429) return tErrors('tooManyReplies')
     switch (code) {
       case 'reply_uuid_missing':
-        return "Can't reply to this message (missing thread reference)."
+        return tErrors('replyUuidMissing')
       case 'reply_context_missing':
-        return "Can't reply — original conversation context is missing."
+        return tErrors('replyContextMissing')
       case 'no_matching_mailbox':
       case 'mailbox_not_ready':
-        return 'Connect and verify a mailbox to reply.'
+        return tErrors('mailboxNotReady')
       case 'mailbox_paused':
-        return 'This mailbox is paused. Resume it to reply.'
+        return tErrors('mailboxPaused')
       case 'provider_mock_mode':
-        return 'Email sending is not active. Contact support.'
+        return tErrors('providerMockMode')
       case 'provider_send_failed':
-        return 'Reply failed to send. Try again in a moment.'
+        return tErrors('providerSendFailed')
       default:
-        return 'Reply failed. Try again.'
+        return tErrors('replyFailedGeneric')
     }
   }
 
@@ -318,7 +312,7 @@ export default function InboxPage() {
         return
       }
       setAiDraft('')
-      toast.success('Reply sent')
+      toast.success(tToasts('replySent'))
       // Re-fetch the thread so the outbound copy appears at the bottom.
       if (selected.thread_id) {
         try {
@@ -328,7 +322,7 @@ export default function InboxPage() {
         } catch { /* leave stale — the reply still sent */ }
       }
     } catch {
-      setSendError('Reply failed. Try again.')
+      setSendError(tErrors('replyFailedGeneric'))
     } finally {
       setSending(false)
     }
@@ -352,25 +346,25 @@ export default function InboxPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Inbox</h1>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('title')}</h1>
           <p className="text-sm text-[#8a7e6e] mt-0.5">
-            Replies from prospects across all campaigns
+            {t('subtitle')}
           </p>
         </div>
         <div className="flex gap-1 bg-[#f5f3f0] border border-[#e8e3dc] rounded-xl p-1 overflow-x-auto flex-shrink-0 min-w-0">
-          {TABS.map(t => (
+          {TAB_KEYS.map(k => (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={k}
+              onClick={() => setTab(k)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                tab === t.key
+                tab === k
                   ? 'bg-white text-[#1a1a2e] shadow-sm border border-[#e8e3dc]'
                   : 'text-[#8a7e6e] hover:text-[#4a3f32]'
               }`}
             >
-              {t.key === 'unread' && unreadCount > 0
-                ? `Unread (${unreadCount})`
-                : t.label}
+              {k === 'unread' && unreadCount > 0
+                ? t('tabUnreadCount', { count: unreadCount })
+                : t(TAB_LABEL_KEY[k])}
             </button>
           ))}
         </div>
@@ -388,11 +382,11 @@ export default function InboxPage() {
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-3xl mb-3">📬</div>
-              <div className="font-semibold text-[#1a1a2e] mb-1 text-sm">No messages</div>
+              <div className="font-semibold text-[#1a1a2e] mb-1 text-sm">{t('emptyTitle')}</div>
               <div className="text-xs text-[#8a7e6e]">
                 {tab === 'unread'
-                  ? 'All caught up.'
-                  : 'Replies from prospects will appear here.'}
+                  ? t('emptyDescriptionUnread')
+                  : t('emptyDescriptionDefault')}
               </div>
             </div>
           ) : (
@@ -448,9 +442,9 @@ export default function InboxPage() {
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
               <div className="text-3xl mb-3">📭</div>
-              <div className="font-semibold text-[#1a1a2e] mb-1 text-sm">Select a message</div>
+              <div className="font-semibold text-[#1a1a2e] mb-1 text-sm">{t('selectTitle')}</div>
               <div className="text-xs text-[#8a7e6e]">
-                Click a message on the left to read it.
+                {t('selectDescription')}
               </div>
             </div>
           ) : (
@@ -460,7 +454,7 @@ export default function InboxPage() {
                 className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-[#f0ece6] text-sm text-[#3b6bef] font-medium hover:bg-[#faf8f5] transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-inset"
                 onClick={() => setSelected(null)}
               >
-                ← Back to inbox
+                ← {t('backToInbox')}
               </button>
               {/* Message header */}
               <div className="flex items-start justify-between px-5 py-4 border-b border-[#f0ece6]">
@@ -495,7 +489,7 @@ export default function InboxPage() {
                   <button
                     onClick={e => toggleStar(selected, e)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#faf8f5] transition-colors"
-                    title={selected.is_starred ? 'Unstar' : 'Star'}
+                    title={selected.is_starred ? t('unstar') : t('star')}
                   >
                     {selected.is_starred ? '⭐' : '☆'}
                   </button>
@@ -503,7 +497,7 @@ export default function InboxPage() {
                     onClick={() => archive(selected.id)}
                     className="text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#faf8f5] transition-colors"
                   >
-                    Archive
+                    {t('archive')}
                   </button>
                 </div>
               </div>
@@ -512,7 +506,7 @@ export default function InboxPage() {
               <div className="flex-1 overflow-y-auto">
                 {selected.thread_id ? (
                   threadLoading ? (
-                    <div className="p-6 text-sm text-[#8a7e6e]">Loading thread...</div>
+                    <div className="p-6 text-sm text-[#8a7e6e]">{t('loadingThread')}</div>
                   ) : thread ? (
                     <ThreadView items={thread} />
                   ) : (
@@ -531,7 +525,7 @@ export default function InboxPage() {
               <div className="px-5 py-4 border-t border-[#f0ece6]">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-[11px] font-semibold text-[#8a7e6e] uppercase tracking-wider">
-                    AI Draft Reply
+                    {t('aiDraftLabel')}
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -539,7 +533,7 @@ export default function InboxPage() {
                       disabled={generatingDraft || sending}
                       className="text-xs border border-[#e8e3dc] text-[#4a4a5a] bg-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#faf8f5] transition-colors"
                     >
-                      {generatingDraft ? 'Generating...' : '✦ Generate draft'}
+                      {generatingDraft ? t('generatingDraft') : `✦ ${t('generateDraft')}`}
                     </button>
                     {aiDraft && (
                       <button
@@ -548,7 +542,7 @@ export default function InboxPage() {
                         aria-busy={sending}
                         className="text-xs bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-[#2a5bdf] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1"
                       >
-                        {sending ? 'Sending...' : 'Send reply'}
+                        {sending ? t('sending') : t('sendReply')}
                       </button>
                     )}
                   </div>
@@ -560,8 +554,8 @@ export default function InboxPage() {
                     disabled={sending}
                     className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef] resize-none text-[#4a3f32] leading-relaxed disabled:opacity-60"
                     rows={4}
-                    placeholder="Your draft reply..."
-                    aria-label="Reply draft"
+                    placeholder={t('draftPlaceholder')}
+                    aria-label={t('draftAriaLabel')}
                   />
                 )}
                 {sendError && (
