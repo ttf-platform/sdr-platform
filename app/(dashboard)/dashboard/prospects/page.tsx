@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   ImportCSVModal, ManualAddModal, PasteModal,
   LifecyclePill, statusBadgeClass,
@@ -64,22 +65,23 @@ type ContactDetail = Contact & { prospects: Assignment[] }
 type Campaign = { id: string; name: string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const SOURCE_LABEL: Record<string, string> = {
-  manual: 'Manual', paste: 'Paste', csv_import: 'CSV', sample: 'Demo',
-}
+// Values only. Source labels resolved at render via useTranslations('...sources') → t(source).
+// Dynamic keys declared verbatim in messages/{en,fr}.json under dashboard.prospects.list.sources.*
+const SOURCES = ['manual', 'paste', 'csv_import', 'sample'] as const
 
 const COMPANY_SIZES  = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REVENUE_RANGES = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
-const TONES          = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
-const TONE_ALIASES: Record<string, string> = { technical: 'direct', warm: 'friendly' }
-function normalizeTone(raw?: string): string {
-  const t = (raw || '').toLowerCase()
-  if (TONES.some(x => x.toLowerCase() === t)) return t
-  return TONE_ALIASES[t] ?? 'professional'
-}
 
-const ICP_TOOLTIP         = 'These are your master defaults. They auto-fill every new campaign you create — and you can override any field per campaign at launch.'
-const PAIN_POINTS_TOOLTIP = 'Describe the problems your prospects face that your product solves. Examples: struggling with low email deliverability, spending 3+ hours/day on manual prospecting, missing quota due to lack of qualified leads.'
+// Values only. Tone labels resolved at render via useTranslations('...tones') → t(tone).
+// Dynamic keys declared verbatim in messages/{en,fr}.json under dashboard.prospects.list.tones.*
+const TONES = ['professional', 'casual', 'direct', 'friendly', 'witty'] as const
+type ToneKey = typeof TONES[number]
+const TONE_ALIASES: Record<string, string> = { technical: 'direct', warm: 'friendly' }
+function normalizeTone(raw?: string): ToneKey {
+  const t = (raw || '').toLowerCase()
+  if ((TONES as readonly string[]).includes(t)) return t as ToneKey
+  return (TONE_ALIASES[t] ?? 'professional') as ToneKey
+}
 
 const inputCls = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#7c3aed]'
 const labelCls = 'text-xs font-semibold text-[#6b5e4e]'
@@ -108,6 +110,8 @@ const LC_POSITIVE = ['found', 'emailed', 'opened', 'replied', 'meeting'] as cons
 const LC_NEGATIVE = ['bounced', 'unsubscribed'] as const
 
 function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total: number }) {
+  const tLifecycle = useTranslations('dashboard.prospects.list.lifecycle')
+  const tStatuses = useTranslations('dashboard.prospects.list.statuses')
   const hasNeg = LC_NEGATIVE.some(s => (counts[s] ?? 0) > 0)
   return (
     <div className="flex items-center gap-1">
@@ -115,11 +119,11 @@ function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total
       {LC_POSITIVE.map((s, i) => {
         const n = counts[s] ?? 0
         const on = n > 0
-        const label = s.charAt(0).toUpperCase() + s.slice(1)
+        const label = tStatuses(s)
         return (
           <div key={s} className="flex items-center">
             {i > 0 && <div className="w-2 h-px bg-[#e8e3dc] mx-0.5 mt-[10px]" />}
-            <Tooltip content={`${n} of ${total} campaign${total !== 1 ? 's' : ''} reached ${label}`}>
+            <Tooltip content={tLifecycle('positiveTooltip', { count: n, total, label })}>
               <div className="flex flex-col items-center gap-[2px]">
                 <span className={`text-[9px] font-semibold leading-none ${on ? 'text-green-600' : 'text-[#d0cbc5]'}`}>{n}</span>
                 <div className={`w-2 h-2 rounded-full ${on ? 'bg-green-500' : 'bg-[#e8e3dc]'}`} />
@@ -135,9 +139,9 @@ function LifecycleCountsCell({ counts, total }: { counts: LifecycleCounts; total
           {LC_NEGATIVE.map(s => {
             const n = counts[s] ?? 0
             if (!n) return null
-            const label = s.charAt(0).toUpperCase() + s.slice(1)
+            const label = tStatuses(s)
             return (
-              <Tooltip key={s} content={`${n} campaign${n !== 1 ? 's' : ''} ${label}`}>
+              <Tooltip key={s} content={tLifecycle('negativeTooltip', { count: n, label })}>
                 <div className="flex flex-col items-center gap-[2px]">
                   <span className="text-[9px] font-semibold leading-none text-red-400">{n}</span>
                   <div className="w-2 h-2 rounded-full bg-red-400" />
@@ -159,6 +163,8 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
   onDeleted:             () => void
   onContactTagsUpdated:  (contactId: string, tags: ProspectTag[]) => void
 }) {
+  const t = useTranslations('dashboard.prospects.list.sidePanel')
+  const tCommon = useTranslations('dashboard.common')
   const [detail,   setDetail]   = useState<ContactDetail | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -320,13 +326,13 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
               const campaignAssignments = (detail.prospects ?? []).filter(a => a.campaign_id)
               if (campaignAssignments.length === 0) return (
                 <div>
-                  <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Campaigns</div>
-                  <div className="text-xs text-[#b0a898]">Not assigned to any campaign</div>
+                  <div className="text-xs font-semibold text-[#6b5e4e] mb-2">{t('campaigns')}</div>
+                  <div className="text-xs text-[#b0a898]">{t('notAssigned')}</div>
                 </div>
               )
               return (
                 <div>
-                  <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Campaigns ({campaignAssignments.length})</div>
+                  <div className="text-xs font-semibold text-[#6b5e4e] mb-2">{t('campaignsWithCount', { count: campaignAssignments.length })}</div>
                   <div className="flex flex-col gap-2">
                     {campaignAssignments.map(a => (
                       <div key={a.id} className="border border-[#f0ece6] rounded-lg p-3">
@@ -335,7 +341,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                           <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium flex-shrink-0 ${statusBadgeClass(a.status)}`}>{a.status}</span>
                         </div>
                         <LifecyclePill status={a.status} variant="panel" />
-                        {a.added_at && <div className="text-[10px] text-[#b0a898] mt-2">Added {fmtDate(a.added_at)}</div>}
+                        {a.added_at && <div className="text-[10px] text-[#b0a898] mt-2">{t('addedOn', { date: fmtDate(a.added_at) })}</div>}
                       </div>
                     ))}
                   </div>
@@ -345,13 +351,13 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
 
             {/* Contact info */}
             <div>
-              <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Contact</div>
+              <div className="text-xs font-semibold text-[#6b5e4e] mb-2">{t('contact')}</div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-[#8a7e6e] text-xs w-4">✉</span>
                   <span className="text-[#1a1a2e] truncate flex-1">{detail.email}</span>
                   <button onClick={() => navigator.clipboard.writeText(detail.email)}
-                    className="text-xs text-[#b0a898] hover:text-[#3b6bef] flex-shrink-0">copy</button>
+                    className="text-xs text-[#b0a898] hover:text-[#3b6bef] flex-shrink-0">{t('copy')}</button>
                 </div>
                 {detail.company && (
                   <div className="flex items-center gap-2 text-sm">
@@ -367,7 +373,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                       {safe
                         ? <a href={safe} target="_blank" rel="noopener noreferrer"
                             className="text-[#3b6bef] hover:underline truncate flex-1">{detail.linkedin_url}</a>
-                        : <span className="text-[#8a7e6e] truncate flex-1" title={detail.linkedin_url}>{detail.linkedin_url} (invalid)</span>}
+                        : <span className="text-[#8a7e6e] truncate flex-1" title={detail.linkedin_url}>{detail.linkedin_url} {t('invalidSuffix')}</span>}
                     </div>
                   );
                 })()}
@@ -379,7 +385,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                       {safe
                         ? <a href={safe} target="_blank" rel="noopener noreferrer"
                             className="text-[#3b6bef] hover:underline truncate flex-1">{detail.website}</a>
-                        : <span className="text-[#8a7e6e] truncate flex-1" title={detail.website}>{detail.website} (invalid)</span>}
+                        : <span className="text-[#8a7e6e] truncate flex-1" title={detail.website}>{detail.website} {t('invalidSuffix')}</span>}
                     </div>
                   );
                 })()}
@@ -389,12 +395,12 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
             {/* Dates */}
             <div className="flex flex-col gap-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#8a7e6e]">Added</span>
+                <span className="text-[#8a7e6e]">{t('addedLabel')}</span>
                 <span className="text-[#4a4a5a]">{fmtDate(detail.added_at)}</span>
               </div>
               {detail.last_activity_at && (
                 <div className="flex justify-between">
-                  <span className="text-[#8a7e6e]">Last activity</span>
+                  <span className="text-[#8a7e6e]">{t('lastActivity')}</span>
                   <span className="text-[#4a4a5a]">{fmtDate(detail.last_activity_at)}</span>
                 </div>
               )}
@@ -402,7 +408,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
 
             {/* Tags */}
             <div>
-              <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Tags</div>
+              <div className="text-xs font-semibold text-[#6b5e4e] mb-2">{t('tags')}</div>
               <div className="relative flex flex-wrap items-center gap-1.5">
                 {tags.map(tag => (
                   <Tag
@@ -417,7 +423,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                     onClick={() => setShowTagPicker(true)}
                     className="inline-flex items-center gap-1 text-xs text-[#8a7e6e] hover:text-[#1a1a2e] px-2 py-0.5 rounded-full border border-dashed border-[#d0cbc5] hover:border-[#8a7e6e]"
                   >
-                    + Add tag
+                    {t('addTag')}
                   </button>
                 )}
                 {showTagPicker && primaryProspectId && (
@@ -435,7 +441,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
             {/* Notes */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <div className="text-xs font-semibold text-[#6b5e4e]">Notes</div>
+                <div className="text-xs font-semibold text-[#6b5e4e]">{t('notes')}</div>
                 {notes.length > 0 && (
                   <span className="text-xs text-[#b0a898]">{notes.length}</span>
                 )}
@@ -445,7 +451,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                 <textarea
                   value={newNote}
                   onChange={e => setNewNote(e.target.value)}
-                  placeholder="Add a note…"
+                  placeholder={t('notesPlaceholder')}
                   rows={2}
                   maxLength={5000}
                   className="w-full px-3 py-2 bg-white border border-[#e8e3dc] rounded-lg text-xs resize-none focus:outline-none focus:ring-1 focus:ring-[#3b6bef] focus:border-[#3b6bef]"
@@ -453,17 +459,17 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
                 {newNote.trim() && (
                   <div className="flex justify-end gap-2 mt-1.5">
                     <button onClick={() => setNewNote('')}
-                      className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e]">Cancel</button>
+                      className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e]">{tCommon('cancel')}</button>
                     <button onClick={handleAddNote} disabled={addingNote}
                       className="text-xs bg-[#3b6bef] text-white px-3 py-1 rounded-md hover:bg-[#2d5cd9] disabled:opacity-40">
-                      {addingNote ? 'Adding…' : 'Add note'}
+                      {addingNote ? t('adding') : t('addNote')}
                     </button>
                   </div>
                 )}
               </div>
 
               {notes.length === 0 ? (
-                <div className="text-xs text-[#b0a898] italic">No notes yet.</div>
+                <div className="text-xs text-[#b0a898] italic">{t('noNotes')}</div>
               ) : (
                 <div className="flex flex-col gap-2">
                   {notes.map(note => (
@@ -481,7 +487,7 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
 
             <button onClick={deleteContact} disabled={deleting}
               className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40 text-center py-1 transition-colors">
-              {deleting ? 'Deleting…' : 'Delete contact & all assignments'}
+              {deleting ? tCommon('deleting') : t('deleteContact')}
             </button>
           </div>
         )}
@@ -501,6 +507,18 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProspectsPage() {
+  const tHeader = useTranslations('dashboard.prospects.list.header')
+  const tActions = useTranslations('dashboard.prospects.list.actions')
+  const tIcp = useTranslations('dashboard.prospects.list.masterIcp')
+  const tFilters = useTranslations('dashboard.prospects.list.filters')
+  const tSources = useTranslations('dashboard.prospects.list.sources')
+  const tTones = useTranslations('dashboard.prospects.list.tones')
+  const tStatuses = useTranslations('dashboard.prospects.list.statuses')
+  const tTable = useTranslations('dashboard.prospects.list.table')
+  const tPagination = useTranslations('dashboard.prospects.list.pagination')
+  const tBulk = useTranslations('dashboard.prospects.list.bulk')
+  const tCommon = useTranslations('dashboard.common')
+
   const searchParams = useSearchParams()
   const [contacts, setContacts]         = useState<Contact[]>([])
   const [total, setTotal]               = useState(0)
@@ -544,7 +562,7 @@ export default function ProspectsPage() {
     company_sizes:    [] as string[],
     company_revenue:  [] as string[],
     pain_points:      '',
-    tone:             'professional',
+    tone:             'professional' as ToneKey,
   })
   const [icpOriginal, setIcpOriginal] = useState(icpForm)
 
@@ -723,6 +741,10 @@ export default function ProspectsPage() {
     setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
+  // Column headers: 8 keys mapped in order
+  const columnKeys = ['name', 'company', 'email', 'campaigns', 'lifecycle', 'tags', 'source', 'added'] as const
+  const hiddenOnMobile = new Set(['company', 'lifecycle', 'tags', 'source'])
+
   return (
     <div>
       {/* Profile quality badge */}
@@ -733,36 +755,36 @@ export default function ProspectsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Prospects</h1>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{tHeader('title')}</h1>
           <p className="text-sm text-[#8a7e6e]">
-            {loading ? 'Loading…' : `${fmt(total)} prospect${total !== 1 ? 's' : ''} across ${campaigns.length} campaign${campaigns.length !== 1 ? 's' : ''}`}
+            {loading ? tHeader('countLoading') : tHeader('countSummary', { count: total, campaigns: campaigns.length })}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setIcpOpen(v => !v)}
             className={`border px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${icpOpen ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#dde6fd] bg-[#eef1fd] text-[#3b6bef] hover:bg-[#dde6fd]'}`}>
-            🎯 ICP Settings
+            🎯 {tActions('icpSettings')}
           </button>
-          <button disabled title="AI prospect discovery — Sprint 9"
+          <button disabled title={tActions('findProspectsTooltip')}
             className="border border-[#e8e3dc] bg-[#f7f4f0] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 cursor-not-allowed">
-            🔍 Find Prospects
-            <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Soon</span>
+            🔍 {tActions('findProspects')}
+            <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tActions('findProspectsSoon')}</span>
           </button>
           <button onClick={() => setModal('paste')}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">
-            Paste list
+            {tActions('pasteList')}
           </button>
           <button onClick={() => setModal('manual')}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">
-            Add manually
+            {tActions('addManually')}
           </button>
           <button onClick={() => setShowExport(true)}
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] flex items-center gap-1.5">
-            <span aria-hidden="true">⬇</span> Export
+            <span aria-hidden="true">⬇</span> {tActions('export')}
           </button>
           <button onClick={() => setModal('csv')}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5">
-            ⬆ Import CSV
+            ⬆ {tActions('importCsv')}
           </button>
         </div>
       </div>
@@ -775,66 +797,68 @@ export default function ProspectsPage() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span>🎯</span>
-              <span className="font-semibold text-[#1a1a2e]">Master ICP</span>
-              <StatusBadge variant="blueprint">Source of truth</StatusBadge>
-              <Tooltip content={ICP_TOOLTIP}>
+              <span className="font-semibold text-[#1a1a2e]">{tIcp('title')}</span>
+              <StatusBadge variant="blueprint">{tIcp('sourceOfTruth')}</StatusBadge>
+              <Tooltip content={tIcp('tooltip')}>
                 <InfoIcon />
               </Tooltip>
             </div>
             <button onClick={() => setIcpOpen(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-lg leading-none">✕</button>
           </div>
           <p className="text-sm text-[#6b5e4e] mb-5">
-            This is your refined ideal customer profile, the source of truth every new campaign builds on. Auto-fill from your website (in Settings) gives a first draft. Review and sharpen it here, then Save.
+            {tIcp('description')}
           </p>
 
           {/* ICP description — single textarea, scored + AI parse */}
           <div className="bg-white border border-[#dde6fd] rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[#3b6bef] font-medium text-sm">✨ Describe your target ICP in plain English and let AI structure it</span>
+              <span className="text-[#3b6bef] font-medium text-sm">✨ {tIcp('aiHelper')}</span>
             </div>
             <textarea
-              aria-label="ICP description"
+              aria-label={tIcp('aiTextareaLabel')}
               value={icpForm.icp_description}
               onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
               rows={4}
-              placeholder="e.g. I want to target B2B SaaS founders in Europe who are struggling with outbound sales and have 10-200 employees..."
+              placeholder={tIcp('aiPlaceholder')}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
             />
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-2">
                 <span className={`text-xs ${icpForm.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                  {icpForm.icp_description.length}/30 chars{icpForm.icp_description.length >= 30 ? ' ✓' : ''}
+                  {icpForm.icp_description.length >= 30
+                    ? tIcp('charsCounterDone', { count: icpForm.icp_description.length, limit: 30 })
+                    : tIcp('charsCounter', { count: icpForm.icp_description.length, limit: 30 })}
                 </span>
-                <StatusBadge variant="gray">Adds 15% to AI quality</StatusBadge>
+                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 15 })}</StatusBadge>
               </div>
               <button onClick={handleAiParse} disabled={aiParsing || !icpForm.icp_description.trim()}
                 className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors">
-                {aiParsing ? 'Parsing…' : '✨ Parse with AI'}
+                {aiParsing ? tIcp('parsing') : `✨ ${tIcp('parseWithAi')}`}
               </button>
             </div>
           </div>
 
           {/* Structured ICP */}
-          <h3 className="text-blue-600 font-semibold mb-6">Structured ICP</h3>
+          <h3 className="text-blue-600 font-semibold mb-6">{tIcp('structuredIcp')}</h3>
 
           {/* Ligne 1 — Industry + Titles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-industry">Industry</label>
-                <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
+                <label className={labelCls} htmlFor="icp-industry">{tIcp('labels.industry')}</label>
+                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 10 })}</StatusBadge>
               </div>
               <input id="icp-industry" value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
-                className={inputCls} placeholder="e.g. SaaS, Fintech" />
+                className={inputCls} placeholder={tIcp('placeholders.industry')} />
               <FieldOk show={!!icpForm.industry} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-titles">Titles</label>
-                <StatusBadge variant="gray">Adds 10% to AI quality</StatusBadge>
+                <label className={labelCls} htmlFor="icp-titles">{tIcp('labels.titles')}</label>
+                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 10 })}</StatusBadge>
               </div>
               <input id="icp-titles" value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
-                className={inputCls} placeholder="e.g. CEO, CTO, VP Sales" />
+                className={inputCls} placeholder={tIcp('placeholders.titles')} />
               <FieldOk show={!!icpForm.target_titles} />
             </div>
           </div>
@@ -843,18 +867,18 @@ export default function ProspectsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-regions">Regions</label>
-                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+                <label className={labelCls} htmlFor="icp-regions">{tIcp('labels.regions')}</label>
+                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
               </div>
               <input id="icp-regions" value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
-                className={inputCls} placeholder="e.g. US, Europe, APAC" />
+                className={inputCls} placeholder={tIcp('placeholders.regions')} />
               <FieldOk show={!!icpForm.target_regions} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-pain-points">Pain points</label>
-                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
-                <Tooltip content={PAIN_POINTS_TOOLTIP}>
+                <label className={labelCls} htmlFor="icp-pain-points">{tIcp('labels.painPoints')}</label>
+                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
+                <Tooltip content={tIcp('painPointsTooltip')}>
                   <InfoIcon />
                 </Tooltip>
               </div>
@@ -863,11 +887,13 @@ export default function ProspectsPage() {
                 value={icpForm.pain_points}
                 onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
                 rows={3}
-                placeholder="e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
+                placeholder={tIcp('placeholders.painPoints')}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
               />
               <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {icpForm.pain_points.length}/20 chars{icpForm.pain_points.length >= 20 ? ' ✓' : ''}
+                {icpForm.pain_points.length >= 20
+                  ? tIcp('charsCounterDone', { count: icpForm.pain_points.length, limit: 20 })
+                  : tIcp('charsCounter', { count: icpForm.pain_points.length, limit: 20 })}
               </p>
             </div>
           </div>
@@ -876,8 +902,8 @@ export default function ProspectsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <label className={labelCls}>Company size (select all that apply)</label>
-                <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+                <label className={labelCls}>{tIcp('labels.companySize')}</label>
+                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {COMPANY_SIZES.map(s => {
@@ -895,7 +921,7 @@ export default function ProspectsPage() {
             </div>
             <div>
               <label className={`${labelCls} mb-2 block`}>
-                Company Revenue <span className="text-[#b0a898] font-normal">(optional)</span>
+                {tIcp('labels.companyRevenue')} <span className="text-[#b0a898] font-normal">{tIcp('optional')}</span>
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {REVENUE_RANGES.map(r => {
@@ -913,18 +939,18 @@ export default function ProspectsPage() {
           </div>
 
           {/* Tone */}
-          <h3 className="text-blue-600 font-semibold mb-4">Tone</h3>
+          <h3 className="text-blue-600 font-semibold mb-4">{tIcp('toneTitle')}</h3>
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
-              <label className={labelCls}>Email tone</label>
-              <StatusBadge variant="gray">Adds 5% to AI quality</StatusBadge>
+              <label className={labelCls}>{tIcp('labels.emailTone')}</label>
+              <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
             </div>
             <div className="flex flex-wrap gap-2">
-              {TONES.map(t => (
-                <button key={t} type="button"
-                  onClick={() => setIcpForm(f => ({ ...f, tone: t.toLowerCase() }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === t.toLowerCase() ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
-                  {t}
+              {TONES.map(k => (
+                <button key={k} type="button"
+                  onClick={() => setIcpForm(f => ({ ...f, tone: k }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === k ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
+                  {tTones(k)}
                 </button>
               ))}
             </div>
@@ -935,11 +961,11 @@ export default function ProspectsPage() {
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={() => setIcpForm(icpOriginal)} disabled={!icpDirty}
               className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              Reset
+              {tIcp('reset')}
             </button>
             <button onClick={saveIcp} disabled={icpSaving || !icpDirty}
               className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
-              {icpSaved ? '✓ Saved' : icpSaving ? 'Saving…' : 'Save Master ICP'}
+              {icpSaved ? tIcp('saved') : icpSaving ? tCommon('saving') : tIcp('save')}
             </button>
           </div>
         </div>
@@ -951,28 +977,28 @@ export default function ProspectsPage() {
         {/* Row 1: search (full width) */}
         <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#3b6bef]"
-          placeholder="Search by name, email, company…" />
+          placeholder={tFilters('searchPlaceholder')} />
 
         {/* Row 2: filter dropdowns + sort — wrap on mobile */}
         <div className="flex flex-wrap gap-2">
           <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
-            <option value="all">Campaigns</option>
+            <option value="all">{tFilters('campaigns')}</option>
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={sourceFilter} onChange={e => { setSourceFilter(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
-            <option value="all">Sources</option>
-            <option value="manual">Manual</option>
-            <option value="paste">Paste</option>
-            <option value="csv_import">CSV</option>
+            <option value="all">{tFilters('sources')}</option>
+            <option value="manual">{tSources('manual')}</option>
+            <option value="paste">{tSources('paste')}</option>
+            <option value="csv_import">{tSources('csv_import')}</option>
           </select>
           <select value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}
             className="border border-[#e8e3dc] rounded-lg px-3 py-1.5 text-sm text-[#6b5e4e] focus:outline-none shrink-0">
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="name">Name A–Z</option>
-            <option value="name_z">Name Z–A</option>
+            <option value="newest">{tFilters('sort.newest')}</option>
+            <option value="oldest">{tFilters('sort.oldest')}</option>
+            <option value="name">{tFilters('sort.nameAZ')}</option>
+            <option value="name_z">{tFilters('sort.nameZA')}</option>
           </select>
         </div>
 
@@ -980,7 +1006,7 @@ export default function ProspectsPage() {
         <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
           <button onClick={() => { setStatusFilters(new Set()); setPage(1) }}
             className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${statusFilters.size === 0 ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
-            All
+            {tFilters('all')}
             <span className={`text-[10px] ${statusFilters.size === 0 ? 'text-white/70' : 'text-[#b0a898]'}`}>{totalAll}</span>
           </button>
 
@@ -992,7 +1018,7 @@ export default function ProspectsPage() {
                 setPage(1)
               }}
                 className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'}`}>
-                {s}
+                {tStatuses(s)}
                 <span className={`text-[10px] ${active ? 'text-white/70' : 'text-[#b0a898]'}`}>{filterCounts[s] ?? 0}</span>
               </button>
             )
@@ -1008,7 +1034,7 @@ export default function ProspectsPage() {
                 setPage(1)
               }}
                 className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors flex items-center gap-1 ${active ? 'bg-red-500 text-white border-red-500' : 'border-[#e8e3dc] text-red-400 hover:bg-red-50'}`}>
-                {s}
+                {tStatuses(s)}
                 <span className={`text-[10px] ${active ? 'text-white/70' : 'text-red-300'}`}>{filterCounts[s] ?? 0}</span>
               </button>
             )
@@ -1032,19 +1058,19 @@ export default function ProspectsPage() {
                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
                   className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer" />
               </th>
-              {(['NAME', 'COMPANY', 'EMAIL', 'CAMPAIGNS', 'LIFECYCLE', 'TAGS', 'SOURCE', 'ADDED'] as const).map(h => (
-                <th key={h} className={`text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider whitespace-nowrap${['COMPANY','LIFECYCLE','TAGS','SOURCE'].includes(h) ? ' hidden md:table-cell' : ''}`}>{h}</th>
+              {columnKeys.map(h => (
+                <th key={h} className={`text-left px-4 py-3 text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider whitespace-nowrap${hiddenOnMobile.has(h) ? ' hidden md:table-cell' : ''}`}>{tTable(`columns.${h}`)}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-[#8a7e6e]">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-[#8a7e6e]">{tTable('loading')}</td></tr>
             ) : contacts.length === 0 ? (
               <tr><td colSpan={9} className="px-4 py-12 text-center">
                 <div className="text-2xl mb-2">📋</div>
-                <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
-                <div className="text-xs text-[#8a7e6e]">Import a CSV or add prospects manually to get started.</div>
+                <div className="text-sm font-semibold text-[#1a1a2e] mb-1">{tTable('emptyTitle')}</div>
+                <div className="text-xs text-[#8a7e6e]">{tTable('emptyDescription')}</div>
               </td></tr>
             ) : contacts.map(c => (
               <tr key={c.id} onClick={() => setSelectedPanel(c.id)}
@@ -1068,11 +1094,11 @@ export default function ProspectsPage() {
                     <span className="text-xs text-[#b0a898]">—</span>
                   ) : c.campaigns_count === 1 ? (
                     <span className="text-xs text-[#3b6bef] font-medium bg-[#eef1fd] px-2 py-0.5 rounded-full truncate max-w-[120px] inline-block">
-                      {c.primary_campaign_name ?? '1 campaign'}
+                      {c.primary_campaign_name ?? tTable('campaignFallback')}
                     </span>
                   ) : (
                     <span className="text-xs text-[#3b6bef] font-medium bg-[#eef1fd] px-2 py-0.5 rounded-full">
-                      {c.campaigns_count} campaigns
+                      {tTable('campaignsPlural', { count: c.campaigns_count })}
                     </span>
                   )}
                 </td>
@@ -1099,11 +1125,13 @@ export default function ProspectsPage() {
                 <td className="px-4 py-3 hidden md:table-cell">
                   {c.is_sample ? (
                     <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
-                      Demo
+                      {tTable('demo')}
                     </span>
                   ) : (
                     <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
-                      {SOURCE_LABEL[c.primary_source ?? ''] ?? c.primary_source ?? '—'}
+                      {c.primary_source && (SOURCES as readonly string[]).includes(c.primary_source)
+                        ? tSources(c.primary_source)
+                        : c.primary_source ?? '—'}
                     </span>
                   )}
                 </td>
@@ -1118,12 +1146,12 @@ export default function ProspectsPage() {
       {/* Mobile card list — <sm */}
       <div className="block sm:hidden space-y-2 mb-4">
         {loading ? (
-          <div className="py-12 text-center text-sm text-[#8a7e6e]">Loading…</div>
+          <div className="py-12 text-center text-sm text-[#8a7e6e]">{tTable('loading')}</div>
         ) : contacts.length === 0 ? (
           <div className="py-12 text-center">
             <div className="text-2xl mb-2">📋</div>
-            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">No prospects yet</div>
-            <div className="text-xs text-[#8a7e6e]">Import a CSV or add prospects manually to get started.</div>
+            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">{tTable('emptyTitle')}</div>
+            <div className="text-xs text-[#8a7e6e]">{tTable('emptyDescription')}</div>
           </div>
         ) : contacts.map(c => (
           <ProspectMobileCard
@@ -1140,10 +1168,10 @@ export default function ProspectsPage() {
       {pages > 1 && (
         <div className="flex items-center justify-center gap-2 mb-6">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">← Prev</button>
-          <span className="text-sm text-[#8a7e6e]">{page} / {pages}</span>
+            className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">{tPagination('prev')}</button>
+          <span className="text-sm text-[#8a7e6e]">{tPagination('pageStatus', { current: page, total: pages })}</span>
           <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
-            className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">Next →</button>
+            className="border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-sm text-[#6b5e4e] disabled:opacity-40">{tPagination('next')}</button>
         </div>
       )}
 
@@ -1152,18 +1180,18 @@ export default function ProspectsPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="pointer-events-auto bg-[#1a1a2e] text-white rounded-2xl shadow-xl px-5 py-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 max-w-[calc(100vw-2rem)]">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">{selectedIds.size} selected</span>
+              <span className="text-sm font-medium">{tBulk('selected', { count: selectedIds.size })}</span>
               <button onClick={() => setSelectedIds(new Set())}
-                className="text-xs text-white/60 hover:text-white/90 transition-colors">Clear</button>
+                className="text-xs text-white/60 hover:text-white/90 transition-colors">{tBulk('clear')}</button>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => setShowExport(true)}
                 className="bg-[#3b6bef] hover:bg-[#2a5adf] text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">
-                <span aria-hidden="true">⬇</span> Export ({selectedIds.size})
+                <span aria-hidden="true">⬇</span> {tBulk('exportCount', { count: selectedIds.size })}
               </button>
               <button onClick={bulkDelete} disabled={bulkDeleting}
                 className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-40 transition-colors">
-                {bulkDeleting ? 'Deleting…' : 'Delete'}
+                {bulkDeleting ? tCommon('deleting') : tCommon('delete')}
               </button>
             </div>
           </div>
