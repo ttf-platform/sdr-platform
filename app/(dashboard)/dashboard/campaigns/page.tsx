@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 import { ChooseTemplateModal } from '@/components/ChooseTemplateModal'
 import { NewCampaignModal } from '@/components/NewCampaignModal'
@@ -24,7 +25,15 @@ const STATUS_COLORS: Record<string, string> = {
   archived:  'bg-gray-100 text-gray-500',
 }
 
+// Values only. Status labels resolved at render via useTranslations('...statuses') → t(c.status).
+// Dynamic keys declared verbatim in messages/{en,fr}.json under dashboard.campaigns.list.statuses.*
+const STATUSES = ['draft', 'active', 'paused', 'completed', 'archived'] as const
+
 function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => void }) {
+  const t = useTranslations('dashboard.campaigns.list.card')
+  const tCols = useTranslations('dashboard.campaigns.list.card.columns')
+  const tStatuses = useTranslations('dashboard.campaigns.list.statuses')
+  const tCommon = useTranslations('dashboard.common')
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -36,6 +45,8 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
 
+  const statusLabel = (STATUSES as readonly string[]).includes(c.status) ? tStatuses(c.status) : c.status
+
   return (
     <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col hover:border-[#c8d4e8] transition-colors">
       <div className="flex items-start justify-between mb-2">
@@ -43,17 +54,17 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
         <div className="flex items-center gap-2 flex-shrink-0">
           {c.is_sample && (
             <span className="text-[9px] bg-[#fff3cd] text-[#7a5c1a] border border-[#e8c96a] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide whitespace-nowrap">
-              Demo
+              {t('demo')}
             </span>
           )}
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-500'}`}>
-            {c.status}
+            {statusLabel}
           </span>
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(v => !v)}
               className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-[#f0ece6] text-[#8a7e6e] hover:text-[#1a1a2e] transition-colors text-lg leading-none"
-              aria-label="Campaign options"
+              aria-label={t('optionsAriaLabel')}
             >
               ···
             </button>
@@ -64,13 +75,13 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
                   className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#1a1a2e] hover:bg-[#f7f4f0] transition-colors"
                   onClick={() => setMenuOpen(false)}
                 >
-                  Open
+                  {t('open')}
                 </Link>
                 <button
                   onClick={() => { setMenuOpen(false); onDelete(c.id) }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
                 >
-                  Delete
+                  {tCommon('delete')}
                 </button>
               </div>
             )}
@@ -82,21 +93,21 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
       )}
       <div className="grid grid-cols-4 gap-2 py-3 border-t border-b border-[#f0ece6] mb-4">
         {[
-          { label: 'PROSPECTS', value: c.prospects_count },
-          { label: 'SENT',      value: c.sent_count },
-          { label: 'REPLIES',   value: c.replied_count },
-          { label: 'MEETINGS',  value: c.meeting_count },
+          { key: 'prospects', value: c.prospects_count },
+          { key: 'sent',      value: c.sent_count },
+          { key: 'replies',   value: c.replied_count },
+          { key: 'meetings',  value: c.meeting_count },
         ].map(s => (
-          <div key={s.label} className="text-center">
+          <div key={s.key} className="text-center">
             <div className="text-base font-bold text-[#1a1a2e]">{s.value}</div>
-            <div className="text-[10px] text-[#8a7e6e] uppercase tracking-wide">{s.label}</div>
+            <div className="text-[10px] text-[#8a7e6e] uppercase tracking-wide">{tCols(s.key)}</div>
           </div>
         ))}
       </div>
       <div className="mt-auto">
         <Link href={`/dashboard/campaigns/${c.id}`}
           className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          Open →
+          {t('openArrow')}
         </Link>
       </div>
     </div>
@@ -104,11 +115,12 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
 }
 
 function AISuggestionCard({ s, onLaunch }: { s: AISuggestion; onLaunch: () => void }) {
+  const t = useTranslations('dashboard.campaigns.list.suggestions')
   return (
     <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 flex flex-col gap-3 hover:border-[#c8d4e8] transition-colors">
       <div>
         <span className="text-[9px] bg-[#6b4de6] text-white px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
-          ✨ AI Suggestion
+          ✨ {t('cardBadge')}
         </span>
       </div>
 
@@ -134,7 +146,7 @@ function AISuggestionCard({ s, onLaunch }: { s: AISuggestion; onLaunch: () => vo
           onClick={onLaunch}
           className="w-full bg-[#6b4de6] hover:bg-[#5a3ed4] text-white rounded-lg py-2 text-sm font-semibold transition-colors"
         >
-          🚀 Launch Campaign
+          🚀 {t('cardLaunch')}
         </button>
       </div>
     </div>
@@ -144,6 +156,14 @@ function AISuggestionCard({ s, onLaunch }: { s: AISuggestion; onLaunch: () => vo
 type Tab = 'campaigns' | 'suggestions'
 
 export default function CampaignsPage() {
+  const t = useTranslations('dashboard.campaigns.list')
+  const tHeader = useTranslations('dashboard.campaigns.list.header')
+  const tTabs = useTranslations('dashboard.campaigns.list.tabs')
+  const tEmpty = useTranslations('dashboard.campaigns.list.emptyState')
+  const tSuggestions = useTranslations('dashboard.campaigns.list.suggestions')
+  const tDelete = useTranslations('dashboard.campaigns.list.deleteModal')
+  const tCommon = useTranslations('dashboard.common')
+
   const searchParams = useSearchParams()
   const { data: onboarding } = useOnboardingProgress()
   const [activeTab, setActiveTab]           = useState<Tab>('campaigns')
@@ -240,19 +260,19 @@ export default function CampaignsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Campaigns</h1>
-          <p className="text-sm text-[#8a7e6e]">Build and manage your outbound sequences</p>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{tHeader('title')}</h1>
+          <p className="text-sm text-[#8a7e6e]">{tHeader('subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowPrefs(v => !v)}
             className={`flex items-center gap-1.5 border px-3 py-2 rounded-lg text-sm font-medium ${showPrefs ? 'border-[#3b6bef] text-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] bg-white text-[#1a1a2e]'}`}>
-            🕐 Sending Preferences
+            🕐 {tHeader('sendingPreferences')}
           </button>
           <button
             onClick={openChooseTemplate}
             className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
           >
-            + New Campaign
+            + {tHeader('newCampaign')}
           </button>
         </div>
       </div>
@@ -262,19 +282,19 @@ export default function CampaignsPage() {
       {/* Sub-tabs */}
       <div className="flex gap-1 border-b border-[#f0ece6] mb-6">
         {([
-          { key: 'campaigns',   label: 'My Campaigns' },
-          { key: 'suggestions', label: '✨ AI Suggestions' },
-        ] as { key: Tab; label: string }[]).map(t => (
+          { key: 'campaigns',   label: tTabs('myCampaigns') },
+          { key: 'suggestions', label: `✨ ${tTabs('aiSuggestions')}` },
+        ] as { key: Tab; label: string }[]).map(tab => (
           <button
-            key={t.key}
-            onClick={() => handleTabChange(t.key)}
+            key={tab.key}
+            onClick={() => handleTabChange(tab.key)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === t.key
+              activeTab === tab.key
                 ? 'border-[#3b6bef] text-[#3b6bef]'
                 : 'border-transparent text-[#8a7e6e] hover:text-[#1a1a2e]'
             }`}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -282,23 +302,27 @@ export default function CampaignsPage() {
       {/* Tab: My Campaigns */}
       {activeTab === 'campaigns' && (
         campaignsLoading ? (
-          <div className="py-10 flex justify-center"><SpinnerWithText text="Loading campaigns…" /></div>
+          <div className="py-10 flex justify-center"><SpinnerWithText text={t('loading')} /></div>
         ) : campaigns.length === 0 ? (
           <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
             <div className="text-3xl mb-3">✨</div>
-            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">Your first campaign</h2>
+            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{tEmpty('title')}</h2>
             <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
-              Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today from your connected mailbox.
+              {tEmpty('description')}
             </p>
             <button
               onClick={openChooseTemplate}
               className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
             >
-              + New Campaign
+              + {tHeader('newCampaign')}
             </button>
             {onboarding && !onboarding.completions.icp_configured && (
               <p className="text-xs text-[#8a7e6e] mt-4">
-                💡 <Link href="/dashboard/settings#icp" className="underline hover:text-[#3b6bef] transition-colors">Configure your ICP first</Link> for higher-quality personalization
+                💡 {tEmpty.rich('configureIcp', {
+                  link: chunks => (
+                    <Link href="/dashboard/settings#icp" className="underline hover:text-[#3b6bef] transition-colors">{chunks}</Link>
+                  ),
+                })}
               </p>
             )}
           </div>
@@ -316,9 +340,9 @@ export default function CampaignsPage() {
         <div>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-base font-bold text-[#1a1a2e]">✨ AI-Suggested Campaigns</h2>
+              <h2 className="text-base font-bold text-[#1a1a2e]">✨ {tSuggestions('title')}</h2>
               <p className="text-xs text-[#8a7e6e] mt-0.5">
-                Mirvo analyzes your ICP and product to suggest high-converting campaign strategies.
+                {tSuggestions('subtitle')}
               </p>
             </div>
             <button
@@ -326,28 +350,28 @@ export default function CampaignsPage() {
               disabled={suggestionsLoading}
               className="flex items-center gap-1.5 border border-[#e8e3dc] bg-white text-[#4a4a5a] px-3 py-2 rounded-lg text-sm font-medium hover:border-[#3b6bef] hover:text-[#3b6bef] transition-colors disabled:opacity-40"
             >
-              ↻ Refresh suggestions
+              ↻ {tSuggestions('refresh')}
             </button>
           </div>
 
           {suggestionsLoading ? (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
               <div className="text-3xl mb-4">✨</div>
-              <p className="text-sm font-medium text-[#1a1a2e] mb-1">Analyzing your product and ICP…</p>
-              <p className="text-xs text-[#8a7e6e]">Generating strategic campaign ideas — up to 30 seconds</p>
+              <p className="text-sm font-medium text-[#1a1a2e] mb-1">{tSuggestions('analyzingTitle')}</p>
+              <p className="text-xs text-[#8a7e6e]">{tSuggestions('analyzingSubtitle')}</p>
             </div>
           ) : suggestions.length === 0 ? (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
               <div className="text-3xl mb-3">💡</div>
-              <h3 className="text-base font-bold text-[#1a1a2e] mb-2">No suggestions yet</h3>
+              <h3 className="text-base font-bold text-[#1a1a2e] mb-2">{tSuggestions('emptyTitle')}</h3>
               <p className="text-sm text-[#8a7e6e] mb-5 max-w-xs mx-auto">
-                Complete your workspace profile (product, ICP) then generate AI campaign ideas.
+                {tSuggestions('emptyDescription')}
               </p>
               <button
                 onClick={handleRefreshSuggestions}
                 className="bg-[#6b4de6] hover:bg-[#5a3ed4] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
               >
-                ✨ Generate suggestions
+                ✨ {tSuggestions('generateButton')}
               </button>
             </div>
           ) : (
@@ -364,9 +388,12 @@ export default function CampaignsPage() {
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
-            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">Delete campaign?</h2>
+            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{tDelete('title')}</h2>
             <p className="text-sm text-[#8a7e6e] mb-6">
-              <span className="font-semibold text-[#1a1a2e]">{deleteTarget.name}</span> and all its steps will be permanently deleted. This cannot be undone.
+              {tDelete.rich('body', {
+                name: deleteTarget.name,
+                strong: chunks => <span className="font-semibold text-[#1a1a2e]">{chunks}</span>,
+              })}
             </p>
             <div className="flex gap-3">
               <button
@@ -374,14 +401,14 @@ export default function CampaignsPage() {
                 disabled={deleting}
                 className="flex-1 border border-[#e8e3dc] text-[#1a1a2e] rounded-xl py-2.5 text-sm font-medium hover:bg-[#f7f4f0] transition-colors disabled:opacity-50"
               >
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
               >
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? tCommon('deleting') : tCommon('delete')}
               </button>
             </div>
           </div>

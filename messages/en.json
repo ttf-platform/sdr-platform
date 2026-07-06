@@ -1031,6 +1031,61 @@
           "deleteContact": "Delete contact & all assignments"
         }
       }
+    },
+    "campaigns": {
+      "list": {
+        "header": {
+          "title": "Campaigns",
+          "subtitle": "Build and manage your outbound sequences",
+          "sendingPreferences": "Sending Preferences",
+          "newCampaign": "New Campaign"
+        },
+        "tabs": {
+          "myCampaigns": "My Campaigns",
+          "aiSuggestions": "AI Suggestions"
+        },
+        "loading": "Loading campaigns…",
+        "emptyState": {
+          "title": "Your first campaign",
+          "description": "Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today from your connected mailbox.",
+          "configureIcp": "<link>Configure your ICP first</link> for higher-quality personalization"
+        },
+        "card": {
+          "demo": "Demo",
+          "optionsAriaLabel": "Campaign options",
+          "open": "Open",
+          "openArrow": "Open →",
+          "columns": {
+            "prospects": "PROSPECTS",
+            "sent": "SENT",
+            "replies": "REPLIES",
+            "meetings": "MEETINGS"
+          }
+        },
+        "statuses": {
+          "draft": "Draft",
+          "active": "Active",
+          "paused": "Paused",
+          "completed": "Completed",
+          "archived": "Archived"
+        },
+        "suggestions": {
+          "title": "AI-Suggested Campaigns",
+          "subtitle": "Mirvo analyzes your ICP and product to suggest high-converting campaign strategies.",
+          "refresh": "Refresh suggestions",
+          "analyzingTitle": "Analyzing your product and ICP…",
+          "analyzingSubtitle": "Generating strategic campaign ideas — up to 30 seconds",
+          "emptyTitle": "No suggestions yet",
+          "emptyDescription": "Complete your workspace profile (product, ICP) then generate AI campaign ideas.",
+          "generateButton": "Generate suggestions",
+          "cardBadge": "AI Suggestion",
+          "cardLaunch": "Launch Campaign"
+        },
+        "deleteModal": {
+          "title": "Delete campaign?",
+          "body": "<strong>{name}</strong> and all its steps will be permanently deleted. This cannot be undone."
+        }
+      }
     }
   }
 }
