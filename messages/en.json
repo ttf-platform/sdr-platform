@@ -1085,6 +1085,173 @@
           "title": "Delete campaign?",
           "body": "<strong>{name}</strong> and all its steps will be permanently deleted. This cannot be undone."
         }
+      },
+      "detail": {
+        "loading": "Loading…",
+        "notFound": "Campaign not found.",
+        "errorBanner": "{error}",
+        "header": {
+          "backToCampaigns": "← Back to campaigns",
+          "countsSummary": "{prospects, plural, one {# prospect} other {# prospects}} · {sent, plural, one {# sent} other {# sent}}"
+        },
+        "tabs": {
+          "overview": "Overview",
+          "prospects": "Prospects ({count})",
+          "emails": "Emails ({count})",
+          "sequence": "Follow-up Sequence ({count})",
+          "approvalQueue": "Approval Queue ({count})",
+          "approvalQueueTooltip": "Every AI-generated email is reviewed by you before sending. No surprises — you control what goes out.",
+          "approvalQueueAriaLabel": "About Approval Queue"
+        },
+        "overview": {
+          "nextStep": {
+            "stepBadge": "Step {n} of 3",
+            "step1Title": "Add your prospects",
+            "step1Description": "Import a CSV, add them manually, or generate a prospect list with AI.",
+            "step1Cta": "Go to Prospects",
+            "step2Title": "Generate your emails",
+            "step2Description": "Review your {count, plural, one {# prospect} other {# prospects}}, then let AI draft a personalized email for each.",
+            "step2Cta": "Generate emails",
+            "step3Title": "Review & approve",
+            "step3Description": "{count, plural, one {# draft} other {# drafts}} waiting. Approve or edit them before they're ready to send.",
+            "step3Cta": "Open Approval Queue"
+          },
+          "sendingSoon": "Sending and scheduling will be available soon. For now, you can review and approve all your drafts.",
+          "kpis": {
+            "prospects": "Prospects",
+            "sent": "Sent",
+            "opened": "Opened",
+            "replied": "Replied",
+            "meetings": "Meetings"
+          },
+          "info": {
+            "title": "Campaign Info",
+            "editButton": "Edit campaign",
+            "editingTitle": "Edit Campaign"
+          },
+          "fields": {
+            "name": "Name",
+            "targetPersona": "Target persona",
+            "angle": "Angle",
+            "valueProp": "Value proposition",
+            "cta": "CTA",
+            "proofPoints": "Proof points"
+          },
+          "editForm": {
+            "proofTooltip": "A real, verifiable result the AI can reference as proof in every email of this campaign. Use a concrete metric or a named client: \"Acme: 12 → 47 meetings/month in 90 days\" or \"Cogent: -38% acquisition cost\". The AI will quote it verbatim and will NOT invent numbers. Leave empty if you have no real result to share — the AI will never fabricate one.",
+            "charsHelper": "{count}/{limit} · The AI will quote this verbatim. Leave empty if you have no real result yet.",
+            "aboutFieldAria": "About {label}"
+          }
+        },
+        "prospects": {
+          "countLoading": "Loading…",
+          "countSummary": "{count, plural, one {# prospect} other {# prospects}}",
+          "removeAll": "Remove All",
+          "addManually": "Add manually",
+          "importCsv": "Import CSV",
+          "columns": {
+            "name": "NAME",
+            "email": "EMAIL",
+            "status": "STATUS",
+            "source": "SOURCE",
+            "added": "ADDED",
+            "signals": "SIGNALS"
+          },
+          "emptyTitle": "No prospects yet",
+          "emptyDescription": "Add prospects to start your campaign.",
+          "signalPill": "📡 {count, plural, one {# signal} other {# signals}}",
+          "signalPillTitle": "Click to see signal details",
+          "bulkSelected": "{count} selected",
+          "bulkClear": "Clear",
+          "bulkRemove": "Remove",
+          "bulkRemoving": "Removing…",
+          "removeAllTitle": "Remove all prospects?",
+          "removeAllBody": "This will permanently delete all {count, plural, one {# prospect} other {# prospects}} from this campaign. This cannot be undone.",
+          "removeAllConfirm": "Remove All",
+          "removeAllRemoving": "Removing…"
+        },
+        "emails": {
+          "emptyNoProspectsTitle": "Add prospects first",
+          "emptyNoProspectsDescription": "Import your prospect list before generating emails.",
+          "emptyNoProspectsCta": "Go to Prospects",
+          "emptyNoDraftsTitle": "No drafts yet",
+          "emptyNoDraftsDescription": "Generate personalized emails for the {count, plural, one {# prospect} other {# prospects}} in this campaign.",
+          "emptyNoDraftsCta": "Generate Drafts",
+          "filters": {
+            "all": "All"
+          },
+          "filterCount": "{label} ({count})",
+          "regenerateAll": "Regenerate all",
+          "schedule": "Schedule",
+          "sendAll": "Send All",
+          "soonBadge": "Soon",
+          "comingSoonTooltip": "Coming soon",
+          "missingBanner": "{count, plural, one {# prospect doesn't} other {# prospects don't}} have a draft yet",
+          "missingGenerate": "Generate missing drafts",
+          "missingGenerating": "Generating…",
+          "listLoading": "Loading…",
+          "listNoMatch": "No emails match this filter.",
+          "noSubject": "(no subject)",
+          "cardEdit": "Edit",
+          "cardUndo": "Undo",
+          "cardApprove": "Approve",
+          "cardReject": "Reject",
+          "bulkSelected": "{count} selected",
+          "bulkClear": "Clear",
+          "bulkApprove": "Approve all",
+          "bulkApproving": "Approving…",
+          "bulkReject": "Reject all",
+          "bulkRejecting": "Rejecting…",
+          "actionFailed": "Action failed — please try again."
+        },
+        "emailStatuses": {
+          "draft": "Draft",
+          "edited": "Edited",
+          "approved": "✓ Approved",
+          "sent": "↑ Sent",
+          "rejected": "✗ Rejected"
+        },
+        "sources": {
+          "manual": "Manual",
+          "paste": "Paste",
+          "csv_import": "CSV",
+          "ai_discover": "AI"
+        },
+        "pagination": {
+          "prev": "← Prev",
+          "next": "Next →",
+          "pageStatus": "{current} / {total}"
+        },
+        "sequence": {
+          "followUpNumber": "FOLLOW-UP #{n}",
+          "sendAfter": "Send after <strong>{days}</strong> {days, plural, one {day} other {days}} of no reply",
+          "subjectLabel": "Subject",
+          "subjectFallback": "(thread reply — no subject)",
+          "bodyLabel": "Body",
+          "bodyFallback": "(empty — click Edit or AI Write)",
+          "bookingLinkLabel": "📅 Booking link:",
+          "bookingIncluded": "included",
+          "bookingNotIncluded": "not included",
+          "edit": "Edit",
+          "aiWrite": "AI Write",
+          "remove": "Remove",
+          "addFollowUp": "Add follow-up step",
+          "emptyTitle": "No follow-ups yet",
+          "emptyDescription": "Add follow-ups to re-engage prospects who didn't reply.",
+          "emptyCta": "Generate AI Drafts",
+          "smartStopTitle": "Smart Stop Conditions",
+          "stopOnReplyLabel": "Stop on reply",
+          "stopOnReplyDescription": "Auto-stop sequence when prospect replies (recommended)",
+          "stopOnBounceLabel": "Stop on bounce",
+          "stopOnBounceDescription": "Auto-stop sequence when email bounces"
+        },
+        "toasts": {
+          "mailboxNotReady": "Connect and verify a mailbox first.",
+          "mailboxNotReadyAction": "Open Settings",
+          "providerMockMode": "Email sending is not active. Contact support.",
+          "sendFailed": "Could not queue this email. Try again.",
+          "warmup": "Your mailboxes are warming up — sending is limited to about {cap}/day for now."
+        }
       }
     }
   }
