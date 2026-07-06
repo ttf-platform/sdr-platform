@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 
 type CampaignRow = {
@@ -37,7 +38,25 @@ const STATUS_CLS: Record<string, string> = {
   ended:   'bg-gray-100 text-gray-500',
 }
 
+// Values only. Labels resolved at render via useTranslations().
+// Cascade: 3 keys REUSE campaigns.list.statuses.* (active/draft/paused, FR intact from #212),
+// 1 key ('ended') resolves LOCAL under dashboard.home.statuses.ended (UI dead code —
+// not a valid DB CHECK constraint value per baseline schema, see PR notes).
+const REUSED_CAMPAIGN_STATUS_KEYS = new Set(['active', 'draft', 'paused'])
+const HOME_LOCAL_STATUS_KEYS = new Set(['ended'])
+
 export default function DashboardPage() {
+  const t = useTranslations('dashboard.home')
+  const tHero = useTranslations('dashboard.home.hero')
+  const tOnboarding = useTranslations('dashboard.home.onboarding')
+  const tKpis = useTranslations('dashboard.home.kpis')
+  const tFocus = useTranslations('dashboard.home.todaysFocus')
+  const tRecent = useTranslations('dashboard.home.recentCampaigns')
+  const tRecentCols = useTranslations('dashboard.home.recentCampaigns.columns')
+  const tRecentEmpty = useTranslations('dashboard.home.recentCampaigns.empty')
+  const tHomeStatuses = useTranslations('dashboard.home.statuses')
+  const tCampaignStatuses = useTranslations('dashboard.campaigns.list.statuses')
+
   const [stats, setStats] = useState<DashStats | null>(null)
   const [blocked, setBlocked] = useState(false)
   const { data: onboarding } = useOnboardingProgress()
@@ -59,17 +78,23 @@ export default function DashboardPage() {
 
   if (blocked) return null
 
+  function resolveStatusLabel(status: string) {
+    if (REUSED_CAMPAIGN_STATUS_KEYS.has(status)) return tCampaignStatuses(status)
+    if (HOME_LOCAL_STATUS_KEYS.has(status)) return tHomeStatuses(status)
+    return status
+  }
+
   return (
     <div>
       {/* Hero */}
       <div className="flex items-center justify-between mb-6 gap-3 min-w-0">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold text-[#1a1a2e] truncate">{stats?.workspaceName || '...'}</h1>
-          <p className="text-sm text-[#8a7e6e]">Your outbound performance at a glance</p>
+          <p className="text-sm text-[#8a7e6e]">{tHero('subtitle')}</p>
         </div>
         <Link href="/dashboard/campaigns"
           className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#2d5cd8] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">
-          + New Campaign
+          + {tHero('ctaNewCampaign')}
         </Link>
       </div>
 
@@ -79,9 +104,9 @@ export default function DashboardPage() {
           <div className="flex items-start gap-4">
             <div className="text-2xl shrink-0">👋</div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-base font-semibold text-[#1a1a2e]">Welcome to Mirvo</h2>
+              <h2 className="text-base font-semibold text-[#1a1a2e]">{tOnboarding('welcomeTitle')}</h2>
               <p className="text-sm text-[#6b5e4e] mt-0.5">
-                {onboarding.steps_completed} of {onboarding.total_steps} setup steps done — connect your mailbox to send your first emails today.
+                {tOnboarding('progressBody', { stepsCompleted: onboarding.steps_completed, totalSteps: onboarding.total_steps })}
               </p>
               <div className="mt-3 flex items-center gap-2">
                 <div className="flex-1 h-1.5 bg-[#e5e0d6] rounded-full overflow-hidden">
@@ -100,25 +125,25 @@ export default function DashboardPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">CAMPAIGNS</div>
+          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">{tKpis('campaigns')}</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#1a1a2e]'}`}>
             {loading ? '—' : stats.totalCampaigns}
           </div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">EMAILS SENT</div>
+          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">{tKpis('emailsSent')}</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#3b6bef]'}`}>
             {loading ? '—' : stats.totalEmailsSent}
           </div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">OPEN RATE</div>
+          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">{tKpis('openRate')}</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#1a1a2e]'}`}>
             {loading ? '—' : `${stats.openRate?.toFixed(1) ?? '—'}%`}
           </div>
         </div>
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
-          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">REPLY RATE</div>
+          <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-3">{tKpis('replyRate')}</div>
           <div className={`text-4xl font-bold ${empty ? 'text-gray-400' : 'text-[#1a1a2e]'}`}>
             {loading ? '—' : `${stats.replyRate?.toFixed(1) ?? '—'}%`}
           </div>
@@ -132,36 +157,36 @@ export default function DashboardPage() {
             className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 transition-colors block">
             <div className="flex items-center gap-2 mb-3">
               <span>✉</span>
-              <span className="text-[0.78rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">Drafts to approve</span>
+              <span className="text-[0.78rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">{tFocus('draftsToApprove')}</span>
             </div>
             <div className={`text-3xl font-bold mb-2 ${stats.draftsToApprove === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
               {stats.draftsToApprove}
             </div>
-            <div className="text-xs text-blue-600 font-medium">Review queue →</div>
+            <div className="text-xs text-blue-600 font-medium">{tFocus('draftsCta')}</div>
           </Link>
 
           <Link href="/dashboard/meetings"
             className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 transition-colors block">
             <div className="flex items-center gap-2 mb-3">
               <span>📅</span>
-              <span className="text-[0.78rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">Meetings today</span>
+              <span className="text-[0.78rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">{tFocus('meetingsToday')}</span>
             </div>
             <div className={`text-3xl font-bold mb-2 ${stats.meetingsToday === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
               {stats.meetingsToday}
             </div>
-            <div className="text-xs text-blue-600 font-medium">View calendar →</div>
+            <div className="text-xs text-blue-600 font-medium">{tFocus('meetingsCta')}</div>
           </Link>
 
           <Link href="/dashboard/prospects?filter=bounced,unsubscribed"
             className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 transition-colors block">
             <div className="flex items-center gap-2 mb-3">
               <span>⚠️</span>
-              <span className="text-[0.78rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">Needs attention</span>
+              <span className="text-[0.78rem] font-semibold text-gray-500 uppercase tracking-[0.4px]">{tFocus('needsAttention')}</span>
             </div>
             <div className={`text-3xl font-bold mb-2 ${stats.needsAttention === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
               {stats.needsAttention}
             </div>
-            <div className="text-xs text-blue-600 font-medium">View prospects →</div>
+            <div className="text-xs text-blue-600 font-medium">{tFocus('needsAttentionCta')}</div>
           </Link>
         </div>
       )}
@@ -169,21 +194,21 @@ export default function DashboardPage() {
       {/* Recent Campaigns */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-[#f0ece6]">
-          <h2 className="font-semibold text-[#1a1a2e]">Recent Campaigns</h2>
+          <h2 className="font-semibold text-[#1a1a2e]">{tRecent('title')}</h2>
         </div>
 
         {loading ? (
-          <div className="px-6 py-12 text-center text-sm text-[#8a7e6e]">Loading…</div>
+          <div className="px-6 py-12 text-center text-sm text-[#8a7e6e]">{tRecent('loading')}</div>
         ) : empty ? (
           <div className="text-center py-12 px-6">
             <div className="text-5xl mb-4">🚀</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to launch your first campaign?</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{tRecentEmpty('title')}</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Mirvo AI helps you craft personalized emails for every prospect in your ICP.
+              {tRecentEmpty('description')}
             </p>
             <Link href="/dashboard/campaigns"
               className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors inline-block">
-              + Create your first campaign
+              + {tRecentEmpty('cta')}
             </Link>
           </div>
         ) : (
@@ -191,9 +216,9 @@ export default function DashboardPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['CAMPAIGN', 'STATUS', 'SENT', '👁 OPEN RATE', '✅ REPLY RATE', 'CREATED'].map(h => (
-                    <th key={h} className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider bg-gray-50 whitespace-nowrap">
-                      {h}
+                  {(['campaign', 'status', 'sent', 'openRate', 'replyRate', 'created'] as const).map(colKey => (
+                    <th key={colKey} className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider bg-gray-50 whitespace-nowrap">
+                      {tRecentCols(colKey)}
                     </th>
                   ))}
                 </tr>
@@ -205,7 +230,7 @@ export default function DashboardPage() {
                     <td className="border border-gray-200 px-4 py-3 text-sm font-medium text-[#1a1a2e]">{c.name}</td>
                     <td className="border border-gray-200 px-4 py-3">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${STATUS_CLS[c.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                        {c.status}
+                        {resolveStatusLabel(c.status)}
                       </span>
                     </td>
                     <td className="border border-gray-200 px-4 py-3 text-sm text-[#1a1a2e]">{c.sentCount}</td>
