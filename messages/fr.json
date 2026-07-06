@@ -1406,108 +1406,108 @@
     "meetings": {
       "durationMinutes": "{count} min",
       "header": {
-        "title": "Meetings",
-        "subtitle": "Upcoming meetings and your booking page",
-        "createBtn": "Create",
-        "copyLink": "Copy link",
-        "copyLinkCopied": "Copied!",
-        "schedulerSettings": "Scheduler settings"
+        "title": "Rendez-vous",
+        "subtitle": "Vos prochains rendez-vous et votre page de réservation",
+        "createBtn": "Créer",
+        "copyLink": "Copier le lien",
+        "copyLinkCopied": "Copié !",
+        "schedulerSettings": "Réglages de réservation"
       },
       "banner": {
-        "yourBookingLink": "Your booking link",
-        "copyBtn": "Copy"
+        "yourBookingLink": "Votre lien de réservation",
+        "copyBtn": "Copier"
       },
       "view": {
-        "list": "List",
-        "calendar": "Calendar"
+        "list": "Liste",
+        "calendar": "Calendrier"
       },
       "tabs": {
-        "upcoming": "Upcoming",
-        "all": "All",
-        "cancelled": "Cancelled"
+        "upcoming": "À venir",
+        "all": "Tous",
+        "cancelled": "Annulés"
       },
       "calendar": {
-        "soonTitle": "Calendar view — coming soon",
-        "soonSubtitle": "Switch to List view to see your meetings."
+        "soonTitle": "Vue calendrier — bientôt disponible",
+        "soonSubtitle": "Passez en vue Liste pour voir vos rendez-vous."
       },
       "list": {
-        "emptyTitleUpcoming": "No upcoming meetings",
-        "emptyTitleGeneric": "No meetings",
-        "emptyDescription": "Share your booking link or create one manually.",
-        "emptyCta": "Copy booking link",
-        "emptyCtaCopied": "✓ Copied!",
+        "emptyTitleUpcoming": "Aucun rendez-vous à venir",
+        "emptyTitleGeneric": "Aucun rendez-vous",
+        "emptyDescription": "Partagez votre lien de réservation ou créez-en un manuellement.",
+        "emptyCta": "Copier le lien de réservation",
+        "emptyCtaCopied": "✓ Copié !",
         "card": {
-          "prospectNotesLabel": "📝 Prospect notes"
+          "prospectNotesLabel": "📝 Notes du prospect"
         }
       },
       "statuses": {
-        "scheduled": "Scheduled",
-        "completed": "Completed",
-        "cancelled": "Cancelled",
-        "no_show": "No-show"
+        "scheduled": "Planifié",
+        "completed": "Terminé",
+        "cancelled": "Annulé",
+        "no_show": "Absence"
       },
       "toasts": {
-        "createdSimple": "Meeting created.",
-        "createdWithBrief": "Meeting created. Regenerate your Morning Brief to include it.",
-        "briefLink": "Go to brief →"
+        "createdSimple": "Rendez-vous créé.",
+        "createdWithBrief": "Rendez-vous créé. Régénérez votre brief du matin pour l'inclure.",
+        "briefLink": "Aller au brief →"
       },
-      "confirmDelete": "Delete this meeting?",
+      "confirmDelete": "Supprimer ce rendez-vous ?",
       "createModal": {
-        "title": "Create meeting",
-        "titlePlaceholder": "Title",
-        "attendeeEmailPlaceholder": "Attendee email",
-        "attendeeNamePlaceholder": "Attendee name (optional)",
-        "companyPlaceholder": "Company (optional)",
-        "notesPlaceholder": "Notes (optional)",
+        "title": "Créer un rendez-vous",
+        "titlePlaceholder": "Titre",
+        "attendeeEmailPlaceholder": "E-mail du participant",
+        "attendeeNamePlaceholder": "Nom du participant (facultatif)",
+        "companyPlaceholder": "Entreprise (facultatif)",
+        "notesPlaceholder": "Notes (facultatif)",
         "durationOption": "{count} minutes",
-        "submitBtn": "Create meeting",
-        "submitting": "Creating..."
+        "submitBtn": "Créer un rendez-vous",
+        "submitting": "Création…"
       },
       "scheduler": {
-        "title": "Scheduler settings",
+        "title": "Réglages de réservation",
         "bookingUrl": {
-          "label": "Your booking URL",
-          "placeholder": "your-name",
-          "takenError": "This URL is already taken."
+          "label": "Votre URL de réservation",
+          "placeholder": "votre-nom",
+          "takenError": "Cette URL est déjà prise."
         },
         "enable": {
-          "label": "Enable booking page",
-          "description": "Prospects can book meetings via your public link"
+          "label": "Activer la page de réservation",
+          "description": "Les prospects peuvent réserver un rendez-vous via votre lien public"
         },
         "timezone": {
-          "label": "Timezone"
+          "label": "Fuseau horaire"
         },
         "availability": {
-          "label": "Availability",
-          "unavailable": "Unavailable",
-          "addWindow": "+ Add window"
+          "label": "Disponibilités",
+          "unavailable": "Indisponible",
+          "addWindow": "+ Ajouter un créneau"
         },
         "duration": {
-          "label": "Meeting duration",
-          "recommended": "recommended"
+          "label": "Durée du rendez-vous",
+          "recommended": "recommandé"
         },
         "durations": {
-          "d15": "Quick discovery",
-          "d30": "Standard call",
-          "d45": "Deep dive",
-          "d60": "Strategy session"
+          "d15": "Découverte rapide",
+          "d30": "Appel standard",
+          "d45": "Échange approfondi",
+          "d60": "Session stratégique"
         },
         "buffer": {
-          "label": "Buffer between meetings",
-          "none": "No buffer"
+          "label": "Pause entre les rendez-vous",
+          "none": "Aucune pause"
         },
         "video": {
-          "label": "Video meeting link",
-          "optional": "(optional)",
+          "label": "Lien de visioconférence",
+          "optional": "(facultatif)",
           "placeholder": "https://meet.google.com/xxx-yyy-zzz"
         },
         "welcome": {
-          "label": "Welcome message",
-          "optional": "(optional)",
-          "placeholder": "Looking forward to connecting!"
+          "label": "Message d'accueil",
+          "optional": "(facultatif)",
+          "placeholder": "Au plaisir d'échanger !"
         },
-        "saved": "✓ Saved",
-        "save": "Save settings"
+        "saved": "✓ Enregistré",
+        "save": "Enregistrer les réglages"
       }
     }
   }
