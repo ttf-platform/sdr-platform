@@ -1302,6 +1302,86 @@
           "saveFailed": "Save failed"
         }
       }
+    },
+    "home": {
+      "hero": {
+        "subtitle": "Your outbound performance at a glance",
+        "ctaNewCampaign": "New Campaign"
+      },
+      "onboarding": {
+        "welcomeTitle": "Welcome to Mirvo",
+        "progressBody": "{stepsCompleted} of {totalSteps} setup steps done — connect your mailbox to send your first emails today."
+      },
+      "kpis": {
+        "campaigns": "CAMPAIGNS",
+        "emailsSent": "EMAILS SENT",
+        "openRate": "OPEN RATE",
+        "replyRate": "REPLY RATE"
+      },
+      "todaysFocus": {
+        "draftsToApprove": "Drafts to approve",
+        "draftsCta": "Review queue →",
+        "meetingsToday": "Meetings today",
+        "meetingsCta": "View calendar →",
+        "needsAttention": "Needs attention",
+        "needsAttentionCta": "View prospects →"
+      },
+      "recentCampaigns": {
+        "title": "Recent Campaigns",
+        "loading": "Loading…",
+        "empty": {
+          "title": "Ready to launch your first campaign?",
+          "description": "Mirvo AI helps you craft personalized emails for every prospect in your ICP.",
+          "cta": "Create your first campaign"
+        },
+        "columns": {
+          "campaign": "CAMPAIGN",
+          "status": "STATUS",
+          "sent": "SENT",
+          "openRate": "👁 OPEN RATE",
+          "replyRate": "✅ REPLY RATE",
+          "created": "CREATED"
+        }
+      },
+      "statuses": {
+        "ended": "Ended"
+      }
+    },
+    "analytics": {
+      "header": {
+        "title": "Analytics",
+        "subtitle": "Campaign performance across all your outreach",
+        "period": {
+          "last7d": "Last 7 days",
+          "last30d": "Last 30 days",
+          "last90d": "Last 90 days"
+        }
+      },
+      "kpis": {
+        "emailsSent": "EMAILS SENT",
+        "openRate": "OPEN RATE",
+        "replyRate": "REPLY RATE",
+        "replies": "REPLIES",
+        "bounceRate": "BOUNCE RATE"
+      },
+      "breakdown": {
+        "title": "Campaign Breakdown",
+        "empty": "No campaign data yet",
+        "columns": {
+          "campaign": "CAMPAIGN",
+          "sent": "SENT",
+          "opened": "OPENED",
+          "openPercent": "OPEN %",
+          "replies": "REPLIES",
+          "replyPercent": "REPLY %",
+          "bounces": "BOUNCES"
+        }
+      },
+      "activity": {
+        "title": "Daily Send Activity",
+        "empty": "No data yet",
+        "tooltipSentLabel": "sent"
+      }
     }
   }
 }
