@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import CreditUsageIndicator from '@/components/CreditUsageIndicator'
 import { track } from '@/lib/track'
 
@@ -21,21 +22,37 @@ interface UsageData {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// Brand names — kept as-is, never translated.
 const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
-const STATUS_LABELS: Record<string, string> = {
-  trialing: 'Free Trial', active: 'Active', past_due: 'Payment due',
-  canceled: 'Canceled', expired: 'Expired',
-}
 
+// Subscription status keys — resolved at render via useTranslations('...statuses').
+// Sujet grammatical FR = abonnement (masc.), LOCAL, no cross-namespace reuse.
+const SUBSCRIPTION_STATUS_KEYS = ['trialing', 'active', 'past_due', 'canceled', 'expired'] as const
 
+// PLANS keeps numeric values + name + inherits. Feature bullets resolved at render
+// via t('plans.features.{planId}.{index}'). Values remain hardcoded ($/mo, $/yr) —
+// currency + number formats deferred to a dedicated locale-format lot.
 const PLANS = [
-  { id: 'starter', name: 'Starter', monthly: 149, yearly: 1430, prospects: 100, enrichments: 500,  inboxes: 1, inherits: null,      features: ['100 prospects/mo','500 enrichments/mo','1 inbox','Booking page','Morning Brief'] },
-  { id: 'pro',     name: 'Pro',     monthly: 299, yearly: 2870, prospects: 250, enrichments: 1000, inboxes: 2, inherits: 'Starter', features: ['250 prospects/mo','1,000 enrichments/mo','2 inboxes','Advanced AI','Morning Brief Mode B','Priority support'] },
-  { id: 'power',   name: 'Power',   monthly: 399, yearly: 3830, prospects: 500, enrichments: 2000, inboxes: 3, inherits: 'Pro',     features: ['500 prospects/mo','2,000 enrichments/mo','3 inboxes','Premium AI + caching','Full pipeline + analytics'] },
+  { id: 'starter', name: 'Starter', monthly: 149, yearly: 1430, prospects: 100, enrichments: 500,  inboxes: 1, inherits: null,      featureCount: 5 },
+  { id: 'pro',     name: 'Pro',     monthly: 299, yearly: 2870, prospects: 250, enrichments: 1000, inboxes: 2, inherits: 'Starter', featureCount: 6 },
+  { id: 'power',   name: 'Power',   monthly: 399, yearly: 3830, prospects: 500, enrichments: 2000, inboxes: 3, inherits: 'Pro',     featureCount: 5 },
 ]
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function BillingPage() {
+  const t = useTranslations('dashboard.billing')
+  const tHeader = useTranslations('dashboard.billing.header')
+  const tBanners = useTranslations('dashboard.billing.banners')
+  const tLabels = useTranslations('dashboard.billing.sectionLabels')
+  const tCurrent = useTranslations('dashboard.billing.currentPlan')
+  const tStatuses = useTranslations('dashboard.billing.statuses')
+  const tPlans = useTranslations('dashboard.billing.plans')
+  const tButton = useTranslations('dashboard.billing.plans.button')
+  const tFeatures = useTranslations('dashboard.billing.plans.features')
+  const tOverage = useTranslations('dashboard.billing.overage')
+  const tPromo = useTranslations('dashboard.billing.promo')
+  const tToasts = useTranslations('dashboard.billing.toasts')
+
   const searchParams = useSearchParams()
   const checkoutResult = searchParams.get('checkout')
 
@@ -73,7 +90,7 @@ export default function BillingPage() {
       body: JSON.stringify(body),
     }).then(r => r.json())
     if (res.url) window.location.href = res.url
-    else { setToast(res.error ?? 'Checkout failed'); setLoadingCheckout(null) }
+    else { setToast(res.error ?? tToasts('checkoutFailed')); setLoadingCheckout(null) }
   }
 
   async function changePlan(plan: string) {
@@ -83,20 +100,20 @@ export default function BillingPage() {
       body: JSON.stringify({ plan, interval }),
     }).then(r => r.json())
     setLoadingCheckout(null)
-    if (res.noop) { setToast(res.message ?? 'Already on this plan.'); return }
+    if (res.noop) { setToast(res.message ?? tToasts('alreadyOnPlan')); return }
     if (res.success) {
-      setToast('Plan changed. Your billing will update shortly.')
+      setToast(tToasts('planChanged'))
       setTimeout(() => window.location.reload(), 3000)
       return
     }
-    setToast(res.error ?? 'Failed to change plan.')
+    setToast(res.error ?? tToasts('changePlanFailed'))
   }
 
   async function openPortal() {
     setLoadingPortal(true)
     const res = await fetch('/api/stripe/portal', { method: 'POST' }).then(r => r.json())
     if (res.url) window.location.href = res.url
-    else { setToast(res.error ?? 'Portal error'); setLoadingPortal(false) }
+    else { setToast(res.error ?? tToasts('portalError')); setLoadingPortal(false) }
   }
 
   async function applyPromo() {
@@ -106,7 +123,7 @@ export default function BillingPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ promo_code: promoCode.trim() }),
     }).then(r => r.json())
-    setPromoMsg({ ok: !!res.success, text: res.message ?? res.error ?? 'Unknown error' })
+    setPromoMsg({ ok: !!res.success, text: res.message ?? res.error ?? tPromo('unknownError') })
     setLoadingPromo(false)
   }
 
@@ -129,6 +146,10 @@ export default function BillingPage() {
   const canUsePortal = ['active', 'past_due', 'canceled'].includes(status ?? '')
   const tierIndex: Record<string, number> = { starter: 0, pro: 1, power: 2 }
 
+  const statusLabel = status && (SUBSCRIPTION_STATUS_KEYS as readonly string[]).includes(status)
+    ? tStatuses(status)
+    : status
+
   return (
     <div className="max-w-2xl mx-auto">
       {/* Toast */}
@@ -141,25 +162,25 @@ export default function BillingPage() {
       {/* Checkout result banner */}
       {checkoutResult === 'success' && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-5 text-sm text-green-700 font-medium">
-          ✓ Subscription activated! Welcome to Mirvo.
+          {tBanners('checkoutSuccess')}
         </div>
       )}
       {checkoutResult === 'cancel' && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-700">
-          Checkout cancelled. Your trial is still active.
+          {tBanners('checkoutCancel')}
         </div>
       )}
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#1a1a2e]">Billing</h1>
-        <p className="text-sm text-[#8a7e6e]">Manage your plan, usage, and payment</p>
+        <h1 className="text-2xl font-bold text-[#1a1a2e]">{tHeader('title')}</h1>
+        <p className="text-sm text-[#8a7e6e]">{tHeader('subtitle')}</p>
       </div>
 
       {/* ── Section 1: Current plan ────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
-        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">CURRENT PLAN</div>
+        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('currentPlan')}</div>
         {!usage ? (
-          <p className="text-sm text-[#8a7e6e]">Loading...</p>
+          <p className="text-sm text-[#8a7e6e]">{t('loading')}</p>
         ) : (
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -171,34 +192,34 @@ export default function BillingPage() {
                   status === 'past_due' ? 'bg-amber-50 text-amber-700' :
                   'bg-red-50 text-red-600'
                 }`}>
-                  {STATUS_LABELS[status ?? ''] ?? status}
+                  {statusLabel}
                 </span>
               </div>
               {status === 'trialing' && usage.days_remaining > 0 && (
                 <p className="text-sm text-[#6b5e4e]">
-                  {usage.days_remaining} day{usage.days_remaining !== 1 ? 's' : ''} left in trial
+                  {tCurrent('trialDaysLeft', { count: usage.days_remaining })}
                 </p>
               )}
               {status === 'trialing' && usage.days_remaining <= 3 && usage.days_remaining > 0 && (
                 <p className="text-xs text-amber-600 font-medium mt-1">
-                  ⚠ Trial ends soon — add a payment method to continue.
+                  {tCurrent('trialEndsSoon')}
                 </p>
               )}
               {usage.blocked && (
                 <p className="text-xs text-red-600 font-medium mt-1">
-                  Your access is restricted. Upgrade to restore full access.
+                  {tCurrent('accessBlocked')}
                 </p>
               )}
             </div>
             {canUsePortal ? (
               <button onClick={openPortal} disabled={loadingPortal}
                 className="bg-white border border-[#e8e3dc] text-[#1a1a2e] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40">
-                {loadingPortal ? 'Opening...' : 'Manage subscription →'}
+                {loadingPortal ? tCurrent('openingPortal') : tCurrent('managePortal')}
               </button>
             ) : (
               <button onClick={() => startCheckout(currentPlan!)} disabled={!!loadingCheckout}
                 className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-                {loadingCheckout ? 'Redirecting...' : 'Add payment method →'}
+                {loadingCheckout ? t('redirecting') : tCurrent('addPaymentMethod')}
               </button>
             )}
           </div>
@@ -207,9 +228,9 @@ export default function BillingPage() {
 
       {/* ── Section 2: Usage ──────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
-        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">USAGE</div>
+        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('usage')}</div>
         {!usage ? (
-          <p className="text-sm text-[#8a7e6e]">Loading...</p>
+          <p className="text-sm text-[#8a7e6e]">{t('loading')}</p>
         ) : (
           <div className="flex flex-col gap-5">
             <CreditUsageIndicator
@@ -236,65 +257,70 @@ export default function BillingPage() {
       {/* ── Section 3: Plans ──────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">PLANS</div>
+          <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">{tLabels('plans')}</div>
           <div className="flex items-center gap-1 p-1 bg-[#f0ece6] rounded-xl text-xs">
             <button onClick={() => setInterval('monthly')}
               className={"px-3 py-1 rounded-lg font-medium transition-colors " + (interval === 'monthly' ? 'bg-white text-[#1a1a2e] shadow-sm' : 'text-[#8a7e6e]')}>
-              Monthly
+              {tPlans('intervalMonthly')}
             </button>
             <button onClick={() => setInterval('yearly')}
               className={"px-3 py-1 rounded-lg font-medium transition-colors " + (interval === 'yearly' ? 'bg-white text-[#1a1a2e] shadow-sm' : 'text-[#8a7e6e]')}>
-              Yearly <span className="text-green-600">−20%</span>
+              {tPlans('intervalYearly')} <span className="text-green-600">{tPlans('yearlyDiscount')}</span>
             </button>
           </div>
         </div>
         {!usage ? (
-          <p className="text-sm text-[#8a7e6e]">Loading...</p>
+          <p className="text-sm text-[#8a7e6e]">{t('loading')}</p>
         ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLANS.map(p => {
             const isCurrent  = p.id === currentPlan
+            // $ hardcodé + /yr /mo suffixes — traité au lot formats localisés futur
             const price      = interval === 'yearly' ? `$${p.yearly}/yr` : `$${p.monthly}/mo`
             const tIdx       = tierIndex[p.id] ?? 0
             const cIdx       = tierIndex[currentPlan ?? ''] ?? 0
             const isCurrentActive = isCurrent && isActive
             let btnLabel: string
             if (status === 'trialing' || status === 'expired') {
-              btnLabel = 'Add payment method'
+              btnLabel = tButton('addPaymentMethod')
             } else if (status === 'canceled') {
-              btnLabel = `Reactivate ${p.name}`
+              btnLabel = tButton('reactivate', { planName: p.name })
             } else if (tIdx > cIdx) {
-              btnLabel = `Upgrade to ${p.name}`
+              btnLabel = tButton('upgradeTo', { planName: p.name })
             } else if (tIdx < cIdx) {
-              btnLabel = `Downgrade to ${p.name}`
+              btnLabel = tButton('downgradeTo', { planName: p.name })
             } else {
-              btnLabel = 'Current plan'
+              btnLabel = tButton('currentPlan')
             }
+            const planId = p.id as 'starter' | 'pro' | 'power'
             return (
               <div key={p.id} className={`rounded-xl border p-4 ${isCurrent ? 'border-[#3b6bef] bg-[#eef1fd]' : 'border-[#e8e3dc] bg-white'}`}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="font-bold text-[#1a1a2e] text-sm">{p.name}</div>
-                  {isCurrent && <span className="text-xs bg-[#3b6bef] text-white px-2 py-0.5 rounded-full">Current</span>}
+                  {isCurrent && <span className="text-xs bg-[#3b6bef] text-white px-2 py-0.5 rounded-full">{tPlans('currentBadge')}</span>}
                 </div>
                 <div className="text-xl font-bold text-[#1a1a2e] mb-3">{price}</div>
                 <ul className="flex flex-col gap-1.5 mb-4 text-xs text-[#4a4a5a]">
                   {p.inherits && (
-                    <li className="text-[10px] font-semibold text-[#8a7e6e] mb-0.5">Everything in {p.inherits}, plus:</li>
+                    <li className="text-[10px] font-semibold text-[#8a7e6e] mb-0.5">{tPlans('inheritsFrom', { previousPlan: p.inherits })}</li>
                   )}
-                  {p.features.map(f => (
-                    <li key={f} className="flex items-center gap-1.5"><span className="text-green-500">✓</span>{f}</li>
+                  {Array.from({ length: p.featureCount }, (_, i) => (
+                    <li key={i} className="flex items-center gap-1.5">
+                      <span className="text-green-500">✓</span>
+                      {tFeatures(`${planId}.${i}`)}
+                    </li>
                   ))}
                 </ul>
                 {isCurrentActive ? (
                   <button disabled className="w-full border border-[#3b6bef] text-[#3b6bef] rounded-lg py-2 text-xs font-semibold opacity-50">
-                    Current plan
+                    {tButton('currentPlan')}
                   </button>
                 ) : (
                   <button
                     onClick={() => isActive ? changePlan(p.id) : startCheckout(p.id)}
                     disabled={!!loadingCheckout}
                     className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-40 transition-colors">
-                    {loadingCheckout === p.id ? (isActive ? 'Changing...' : 'Redirecting...') : btnLabel}
+                    {loadingCheckout === p.id ? (isActive ? tButton('changing') : t('redirecting')) : btnLabel}
                   </button>
                 )}
               </div>
@@ -306,22 +332,22 @@ export default function BillingPage() {
 
       {/* ── Section 4: Overage ────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
-        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">OVERAGE</div>
+        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('overage')}</div>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-[#1a1a2e] mb-1">Enable enrichment overage</p>
+            <p className="text-sm font-semibold text-[#1a1a2e] mb-1">{tOverage('title')}</p>
             <p className="text-xs text-[#8a7e6e]">
-              $0.50 per enrichment above your monthly cap. Billed at end of month.
+              {tOverage('description')}
             </p>
             {usage?.overage_enabled && (
               <p className="text-xs text-amber-600 font-medium mt-1">
-                ⚠ Overage is active — additional charges may apply.
+                {tOverage('activeWarning')}
               </p>
             )}
             {usage && usage.enrichments_used > usage.enrichments_cap && (
               <p className="text-xs text-[#6b5e4e] mt-1">
-                {usage.enrichments_used - usage.enrichments_cap} enrichments over cap
-                {usage.overage_charges_made > 0 && ` · auto-charged $${usage.overage_charges_made * 10}`}
+                {tOverage('overCap', { count: usage.enrichments_used - usage.enrichments_cap })}
+                {usage.overage_charges_made > 0 && tOverage('autoCharged', { amount: `$${usage.overage_charges_made * 10}` })}
               </p>
             )}
           </div>
@@ -334,14 +360,14 @@ export default function BillingPage() {
 
       {/* ── Section 5: Promo code ─────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-6">
-        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">PROMO CODE</div>
+        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('promoCode')}</div>
         <div className="flex gap-2">
           <input value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())}
-            placeholder="e.g. LAUNCH50"
+            placeholder={tPromo('placeholder')}
             className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] uppercase" />
           <button onClick={applyPromo} disabled={loadingPromo || !promoCode.trim()}
             className="bg-[#1a1a2e] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40">
-            {loadingPromo ? 'Applying...' : 'Apply'}
+            {loadingPromo ? tPromo('applying') : tPromo('apply')}
           </button>
         </div>
         {promoMsg && (
@@ -349,7 +375,7 @@ export default function BillingPage() {
             {promoMsg.ok ? '✓ ' : '✕ '}{promoMsg.text}
           </p>
         )}
-        <p className="text-xs text-[#b0a898] mt-2">Applied to your next renewal invoice.</p>
+        <p className="text-xs text-[#b0a898] mt-2">{tPromo('footerNote')}</p>
       </div>
     </div>
   )
