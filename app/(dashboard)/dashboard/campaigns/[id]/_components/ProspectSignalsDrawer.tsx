@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { safeExternalHref } from '@/lib/url-safety'
 
 type SignalDetail = {
@@ -27,16 +28,24 @@ type ProspectSignalsDrawerProps = {
   prospectName?: string
 }
 
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
-  return new Date(iso).toLocaleDateString()
+/**
+ * Return a relative-time label via the shared dashboard.signals.list.* keys.
+ * Reused rather than duplicated because these temporal labels carry no
+ * grammatical subject — no gender/number agreement risk (Lot 2A.4.3 rule).
+ */
+function useRelativeFormatter() {
+  const t = useTranslations('dashboard.signals.list')
+  return function formatRelative(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return t('justNow')
+    if (mins < 60) return t('minutesAgo', { count: mins })
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return t('hoursAgo', { count: hrs })
+    const days = Math.floor(hrs / 24)
+    if (days < 30) return t('daysAgo', { count: days })
+    return new Date(iso).toLocaleDateString()
+  }
 }
 
 export function ProspectSignalsDrawer({
@@ -46,6 +55,8 @@ export function ProspectSignalsDrawer({
   prospectEmail,
   prospectName,
 }: ProspectSignalsDrawerProps) {
+  const t = useTranslations('dashboard.campaigns.detail.signalsDrawer')
+  const formatRelative = useRelativeFormatter()
   const [signals, setSignals] = useState<SignalDetail[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,9 +68,9 @@ export function ProspectSignalsDrawer({
     fetch(`/api/prospects/${prospectId}/signals`)
       .then(r => r.json())
       .then(j => setSignals(j.signals ?? []))
-      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .catch(e => setError(e instanceof Error ? e.message : t('loadFailed')))
       .finally(() => setLoading(false))
-  }, [open, prospectId])
+  }, [open, prospectId, t])
 
   // Reset on close
   useEffect(() => {
@@ -88,13 +99,13 @@ export function ProspectSignalsDrawer({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[#e8e3dc] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div>
-            <p className="text-xs text-[#8a7e6e] uppercase tracking-wide mb-1">Prospect</p>
+            <p className="text-xs text-[#8a7e6e] uppercase tracking-wide mb-1">{t('prospectLabel')}</p>
             <p className="text-base font-semibold text-[#1a1a2e]">{prospectName || prospectEmail}</p>
             {prospectName && <p className="text-xs text-[#8a7e6e]">{prospectEmail}</p>}
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('closeAria')}
             className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X size={20} />
@@ -104,13 +115,13 @@ export function ProspectSignalsDrawer({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <h3 className="text-sm font-semibold text-[#1a1a2e] mb-3">
-            Active signals ({loading ? '…' : signals.length})
+            {loading ? t('activeSignalsLoading') : t('activeSignalsTitle', { count: signals.length })}
           </h3>
 
-          {loading && <p className="text-sm text-[#8a7e6e]">Loading signals…</p>}
+          {loading && <p className="text-sm text-[#8a7e6e]">{t('loadingSignals')}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
           {!loading && !error && signals.length === 0 && (
-            <p className="text-sm text-[#8a7e6e]">No signals detected for this prospect yet.</p>
+            <p className="text-sm text-[#8a7e6e]">{t('empty')}</p>
           )}
 
           <div className="flex flex-col gap-3">
@@ -125,7 +136,7 @@ export function ProspectSignalsDrawer({
                 )}
                 {Object.keys(s.signal_data).length > 0 && (
                   <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-lg p-2 mb-2">
-                    <p className="text-xs font-medium text-[#3b6bef] mb-1">Detected:</p>
+                    <p className="text-xs font-medium text-[#3b6bef] mb-1">{t('detectedLabel')}</p>
                     <pre className="text-xs text-[#6b5e4e] whitespace-pre-wrap font-mono leading-relaxed">
                       {JSON.stringify(s.signal_data, null, 2)}
                     </pre>
@@ -140,11 +151,11 @@ export function ProspectSignalsDrawer({
                       rel="noopener noreferrer"
                       className="text-xs text-[#3b6bef] hover:underline break-all"
                     >
-                      Source ↗ {s.source_url}
+                      {t('sourceLink', { url: s.source_url })}
                     </a>
                   ) : (
                     <span className="text-xs text-[#8a7e6e] break-all" title={s.source_url}>
-                      Source: {s.source_url} (invalid URL — not linked)
+                      {t('sourceInvalid', { url: s.source_url })}
                     </span>
                   );
                 })()}

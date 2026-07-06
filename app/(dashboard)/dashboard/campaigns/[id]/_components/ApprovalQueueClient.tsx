@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { VariantEditModal } from './VariantEditModal'
 
 type Variant = {
@@ -43,6 +44,10 @@ type ApprovalQueueClientProps = {
 }
 
 export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
+  const t = useTranslations('dashboard.campaigns.detail.approvalQueue')
+  const tErrors = useTranslations('dashboard.campaigns.detail.approvalQueue.errors')
+  const tHeader = useTranslations('dashboard.campaigns.detail.approvalQueue.variantHeader')
+
   const [variants, setVariants] = useState<Variant[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -56,10 +61,10 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/approval-queue`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error ?? 'Failed to load')
+      if (!res.ok) throw new Error(data?.error ?? tErrors('loadFailed'))
       setVariants(data.variants ?? [])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load')
+      setError(e instanceof Error ? e.message : tErrors('loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -80,7 +85,7 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
       })
       setVariants(prev => prev.filter(v => v.id !== variantId))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Action failed')
+      setError(e instanceof Error ? e.message : tErrors('actionFailed'))
     } finally {
       setActionInProgress(null)
     }
@@ -98,7 +103,7 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
       })
 
       if (prospectsWithSignals.length === 0) {
-        setError('No prospects with detected signals yet. Run a signal scan first.')
+        setError(tErrors('noMatchedProspects'))
         setGenerating(false)
         return
       }
@@ -109,14 +114,14 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
 
       await fetchVariants()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Generation failed')
+      setError(e instanceof Error ? e.message : tErrors('generationFailed'))
     } finally {
       setGenerating(false)
     }
   }
 
   async function handleBatchApprove() {
-    if (!confirm(`Approve all ${variants.length} variants in the queue?`)) return
+    if (!confirm(t('confirmBatch', { count: variants.length }))) return
     setActionInProgress('batch')
     try {
       await Promise.all(
@@ -130,14 +135,14 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
       )
       setVariants([])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Batch approve failed')
+      setError(e instanceof Error ? e.message : tErrors('batchApproveFailed'))
     } finally {
       setActionInProgress(null)
     }
   }
 
   if (loading) {
-    return <div className="py-8 text-center text-sm text-[#8a7e6e]">Loading queue…</div>
+    return <div className="py-8 text-center text-sm text-[#8a7e6e]">{t('loading')}</div>
   }
 
   return (
@@ -145,9 +150,9 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
       {/* Header actions */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-[#1a1a2e]">Approval Queue</h2>
+          <h2 className="text-base font-semibold text-[#1a1a2e]">{t('title')}</h2>
           <p className="text-xs text-[#8a7e6e] mt-0.5">
-            Review AI-personalized emails before sending. {variants.length} pending.
+            {t('subtitle', { count: variants.length })}
           </p>
         </div>
         <div className="flex gap-2 flex-shrink-0">
@@ -156,7 +161,7 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
             disabled={generating}
             className="border border-[#3b6bef] text-[#3b6bef] rounded-lg px-3 py-2 text-xs font-medium hover:bg-[#f7f8ff] transition-colors disabled:opacity-40"
           >
-            {generating ? 'Generating…' : '✨ Generate for matched prospects'}
+            {generating ? t('generating') : `✨ ${t('generateBtn')}`}
           </button>
           {variants.length > 0 && (
             <button
@@ -164,7 +169,7 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
               disabled={actionInProgress === 'batch'}
               className="bg-[#3b6bef] text-white rounded-lg px-3 py-2 text-xs font-medium hover:bg-[#2d5cdc] transition-colors disabled:opacity-40"
             >
-              {actionInProgress === 'batch' ? 'Approving…' : `Approve all (${variants.length})`}
+              {actionInProgress === 'batch' ? t('approving') : t('batchApprove', { count: variants.length })}
             </button>
           )}
         </div>
@@ -178,9 +183,9 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
       {variants.length === 0 && !generating && (
         <div className="border border-[#e8e3dc] rounded-xl p-8 text-center">
           <p className="text-3xl mb-2">📭</p>
-          <p className="text-sm font-semibold text-[#1a1a2e] mb-1">Approval queue is empty</p>
+          <p className="text-sm font-semibold text-[#1a1a2e] mb-1">{t('emptyTitle')}</p>
           <p className="text-xs text-[#8a7e6e] max-w-sm mx-auto">
-            Run signal scans on this campaign, then click &quot;Generate for matched prospects&quot; to create personalized email variants.
+            {t('emptyDescription')}
           </p>
         </div>
       )}
@@ -200,6 +205,7 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
             : (v.campaign_steps as Variant['campaign_steps'])
           const displaySubject = v.status === 'edited' ? (v.edited_subject ?? v.subject) : v.subject
           const displayBody = v.status === 'edited' ? (v.edited_body ?? v.body) : v.body
+          const stepOrder = step?.step_order ?? tHeader('stepUnknown')
 
           return (
             <div key={v.id} className="border border-[#e8e3dc] rounded-xl p-4">
@@ -212,15 +218,15 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
                   </p>
                 </div>
                 <span className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2.5 py-0.5 text-xs font-medium flex-shrink-0 ml-2">
-                  📡 {v.signal_ids.length} signal{v.signal_ids.length !== 1 ? 's' : ''} · Step {step?.step_order ?? '?'}
+                  {tHeader('signalsBadge', { count: v.signal_ids.length, step: stepOrder })}
                 </span>
               </div>
 
               {/* Email preview */}
               <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-lg p-3 mb-3">
-                <p className="text-xs font-semibold text-[#3b6bef] mb-1">SUBJECT</p>
+                <p className="text-xs font-semibold text-[#3b6bef] mb-1">{t('subjectLabel')}</p>
                 <p className="text-sm text-[#1a1a2e] mb-3">{displaySubject}</p>
-                <p className="text-xs font-semibold text-[#3b6bef] mb-1">BODY</p>
+                <p className="text-xs font-semibold text-[#3b6bef] mb-1">{t('bodyLabel')}</p>
                 <p className="text-sm text-[#1a1a2e] whitespace-pre-wrap leading-relaxed">{displayBody}</p>
               </div>
 
@@ -231,21 +237,21 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
                   disabled={actionInProgress === v.id}
                   className="border border-red-200 text-red-600 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-40"
                 >
-                  ✗ Reject
+                  {t('reject')}
                 </button>
                 <button
                   onClick={() => setEditingVariant(v)}
                   disabled={actionInProgress === v.id}
                   className="border border-[#e8e3dc] text-[#6b5e4e] rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-[#f7f4f0] transition-colors disabled:opacity-40"
                 >
-                  ✏ Edit
+                  {t('edit')}
                 </button>
                 <button
                   onClick={() => handleAction(v.id, 'approve')}
                   disabled={actionInProgress === v.id}
                   className="bg-green-600 text-white rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
                 >
-                  ✓ Approve
+                  {t('approve')}
                 </button>
               </div>
             </div>

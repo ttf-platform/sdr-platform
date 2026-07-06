@@ -1251,6 +1251,55 @@
           "providerMockMode": "Email sending is not active. Contact support.",
           "sendFailed": "Could not queue this email. Try again.",
           "warmup": "Your mailboxes are warming up — sending is limited to about {cap}/day for now."
+        },
+        "approvalQueue": {
+          "title": "Approval Queue",
+          "subtitle": "Review AI-personalized emails before sending. {count, plural, one {# pending} other {# pending}}.",
+          "generateBtn": "Generate for matched prospects",
+          "generating": "Generating…",
+          "batchApprove": "Approve all ({count})",
+          "approving": "Approving…",
+          "confirmBatch": "Approve all {count, plural, one {# variant} other {# variants}} in the queue?",
+          "loading": "Loading queue…",
+          "emptyTitle": "Approval queue is empty",
+          "emptyDescription": "Run signal scans on this campaign, then click \"Generate for matched prospects\" to create personalized email variants.",
+          "variantHeader": {
+            "signalsBadge": "📡 {count, plural, one {# signal} other {# signals}} · Step {step}",
+            "stepUnknown": "?"
+          },
+          "subjectLabel": "SUBJECT",
+          "bodyLabel": "BODY",
+          "reject": "✗ Reject",
+          "edit": "✏ Edit",
+          "approve": "✓ Approve",
+          "errors": {
+            "loadFailed": "Failed to load",
+            "actionFailed": "Action failed",
+            "noMatchedProspects": "No prospects with detected signals yet. Run a signal scan first.",
+            "generationFailed": "Generation failed",
+            "batchApproveFailed": "Batch approve failed"
+          }
+        },
+        "signalsDrawer": {
+          "prospectLabel": "Prospect",
+          "closeAria": "Close",
+          "activeSignalsTitle": "Active signals ({count})",
+          "activeSignalsLoading": "Active signals (…)",
+          "loadingSignals": "Loading signals…",
+          "empty": "No signals detected for this prospect yet.",
+          "detectedLabel": "Detected:",
+          "sourceLink": "Source ↗ {url}",
+          "sourceInvalid": "Source: {url} (invalid URL — not linked)",
+          "loadFailed": "Failed to load"
+        },
+        "variantEdit": {
+          "title": "Edit personalized email",
+          "subjectLabel": "Subject",
+          "bodyLabel": "Body",
+          "charsCounter": "{count}/{limit}",
+          "save": "Save edits",
+          "validationRequired": "Subject and body are required",
+          "saveFailed": "Save failed"
         }
       }
     }
