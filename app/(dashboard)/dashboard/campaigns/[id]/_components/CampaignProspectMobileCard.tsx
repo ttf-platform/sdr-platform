@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { statusBadgeClass } from '@/components/ProspectModals'
 
 type TabProspect = {
@@ -17,9 +18,11 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  manual: 'Manual', paste: 'Paste', csv_import: 'CSV', ai_discover: 'AI',
-}
+// Values only. Source labels resolved at render via useTranslations('...sources') → t(p.source).
+// Reused set from Lot 2A.4.2 — dashboard.campaigns.detail.sources.*
+const SOURCE_KEYS = ['manual', 'paste', 'csv_import', 'ai_discover'] as const
+// Prospect status keys — reused from Lot 2A.3 dashboard.prospects.list.statuses.*
+const PROSPECT_STATUS_KEYS = ['found', 'emailed', 'opened', 'replied', 'meeting', 'bounced', 'unsubscribed'] as const
 
 type Props = {
   prospect: TabProspect
@@ -29,8 +32,20 @@ type Props = {
 }
 
 export function CampaignProspectMobileCard({ prospect: p, isSelected, onToggleSelect, onClick }: Props) {
+  const tSources = useTranslations('dashboard.campaigns.detail.sources')
+  const tStatuses = useTranslations('dashboard.prospects.list.statuses')
+  const tSidePanel = useTranslations('dashboard.prospects.list.sidePanel')
+  const tSignals = useTranslations('dashboard.campaigns.detail.prospects')
+
   const name = [p.contacts?.first_name, p.contacts?.last_name].filter(Boolean).join(' ')
   const sigCount = Array.isArray(p.prospect_signals) ? (p.prospect_signals[0]?.count ?? 0) : 0
+
+  const statusLabel = (PROSPECT_STATUS_KEYS as readonly string[]).includes(p.status)
+    ? tStatuses(p.status)
+    : p.status
+  const sourceLabel = (SOURCE_KEYS as readonly string[]).includes(p.source)
+    ? tSources(p.source)
+    : p.source
 
   return (
     <div
@@ -53,19 +68,19 @@ export function CampaignProspectMobileCard({ prospect: p, isSelected, onToggleSe
             <p className="text-xs text-[#6b5e4e] truncate mt-0.5">{p.email}</p>
           </div>
           <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium flex-shrink-0 ${statusBadgeClass(p.status)}`}>
-            {p.status}
+            {statusLabel}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <span className="text-xs text-[#a89a86]">Added {fmtDate(p.added_at)}</span>
+          <span className="text-xs text-[#a89a86]">{tSidePanel('addedOn', { date: fmtDate(p.added_at) })}</span>
           {p.source && (
             <span className="text-xs text-[#6b5e4e] bg-[#f0ece6] px-2 py-0.5 rounded-full">
-              {SOURCE_LABEL[p.source] ?? p.source}
+              {sourceLabel}
             </span>
           )}
           {sigCount > 0 && (
             <span className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5 text-xs font-medium">
-              📡 {sigCount} signal{sigCount !== 1 ? 's' : ''}
+              {tSignals('signalPill', { count: sigCount })}
             </span>
           )}
         </div>

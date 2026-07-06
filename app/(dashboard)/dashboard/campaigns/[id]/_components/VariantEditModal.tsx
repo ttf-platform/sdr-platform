@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Modal } from '@/components/ui/Modal'
 
 type Variant = {
@@ -19,7 +20,13 @@ type VariantEditModalProps = {
   onSaved: () => void
 }
 
+const SUBJECT_MAX = 200
+const BODY_MAX = 5000
+
 export function VariantEditModal({ isOpen, onClose, variant, onSaved }: VariantEditModalProps) {
+  const t = useTranslations('dashboard.campaigns.detail.variantEdit')
+  const tCommon = useTranslations('dashboard.common')
+
   const initialSubject = variant.status === 'edited'
     ? (variant.edited_subject ?? variant.subject)
     : variant.subject
@@ -34,7 +41,7 @@ export function VariantEditModal({ isOpen, onClose, variant, onSaved }: VariantE
 
   async function handleSave() {
     if (!subject.trim() || !body.trim()) {
-      setError('Subject and body are required')
+      setError(t('validationRequired'))
       return
     }
     setSaving(true)
@@ -51,41 +58,41 @@ export function VariantEditModal({ isOpen, onClose, variant, onSaved }: VariantE
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data?.error ?? 'Save failed')
+        throw new Error(data?.error ?? t('saveFailed'))
       }
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
+      setError(e instanceof Error ? e.message : t('saveFailed'))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit personalized email" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('title')} size="lg">
       <div className="flex flex-col gap-4">
         <div>
-          <label className="block text-xs font-semibold text-[#1a1a2e] mb-1">Subject</label>
+          <label className="block text-xs font-semibold text-[#1a1a2e] mb-1">{t('subjectLabel')}</label>
           <input
             type="text"
             value={subject}
             onChange={e => setSubject(e.target.value)}
             className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]"
-            maxLength={200}
+            maxLength={SUBJECT_MAX}
           />
-          <p className="text-xs text-[#8a7e6e] mt-1">{subject.length}/200</p>
+          <p className="text-xs text-[#8a7e6e] mt-1">{t('charsCounter', { count: subject.length, limit: SUBJECT_MAX })}</p>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#1a1a2e] mb-1">Body</label>
+          <label className="block text-xs font-semibold text-[#1a1a2e] mb-1">{t('bodyLabel')}</label>
           <textarea
             value={body}
             onChange={e => setBody(e.target.value)}
             rows={12}
             className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:border-[#3b6bef] resize-none"
-            maxLength={5000}
+            maxLength={BODY_MAX}
           />
-          <p className="text-xs text-[#8a7e6e] mt-1">{body.length}/5000</p>
+          <p className="text-xs text-[#8a7e6e] mt-1">{t('charsCounter', { count: body.length, limit: BODY_MAX })}</p>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -95,14 +102,14 @@ export function VariantEditModal({ isOpen, onClose, variant, onSaved }: VariantE
             onClick={onClose}
             className="border border-[#e8e3dc] text-[#6b5e4e] rounded-lg px-4 py-2 text-sm hover:bg-[#f7f4f0] transition-colors"
           >
-            Cancel
+            {tCommon('cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !subject.trim() || !body.trim()}
             className="bg-[#3b6bef] text-white rounded-lg px-4 py-2 text-sm hover:bg-[#2d5cdc] transition-colors disabled:opacity-40"
           >
-            {saving ? 'Saving…' : 'Save edits'}
+            {saving ? tCommon('saving') : t('save')}
           </button>
         </div>
       </div>
