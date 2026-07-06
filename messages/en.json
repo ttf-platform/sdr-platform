@@ -565,7 +565,27 @@
       "delete": "Delete",
       "deleting": "Deleting…",
       "save": "Save",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "weekdays": {
+        "short": {
+          "monday": "Mon",
+          "tuesday": "Tue",
+          "wednesday": "Wed",
+          "thursday": "Thu",
+          "friday": "Fri",
+          "saturday": "Sat",
+          "sunday": "Sun"
+        },
+        "full": {
+          "monday": "Monday",
+          "tuesday": "Tuesday",
+          "wednesday": "Wednesday",
+          "thursday": "Thursday",
+          "friday": "Friday",
+          "saturday": "Saturday",
+          "sunday": "Sunday"
+        }
+      }
     },
     "inbox": {
       "list": {
@@ -1381,6 +1401,113 @@
         "title": "Daily Send Activity",
         "empty": "No data yet",
         "tooltipSentLabel": "sent"
+      }
+    },
+    "meetings": {
+      "durationMinutes": "{count} min",
+      "header": {
+        "title": "Meetings",
+        "subtitle": "Upcoming meetings and your booking page",
+        "createBtn": "Create",
+        "copyLink": "Copy link",
+        "copyLinkCopied": "Copied!",
+        "schedulerSettings": "Scheduler settings"
+      },
+      "banner": {
+        "yourBookingLink": "Your booking link",
+        "copyBtn": "Copy"
+      },
+      "view": {
+        "list": "List",
+        "calendar": "Calendar"
+      },
+      "tabs": {
+        "upcoming": "Upcoming",
+        "all": "All",
+        "cancelled": "Cancelled"
+      },
+      "calendar": {
+        "soonTitle": "Calendar view — coming soon",
+        "soonSubtitle": "Switch to List view to see your meetings."
+      },
+      "list": {
+        "emptyTitleUpcoming": "No upcoming meetings",
+        "emptyTitleGeneric": "No meetings",
+        "emptyDescription": "Share your booking link or create one manually.",
+        "emptyCta": "Copy booking link",
+        "emptyCtaCopied": "✓ Copied!",
+        "card": {
+          "prospectNotesLabel": "📝 Prospect notes"
+        }
+      },
+      "statuses": {
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "no_show": "No-show"
+      },
+      "toasts": {
+        "createdSimple": "Meeting created.",
+        "createdWithBrief": "Meeting created. Regenerate your Morning Brief to include it.",
+        "briefLink": "Go to brief →"
+      },
+      "confirmDelete": "Delete this meeting?",
+      "createModal": {
+        "title": "Create meeting",
+        "titlePlaceholder": "Title",
+        "attendeeEmailPlaceholder": "Attendee email",
+        "attendeeNamePlaceholder": "Attendee name (optional)",
+        "companyPlaceholder": "Company (optional)",
+        "notesPlaceholder": "Notes (optional)",
+        "durationOption": "{count} minutes",
+        "submitBtn": "Create meeting",
+        "submitting": "Creating..."
+      },
+      "scheduler": {
+        "title": "Scheduler settings",
+        "bookingUrl": {
+          "label": "Your booking URL",
+          "placeholder": "your-name",
+          "takenError": "This URL is already taken."
+        },
+        "enable": {
+          "label": "Enable booking page",
+          "description": "Prospects can book meetings via your public link"
+        },
+        "timezone": {
+          "label": "Timezone"
+        },
+        "availability": {
+          "label": "Availability",
+          "unavailable": "Unavailable",
+          "addWindow": "+ Add window"
+        },
+        "duration": {
+          "label": "Meeting duration",
+          "recommended": "recommended"
+        },
+        "durations": {
+          "d15": "Quick discovery",
+          "d30": "Standard call",
+          "d45": "Deep dive",
+          "d60": "Strategy session"
+        },
+        "buffer": {
+          "label": "Buffer between meetings",
+          "none": "No buffer"
+        },
+        "video": {
+          "label": "Video meeting link",
+          "optional": "(optional)",
+          "placeholder": "https://meet.google.com/xxx-yyy-zzz"
+        },
+        "welcome": {
+          "label": "Welcome message",
+          "optional": "(optional)",
+          "placeholder": "Looking forward to connecting!"
+        },
+        "saved": "✓ Saved",
+        "save": "Save settings"
       }
     }
   }

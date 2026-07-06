@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -32,10 +33,24 @@ const DEFAULT_CONFIG: BookingConfig = {
   video_meeting_url: null, welcome_message: null,
 }
 const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-const DAY_LABELS: Record<string,string> = { monday:'Monday', tuesday:'Tuesday', wednesday:'Wednesday', thursday:'Thursday', friday:'Friday', saturday:'Saturday', sunday:'Sunday' }
 const TIMEZONES  = ['America/Toronto','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris','Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC']
 const STATUS_COLORS: Record<string,string> = { scheduled:'bg-blue-50 text-blue-700', completed:'bg-green-50 text-green-700', cancelled:'bg-red-50 text-red-600', no_show:'bg-orange-50 text-orange-600' }
 
+// Values only. Labels resolved at render via useTranslations().
+// Sujet grammatical rendez-vous (masc.) — LOCAL, no reuse from campaigns.list.statuses (fem.).
+const MEETING_STATUS_KEYS = ['scheduled', 'completed', 'cancelled', 'no_show'] as const
+type MeetingStatusKey = typeof MEETING_STATUS_KEYS[number]
+
+// Duration options — values only; labels resolved at render via t('scheduler.durations.d15|d30|d45|d60')
+const DURATION_OPTIONS = [
+  { d: 15, recommended: false },
+  { d: 30, recommended: true  },
+  { d: 45, recommended: false },
+  { d: 60, recommended: false },
+] as const
+
+// Note: fmtDatetime uses 'en-US' locale hardcoded. This is documented tech debt
+// (locale-aware date/time formats will land in a dedicated future lot).
 function fmtDatetime(iso: string, tz?: string): string {
   const d        = new Date(iso)
   const tzOpts   = tz ? { timeZone: tz } : {}
@@ -46,6 +61,29 @@ function fmtDatetime(iso: string, tz?: string): string {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MeetingsPage() {
+  const t = useTranslations('dashboard.meetings')
+  const tHeader = useTranslations('dashboard.meetings.header')
+  const tBanner = useTranslations('dashboard.meetings.banner')
+  const tView = useTranslations('dashboard.meetings.view')
+  const tTabs = useTranslations('dashboard.meetings.tabs')
+  const tCalendar = useTranslations('dashboard.meetings.calendar')
+  const tList = useTranslations('dashboard.meetings.list')
+  const tStatuses = useTranslations('dashboard.meetings.statuses')
+  const tToasts = useTranslations('dashboard.meetings.toasts')
+  const tCreate = useTranslations('dashboard.meetings.createModal')
+  const tScheduler = useTranslations('dashboard.meetings.scheduler')
+  const tSchBookingUrl = useTranslations('dashboard.meetings.scheduler.bookingUrl')
+  const tSchEnable = useTranslations('dashboard.meetings.scheduler.enable')
+  const tSchTimezone = useTranslations('dashboard.meetings.scheduler.timezone')
+  const tSchAvailability = useTranslations('dashboard.meetings.scheduler.availability')
+  const tSchDuration = useTranslations('dashboard.meetings.scheduler.duration')
+  const tSchDurations = useTranslations('dashboard.meetings.scheduler.durations')
+  const tSchBuffer = useTranslations('dashboard.meetings.scheduler.buffer')
+  const tSchVideo = useTranslations('dashboard.meetings.scheduler.video')
+  const tSchWelcome = useTranslations('dashboard.meetings.scheduler.welcome')
+  const tWeekdaysShort = useTranslations('dashboard.common.weekdays.short')
+  const tCommon = useTranslations('dashboard.common')
+
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState<'upcoming'|'all'|'cancelled'>('upcoming')
@@ -121,7 +159,7 @@ export default function MeetingsPage() {
   }
 
   async function deleteMeeting(id: string) {
-    if (!confirm('Delete this meeting?')) return
+    if (!confirm(t('confirmDelete'))) return
     await fetch(`/api/meetings/${id}`, { method:'DELETE' })
     loadMeetings()
   }
@@ -135,7 +173,7 @@ export default function MeetingsPage() {
     const todayDate   = new Date().toLocaleDateString('en-CA')
     const isToday     = meetingDate === todayDate
     setToast({
-      msg: isToday ? 'Meeting created. Regenerate your Morning Brief to include it.' : 'Meeting created.',
+      msg: isToday ? tToasts('createdWithBrief') : tToasts('createdSimple'),
       showBriefLink: isToday,
     })
     setCForm({ title:'', meeting_at:'', duration_min:30, attendee_email:'', attendee_name:'', company_name:'', notes:'' })
@@ -149,7 +187,7 @@ export default function MeetingsPage() {
       body: JSON.stringify({ booking_slug: sSlug, booking_config: sCfg }),
     }).then(r => r.json())
     if (res.error) {
-      if (res.error.includes('taken')) setSlugErr('This URL is already taken.')
+      if (res.error.includes('taken')) setSlugErr(tSchBookingUrl('takenError'))
       else setSlugErr(res.error)
       setSaving(false); return
     }
@@ -187,18 +225,18 @@ export default function MeetingsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Meetings</h1>
-          <p className="text-sm text-[#8a7e6e]">Upcoming meetings and your booking page</p>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{tHeader('title')}</h1>
+          <p className="text-sm text-[#8a7e6e]">{tHeader('subtitle')}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setShowCreate(true)} className="bg-[#3b6bef] text-white px-3 py-2 rounded-lg text-sm font-medium">
-            + Create
+            + {tHeader('createBtn')}
           </button>
           <button onClick={copyLink} className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium">
-            🔗 {copied ? 'Copied!' : 'Copy link'}
+            🔗 {copied ? tHeader('copyLinkCopied') : tHeader('copyLink')}
           </button>
           <button onClick={() => setShowScheduler(true)} className="border border-[#3b6bef] text-[#3b6bef] px-3 py-2 rounded-lg text-sm font-medium">
-            ⚙ Scheduler settings
+            ⚙ {tHeader('schedulerSettings')}
           </button>
         </div>
       </div>
@@ -207,25 +245,25 @@ export default function MeetingsPage() {
       <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-5 flex items-center gap-3">
         <span className="text-xl flex-shrink-0">🔗</span>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-[#3b6bef] mb-0.5">Your booking link</p>
+          <p className="text-xs font-semibold text-[#3b6bef] mb-0.5">{tBanner('yourBookingLink')}</p>
           <p className="text-sm text-[#6b5e4e] truncate">{bookingLink}</p>
         </div>
         <button onClick={copyLink} className="bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex-shrink-0">
-          {copied ? '✓' : 'Copy'}
+          {copied ? '✓' : tBanner('copyBtn')}
         </button>
       </div>
 
       {/* Tabs + view toggle */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl">
-          <button onClick={() => setView('list')} className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (view==='list' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📋 List</button>
-          <button onClick={() => setView('calendar')} className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (view==='calendar' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📅 Calendar</button>
+          <button onClick={() => setView('list')} className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (view==='list' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📋 {tView('list')}</button>
+          <button onClick={() => setView('calendar')} className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (view==='calendar' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📅 {tView('calendar')}</button>
         </div>
         <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl">
-          {(['upcoming','all','cancelled'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={"px-3 py-1.5 rounded-lg text-sm font-medium capitalize " + (tab===t ? 'bg-white shadow-sm text-[#3b6bef] font-semibold' : 'text-[#8a7e6e]')}>
-              {t}
+          {(['upcoming','all','cancelled'] as const).map(tabKey => (
+            <button key={tabKey} onClick={() => setTab(tabKey)}
+              className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (tab===tabKey ? 'bg-white shadow-sm text-[#3b6bef] font-semibold' : 'text-[#8a7e6e]')}>
+              {tTabs(tabKey)}
             </button>
           ))}
         </div>
@@ -235,8 +273,8 @@ export default function MeetingsPage() {
       {view === 'calendar' && (
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center mb-5">
           <div className="text-3xl mb-2">📅</div>
-          <p className="font-medium text-[#1a1a2e]">Calendar view — coming soon</p>
-          <p className="text-sm text-[#8a7e6e] mt-1">Switch to List view to see your meetings.</p>
+          <p className="font-medium text-[#1a1a2e]">{tCalendar('soonTitle')}</p>
+          <p className="text-sm text-[#8a7e6e] mt-1">{tCalendar('soonSubtitle')}</p>
         </div>
       )}
 
@@ -249,29 +287,33 @@ export default function MeetingsPage() {
         ) : meetings.length === 0 ? (
           <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
             <div className="text-4xl mb-3">📅</div>
-            <p className="font-bold text-[#1a1a2e] mb-2">No {tab === 'upcoming' ? 'upcoming' : ''} meetings</p>
-            <p className="text-sm text-[#8a7e6e] mb-4">Share your booking link or create one manually.</p>
+            <p className="font-bold text-[#1a1a2e] mb-2">{tab === 'upcoming' ? tList('emptyTitleUpcoming') : tList('emptyTitleGeneric')}</p>
+            <p className="text-sm text-[#8a7e6e] mb-4">{tList('emptyDescription')}</p>
             <button onClick={copyLink} className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold">
-              {copied ? '✓ Copied!' : 'Copy booking link'}
+              {copied ? tList('emptyCtaCopied') : tList('emptyCta')}
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {meetings.map(m => (
+            {meetings.map(m => {
+              const statusLabel = (MEETING_STATUS_KEYS as readonly string[]).includes(m.status)
+                ? tStatuses(m.status)
+                : m.status
+              return (
               <div key={m.id} className="bg-white border border-[#e8e3dc] rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-semibold text-[#1a1a2e] text-sm">{m.title}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{m.status}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{statusLabel}</span>
                     </div>
-                    <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at, sCfg.timezone)} · {m.duration_min} min</p>
+                    <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at, sCfg.timezone)} · {t('durationMinutes', { count: m.duration_min })}</p>
                     {(m.attendee_name || m.attendee_email) && (
                       <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
                     )}
                     {m.notes && (
                       <div className="mt-2 pt-2 border-t border-[#f0ece6]">
-                        <p className="text-xs font-semibold text-[#8a7e6e] mb-0.5">📝 Prospect notes</p>
+                        <p className="text-xs font-semibold text-[#8a7e6e] mb-0.5">{tList('card.prospectNotesLabel')}</p>
                         <p className="text-xs text-[#6b5e4e] whitespace-pre-line">{m.notes}</p>
                       </div>
                     )}
@@ -280,16 +322,16 @@ export default function MeetingsPage() {
                     <a href={`/api/meetings/${m.id}/ics`} className="text-xs border border-[#e8e3dc] px-2 py-1 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee]">📅</a>
                     <select value={m.status} onChange={e => updateStatus(m.id, e.target.value)}
                       className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1 text-[#1a1a2e] bg-white focus:outline-none">
-                      <option value="scheduled">Scheduled</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="no_show">No-show</option>
+                      {(MEETING_STATUS_KEYS as readonly MeetingStatusKey[]).map(key => (
+                        <option key={key} value={key}>{tStatuses(key)}</option>
+                      ))}
                     </select>
                     <button onClick={() => deleteMeeting(m.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )
       )}
@@ -299,31 +341,31 @@ export default function MeetingsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-[#1a1a2e]">Create meeting</h2>
+              <h2 className="font-bold text-[#1a1a2e]">{tCreate('title')}</h2>
               <button onClick={() => setShowCreate(false)} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e]">✕</button>
             </div>
             <form onSubmit={createMeeting} className="flex flex-col gap-3">
               {createErr && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{createErr}</div>}
-              <input value={cForm.title} onChange={e=>setCForm({...cForm,title:e.target.value})} placeholder="Title" required
+              <input value={cForm.title} onChange={e=>setCForm({...cForm,title:e.target.value})} placeholder={tCreate('titlePlaceholder')} required
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
               <input type="datetime-local" value={cForm.meeting_at} onChange={e=>setCForm({...cForm,meeting_at:e.target.value})} required
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
               <select value={cForm.duration_min} onChange={e=>setCForm({...cForm,duration_min:Number(e.target.value)})}
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white">
-                {[15,30,45,60].map(d => <option key={d} value={d}>{d} minutes</option>)}
+                {[15,30,45,60].map(d => <option key={d} value={d}>{tCreate('durationOption', { count: d })}</option>)}
               </select>
-              <input type="email" value={cForm.attendee_email} onChange={e=>setCForm({...cForm,attendee_email:e.target.value})} placeholder="Attendee email" required
+              <input type="email" value={cForm.attendee_email} onChange={e=>setCForm({...cForm,attendee_email:e.target.value})} placeholder={tCreate('attendeeEmailPlaceholder')} required
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-              <input value={cForm.attendee_name} onChange={e=>setCForm({...cForm,attendee_name:e.target.value})} placeholder="Attendee name (optional)"
+              <input value={cForm.attendee_name} onChange={e=>setCForm({...cForm,attendee_name:e.target.value})} placeholder={tCreate('attendeeNamePlaceholder')}
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-              <input value={cForm.company_name} onChange={e=>setCForm({...cForm,company_name:e.target.value})} placeholder="Company (optional)"
+              <input value={cForm.company_name} onChange={e=>setCForm({...cForm,company_name:e.target.value})} placeholder={tCreate('companyPlaceholder')}
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-              <textarea value={cForm.notes} onChange={e=>setCForm({...cForm,notes:e.target.value})} rows={2} placeholder="Notes (optional)"
+              <textarea value={cForm.notes} onChange={e=>setCForm({...cForm,notes:e.target.value})} rows={2} placeholder={tCreate('notesPlaceholder')}
                 className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" />
               <div className="flex gap-2 mt-1">
-                <button type="button" onClick={() => setShowCreate(false)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">Cancel</button>
+                <button type="button" onClick={() => setShowCreate(false)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{tCommon('cancel')}</button>
                 <button type="submit" disabled={creating} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50">
-                  {creating ? 'Creating...' : 'Create meeting'}
+                  {creating ? tCreate('submitting') : tCreate('submitBtn')}
                 </button>
               </div>
             </form>
@@ -336,7 +378,7 @@ export default function MeetingsPage() {
         <div className="fixed top-4 right-4 z-50 bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-sm">
           <span className="text-sm text-[#1a1a2e] flex-1">{toast.msg}</span>
           {toast.showBriefLink && (
-            <Link href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline">Go to brief →</Link>
+            <Link href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline">{tToasts('briefLink')}</Link>
           )}
           <button onClick={() => setToast(null)} className="text-[#8a7e6e] hover:text-[#1a1a2e] flex-shrink-0 ml-1">✕</button>
         </div>
@@ -347,7 +389,7 @@ export default function MeetingsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8">
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#f0ece6]">
-              <h2 className="font-bold text-[#1a1a2e] text-lg">Scheduler settings</h2>
+              <h2 className="font-bold text-[#1a1a2e] text-lg">{tScheduler('title')}</h2>
               <button onClick={() => setShowScheduler(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-lg">✕</button>
             </div>
 
@@ -355,11 +397,11 @@ export default function MeetingsPage() {
 
               {/* Booking URL */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Your booking URL</label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchBookingUrl('label')}</label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-[#8a7e6e] whitespace-nowrap">{appUrl}/book/</span>
                   <input value={sSlug} onChange={e => { setSSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,'')); setSlugErr('') }}
-                    maxLength={30} placeholder="your-name"
+                    maxLength={30} placeholder={tSchBookingUrl('placeholder')}
                     className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
                 </div>
                 {slugErr && <p className="text-xs text-red-500 mt-1">{slugErr}</p>}
@@ -368,8 +410,8 @@ export default function MeetingsPage() {
               {/* Enable toggle */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#1a1a2e]">Enable booking page</p>
-                  <p className="text-xs text-[#8a7e6e]">Prospects can book meetings via your public link</p>
+                  <p className="text-sm font-semibold text-[#1a1a2e]">{tSchEnable('label')}</p>
+                  <p className="text-xs text-[#8a7e6e]">{tSchEnable('description')}</p>
                 </div>
                 <button onClick={() => setSCfg({...sCfg, enabled: !sCfg.enabled})}
                   className={`relative w-11 h-6 rounded-full transition-colors ${sCfg.enabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
@@ -379,7 +421,7 @@ export default function MeetingsPage() {
 
               {/* Timezone */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Timezone</label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchTimezone('label')}</label>
                 <select value={sCfg.timezone} onChange={e => setSCfg({...sCfg, timezone: e.target.value})}
                   className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white">
                   {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
@@ -388,7 +430,7 @@ export default function MeetingsPage() {
 
               {/* Availability windows */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-3">Availability</label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-3">{tSchAvailability('label')}</label>
                 <div className="flex flex-col gap-3">
                   {DAYS_ORDER.map(day => {
                     const wins = sCfg.availability_windows[day] ?? []
@@ -400,11 +442,11 @@ export default function MeetingsPage() {
                             className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
                             <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
                           </button>
-                          <span className="text-sm text-[#1a1a2e]">{DAY_LABELS[day].slice(0,3)}</span>
+                          <span className="text-sm text-[#1a1a2e]">{tWeekdaysShort(day)}</span>
                         </div>
                         <div className="flex-1">
                           {!on ? (
-                            <span className="text-sm text-[#8a7e6e] pt-1.5 block">Unavailable</span>
+                            <span className="text-sm text-[#8a7e6e] pt-1.5 block">{tSchAvailability('unavailable')}</span>
                           ) : (
                             <div className="flex flex-col gap-2">
                               {wins.map((w, i) => (
@@ -419,7 +461,7 @@ export default function MeetingsPage() {
                                   )}
                                 </div>
                               ))}
-                              <button onClick={() => addWindow(day)} className="text-xs text-[#3b6bef] text-left">+ Add window</button>
+                              <button onClick={() => addWindow(day)} className="text-xs text-[#3b6bef] text-left">{tSchAvailability('addWindow')}</button>
                             </div>
                           )}
                         </div>
@@ -431,25 +473,21 @@ export default function MeetingsPage() {
 
               {/* Meeting duration */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Meeting duration</label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchDuration('label')}</label>
                 <div className="flex flex-col gap-2">
-                  {([
-                    { d: 15, label: 'Quick discovery',  recommended: false },
-                    { d: 30, label: 'Standard call',    recommended: true  },
-                    { d: 45, label: 'Deep dive',        recommended: false },
-                    { d: 60, label: 'Strategy session', recommended: false },
-                  ] as const).map(({ d, label, recommended }) => {
+                  {DURATION_OPTIONS.map(({ d, recommended }) => {
                     const selected = sCfg.meeting_durations[0] === d
+                    const durationKey = ('d' + d) as 'd15' | 'd30' | 'd45' | 'd60'
                     return (
                       <button key={d} onClick={() => setDuration(d)}
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors text-left ${selected ? 'border-[#3b6bef] bg-[#3b6bef]/5' : 'border-[#e8e3dc] hover:border-[#c8d4e8]'}`}>
                         <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${selected ? 'border-[#3b6bef]' : 'border-[#c8d4e8]'}`}>
                           {selected && <span className="w-2 h-2 rounded-full bg-[#3b6bef]" />}
                         </span>
-                        <span className={`font-medium ${selected ? 'text-[#3b6bef]' : 'text-[#1a1a2e]'}`}>{d} min</span>
-                        <span className={`${selected ? 'text-[#6b8ef5]' : 'text-[#8a7e6e]'}`}>— {label}</span>
+                        <span className={`font-medium ${selected ? 'text-[#3b6bef]' : 'text-[#1a1a2e]'}`}>{t('durationMinutes', { count: d })}</span>
+                        <span className={`${selected ? 'text-[#6b8ef5]' : 'text-[#8a7e6e]'}`}>— {tSchDurations(durationKey)}</span>
                         {recommended && !selected && (
-                          <span className="ml-auto text-xs text-[#8a7e6e] border border-[#e8e3dc] rounded px-1.5 py-0.5">recommended</span>
+                          <span className="ml-auto text-xs text-[#8a7e6e] border border-[#e8e3dc] rounded px-1.5 py-0.5">{tSchDuration('recommended')}</span>
                         )}
                       </button>
                     )
@@ -459,39 +497,39 @@ export default function MeetingsPage() {
 
               {/* Buffer */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Buffer between meetings</label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchBuffer('label')}</label>
                 <select value={sCfg.buffer_minutes} onChange={e => setSCfg({...sCfg, buffer_minutes: Number(e.target.value)})}
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white">
-                  {[0,5,10,15,30,60].map(n => <option key={n} value={n}>{n === 0 ? 'No buffer' : `${n} min`}</option>)}
+                  {[0,5,10,15,30,60].map(n => <option key={n} value={n}>{n === 0 ? tSchBuffer('none') : t('durationMinutes', { count: n })}</option>)}
                 </select>
               </div>
 
               {/* Video meeting URL */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Video meeting link <span className="font-normal text-[#8a7e6e]">(optional)</span></label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchVideo('label')} <span className="font-normal text-[#8a7e6e]">{tSchVideo('optional')}</span></label>
                 <input value={sCfg.video_meeting_url ?? ''} onChange={e => setSCfg({...sCfg, video_meeting_url: e.target.value || null})}
-                  placeholder="https://meet.google.com/xxx-yyy-zzz"
+                  placeholder={tSchVideo('placeholder')}
                   className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
               </div>
 
               {/* Welcome message */}
               <div>
-                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">Welcome message <span className="font-normal text-[#8a7e6e]">(optional)</span></label>
+                <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchWelcome('label')} <span className="font-normal text-[#8a7e6e]">{tSchWelcome('optional')}</span></label>
                 <textarea value={sCfg.welcome_message ?? ''} onChange={e => setSCfg({...sCfg, welcome_message: e.target.value || null})}
-                  rows={2} placeholder="Looking forward to connecting!"
+                  rows={2} placeholder={tSchWelcome('placeholder')}
                   className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" />
               </div>
             </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#f0ece6]">
-              {saved && <span className="text-sm text-green-600 font-medium">✓ Saved</span>}
+              {saved && <span className="text-sm text-green-600 font-medium">{tScheduler('saved')}</span>}
               {!saved && <span />}
               <div className="flex gap-2">
-                <button onClick={() => setShowScheduler(false)} className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm">Cancel</button>
+                <button onClick={() => setShowScheduler(false)} className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm">{tCommon('cancel')}</button>
                 <button onClick={saveScheduler} disabled={saving || !sSlug}
                   className="bg-[#1a1a2e] text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save settings'}
+                  {saving ? tCommon('saving') : tScheduler('save')}
                 </button>
               </div>
             </div>
