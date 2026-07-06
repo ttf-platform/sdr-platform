@@ -568,22 +568,22 @@
       "saving": "Enregistrement…",
       "weekdays": {
         "short": {
-          "monday": "Mon",
-          "tuesday": "Tue",
-          "wednesday": "Wed",
-          "thursday": "Thu",
-          "friday": "Fri",
-          "saturday": "Sat",
-          "sunday": "Sun"
+          "monday": "Lun",
+          "tuesday": "Mar",
+          "wednesday": "Mer",
+          "thursday": "Jeu",
+          "friday": "Ven",
+          "saturday": "Sam",
+          "sunday": "Dim"
         },
         "full": {
-          "monday": "Monday",
-          "tuesday": "Tuesday",
-          "wednesday": "Wednesday",
-          "thursday": "Thursday",
-          "friday": "Friday",
-          "saturday": "Saturday",
-          "sunday": "Sunday"
+          "monday": "lundi",
+          "tuesday": "mardi",
+          "wednesday": "mercredi",
+          "thursday": "jeudi",
+          "friday": "vendredi",
+          "saturday": "samedi",
+          "sunday": "dimanche"
         }
       }
     },
