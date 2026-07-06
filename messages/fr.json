@@ -1509,6 +1509,100 @@
         "saved": "✓ Enregistré",
         "save": "Enregistrer les réglages"
       }
+    },
+    "billing": {
+      "loading": "Loading...",
+      "redirecting": "Redirecting...",
+      "header": {
+        "title": "Billing",
+        "subtitle": "Manage your plan, usage, and payment"
+      },
+      "banners": {
+        "checkoutSuccess": "✓ Subscription activated! Welcome to Mirvo.",
+        "checkoutCancel": "Checkout cancelled. Your trial is still active."
+      },
+      "sectionLabels": {
+        "currentPlan": "CURRENT PLAN",
+        "usage": "USAGE",
+        "plans": "PLANS",
+        "overage": "OVERAGE",
+        "promoCode": "PROMO CODE"
+      },
+      "currentPlan": {
+        "trialDaysLeft": "{count, plural, one {# day left in trial} other {# days left in trial}}",
+        "trialEndsSoon": "⚠ Trial ends soon — add a payment method to continue.",
+        "accessBlocked": "Your access is restricted. Upgrade to restore full access.",
+        "managePortal": "Manage subscription →",
+        "openingPortal": "Opening...",
+        "addPaymentMethod": "Add payment method →"
+      },
+      "statuses": {
+        "trialing": "Free Trial",
+        "active": "Active",
+        "past_due": "Payment due",
+        "canceled": "Canceled",
+        "expired": "Expired"
+      },
+      "plans": {
+        "intervalMonthly": "Monthly",
+        "intervalYearly": "Yearly",
+        "yearlyDiscount": "−20%",
+        "currentBadge": "Current",
+        "inheritsFrom": "Everything in {previousPlan}, plus:",
+        "button": {
+          "addPaymentMethod": "Add payment method",
+          "reactivate": "Reactivate {planName}",
+          "upgradeTo": "Upgrade to {planName}",
+          "downgradeTo": "Downgrade to {planName}",
+          "currentPlan": "Current plan",
+          "changing": "Changing..."
+        },
+        "features": {
+          "starter": {
+            "0": "100 prospects/mo",
+            "1": "500 enrichments/mo",
+            "2": "1 inbox",
+            "3": "Booking page",
+            "4": "Morning Brief"
+          },
+          "pro": {
+            "0": "250 prospects/mo",
+            "1": "1,000 enrichments/mo",
+            "2": "2 inboxes",
+            "3": "Advanced AI",
+            "4": "Morning Brief Mode B",
+            "5": "Priority support"
+          },
+          "power": {
+            "0": "500 prospects/mo",
+            "1": "2,000 enrichments/mo",
+            "2": "3 inboxes",
+            "3": "Premium AI + caching",
+            "4": "Full pipeline + analytics"
+          }
+        }
+      },
+      "overage": {
+        "title": "Enable enrichment overage",
+        "description": "$0.50 per enrichment above your monthly cap. Billed at end of month.",
+        "activeWarning": "⚠ Overage is active — additional charges may apply.",
+        "overCap": "{count, plural, one {# enrichment over cap} other {# enrichments over cap}}",
+        "autoCharged": " · auto-charged {amount}"
+      },
+      "promo": {
+        "placeholder": "e.g. LAUNCH50",
+        "apply": "Apply",
+        "applying": "Applying...",
+        "footerNote": "Applied to your next renewal invoice.",
+        "unknownError": "Unknown error"
+      },
+      "toasts": {
+        "checkoutFailed": "Checkout failed",
+        "alreadyOnPlan": "Already on this plan.",
+        "planChanged": "Plan changed. Your billing will update shortly.",
+        "changePlanFailed": "Failed to change plan.",
+        "portalError": "Portal error"
+      }
     }
   }
 }
