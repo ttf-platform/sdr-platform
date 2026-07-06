@@ -902,8 +902,8 @@
         "actions": {
           "icpSettings": "ICP Settings",
           "findProspects": "Find Prospects",
-          "findProspectsSoon": "Soon",
-          "findProspectsTooltip": "AI prospect discovery — Sprint 9",
+          "findProspectsSoon": "",
+          "findProspectsTooltip": "Find new prospects matching your ICP with AI",
           "pasteList": "Paste list",
           "addManually": "Add manually",
           "export": "Export",
