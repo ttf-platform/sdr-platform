@@ -1035,55 +1035,55 @@
     "campaigns": {
       "list": {
         "header": {
-          "title": "Campaigns",
-          "subtitle": "Build and manage your outbound sequences",
-          "sendingPreferences": "Sending Preferences",
-          "newCampaign": "New Campaign"
+          "title": "Campagnes",
+          "subtitle": "Créez et gérez vos séquences de prospection",
+          "sendingPreferences": "Préférences d'envoi",
+          "newCampaign": "Nouvelle campagne"
         },
         "tabs": {
-          "myCampaigns": "My Campaigns",
-          "aiSuggestions": "AI Suggestions"
+          "myCampaigns": "Mes campagnes",
+          "aiSuggestions": "Suggestions IA"
         },
-        "loading": "Loading campaigns…",
+        "loading": "Chargement des campagnes…",
         "emptyState": {
-          "title": "Your first campaign",
-          "description": "Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today from your connected mailbox.",
-          "configureIcp": "<link>Configure your ICP first</link> for higher-quality personalization"
+          "title": "Votre première campagne",
+          "description": "Mirvo IA génère une séquence d'e-mails personnalisée en plusieurs étapes pour chaque prospect, adaptée à votre ICP et aux correspondances de vos signaux. Envoi le jour même depuis votre boîte de réception connectée.",
+          "configureIcp": "<link>Configurez d'abord votre ICP</link> pour une personnalisation de meilleure qualité"
         },
         "card": {
-          "demo": "Demo",
-          "optionsAriaLabel": "Campaign options",
-          "open": "Open",
-          "openArrow": "Open →",
+          "demo": "Démo",
+          "optionsAriaLabel": "Options de la campagne",
+          "open": "Ouvrir",
+          "openArrow": "Ouvrir →",
           "columns": {
             "prospects": "PROSPECTS",
-            "sent": "SENT",
-            "replies": "REPLIES",
-            "meetings": "MEETINGS"
+            "sent": "ENVOYÉS",
+            "replies": "RÉPONSES",
+            "meetings": "RENDEZ-VOUS"
           }
         },
         "statuses": {
-          "draft": "Draft",
+          "draft": "Brouillon",
           "active": "Active",
-          "paused": "Paused",
-          "completed": "Completed",
-          "archived": "Archived"
+          "paused": "En pause",
+          "completed": "Terminée",
+          "archived": "Archivée"
         },
         "suggestions": {
-          "title": "AI-Suggested Campaigns",
-          "subtitle": "Mirvo analyzes your ICP and product to suggest high-converting campaign strategies.",
-          "refresh": "Refresh suggestions",
-          "analyzingTitle": "Analyzing your product and ICP…",
-          "analyzingSubtitle": "Generating strategic campaign ideas — up to 30 seconds",
-          "emptyTitle": "No suggestions yet",
-          "emptyDescription": "Complete your workspace profile (product, ICP) then generate AI campaign ideas.",
-          "generateButton": "Generate suggestions",
-          "cardBadge": "AI Suggestion",
-          "cardLaunch": "Launch Campaign"
+          "title": "Campagnes suggérées par l'IA",
+          "subtitle": "Mirvo analyse votre ICP et votre produit pour suggérer des stratégies de campagne à fort potentiel de conversion.",
+          "refresh": "Actualiser les suggestions",
+          "analyzingTitle": "Analyse de votre produit et de votre ICP…",
+          "analyzingSubtitle": "Génération d'idées de campagnes stratégiques, jusqu'à 30 secondes",
+          "emptyTitle": "Aucune suggestion pour l'instant",
+          "emptyDescription": "Complétez le profil de votre workspace (produit, ICP), puis générez des idées de campagnes par IA.",
+          "generateButton": "Générer des suggestions",
+          "cardBadge": "Suggestion IA",
+          "cardLaunch": "Lancer la campagne"
         },
         "deleteModal": {
-          "title": "Delete campaign?",
-          "body": "<strong>{name}</strong> and all its steps will be permanently deleted. This cannot be undone."
+          "title": "Supprimer la campagne ?",
+          "body": "<strong>{name}</strong> et toutes ses étapes seront définitivement supprimés. Cette action est irréversible."
         }
       }
     }
