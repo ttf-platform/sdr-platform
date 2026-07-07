@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { calculateProfileScore } from '@/lib/profile-quality'
@@ -14,6 +15,8 @@ function parseBriefDate(dateStr: string): Date {
   return new Date(y, m - 1, d)
 }
 
+// Locale-aware date/number formats are out of scope for this lot — the
+// 'en-US' locale stays hardcoded here (registered as a follow-up).
 function fmtBriefDate(dateStr: string): string {
   if (!dateStr) return ''
   try {
@@ -32,6 +35,8 @@ function fmtBriefDateShort(dateStr: string): string {
   } catch { return dateStr }
 }
 
+// PriorityBadge renders AI-generated priority values (HIGH/MED/LOW) — data,
+// not chrome. Deliberately NOT translated per methodology.
 function PriorityBadge({ priority }: { priority: string }) {
   const styles: Record<string, string> = {
     HIGH: 'bg-red-50 text-red-600',
@@ -46,6 +51,8 @@ function PriorityBadge({ priority }: { priority: string }) {
 }
 
 function RichBrief({ content }: { content: any }) {
+  const t = useTranslations('dashboard.morningBrief')
+  const tRich = useTranslations('dashboard.morningBrief.rich')
   const trends: any[]      = content.market_trends        ?? []
   const landscape: any[]   = content.competitive_landscape ?? []
   const campaigns: any[]   = content.campaign_ideas        ?? []
@@ -56,10 +63,10 @@ function RichBrief({ content }: { content: any }) {
       {/* ── Hero ── */}
       <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-xl px-6 py-8 text-center text-white">
         <div className="text-4xl mb-3">☕</div>
-        <h2 className="text-2xl font-bold mb-1">Morning Coffee Brief</h2>
+        <h2 className="text-2xl font-bold mb-1">{t('heroTitle')}</h2>
         <p className="text-emerald-100 text-sm mb-4">{fmtBriefDate(content.date)}</p>
         <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-          📊 Market Intelligence Day
+          {tRich('marketIntelBadge')}
         </span>
       </div>
 
@@ -76,7 +83,7 @@ function RichBrief({ content }: { content: any }) {
       {/* ── Today's Focus ── */}
       {content.today_focus && (
         <div className="bg-[#f4f1fb] border-l-4 border-[#8b5cf6] rounded-r-xl px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5cf6] mb-1.5">⚡ Today&apos;s Focus</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5cf6] mb-1.5">{tRich('todaysFocus')}</p>
           <p className="text-sm font-semibold text-[#1a1a2e] mb-1">{content.today_focus.title}</p>
           {content.today_focus.rationale && (
             <p className="text-xs text-[#6b5e8e]">{content.today_focus.rationale}</p>
@@ -87,15 +94,15 @@ function RichBrief({ content }: { content: any }) {
       {/* ── Market Trends ── */}
       {trends.length > 0 && (
         <div>
-          <h3 className="text-base font-bold text-[#1a1a2e] mb-3">📈 Market Trends</h3>
+          <h3 className="text-base font-bold text-[#1a1a2e] mb-3">{tRich('marketTrends')}</h3>
           <div className="flex flex-col gap-3">
-            {trends.map((t, i) => (
+            {trends.map((t_, i) => (
               <div key={i} className="bg-white border border-[#e8e3dc] rounded-xl p-5">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <p className="font-semibold text-sm text-[#1a1a2e] leading-tight">{t.title}</p>
-                  <PriorityBadge priority={t.priority} />
+                  <p className="font-semibold text-sm text-[#1a1a2e] leading-tight">{t_.title}</p>
+                  <PriorityBadge priority={t_.priority} />
                 </div>
-                <p className="text-sm text-[#4a4a5a] leading-relaxed">{t.content}</p>
+                <p className="text-sm text-[#4a4a5a] leading-relaxed">{t_.content}</p>
               </div>
             ))}
           </div>
@@ -105,7 +112,7 @@ function RichBrief({ content }: { content: any }) {
       {/* ── Competitive Landscape ── */}
       {landscape.length > 0 && (
         <div>
-          <h3 className="text-base font-bold text-[#1a1a2e] mb-3">🎯 Competitive Landscape</h3>
+          <h3 className="text-base font-bold text-[#1a1a2e] mb-3">{tRich('competitiveLandscape')}</h3>
           <div className="flex flex-col gap-3">
             {landscape.map((c, i) => (
               <div key={i} className="bg-green-50 border border-green-200 rounded-xl p-5">
@@ -123,19 +130,19 @@ function RichBrief({ content }: { content: any }) {
       {/* ── Campaign Ideas ── */}
       {campaigns.length > 0 && (
         <div>
-          <h3 className="text-base font-bold text-[#1a1a2e] mb-0.5">🚀 Campaign Ideas</h3>
-          <p className="text-xs text-[#8a7e6e] mb-3">AI-generated based on your ICP and current market signals</p>
+          <h3 className="text-base font-bold text-[#1a1a2e] mb-0.5">{tRich('campaignIdeas')}</h3>
+          <p className="text-xs text-[#8a7e6e] mb-3">{tRich('campaignIdeasSubtitle')}</p>
           <div className="flex flex-col gap-4">
             {campaigns.map((idea, i) => {
               return (
                 <div key={i} className="bg-white border border-[#e8e3dc] rounded-xl p-5">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#8b5cf6]">
-                      Campaign Idea {i + 1}
+                      {tRich('campaignIdeaLabel', { n: i + 1 })}
                     </p>
                     {idea.estimated_contacts && (
                       <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                        ~{idea.estimated_contacts} contacts
+                        {tRich('contactsEstimate', { count: idea.estimated_contacts })}
                       </span>
                     )}
                   </div>
@@ -143,23 +150,23 @@ function RichBrief({ content }: { content: any }) {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">Target Persona</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">{tRich('targetPersona')}</p>
                       <p className="text-sm text-[#1a1a2e]">{idea.target_persona}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">Angle</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">{tRich('angle')}</p>
                       <p className="text-sm text-[#1a1a2e]">{idea.angle}</p>
                     </div>
                   </div>
 
                   <div className="bg-[#f8fafc] rounded-lg px-4 py-3 mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">Why Now?</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-1">{tRich('whyNow')}</p>
                     <p className="text-sm text-[#1a1a2e]">{idea.why_now}</p>
                   </div>
 
                   <Link href="/dashboard/campaigns"
                     className="block w-full text-center bg-[#3b6bef] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#2d57d4] transition-colors">
-                    → Launch this campaign
+                    {tRich('launchCampaign')}
                   </Link>
                 </div>
               )
@@ -169,12 +176,14 @@ function RichBrief({ content }: { content: any }) {
       )}
 
       {/* ── Footer ── */}
-      <p className="text-center text-xs text-[#b0a898] pb-2">Generated by Mirvo · Powered by AI</p>
+      <p className="text-center text-xs text-[#b0a898] pb-2">{t('footer')}</p>
     </div>
   )
 }
 
 function MeetingsBrief({ content }: { content: any }) {
+  const t = useTranslations('dashboard.morningBrief')
+  const tMeetings = useTranslations('dashboard.morningBrief.meetings')
   const meetings: any[]     = content.meetings           ?? []
   const trendsBrief: any[]  = content.market_trends_brief ?? []
 
@@ -193,10 +202,10 @@ function MeetingsBrief({ content }: { content: any }) {
       {/* ── Hero ── */}
       <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl px-6 py-8 text-center text-white">
         <div className="text-4xl mb-3">📋</div>
-        <h2 className="text-2xl font-bold mb-1">Morning Coffee Brief</h2>
+        <h2 className="text-2xl font-bold mb-1">{t('heroTitle')}</h2>
         <p className="text-blue-100 text-sm mb-4">{fmtBriefDate(content.date)}</p>
         <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-          📋 Meetings Day
+          {tMeetings('badge')}
         </span>
       </div>
 
@@ -217,15 +226,15 @@ function MeetingsBrief({ content }: { content: any }) {
           <div className="bg-blue-50 border-b border-blue-100 px-5 py-4 flex items-start justify-between gap-4">
             <div>
               <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
-                {fmtMeetingTime(m.meeting_at, m.duration_min)} · {m.duration_min} min
+                {fmtMeetingTime(m.meeting_at, m.duration_min)} · {tMeetings('durationMinutes', { count: m.duration_min })}
               </div>
               <div className="font-bold text-[#1a1a2e] text-base">
-                {m.attendee_name || 'Unknown'}
+                {m.attendee_name || tMeetings('attendeeUnknown')}
               </div>
               <div className="text-sm text-[#6b5e4e]">{m.company_name || m.attendee_email}</div>
             </div>
             <span className="text-xs text-[#8a7e6e] bg-white border border-[#e8e3dc] px-2.5 py-1 rounded-full whitespace-nowrap">
-              Meeting {i + 1}
+              {tMeetings('meetingLabel', { n: i + 1 })}
             </span>
           </div>
 
@@ -233,7 +242,7 @@ function MeetingsBrief({ content }: { content: any }) {
             {/* Company overview */}
             {m.company_overview && (
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">🏢 Company Overview</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">{tMeetings('companyOverview')}</p>
                 <p className="text-sm text-[#1a1a2e] leading-relaxed">{m.company_overview}</p>
               </div>
             )}
@@ -241,7 +250,7 @@ function MeetingsBrief({ content }: { content: any }) {
             {/* Likely pain points */}
             {m.likely_pain_points?.length > 0 && (
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">🎯 Likely Pain Points</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">{tMeetings('likelyPainPoints')}</p>
                 <ul className="flex flex-col gap-1.5">
                   {m.likely_pain_points.map((pt: string, j: number) => (
                     <li key={j} className="flex items-start gap-2 text-sm text-[#1a1a2e]">
@@ -256,7 +265,7 @@ function MeetingsBrief({ content }: { content: any }) {
             {/* Talking points */}
             {m.talking_points?.length > 0 && (
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">💬 Talking Points</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">{tMeetings('talkingPoints')}</p>
                 <ul className="flex flex-col gap-1.5">
                   {m.talking_points.map((pt: string, j: number) => (
                     <li key={j} className="flex items-start gap-2 text-sm text-[#1a1a2e]">
@@ -271,7 +280,7 @@ function MeetingsBrief({ content }: { content: any }) {
             {/* Discovery questions */}
             {m.discovery_questions?.length > 0 && (
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">❓ Discovery Questions</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7e6e] mb-2">{tMeetings('discoveryQuestions')}</p>
                 <ul className="flex flex-col gap-1.5">
                   {m.discovery_questions.map((q: string, j: number) => (
                     <li key={j} className="flex items-start gap-2 text-sm text-[#1a1a2e]">
@@ -287,27 +296,28 @@ function MeetingsBrief({ content }: { content: any }) {
       ))}
 
       {/* ── Quick market signal ── */}
-      {trendsBrief.map((t, i) => (
+      {trendsBrief.map((t_, i) => (
         <div key={i} className="bg-[#f8fafc] border border-[#e8e3dc] rounded-xl px-5 py-3 flex items-start gap-3">
           <span className="text-base flex-shrink-0">💡</span>
           <div>
-            <span className="text-xs font-semibold text-[#6b5e4e]">Quick market signal: </span>
-            <span className="text-sm text-[#4a4a5a]">{t.title} — {t.content}</span>
+            <span className="text-xs font-semibold text-[#6b5e4e]">{tMeetings('quickMarketSignal')}</span>
+            <span className="text-sm text-[#4a4a5a]">{t_.title} — {t_.content}</span>
           </div>
         </div>
       ))}
 
       {/* ── Footer ── */}
-      <p className="text-center text-xs text-[#b0a898] pb-2">Generated by Mirvo · Powered by AI</p>
+      <p className="text-center text-xs text-[#b0a898] pb-2">{t('footer')}</p>
     </div>
   )
 }
 
 function LegacyBrief({ content }: { content: any }) {
+  const tLegacy = useTranslations('dashboard.morningBrief.legacy')
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-gradient-to-r from-[#3b6bef] to-[#8b5cf6] px-5 py-4 rounded-xl">
-        <div className="text-white font-bold text-lg">☕ Morning Coffee Brief</div>
+        <div className="text-white font-bold text-lg">{tLegacy('heroTitle')}</div>
       </div>
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
         {content?.sections?.map((s: any, i: number) => (
@@ -324,6 +334,15 @@ function LegacyBrief({ content }: { content: any }) {
 const MIN_PROFILE_SCORE = 30
 
 export default function MorningBriefPage() {
+  const tHeader = useTranslations('dashboard.morningBrief.header')
+  const tBtn = useTranslations('dashboard.morningBrief.headerBtn')
+  const tDelivery = useTranslations('dashboard.morningBrief.delivery')
+  const tGating = useTranslations('dashboard.morningBrief.gating')
+  const tEmpty = useTranslations('dashboard.morningBrief.empty')
+  const tErrors = useTranslations('dashboard.morningBrief.errors')
+  const tArchive = useTranslations('dashboard.morningBrief.archive')
+  const tArchiveBadge = useTranslations('dashboard.morningBrief.archive.badge')
+
   const [briefs, setBriefs]           = useState<any[]>([])
   const [selected, setSelected]       = useState<any>(null)
   const [generating, setGenerating]   = useState(false)
@@ -384,13 +403,13 @@ export default function MorningBriefPage() {
   const todayBrief    = todayStr ? (briefs.find(b => b.brief_date === todayStr) ?? null) : null
   const briefOutdated = todayMeetingsMeta.count > 0 && (!todayBrief || (todayMeetingsMeta.latestAt !== null && todayBrief.created_at < todayMeetingsMeta.latestAt))
 
-  const headerBtnLabel = generating ? 'Generating…'
-    : briefOutdated   ? '⟳ Regenerate with new meeting'
-    : todayBrief      ? '⟳ Regenerate today\'s brief'
-    : 'Generate today\'s brief'
-  const emptyBtnLabel = generating ? 'Generating…'
-    : todayMeetingsMeta.count > 0  ? 'Generate today\'s brief'
-    : 'Generate first brief'
+  const headerBtnLabel = generating ? tBtn('generating')
+    : briefOutdated   ? tBtn('regenerateWithNewMeeting')
+    : todayBrief      ? tBtn('regenerateTodaysBrief')
+    : tBtn('generateTodaysBrief')
+  const emptyBtnLabel = generating ? tBtn('generating')
+    : todayMeetingsMeta.count > 0  ? tBtn('generateTodaysBrief')
+    : tBtn('generateFirstBrief')
 
   async function generateBrief() {
     if (!workspaceId || profileGated) return
@@ -407,10 +426,10 @@ export default function MorningBriefPage() {
         setBriefs(prev => [res.brief, ...prev])
         setSelected(res.brief)
       } else {
-        setGenerateError(res.error ?? 'Unable to generate brief. Please try again.')
+        setGenerateError(res.error ?? tErrors('generateFailed'))
       }
     } catch {
-      setGenerateError('Network error. Please check your connection and try again.')
+      setGenerateError(tErrors('network'))
     } finally {
       setGenerating(false)
     }
@@ -427,8 +446,8 @@ export default function MorningBriefPage() {
       )}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a2e]">Morning Brief</h1>
-          <p className="text-sm text-[#8a7e6e]">Your daily AI-powered outbound intelligence</p>
+          <h1 className="text-2xl font-bold text-[#1a1a2e]">{tHeader('title')}</h1>
+          <p className="text-sm text-[#8a7e6e]">{tHeader('subtitle')}</p>
         </div>
         {briefs.length > 0 && (
           <div className="flex flex-col items-end gap-1">
@@ -438,7 +457,7 @@ export default function MorningBriefPage() {
             </button>
             {briefOutdated && !generating && (
               <p className="text-xs text-blue-600">
-                ℹ️ {todayMeetingsMeta.count} meeting{todayMeetingsMeta.count !== 1 ? 's' : ''} today since your last brief
+                ℹ️ {tBtn('meetingsBanner', { count: todayMeetingsMeta.count })}
               </p>
             )}
           </div>
@@ -449,13 +468,13 @@ export default function MorningBriefPage() {
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-5">
         <div className="flex items-center gap-2 mb-1">
           <span>☕</span>
-          <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">Morning Coffee Brief</div>
+          <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">{tDelivery('label')}</div>
         </div>
-        <p className="text-xs text-[#8a7e6e] mb-4">Receive a daily AI-researched email with meeting prep or market intelligence.</p>
+        <p className="text-xs text-[#8a7e6e] mb-4">{tDelivery('description')}</p>
         <div className="flex items-center justify-between mb-4 p-3 border border-[#e8e3dc] rounded-xl">
           <div>
-            <div className="text-sm font-semibold text-[#1a1a2e]">Enable Morning Brief</div>
-            <div className="text-xs text-[#8a7e6e]">Daily AI brief delivered to your inbox each weekday</div>
+            <div className="text-sm font-semibold text-[#1a1a2e]">{tDelivery('enableTitle')}</div>
+            <div className="text-xs text-[#8a7e6e]">{tDelivery('enableSubtitle')}</div>
           </div>
           <button onClick={() => setBriefEnabled(!briefEnabled)}
             className={`w-11 h-6 rounded-full transition-colors relative ${briefEnabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
@@ -463,19 +482,19 @@ export default function MorningBriefPage() {
           </button>
         </div>
         <div className="mb-4">
-          <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">Delivery Time</label>
+          <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">{tDelivery('timeLabel')}</label>
           <input type="time" value={briefTime} onChange={e => setBriefTime(e.target.value)}
             className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
-          <p className="text-xs text-[#b0a898] mt-1">Timezone set in <Link href="/dashboard/settings" className="text-[#3b6bef] hover:underline">Settings → Company</Link></p>
+          <p className="text-xs text-[#b0a898] mt-1">{tDelivery('timezoneNote')} <Link href="/dashboard/settings" className="text-[#3b6bef] hover:underline">{tDelivery('timezoneLink')}</Link></p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-[#f7f4f0] rounded-xl p-3">
-            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">📅 Meeting Days</div>
-            <div className="text-xs text-[#8a7e6e]">AI-researched prospect profiles, talking points & discovery questions</div>
+            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">{tDelivery('meetingDaysTitle')}</div>
+            <div className="text-xs text-[#8a7e6e]">{tDelivery('meetingDaysDescription')}</div>
           </div>
           <div className="bg-[#f7f4f0] rounded-xl p-3">
-            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">📊 No-Meeting Days</div>
-            <div className="text-xs text-[#8a7e6e]">Market trends, competitor intel & 3 new campaign suggestions</div>
+            <div className="text-sm font-semibold text-[#1a1a2e] mb-1">{tDelivery('noMeetingDaysTitle')}</div>
+            <div className="text-xs text-[#8a7e6e]">{tDelivery('noMeetingDaysDescription')}</div>
           </div>
         </div>
       </div>
@@ -483,22 +502,22 @@ export default function MorningBriefPage() {
       {/* ── Profile gating banner ── */}
       {profileLoaded && profileGated && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm text-amber-800">
-          Add a more detailed company description to unlock Morning Brief —{' '}
-          <Link href="/dashboard/settings" className="font-semibold underline">Edit profile</Link>
+          {tGating('message')}{' '}
+          <Link href="/dashboard/settings" className="font-semibold underline">{tGating('editLink')}</Link>
         </div>
       )}
 
       {briefs.length === 0 ? (
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
           <div className="text-4xl mb-3">☕</div>
-          <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">No briefs yet</h2>
-          <p className="text-sm text-[#8a7e6e] mb-5">Generate your first morning brief to get AI-powered market insights and campaign ideas tailored to your ICP.</p>
+          <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{tEmpty('title')}</h2>
+          <p className="text-sm text-[#8a7e6e] mb-5">{tEmpty('description')}</p>
           <button onClick={generateBrief} disabled={generating || profileGated}
             className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
             {emptyBtnLabel}
           </button>
           {generating && (
-            <p className="text-xs text-[#8a7e6e] mt-3">This takes 5-15 seconds while Mirvo AI analyzes your ICP…</p>
+            <p className="text-xs text-[#8a7e6e] mt-3">{tEmpty('generatingHint')}</p>
           )}
         </div>
       ) : (
@@ -517,8 +536,8 @@ export default function MorningBriefPage() {
             <div className="px-5 py-4 border-b border-[#f0ece6] flex items-center gap-2">
               <span className="text-lg">☕</span>
               <div>
-                <div className="font-semibold text-[#1a1a2e]">Past Briefs</div>
-                <div className="text-xs text-[#8a7e6e]">Your morning coffee brief archive</div>
+                <div className="font-semibold text-[#1a1a2e]">{tArchive('title')}</div>
+                <div className="text-xs text-[#8a7e6e]">{tArchive('subtitle')}</div>
               </div>
             </div>
             {briefs.map(b => (
@@ -530,12 +549,12 @@ export default function MorningBriefPage() {
                     <div className="text-sm font-medium text-[#1a1a2e]">{fmtBriefDateShort(b.brief_date)}</div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-[#3b6bef] bg-[#eef1fd] px-1.5 py-0.5 rounded font-medium">
-                        {b.content?.mode === 'meetings_today' ? 'Meetings Day' : b.content?.mode === 'no_meetings' ? 'Market Intel' : 'Brief'}
+                        {b.content?.mode === 'meetings_today' ? tArchiveBadge('meetingsDay') : b.content?.mode === 'no_meetings' ? tArchiveBadge('marketIntel') : tArchiveBadge('brief')}
                       </span>
                     </div>
                   </div>
                 </div>
-                <button className="text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e]">View</button>
+                <button className="text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e]">{tArchive('view')}</button>
               </div>
             ))}
           </div>
