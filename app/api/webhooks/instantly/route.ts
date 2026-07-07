@@ -4,8 +4,11 @@
  * Single "All Events" webhook receiver. The provider posts every event type
  * for every campaign at this URL; we normalise + route here.
  *
- * Security: HMAC-SHA256 over the raw body, header X-Instantly-Signature in
- * the GitHub-style `sha256=<hex>` format.
+ * Security: static shared-secret header. Instantly's native webhook UI does
+ * NOT compute per-request HMAC signatures — it only lets the user attach
+ * fixed custom HTTP headers. We require `X-Instantly-Secret` configured on
+ * the Instantly side to equal env INSTANTLY_WEBHOOK_SECRET and compare
+ * timing-safe on every request.
  *
  * Defensive posture (Sprint A4): we have ZERO real webhook deliveries to
  * inspect. We log the FULL raw payload on every receipt so the first real
@@ -15,9 +18,8 @@
  * Dedup: events carrying an id are deduped by (workspace_id, provider_event_id)
  * via the partial unique index on inbox_messages (migration 055).
  *
- * Always returns 200 once the signature passes, so the provider does not
- * retry-storm us on application errors. Per-event failures are logged and
- * swallowed.
+ * Always returns 200 once auth passes, so the provider does not retry-storm
+ * us on application errors. Per-event failures are logged and swallowed.
  */
 
 import { NextResponse } from 'next/server'
@@ -62,17 +64,21 @@ const MIN_VOLUME_FOR_PAUSE   = 20    // sent in the 24h window
 const COUNTS_WINDOW_HOURS    = 24    // documented in migration 057
 
 // ---------------------------------------------------------------------------
-// HMAC verification
+// Shared-secret verification
+//
+// Instantly's native webhook UI only supports static custom HTTP headers, not
+// per-request HMAC. We require X-Instantly-Secret to equal the shared secret
+// and compare timing-safe. Same-length check guards timingSafeEqual (which
+// throws on mismatched Buffer lengths).
 // ---------------------------------------------------------------------------
 
-function verifySignature(payload: string, signature: string, secret: string): boolean {
-  if (!signature.startsWith('sha256=')) return false
-  const expected = 'sha256=' + crypto
-    .createHmac('sha256', secret)
-    .update(payload, 'utf8')
-    .digest('hex')
+function verifyWebhookAuth(received: string, secret: string): boolean {
+  if (!received) return false
+  const a = Buffer.from(received, 'utf8')
+  const b = Buffer.from(secret, 'utf8')
+  if (a.length !== b.length) return false
   try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+    return crypto.timingSafeEqual(a, b)
   } catch {
     return false
   }
@@ -90,9 +96,9 @@ export async function POST(req: Request) {
   }
 
   const rawBody = await req.text()
-  const signature = req.headers.get('x-instantly-signature') ?? ''
+  const received = req.headers.get('x-instantly-secret') ?? ''
 
-  if (!verifySignature(rawBody, signature, secret)) {
+  if (!verifyWebhookAuth(received, secret)) {
     return NextResponse.json({ error: 'invalid_signature' }, { status: 401 })
   }
 
