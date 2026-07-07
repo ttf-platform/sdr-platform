@@ -1748,6 +1748,80 @@
       "progressBar": {
         "label": "Progression"
       }
+    },
+    "prospectModals": {
+      "lifecycle": {
+        "found": "Found",
+        "emailed": "Emailed",
+        "opened": "Opened",
+        "replied": "Replied",
+        "meeting": "Meeting"
+      },
+      "dropZone": {
+        "prompt": "Drop CSV here or click to browse",
+        "detected": "Columns auto-detected: email, name, company, title, linkedin, website"
+      },
+      "campaignSelector": {
+        "preSetNote": "Prospects will be added to this campaign and also visible in your global Prospects list.",
+        "label": "Campaign (optional)",
+        "none": "No campaign — global list",
+        "hint": "Leave empty to add to your global list, or select a campaign to attach them now. Either way they appear in /dashboard/prospects."
+      },
+      "cancel": "Cancel",
+      "csv": {
+        "title": "Import CSV",
+        "columnMapping": "Column mapping (auto-detected)",
+        "skipOption": "— skip —",
+        "preview": "Preview ({count, plural, one {# row} other {# rows}})",
+        "moreRows": "+{count, plural, one {# more row} other {# more rows}}",
+        "checkingOverlap": "Checking for overlap…",
+        "newBadge": "🟢 <b>{count}</b> new to this campaign — will be added",
+        "alreadyInBadge": "🟠 {count, plural, one {# already in this campaign — will be skipped} other {# already in this campaign — will be skipped}}",
+        "alsoInOthersBadge": "🔵 {count, plural, one {# also in other campaigns} other {# also in other campaigns}}",
+        "dupWarning": "Make sure you're not sending 2 sequences to the same person.",
+        "noEmailWarning": "⚠ No email column mapped — import will fail.",
+        "back": "Back",
+        "submitImport": "Import {count, plural, one {# row} other {# rows}}",
+        "importing": "Importing prospects…",
+        "nothingNewTitle": "Nothing new imported",
+        "allAlreadyIn": "All {count, plural, one {# contact was} other {# contacts were}} already in this campaign.",
+        "allInvalid": "All {count, plural, one {# row had an invalid email} other {# rows had invalid emails}}.",
+        "noNewCreated": "No new contacts or assignments were created.",
+        "allSetTitle": "All set!",
+        "completeTitle": "Import complete",
+        "contactsAddedTitle": "Contacts added to workspace",
+        "prospectsAdded": "✓ {count, plural, one {# prospect added to campaign} other {# prospects added to campaign}}",
+        "contactsCreated": "✓ {count, plural, one {# new contact created in workspace} other {# new contacts created in workspace}}",
+        "contactsCreatedShort": "✓ {count, plural, one {# new contact created} other {# new contacts created}}",
+        "invalidSkipped": "✕ {count, plural, one {# invalid email skipped} other {# invalid emails skipped}}",
+        "addedToCampaign": "✓ {count, plural, one {# added to campaign} other {# added to campaign}}",
+        "alreadySkipped": "⏭ {count, plural, one {# already in this campaign — skipped} other {# already in this campaign — skipped}}",
+        "workspaceDup": "↻ {count, plural, one {# contact already in workspace} other {# contacts already in workspace}}",
+        "alreadySkippedShort": "⏭ {count, plural, one {# already in campaign — skipped} other {# already in campaign — skipped}}",
+        "workspaceDupShort": "↻ {count, plural, one {# already in workspace} other {# already in workspace}}",
+        "noCampaignAssigned": "No campaign assigned. Go to a campaign to add them.",
+        "done": "Done"
+      },
+      "manual": {
+        "title": "Add Prospect",
+        "fields": {
+          "email": "Email *",
+          "firstName": "First name",
+          "lastName": "Last name",
+          "company": "Company",
+          "jobTitle": "Job title",
+          "linkedin": "LinkedIn URL"
+        },
+        "adding": "Adding…",
+        "submit": "Add Prospect"
+      },
+      "paste": {
+        "title": "Paste Email List",
+        "hint": "Paste email addresses — one per line, or comma/space-separated.",
+        "detected": "{count, plural, one {# email detected} other {# emails detected}}",
+        "importing": "Importing…",
+        "importN": "Import {count, plural, one {# email} other {# emails}}"
+      }
     }
   }
 }

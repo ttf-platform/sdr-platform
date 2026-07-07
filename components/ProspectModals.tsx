@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import Papa from 'papaparse'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -18,10 +19,13 @@ export interface CampaignOption {
 }
 
 // ─── Lifecycle shared constants ───────────────────────────────────────────────
-export const LIFECYCLE = ['Found', 'Emailed', 'Opened', 'Replied', 'Meeting'] as const
+// Lowercase keys — used both as message keys under
+// components.prospectModals.lifecycle.* and as the source of visible labels via t().
+export const LIFECYCLE = ['found', 'emailed', 'opened', 'replied', 'meeting'] as const
 export const STATUS_IDX: Record<string, number> = {
   found: 0, emailed: 1, opened: 2, replied: 3, meeting: 4,
 }
+type LifecycleKey = (typeof LIFECYCLE)[number]
 
 // Status badge Tailwind classes — aligned with Sprint 16b brief
 // bounced + unsubscribed → red (negative outcomes)
@@ -45,6 +49,7 @@ export function LifecyclePill({ status, variant = 'row' }: {
   status: string
   variant?: 'row' | 'panel'
 }) {
+  const t       = useTranslations('components.prospectModals.lifecycle')
   const current = STATUS_IDX[status] ?? 0
 
   if (variant === 'panel') {
@@ -61,14 +66,19 @@ export function LifecyclePill({ status, variant = 'row' }: {
               {i < current   && <div className="w-2 h-2 bg-white rounded-full" />}
               {i === current && <div className="w-2 h-2 bg-[#3b6bef] rounded-full" />}
             </div>
-            <span className={`text-[9px] font-semibold ${i <= current ? 'text-[#3b6bef]' : 'text-[#b0a898]'}`}>{s}</span>
+            <span className={`text-[9px] font-semibold ${i <= current ? 'text-[#3b6bef]' : 'text-[#b0a898]'}`}>{t(s)}</span>
           </div>
         ))}
       </div>
     )
   }
 
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
+  // Row variant title: translate known lifecycle keys; fall back to capitalization
+  // for outcome statuses (bounced, unsubscribed) that aren't part of the funnel.
+  const knownKeys = LIFECYCLE as readonly string[]
+  const label = knownKeys.includes(status)
+    ? t(status as LifecycleKey)
+    : status.charAt(0).toUpperCase() + status.slice(1)
   return (
     <div className="flex items-center" title={label}>
       {LIFECYCLE.map((s, i) => (
@@ -150,7 +160,8 @@ export function ModalShell({ title, onClose, children }: {
 
 // ─── DropZone ──────────────────────────────────────────────────────────────────
 export function DropZone({ onFile }: { onFile: (f: File) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const t                       = useTranslations('components.prospectModals.dropZone')
+  const inputRef                = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
   function handleDrop(e: React.DragEvent) {
@@ -172,8 +183,8 @@ export function DropZone({ onFile }: { onFile: (f: File) => void }) {
       <input ref={inputRef} type="file" accept=".csv" className="hidden"
         onChange={e => { if (e.target.files?.[0]) onFile(e.target.files[0]) }} />
       <div className="text-2xl mb-2">📄</div>
-      <div className="text-sm font-semibold text-[#1a1a2e] mb-1">Drop CSV here or click to browse</div>
-      <div className="text-xs text-[#8a7e6e]">Columns auto-detected: email, name, company, title, linkedin, website</div>
+      <div className="text-sm font-semibold text-[#1a1a2e] mb-1">{t('prompt')}</div>
+      <div className="text-xs text-[#8a7e6e]">{t('detected')}</div>
     </div>
   )
 }
@@ -185,23 +196,24 @@ function CampaignSelector({ campaigns, value, onChange, preSet }: {
   onChange: (id: string) => void
   preSet: boolean
 }) {
+  const t = useTranslations('components.prospectModals.campaignSelector')
   if (preSet) {
     return (
       <p className="text-xs text-[#8a7e6e] bg-[#f7f4f0] rounded-lg px-3 py-2">
-        Prospects will be added to this campaign and also visible in your global Prospects list.
+        {t('preSetNote')}
       </p>
     )
   }
   return (
     <div>
-      <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">Campaign (optional)</label>
+      <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{t('label')}</label>
       <select value={value} onChange={e => onChange(e.target.value)}
         className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]">
-        <option value="">No campaign — global list</option>
+        <option value="">{t('none')}</option>
         {(campaigns ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
       <p className="text-xs text-[#8a7e6e] mt-1">
-        Leave empty to add to your global list, or select a campaign to attach them now. Either way they appear in /dashboard/prospects.
+        {t('hint')}
       </p>
     </div>
   )
@@ -222,6 +234,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
+  const t                                           = useTranslations('components.prospectModals.csv')
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
   const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
 
@@ -302,7 +315,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
   }
 
   return (
-    <ModalShell title="Import CSV" onClose={onClose}>
+    <ModalShell title={t('title')} onClose={onClose}>
       {step === 'upload' && (
         <div className="flex flex-col gap-4">
           <CampaignSelector
@@ -318,14 +331,14 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
       {step === 'preview' && (
         <div className="flex flex-col gap-4">
           <div>
-            <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Column mapping (auto-detected)</div>
+            <div className="text-xs font-semibold text-[#6b5e4e] mb-2">{t('columnMapping')}</div>
             <div className="grid grid-cols-2 gap-2">
               {(['email','first_name','last_name','company','title','linkedin_url','website'] as const).map(field => (
                 <div key={field}>
                   <label className="text-xs text-[#8a7e6e] mb-0.5 block capitalize">{field.replace(/_/g,' ')}</label>
                   <select value={mapping[field] ?? ''} onChange={e => setMapping(m => ({ ...m, [field]: e.target.value }))}
                     className="w-full border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#3b6bef]">
-                    <option value="">— skip —</option>
+                    <option value="">{t('skipOption')}</option>
                     {headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
@@ -334,7 +347,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-[#6b5e4e] mb-2">Preview ({rows.length} rows)</div>
+            <div className="text-xs font-semibold text-[#6b5e4e] mb-2">{t('preview', { count: rows.length })}</div>
             <div className="border border-[#e8e3dc] rounded-lg overflow-auto max-h-36">
               <table className="w-full text-xs">
                 <thead className="bg-[#f7f4f0]">
@@ -362,7 +375,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
                 </tbody>
               </table>
             </div>
-            {rows.length > 5 && <p className="text-xs text-[#b0a898] mt-1">+{rows.length - 5} more rows</p>}
+            {rows.length > 5 && <p className="text-xs text-[#b0a898] mt-1">{t('moreRows', { count: rows.length - 5 })}</p>}
           </div>
 
           {/* Overlap analysis — shown in preview step before import */}
@@ -370,21 +383,23 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
             checkingPreview ? (
               <p className="text-xs text-[#8a7e6e] flex items-center gap-1.5">
                 <span className="w-3 h-3 border border-[#8a7e6e]/40 border-t-[#8a7e6e] rounded-full animate-spin inline-block" />
-                Checking for overlap…
+                {t('checkingOverlap')}
               </p>
             ) : previewChecks && (
               <div className="flex flex-col gap-2">
                 {/* 🟢 New to this campaign */}
-                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700 flex items-center gap-2">
-                  <span className="font-semibold">🟢 {previewChecks.newEmails.length}</span>
-                  <span>new to this campaign — will be added</span>
+                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
+                  {t.rich('newBadge', {
+                    count: previewChecks.newEmails.length,
+                    b: chunks => <span className="font-semibold">{chunks}</span>,
+                  })}
                 </div>
 
                 {/* 🟠 Already in this campaign */}
                 {previewChecks.alreadyInCampaign.length > 0 && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-700">
                     <p className="font-semibold mb-1">
-                      🟠 {previewChecks.alreadyInCampaign.length} already in this campaign — will be skipped
+                      {t('alreadyInBadge', { count: previewChecks.alreadyInCampaign.length })}
                     </p>
                     <div className="max-h-20 overflow-y-auto space-y-0.5 text-orange-600">
                       {previewChecks.alreadyInCampaign.map(email => (
@@ -398,7 +413,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
                 {previewChecks.crossCampaign.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
                     <p className="font-semibold mb-1">
-                      🔵 {previewChecks.crossCampaign.length} also in other campaigns
+                      {t('alsoInOthersBadge', { count: previewChecks.crossCampaign.length })}
                     </p>
                     <div className="max-h-20 overflow-y-auto space-y-0.5 text-blue-600">
                       {previewChecks.crossCampaign.map(({ email, campaigns: camps }) => (
@@ -408,7 +423,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
                         </div>
                       ))}
                     </div>
-                    <p className="text-blue-500 mt-1.5">Make sure you&apos;re not sending 2 sequences to the same person.</p>
+                    <p className="text-blue-500 mt-1.5">{t('dupWarning')}</p>
                   </div>
                 )}
               </div>
@@ -416,16 +431,16 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
           )}
 
           {!mapping['email'] && (
-            <p className="text-xs text-amber-600">⚠ No email column mapped — import will fail.</p>
+            <p className="text-xs text-amber-600">{t('noEmailWarning')}</p>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
 
           <div className="flex gap-2">
             <button onClick={() => { setStep('upload'); setRows([]); setHeaders([]); setPreviewChecks(null) }}
-              className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Back</button>
+              className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">{t('back')}</button>
             <button onClick={doImport} disabled={!mapping['email'] || checkingPreview}
               className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
-              Import {rows.length} rows
+              {t('submitImport', { count: rows.length })}
             </button>
           </div>
         </div>
@@ -434,7 +449,7 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
       {step === 'importing' && (
         <div className="py-8 text-center">
           <div className="w-8 h-8 border-2 border-[#3b6bef]/30 border-t-[#3b6bef] rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-[#6b5e4e]">Importing prospects…</p>
+          <p className="text-sm text-[#6b5e4e]">{t('importing')}</p>
         </div>
       )}
 
@@ -449,48 +464,48 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
           <div className="flex flex-col gap-3">
             {nothingNew && (
               <div className="bg-[#f7f4f0] border border-[#e8e3dc] rounded-lg p-3 text-sm text-[#6b5e4e]">
-                <div className="font-semibold mb-1">Nothing new imported</div>
+                <div className="font-semibold mb-1">{t('nothingNewTitle')}</div>
                 <div className="text-xs text-[#8a7e6e]">
                   {result.skipped_assignments_dedup > 0
-                    ? `All ${result.skipped_assignments_dedup} contacts were already in this campaign.`
+                    ? t('allAlreadyIn', { count: result.skipped_assignments_dedup })
                     : result.skipped_invalid > 0
-                    ? `All ${result.skipped_invalid} rows had invalid emails.`
-                    : 'No new contacts or assignments were created.'}
+                    ? t('allInvalid', { count: result.skipped_invalid })
+                    : t('noNewCreated')}
                 </div>
               </div>
             )}
 
             {fullSuccess && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                <div className="font-semibold mb-1">All set!</div>
+                <div className="font-semibold mb-1">{t('allSetTitle')}</div>
                 <div className="text-xs space-y-0.5">
-                  <div>✓ {result.imported_assignments} prospect{result.imported_assignments !== 1 ? 's' : ''} added to campaign</div>
-                  {result.imported_contacts > 0 && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created in workspace</div>}
-                  {result.skipped_invalid > 0   && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                  <div>{t('prospectsAdded', { count: result.imported_assignments })}</div>
+                  {result.imported_contacts > 0 && <div>{t('contactsCreated', { count: result.imported_contacts })}</div>}
+                  {result.skipped_invalid > 0   && <div>{t('invalidSkipped', { count: result.skipped_invalid })}</div>}
                 </div>
               </div>
             )}
 
             {partial && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                <div className="font-semibold mb-1">Import complete</div>
+                <div className="font-semibold mb-1">{t('completeTitle')}</div>
                 <div className="text-xs space-y-0.5">
-                  <div>✓ {result.imported_assignments} added to campaign</div>
-                  <div>⏭ {result.skipped_assignments_dedup} already in this campaign — skipped</div>
-                  {result.imported_contacts > 0 && <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created</div>}
-                  {result.skipped_invalid > 0   && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                  <div>{t('addedToCampaign', { count: result.imported_assignments })}</div>
+                  <div>{t('alreadySkipped', { count: result.skipped_assignments_dedup })}</div>
+                  {result.imported_contacts > 0 && <div>{t('contactsCreatedShort', { count: result.imported_contacts })}</div>}
+                  {result.skipped_invalid > 0   && <div>{t('invalidSkipped', { count: result.skipped_invalid })}</div>}
                 </div>
               </div>
             )}
 
             {noAssignment && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
-                <div className="font-semibold mb-1">Contacts added to workspace</div>
+                <div className="font-semibold mb-1">{t('contactsAddedTitle')}</div>
                 <div className="text-xs space-y-0.5">
-                  <div>✓ {result.imported_contacts} new contact{result.imported_contacts !== 1 ? 's' : ''} created</div>
-                  {result.updated_contacts > 0 && <div>↻ {result.updated_contacts} contacts already in workspace</div>}
-                  {result.skipped_invalid > 0  && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
-                  <div className="text-blue-500 mt-1">No campaign assigned. Go to a campaign to add them.</div>
+                  <div>{t('contactsCreatedShort', { count: result.imported_contacts })}</div>
+                  {result.updated_contacts > 0 && <div>{t('workspaceDup', { count: result.updated_contacts })}</div>}
+                  {result.skipped_invalid > 0  && <div>{t('invalidSkipped', { count: result.skipped_invalid })}</div>}
+                  <div className="text-blue-500 mt-1">{t('noCampaignAssigned')}</div>
                 </div>
               </div>
             )}
@@ -498,18 +513,18 @@ export function ImportCSVModal({ campaignId, campaignName, campaigns, onClose, o
             {/* Fallback for edge cases not covered above */}
             {!nothingNew && !fullSuccess && !partial && !noAssignment && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                <div className="font-semibold mb-1">Import complete</div>
+                <div className="font-semibold mb-1">{t('completeTitle')}</div>
                 <div className="text-xs space-y-0.5">
-                  {result.imported_contacts      > 0 && <div>✓ {result.imported_contacts} new contacts created</div>}
-                  {result.updated_contacts       > 0 && <div>↻ {result.updated_contacts} already in workspace</div>}
-                  {result.imported_assignments   > 0 && <div>✓ {result.imported_assignments} added to campaign</div>}
-                  {result.skipped_assignments_dedup > 0 && <div>⏭ {result.skipped_assignments_dedup} already in campaign — skipped</div>}
-                  {result.skipped_invalid        > 0 && <div>✕ {result.skipped_invalid} invalid emails skipped</div>}
+                  {result.imported_contacts      > 0 && <div>{t('contactsCreatedShort', { count: result.imported_contacts })}</div>}
+                  {result.updated_contacts       > 0 && <div>{t('workspaceDupShort', { count: result.updated_contacts })}</div>}
+                  {result.imported_assignments   > 0 && <div>{t('addedToCampaign', { count: result.imported_assignments })}</div>}
+                  {result.skipped_assignments_dedup > 0 && <div>{t('alreadySkippedShort', { count: result.skipped_assignments_dedup })}</div>}
+                  {result.skipped_invalid        > 0 && <div>{t('invalidSkipped', { count: result.skipped_invalid })}</div>}
                 </div>
               </div>
             )}
 
-            <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">Done</button>
+            <button onClick={onClose} className="bg-[#1a1a2e] text-white rounded-lg py-2 text-sm font-semibold">{t('done')}</button>
           </div>
         )
       })()}
@@ -524,6 +539,8 @@ export function ManualAddModal({ campaignId, campaigns, onClose, onImported }: {
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
+  const t                                           = useTranslations('components.prospectModals')
+  const tm                                          = useTranslations('components.prospectModals.manual')
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
   const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
 
@@ -547,7 +564,7 @@ export function ManualAddModal({ campaignId, campaigns, onClose, onImported }: {
   }
 
   return (
-    <ModalShell title="Add Prospect" onClose={onClose}>
+    <ModalShell title={tm('title')} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <CampaignSelector
           campaigns={campaigns}
@@ -555,16 +572,16 @@ export function ManualAddModal({ campaignId, campaigns, onClose, onImported }: {
           onChange={setSelectedCampaignId}
           preSet={!!campaignId}
         />
-        {[
-          { key: 'email',        label: 'Email *',      type: 'email' },
-          { key: 'first_name',   label: 'First name',   type: 'text'  },
-          { key: 'last_name',    label: 'Last name',    type: 'text'  },
-          { key: 'company',      label: 'Company',      type: 'text'  },
-          { key: 'title',        label: 'Job title',    type: 'text'  },
-          { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url'   },
-        ].map(f => (
+        {([
+          { key: 'email',        labelKey: 'email',     type: 'email' },
+          { key: 'first_name',   labelKey: 'firstName', type: 'text'  },
+          { key: 'last_name',    labelKey: 'lastName',  type: 'text'  },
+          { key: 'company',      labelKey: 'company',   type: 'text'  },
+          { key: 'title',        labelKey: 'jobTitle',  type: 'text'  },
+          { key: 'linkedin_url', labelKey: 'linkedin',  type: 'url'   },
+        ] as const).map(f => (
           <div key={f.key}>
-            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{f.label}</label>
+            <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{tm(`fields.${f.labelKey}`)}</label>
             <input type={f.type} value={(form as any)[f.key]}
               onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
               className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
@@ -573,10 +590,10 @@ export function ManualAddModal({ campaignId, campaigns, onClose, onImported }: {
         {error && <p className="text-xs text-red-600">{error}</p>}
         <div className="flex gap-2 mt-1">
           <button onClick={onClose}
-            className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
+            className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">{t('cancel')}</button>
           <button onClick={submit} disabled={!form.email.trim() || loading}
             className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
-            {loading ? 'Adding…' : 'Add Prospect'}
+            {loading ? tm('adding') : tm('submit')}
           </button>
         </div>
       </div>
@@ -591,6 +608,8 @@ export function PasteModal({ campaignId, campaigns, onClose, onImported }: {
   onClose: () => void
   onImported: (result: ImportResult) => void
 }) {
+  const t                                           = useTranslations('components.prospectModals')
+  const tp                                          = useTranslations('components.prospectModals.paste')
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaignId ?? '')
   const effectiveCampaignId = campaignId ?? (selectedCampaignId || undefined)
 
@@ -614,7 +633,7 @@ export function PasteModal({ campaignId, campaigns, onClose, onImported }: {
   }
 
   return (
-    <ModalShell title="Paste Email List" onClose={onClose}>
+    <ModalShell title={tp('title')} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <CampaignSelector
           campaigns={campaigns}
@@ -622,18 +641,18 @@ export function PasteModal({ campaignId, campaigns, onClose, onImported }: {
           onChange={setSelectedCampaignId}
           preSet={!!campaignId}
         />
-        <p className="text-xs text-[#8a7e6e]">Paste email addresses — one per line, or comma/space-separated.</p>
+        <p className="text-xs text-[#8a7e6e]">{tp('hint')}</p>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
           className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none font-mono"
           placeholder={"alice@company.com\nbob@company.com\n..."} />
-        {emails.length > 0 && <p className="text-xs text-[#6b5e4e]">{emails.length} emails detected</p>}
+        {emails.length > 0 && <p className="text-xs text-[#6b5e4e]">{tp('detected', { count: emails.length })}</p>}
         {error && <p className="text-xs text-red-600">{error}</p>}
         <div className="flex gap-2">
           <button onClick={onClose}
-            className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
+            className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">{t('cancel')}</button>
           <button onClick={submit} disabled={emails.length === 0 || loading}
             className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
-            {loading ? 'Importing…' : `Import ${emails.length} emails`}
+            {loading ? tp('importing') : tp('importN', { count: emails.length })}
           </button>
         </div>
       </div>
