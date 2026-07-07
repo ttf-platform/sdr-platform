@@ -1511,97 +1511,97 @@
       }
     },
     "billing": {
-      "loading": "Loading...",
-      "redirecting": "Redirecting...",
+      "loading": "Chargement…",
+      "redirecting": "Redirection…",
       "header": {
-        "title": "Billing",
-        "subtitle": "Manage your plan, usage, and payment"
+        "title": "Facturation",
+        "subtitle": "Gérez votre offre, votre utilisation et votre paiement"
       },
       "banners": {
-        "checkoutSuccess": "✓ Subscription activated! Welcome to Mirvo.",
-        "checkoutCancel": "Checkout cancelled. Your trial is still active."
+        "checkoutSuccess": "✓ Abonnement activé ! Bienvenue sur Mirvo.",
+        "checkoutCancel": "Paiement annulé. Votre essai reste actif."
       },
       "sectionLabels": {
-        "currentPlan": "CURRENT PLAN",
-        "usage": "USAGE",
-        "plans": "PLANS",
-        "overage": "OVERAGE",
-        "promoCode": "PROMO CODE"
+        "currentPlan": "OFFRE ACTUELLE",
+        "usage": "UTILISATION",
+        "plans": "OFFRES",
+        "overage": "DÉPASSEMENT",
+        "promoCode": "CODE PROMO"
       },
       "currentPlan": {
-        "trialDaysLeft": "{count, plural, one {# day left in trial} other {# days left in trial}}",
-        "trialEndsSoon": "⚠ Trial ends soon — add a payment method to continue.",
-        "accessBlocked": "Your access is restricted. Upgrade to restore full access.",
-        "managePortal": "Manage subscription →",
-        "openingPortal": "Opening...",
-        "addPaymentMethod": "Add payment method →"
+        "trialDaysLeft": "{count, plural, one {# jour restant dans l'essai} other {# jours restants dans l'essai}}",
+        "trialEndsSoon": "⚠ Votre essai se termine bientôt, ajoutez un moyen de paiement pour continuer.",
+        "accessBlocked": "Votre accès est restreint. Choisissez une offre pour rétablir l'accès complet.",
+        "managePortal": "Gérer l'abonnement →",
+        "openingPortal": "Ouverture…",
+        "addPaymentMethod": "Ajouter un moyen de paiement →"
       },
       "statuses": {
-        "trialing": "Free Trial",
-        "active": "Active",
-        "past_due": "Payment due",
-        "canceled": "Canceled",
-        "expired": "Expired"
+        "trialing": "Essai gratuit",
+        "active": "Actif",
+        "past_due": "Paiement en attente",
+        "canceled": "Annulé",
+        "expired": "Expiré"
       },
       "plans": {
-        "intervalMonthly": "Monthly",
-        "intervalYearly": "Yearly",
-        "yearlyDiscount": "−20%",
-        "currentBadge": "Current",
-        "inheritsFrom": "Everything in {previousPlan}, plus:",
+        "intervalMonthly": "Mensuel",
+        "intervalYearly": "Annuel",
+        "yearlyDiscount": "−20 %",
+        "currentBadge": "Actuelle",
+        "inheritsFrom": "Tout ce qui est inclus dans {previousPlan}, plus :",
         "button": {
-          "addPaymentMethod": "Add payment method",
-          "reactivate": "Reactivate {planName}",
-          "upgradeTo": "Upgrade to {planName}",
-          "downgradeTo": "Downgrade to {planName}",
-          "currentPlan": "Current plan",
-          "changing": "Changing..."
+          "addPaymentMethod": "Ajouter un moyen de paiement",
+          "reactivate": "Réactiver {planName}",
+          "upgradeTo": "Passer à {planName}",
+          "downgradeTo": "Revenir à {planName}",
+          "currentPlan": "Offre actuelle",
+          "changing": "Changement…"
         },
         "features": {
           "starter": {
-            "0": "100 prospects/mo",
-            "1": "500 enrichments/mo",
-            "2": "1 inbox",
-            "3": "Booking page",
-            "4": "Morning Brief"
+            "0": "100 prospects/mois",
+            "1": "500 enrichissements/mois",
+            "2": "1 boîte de réception",
+            "3": "Page de réservation",
+            "4": "Brief du matin"
           },
           "pro": {
-            "0": "250 prospects/mo",
-            "1": "1,000 enrichments/mo",
-            "2": "2 inboxes",
-            "3": "Advanced AI",
-            "4": "Morning Brief Mode B",
-            "5": "Priority support"
+            "0": "250 prospects/mois",
+            "1": "1 000 enrichissements/mois",
+            "2": "2 boîtes de réception",
+            "3": "IA avancée",
+            "4": "Brief du matin Mode B",
+            "5": "Support prioritaire"
           },
           "power": {
-            "0": "500 prospects/mo",
-            "1": "2,000 enrichments/mo",
-            "2": "3 inboxes",
-            "3": "Premium AI + caching",
-            "4": "Full pipeline + analytics"
+            "0": "500 prospects/mois",
+            "1": "2 000 enrichissements/mois",
+            "2": "3 boîtes de réception",
+            "3": "IA premium + mise en cache",
+            "4": "Pipeline complet + analyses"
           }
         }
       },
       "overage": {
-        "title": "Enable enrichment overage",
-        "description": "$0.50 per enrichment above your monthly cap. Billed at end of month.",
-        "activeWarning": "⚠ Overage is active — additional charges may apply.",
-        "overCap": "{count, plural, one {# enrichment over cap} other {# enrichments over cap}}",
-        "autoCharged": " · auto-charged {amount}"
+        "title": "Activer le dépassement d'enrichissement",
+        "description": "$0.50 par enrichissement au-delà de votre plafond mensuel. Facturé en fin de mois.",
+        "activeWarning": "⚠ Le dépassement est actif, des frais supplémentaires peuvent s'appliquer.",
+        "overCap": "{count, plural, one {# enrichissement au-delà du plafond} other {# enrichissements au-delà du plafond}}",
+        "autoCharged": " · débité automatiquement {amount}"
       },
       "promo": {
-        "placeholder": "e.g. LAUNCH50",
-        "apply": "Apply",
-        "applying": "Applying...",
-        "footerNote": "Applied to your next renewal invoice.",
-        "unknownError": "Unknown error"
+        "placeholder": "ex. LAUNCH50",
+        "apply": "Appliquer",
+        "applying": "Application…",
+        "footerNote": "Appliqué à votre prochaine facture de renouvellement.",
+        "unknownError": "Erreur inconnue"
       },
       "toasts": {
-        "checkoutFailed": "Checkout failed",
-        "alreadyOnPlan": "Already on this plan.",
-        "planChanged": "Plan changed. Your billing will update shortly.",
-        "changePlanFailed": "Failed to change plan.",
-        "portalError": "Portal error"
+        "checkoutFailed": "Le paiement a échoué",
+        "alreadyOnPlan": "Vous êtes déjà sur cette offre.",
+        "planChanged": "Offre modifiée. Votre facturation sera mise à jour sous peu.",
+        "changePlanFailed": "Échec du changement d'offre.",
+        "portalError": "Erreur du portail"
       }
     }
   }
