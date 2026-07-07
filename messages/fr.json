@@ -1687,66 +1687,66 @@
   },
   "components": {
     "tags": {
-      "removeAriaLabel": "Remove tag {label}"
+      "removeAriaLabel": "Retirer le tag {label}"
     },
     "tagPicker": {
-      "searchPlaceholder": "Search or create…",
-      "loading": "Loading…",
-      "empty": "No tags yet — type to create one.",
-      "createOption": "+ Create “{query}”"
+      "searchPlaceholder": "Rechercher ou créer…",
+      "loading": "Chargement…",
+      "empty": "Aucun tag pour l'instant — tapez pour en créer un.",
+      "createOption": "+ Créer « {query} »"
     },
     "tagFilterDropdown": {
       "button": "Tags",
-      "searchPlaceholder": "Search tags…",
-      "emptyTitle": "No tags yet.",
-      "emptyHint": "Create tags from a prospect's side panel.",
-      "clearFilter": "Clear filter"
+      "searchPlaceholder": "Rechercher des tags…",
+      "emptyTitle": "Aucun tag pour l'instant.",
+      "emptyHint": "Créez des tags depuis le panneau latéral d'un prospect.",
+      "clearFilter": "Réinitialiser le filtre"
     },
     "createTagModal": {
-      "title": "Create tag",
-      "labelField": "Label",
-      "labelPlaceholder": "e.g. Hot lead, Decision maker…",
-      "colorField": "Color",
-      "colorAriaLabel": "Color {color}",
-      "errorCreate": "Failed to create tag.",
-      "cancel": "Cancel",
-      "creating": "Creating…",
-      "create": "Create"
+      "title": "Créer un tag",
+      "labelField": "Libellé",
+      "labelPlaceholder": "ex. Prospect chaud, Décideur…",
+      "colorField": "Couleur",
+      "colorAriaLabel": "Couleur {color}",
+      "errorCreate": "Échec de la création du tag.",
+      "cancel": "Annuler",
+      "creating": "Création…",
+      "create": "Créer"
     },
     "trialBadge": {
-      "expired": "⏱ Trial expired — Upgrade",
-      "daysLeft": "⏱ {count, plural, one {# day left} other {# days left}}"
+      "expired": "⏱ Essai expiré — Choisir une offre",
+      "daysLeft": "⏱ {count, plural, one {# jour restant} other {# jours restants}}"
     },
     "profileQualityBadge": {
-      "labelFull": "✨ Full context · {score}%",
-      "labelDecent": "📊 Decent context · {score}%",
-      "labelLimited": "⚠️ Limited context · {score}%",
-      "subtextFull": "Your AI knows your business inside out. Expect tailored, on-voice outputs.",
-      "subtextDecent": "Your AI works, but better data means sharper outputs.",
-      "subtextLimited": "Campaigns are locked until you reach 30%. Complete your profile so Mirvo AI can write on-brand emails.",
-      "editProfile": "Edit profile →",
-      "editProfileAriaLabel": "Edit profile",
-      "dismissAriaLabel": "Dismiss"
+      "labelFull": "✨ Profil complet · {score} %",
+      "labelDecent": "📊 Profil correct · {score} %",
+      "labelLimited": "⚠️ Profil incomplet · {score} %",
+      "subtextFull": "Votre IA connaît votre activité en profondeur. Attendez-vous à des résultats sur-mesure et fidèles à votre ton.",
+      "subtextDecent": "Votre IA fonctionne, mais de meilleures données donnent des résultats plus précis.",
+      "subtextLimited": "Les campagnes sont bloquées tant que vous n'atteignez pas 30 %. Complétez votre profil pour que l'IA de Mirvo écrive des e-mails fidèles à votre marque.",
+      "editProfile": "Modifier le profil →",
+      "editProfileAriaLabel": "Modifier le profil",
+      "dismissAriaLabel": "Fermer"
     },
     "creditUsageIndicator": {
-      "labelTotalProspects": "AI-researched contacts",
-      "labelEmailsPerMonth": "Emails this month",
-      "labelProspectsSourcedPerMonth": "AI-sourced prospects this month",
-      "upgrade": "Upgrade",
-      "usageStatus": "{pct}% used · {remaining} remaining",
-      "resets": "resets {date}",
-      "capReached": "Cap reached — upgrade to continue."
+      "labelTotalProspects": "Contacts recherchés par l'IA",
+      "labelEmailsPerMonth": "E-mails ce mois-ci",
+      "labelProspectsSourcedPerMonth": "Prospects sourcés par l'IA ce mois-ci",
+      "upgrade": "Choisir une offre",
+      "usageStatus": "{pct} % utilisés · {remaining} restants",
+      "resets": "réinitialisé le {date}",
+      "capReached": "Plafond atteint. Choisissez une offre pour continuer."
     },
     "ui": {
       "modal": {
-        "closeAriaLabel": "Close"
+        "closeAriaLabel": "Fermer"
       },
       "spinner": {
-        "loadingAriaLabel": "Loading",
-        "loading": "Loading…"
+        "loadingAriaLabel": "Chargement",
+        "loading": "Chargement…"
       },
       "progressBar": {
-        "label": "Progress"
+        "label": "Progression"
       }
     }
   }
