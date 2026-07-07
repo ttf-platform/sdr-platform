@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import clsx from 'clsx'
 
 export interface ModalProps {
@@ -82,6 +83,7 @@ export function Modal({
   closeOnEscape = true,
   initialFocusRef,
 }: ModalProps) {
+  const t = useTranslations('components.ui.modal')
   const [mounted, setMounted] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -176,7 +178,7 @@ export function Modal({
       >
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('closeAriaLabel')}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
         >
           <X size={18} />

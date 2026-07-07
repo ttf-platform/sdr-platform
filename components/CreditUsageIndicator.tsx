@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 // CreditUsageIndicator — reusable cap visualization component
 //
 // Sprint 16b: only static view (no preview prop) is used.
@@ -18,10 +20,10 @@ interface Props {
   label?:      string    // custom label, otherwise derived from metric
 }
 
-const DEFAULT_LABELS: Record<CapMetric, string> = {
-  total_prospects:             'AI-researched contacts',
-  emails_per_month:            'Emails this month',
-  prospects_sourced_per_month: 'AI-sourced prospects this month',
+const DEFAULT_LABEL_KEYS: Record<CapMetric, string> = {
+  total_prospects:             'labelTotalProspects',
+  emails_per_month:            'labelEmailsPerMonth',
+  prospects_sourced_per_month: 'labelProspectsSourcedPerMonth',
 }
 
 function barColor(pct: number): string {
@@ -39,16 +41,18 @@ function fmtDate(iso: string): string {
 }
 
 function UpgradeBtn({ onClick }: { onClick: () => void }) {
+  const t = useTranslations('components.creditUsageIndicator')
   return (
     <button onClick={onClick}
       className="text-xs bg-[#3b6bef] text-white px-2.5 py-1 rounded-lg font-medium flex-shrink-0">
-      Upgrade
+      {t('upgrade')}
     </button>
   )
 }
 
 export default function CreditUsageIndicator({ metric, current, cap, preview, resetDate, onUpgrade, label }: Props) {
-  const displayLabel = label ?? DEFAULT_LABELS[metric]
+  const t            = useTranslations('components.creditUsageIndicator')
+  const displayLabel = label ?? t(DEFAULT_LABEL_KEYS[metric])
   const safeCurrent  = current ?? 0
   const safeCap      = cap ?? 0
   const pctCurrent   = safeCap > 0 ? Math.min(100, Math.round((safeCurrent / safeCap) * 100)) : 0
@@ -125,12 +129,12 @@ export default function CreditUsageIndicator({ metric, current, cap, preview, re
         <div className={`h-2 rounded-full transition-all ${barClass}`} style={{ width: barWidth }} />
       </div>
       <div className="flex items-center justify-between text-xs text-[#8a7e6e]">
-        <span>{pctCurrent}% used · {fmt(remaining)} remaining</span>
-        {resetDate && <span>resets {fmtDate(resetDate)}</span>}
+        <span>{t('usageStatus', { pct: pctCurrent, remaining: fmt(remaining) })}</span>
+        {resetDate && <span>{t('resets', { date: fmtDate(resetDate) })}</span>}
       </div>
       {pctCurrent >= 100 && (
         <div className="flex items-center justify-between mt-1.5">
-          <p className="text-xs text-red-600 font-medium">Cap reached — upgrade to continue.</p>
+          <p className="text-xs text-red-600 font-medium">{t('capReached')}</p>
           {onUpgrade && <UpgradeBtn onClick={onUpgrade} />}
         </div>
       )}

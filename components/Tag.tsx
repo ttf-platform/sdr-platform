@@ -1,4 +1,5 @@
 'use client'
+import { useTranslations } from 'next-intl'
 import { getTagColorClasses } from '@/lib/tag-colors'
 
 interface TagProps {
@@ -9,6 +10,7 @@ interface TagProps {
 }
 
 export function Tag({ label, color, onRemove, size = 'sm' }: TagProps) {
+  const t         = useTranslations('components.tags')
   const cls       = getTagColorClasses(color)
   const sizeCls   = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
 
@@ -20,7 +22,7 @@ export function Tag({ label, color, onRemove, size = 'sm' }: TagProps) {
         <button
           onClick={e => { e.stopPropagation(); onRemove() }}
           className="ml-0.5 hover:opacity-70 leading-none"
-          aria-label={`Remove tag ${label}`}
+          aria-label={t('removeAriaLabel', { label })}
         >
           ×
         </button>

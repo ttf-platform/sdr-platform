@@ -1,3 +1,7 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
+
 type SpinnerProps = {
   size?: 'sm' | 'md' | 'lg'
   className?: string
@@ -10,10 +14,11 @@ const SIZE_CLASSES = {
 }
 
 export function Spinner({ size = 'md', className = '' }: SpinnerProps) {
+  const t = useTranslations('components.ui.spinner')
   return (
     <div
       role="status"
-      aria-label="Loading"
+      aria-label={t('loadingAriaLabel')}
       className={`inline-block rounded-full border-[#dde6fd] border-t-[#3b6bef] animate-spin ${SIZE_CLASSES[size]} ${className}`}
     />
   )
@@ -24,11 +29,13 @@ type SpinnerWithTextProps = {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function SpinnerWithText({ text = 'Loading…', size = 'md' }: SpinnerWithTextProps) {
+export function SpinnerWithText({ text, size = 'md' }: SpinnerWithTextProps) {
+  const t = useTranslations('components.ui.spinner')
+  const displayText = text ?? t('loading')
   return (
     <div className="flex items-center gap-3 text-sm text-[#8a7e6e]">
       <Spinner size={size} />
-      <span>{text}</span>
+      <span>{displayText}</span>
     </div>
   )
 }

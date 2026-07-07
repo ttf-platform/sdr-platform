@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { getTagColorClasses } from '@/lib/tag-colors'
 
 interface ProspectTag { id: string; label: string; color: string }
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: Props) {
+  const t                   = useTranslations('components.tagFilterDropdown')
   const [open,   setOpen]   = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -43,7 +45,7 @@ export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: P
             : 'border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee]'
         }`}
       >
-        Tags
+        {t('button')}
         {count > 0 && (
           <span className="text-[10px] text-white/80">· {count}</span>
         )}
@@ -56,7 +58,7 @@ export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: P
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search tags…"
+                placeholder={t('searchPlaceholder')}
                 className="w-full text-xs px-2 py-1.5 border border-[#e8e3dc] rounded-lg focus:outline-none focus:border-[#3b6bef]"
               />
             </div>
@@ -65,8 +67,8 @@ export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: P
           <div className="py-1 max-h-48 overflow-y-auto">
             {availableTags.length === 0 ? (
               <div className="px-3 py-4 text-center">
-                <p className="text-xs text-[#6b5e4e]">No tags yet.</p>
-                <p className="text-xs text-[#b0a898] mt-1">Create tags from a prospect&apos;s side panel.</p>
+                <p className="text-xs text-[#6b5e4e]">{t('emptyTitle')}</p>
+                <p className="text-xs text-[#b0a898] mt-1">{t('emptyHint')}</p>
               </div>
             ) : filtered.map(tag => {
               const cls     = getTagColorClasses(tag.color)
@@ -92,7 +94,7 @@ export function TagFilterDropdown({ availableTags, selectedTagIds, onChange }: P
                 onClick={() => { onChange([]); setOpen(false) }}
                 className="w-full text-xs text-[#8a7e6e] hover:text-[#1a1a2e] text-center py-1"
               >
-                Clear filter
+                {t('clearFilter')}
               </button>
             </div>
           )}

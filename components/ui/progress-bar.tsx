@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 interface ProgressBarProps {
   progress: number
   color?: string
@@ -8,13 +10,14 @@ interface ProgressBarProps {
   className?: string
 }
 
-export function ProgressBar({ 
-  progress, 
+export function ProgressBar({
+  progress,
   color = 'bg-[var(--primary)]',
   height = 'md',
   showLabel = false,
   className = ''
 }: ProgressBarProps) {
+  const t = useTranslations('components.ui.progressBar')
   const heightClasses = {
     sm: 'h-1',
     md: 'h-2',
@@ -25,7 +28,7 @@ export function ProgressBar({
     <div className={`space-y-2 ${className}`}>
       {showLabel && (
         <div className="flex justify-between text-sm">
-          <span className="text-[var(--muted)]">Progression</span>
+          <span className="text-[var(--muted)]">{t('label')}</span>
           <span className="font-medium text-[var(--foreground)]">{progress}%</span>
         </div>
       )}

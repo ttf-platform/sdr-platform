@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { calculateProfileScore, getMissingCriteriaDetailed } from '@/lib/profile-quality'
 import type { ProfileForScore } from '@/lib/profile-quality'
@@ -21,6 +22,7 @@ export default function ProfileQualityBadge({
   sticky = false,
   dismissible = false,
 }: Props) {
+  const t                         = useTranslations('components.profileQualityBadge')
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
@@ -44,18 +46,18 @@ export default function ProfileQualityBadge({
   if (score >= 70) {
     bannerCls = 'bg-emerald-50 border border-emerald-200'
     pillCls   = 'bg-emerald-100 text-emerald-700'
-    label     = `✨ Full context · ${score}%`
-    subtext   = 'Your AI knows your business inside out. Expect tailored, on-voice outputs.'
+    label     = t('labelFull', { score })
+    subtext   = t('subtextFull')
   } else if (score >= 30) {
     bannerCls = 'bg-amber-50 border border-amber-200'
     pillCls   = 'bg-amber-100 text-amber-700'
-    label     = `📊 Decent context · ${score}%`
-    subtext   = 'Your AI works, but better data means sharper outputs.'
+    label     = t('labelDecent', { score })
+    subtext   = t('subtextDecent')
   } else {
     bannerCls = 'bg-red-50 border border-red-200'
     pillCls   = 'bg-red-100 text-red-700'
-    label     = `⚠️ Limited context · ${score}%`
-    subtext   = 'Campaigns are locked until you reach 30%. Complete your profile so Mirvo AI can write on-brand emails.'
+    label     = t('labelLimited', { score })
+    subtext   = t('subtextLimited')
   }
 
   function handleDismiss() {
@@ -76,16 +78,16 @@ export default function ProfileQualityBadge({
           <Link
             href="/dashboard/settings"
             className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline flex-shrink-0"
-            aria-label="Edit profile"
+            aria-label={t('editProfileAriaLabel')}
           >
-            Edit profile →
+            {t('editProfile')}
           </Link>
         )}
         {dismissible && score >= 30 && (
           <button
             onClick={handleDismiss}
             className="flex-shrink-0 text-[#9c8b7d] hover:text-[#6b5e4e] text-lg leading-none"
-            aria-label="Dismiss"
+            aria-label={t('dismissAriaLabel')}
           >
             ×
           </button>

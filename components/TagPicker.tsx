@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { getTagColorClasses } from '@/lib/tag-colors'
 
 interface ProspectTag { id: string; label: string; color: string }
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function TagPicker({ assignedTagIds, onAssign, onCreate, onClose }: Props) {
+  const t                           = useTranslations('components.tagPicker')
   const [search, setSearch]         = useState('')
   const [allTags, setAllTags]       = useState<ProspectTag[]>([])
   const [loading, setLoading]       = useState(true)
@@ -50,16 +52,16 @@ export function TagPicker({ assignedTagIds, onAssign, onCreate, onClose }: Props
           autoFocus
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search or create…"
+          placeholder={t('searchPlaceholder')}
           className="w-full text-xs px-2 py-1.5 border border-[#e8e3dc] rounded-lg focus:outline-none focus:border-[#3b6bef]"
         />
       </div>
 
       <div className="max-h-48 overflow-y-auto py-1">
         {loading ? (
-          <div className="px-3 py-2 text-xs text-[#b0a898]">Loading…</div>
+          <div className="px-3 py-2 text-xs text-[#b0a898]">{t('loading')}</div>
         ) : filtered.length === 0 && !q ? (
-          <div className="px-3 py-2 text-xs text-[#b0a898]">No tags yet — type to create one.</div>
+          <div className="px-3 py-2 text-xs text-[#b0a898]">{t('empty')}</div>
         ) : (
           filtered.map(tag => {
             const cls = getTagColorClasses(tag.color)
@@ -83,7 +85,7 @@ export function TagPicker({ assignedTagIds, onAssign, onCreate, onClose }: Props
             onClick={() => { onCreate(search.trim()); onClose() }}
             className="w-full text-left text-xs px-2 py-1.5 text-[#3b6bef] hover:bg-[#eef1fd] rounded-lg"
           >
-            + Create &ldquo;{search.trim()}&rdquo;
+            {t('createOption', { query: search.trim() })}
           </button>
         </div>
       )}

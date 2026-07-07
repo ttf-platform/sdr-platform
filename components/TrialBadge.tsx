@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
 const supabase = createClient()
 
 export default function TrialBadge() {
+  const t                 = useTranslations('components.trialBadge')
   const [trial, setTrial] = useState<{ endDate: string; status: string } | null>(null)
 
   useEffect(() => {
@@ -49,13 +51,13 @@ export default function TrialBadge() {
   let text = ''
   if (isExpired) {
     className = 'bg-red-500 text-white border-red-500'
-    text = '⏱ Trial expired — Upgrade'
+    text = t('expired')
   } else if (isUrgent) {
     className = 'bg-red-50 text-red-700 border-red-200'
-    text = '⏱ ' + daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left'
+    text = t('daysLeft', { count: daysLeft })
   } else {
     className = 'bg-amber-50 text-amber-700 border-amber-200'
-    text = '⏱ ' + daysLeft + ' days left'
+    text = t('daysLeft', { count: daysLeft })
   }
 
   return (

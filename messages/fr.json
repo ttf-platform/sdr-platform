@@ -1684,5 +1684,70 @@
         "heroTitle": "☕ Morning Coffee Brief"
       }
     }
+  },
+  "components": {
+    "tags": {
+      "removeAriaLabel": "Remove tag {label}"
+    },
+    "tagPicker": {
+      "searchPlaceholder": "Search or create…",
+      "loading": "Loading…",
+      "empty": "No tags yet — type to create one.",
+      "createOption": "+ Create “{query}”"
+    },
+    "tagFilterDropdown": {
+      "button": "Tags",
+      "searchPlaceholder": "Search tags…",
+      "emptyTitle": "No tags yet.",
+      "emptyHint": "Create tags from a prospect's side panel.",
+      "clearFilter": "Clear filter"
+    },
+    "createTagModal": {
+      "title": "Create tag",
+      "labelField": "Label",
+      "labelPlaceholder": "e.g. Hot lead, Decision maker…",
+      "colorField": "Color",
+      "colorAriaLabel": "Color {color}",
+      "errorCreate": "Failed to create tag.",
+      "cancel": "Cancel",
+      "creating": "Creating…",
+      "create": "Create"
+    },
+    "trialBadge": {
+      "expired": "⏱ Trial expired — Upgrade",
+      "daysLeft": "⏱ {count, plural, one {# day left} other {# days left}}"
+    },
+    "profileQualityBadge": {
+      "labelFull": "✨ Full context · {score}%",
+      "labelDecent": "📊 Decent context · {score}%",
+      "labelLimited": "⚠️ Limited context · {score}%",
+      "subtextFull": "Your AI knows your business inside out. Expect tailored, on-voice outputs.",
+      "subtextDecent": "Your AI works, but better data means sharper outputs.",
+      "subtextLimited": "Campaigns are locked until you reach 30%. Complete your profile so Mirvo AI can write on-brand emails.",
+      "editProfile": "Edit profile →",
+      "editProfileAriaLabel": "Edit profile",
+      "dismissAriaLabel": "Dismiss"
+    },
+    "creditUsageIndicator": {
+      "labelTotalProspects": "AI-researched contacts",
+      "labelEmailsPerMonth": "Emails this month",
+      "labelProspectsSourcedPerMonth": "AI-sourced prospects this month",
+      "upgrade": "Upgrade",
+      "usageStatus": "{pct}% used · {remaining} remaining",
+      "resets": "resets {date}",
+      "capReached": "Cap reached — upgrade to continue."
+    },
+    "ui": {
+      "modal": {
+        "closeAriaLabel": "Close"
+      },
+      "spinner": {
+        "loadingAriaLabel": "Loading",
+        "loading": "Loading…"
+      },
+      "progressBar": {
+        "label": "Progress"
+      }
+    }
   }
 }
