@@ -122,7 +122,7 @@ function checkInstantlyWebhook(): CheckResult {
 // registered in the Instantly dashboard, so REPLY/SENT/BOUNCED events never
 // come back — replies vanish silently to the user.
 //
-// Activity signal is prospect_emails.status='approved' + updated_at within
+// Activity signal is prospect_emails.status='approved' + approved_at within
 // the last 24h — NOT email_send_log (which is populated BY the SENT webhook
 // itself, so a silent webhook would starve that signal and cause a permanent
 // false negative). Approvals are user-driven and land on the DB regardless
@@ -143,13 +143,19 @@ async function checkInstantlyWebhookActivity(): Promise<CheckResult> {
     ).toISOString()
 
     // 1) Is anything happening that should trigger a webhook?
+    // Dropped `head: true` intentionally: with HEAD, PostgREST returns no body
+    // on a 4xx, supabase-js falls back to `{ message: '' }`, and any future
+    // schema drift surfaces as `activity probe failed: ` (opaque). Fetching
+    // one row is cheap and keeps error messages readable in the daily alert.
     const { count: recentApprovals, error: activityErr } = await admin
       .from('prospect_emails')
-      .select('id', { count: 'exact', head: true })
+      .select('id', { count: 'exact' })
       .eq('status', 'approved')
-      .gte('updated_at', activitySince)
+      .gte('approved_at', activitySince)
+      .limit(1)
     if (activityErr) {
-      return { status: 'down', error: `activity probe failed: ${activityErr.message}` }
+      const msg = activityErr.message || activityErr.code || 'unknown supabase error'
+      return { status: 'down', error: `activity probe failed: ${msg}` }
     }
     const approvals = recentApprovals ?? 0
     if (approvals === 0) {
