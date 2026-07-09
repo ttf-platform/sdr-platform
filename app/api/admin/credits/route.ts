@@ -30,7 +30,18 @@ export async function POST(request: Request) {
   const { data: { user } } = await (await createClient()).auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  await admin.from('workspaces').update({ credits: amount, is_free_granted: true }).eq('id', member.workspace_id)
+  // Atomic ADD (not SET). The previous code overwrote `credits` with
+  // `amount`, silently erasing any paid credits already on the workspace.
+  // Migration 071 defines grant_credits_to_workspace which does the increment
+  // in a single UPDATE ... RETURNING, service-role only.
+  const { data: newBalance, error: grantErr } = await admin.rpc(
+    'grant_credits_to_workspace',
+    { p_workspace_id: member.workspace_id, p_amount: amount },
+  )
+  if (grantErr) {
+    return NextResponse.json({ error: 'grant_failed', detail: grantErr.message }, { status: 500 })
+  }
+
   await admin.from('credit_history').insert({
     workspace_id: member.workspace_id,
     granted_by:   user.id,
@@ -43,8 +54,8 @@ export async function POST(request: Request) {
     action_type: 'credits_granted',
     target_type: 'workspace',
     target_id:   member.workspace_id,
-    metadata:    { email, amount, reason },
+    metadata:    { email, amount, reason, new_balance: newBalance },
   })
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, new_balance: newBalance })
 }

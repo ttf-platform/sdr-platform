@@ -53,7 +53,9 @@ export default async function OperationsPage() {
     const hoursSince = lastRunAt
       ? (Date.now() - new Date(lastRunAt).getTime()) / 3_600_000
       : null;
-    const stale = lastRunAt != null && hoursSince != null && hoursSince > c.expected_max_gap_hours;
+    // A cron with NO recorded run (lastRunAt null) is the MOST stale case, not
+    // fresh — a never-scheduled or never-fired cron is a real observability signal.
+    const stale = lastRunAt == null || (hoursSince != null && hoursSince > c.expected_max_gap_hours);
     return {
       name:                   c.name,
       schedule_label:         c.schedule_label,
