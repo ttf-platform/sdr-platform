@@ -1822,6 +1822,13 @@
         "importing": "Import…",
         "importN": "Importer {count, plural, one {# e-mail} other {# e-mails}}"
       }
+    },
+    "cookieBanner": {
+      "title": "Vos données vous appartiennent",
+      "body": "Certains cookies sont indispensables au fonctionnement de Mirvo. D'autres nous aident à comprendre comment le site est utilisé. Vous décidez pour ces derniers.",
+      "policyLink": "Notre politique de cookies",
+      "reject": "Refuser les statistiques",
+      "accept": "Tout accepter"
     }
   }
 }

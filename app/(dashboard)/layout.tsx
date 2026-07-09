@@ -24,6 +24,7 @@
 import { useEffect, useState } from 'react'
 import { NextIntlClientProvider } from 'next-intl'
 import { DashboardShell } from './_DashboardShell'
+import { CookieConsentBanner } from '@/components/CookieConsentBanner'
 import { readDashboardLocaleSync, DEFAULT_DASHBOARD_LOCALE, type DashboardLocale } from '@/lib/locale'
 import enMessages from '../../messages/en.json'
 import frMessages from '../../messages/fr.json'
@@ -44,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <NextIntlClientProvider locale={locale} messages={MESSAGES_BY_LOCALE[locale]}>
       <DashboardShell>{children}</DashboardShell>
+      <CookieConsentBanner />
     </NextIntlClientProvider>
   )
 }

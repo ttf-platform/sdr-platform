@@ -1822,6 +1822,13 @@
         "importing": "Importing…",
         "importN": "Import {count, plural, one {# email} other {# emails}}"
       }
+    },
+    "cookieBanner": {
+      "title": "We respect your privacy",
+      "body": "We use essential cookies to make Mirvo work, and analytics cookies to understand how the site is used. You choose.",
+      "policyLink": "Read our cookie policy",
+      "reject": "Reject analytics",
+      "accept": "Accept all"
     }
   }
 }

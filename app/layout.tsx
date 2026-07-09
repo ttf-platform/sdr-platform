@@ -3,7 +3,6 @@ import { DM_Sans } from 'next/font/google'
 import './globals.css'
 import { PHProvider } from './providers'
 import { UTMCapture } from '@/components/UTMCapture'
-import { CookieConsentBanner } from '@/components/CookieConsentBanner'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -72,7 +71,6 @@ export default function RootLayout({
         <PHProvider>
           <UTMCapture />
           {children}
-          <CookieConsentBanner />
         </PHProvider>
       </body>
     </html>
