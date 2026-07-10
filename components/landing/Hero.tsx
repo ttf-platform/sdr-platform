@@ -7,14 +7,6 @@ import { CTAButton } from './CTAButton';
 
 type Phase = 1 | 2 | 3 | 4 | 5;
 
-const PHASE_LABELS: Record<Phase, string> = {
-  1: '01  SOURCING',
-  2: '02  DRAFTING',
-  3: '03  AWAITING REVIEW',
-  4: '04  REPLIED',
-  5: '05  MEETING BOOKED',
-};
-
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.13 } } };
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -40,6 +32,15 @@ function GrainOverlay() {
 // ─── Phase strip ──────────────────────────────────────────────────────────────
 
 function PhaseStrip({ phase, loopKey, reduced }: { phase: Phase; loopKey: number; reduced: boolean }) {
+  const t = useTranslations('landing.hero.demo');
+  const phaseLabels: Record<Phase, string> = {
+    1: t('p1Label'),
+    2: t('p2Label'),
+    3: t('p3Label'),
+    4: t('p4Label'),
+    5: t('p5Label'),
+  };
+
   return (
     <div
       className="inline-flex items-center gap-3 rounded-md bg-white mb-3 self-start"
@@ -80,7 +81,7 @@ function PhaseStrip({ phase, loopKey, reduced }: { phase: Phase; loopKey: number
             fontFamily: 'DM Sans, -apple-system, sans-serif',
           }}
         >
-          {PHASE_LABELS[phase]}
+          {phaseLabels[phase]}
         </motion.span>
       </AnimatePresence>
     </div>
@@ -90,14 +91,15 @@ function PhaseStrip({ phase, loopKey, reduced }: { phase: Phase; loopKey: number
 // ─── Dashboard card ───────────────────────────────────────────────────────────
 
 function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: number; reduced: boolean }) {
+  const t = useTranslations('landing.hero.demo');
   const borderColor = phase === 4 ? '#bfdbfe' : '#e8e3dc';
 
   const badge: Record<Phase, { cls: string; label: string }> = {
-    1: { cls: 'bg-green-50 border border-green-200 text-green-700', label: 'Active' },
-    2: { cls: 'bg-green-50 border border-green-200 text-green-700', label: 'Active' },
-    3: { cls: 'bg-amber-50 border border-[#fde68a] text-[#d97706]', label: '● AWAITING REVIEW' },
-    4: { cls: 'bg-blue-50 border border-blue-200 text-[#3b6bef]', label: 'Reply' },
-    5: { cls: 'bg-[#eff6ff] border border-blue-200 text-[#3b6bef]', label: 'Confirmed' },
+    1: { cls: 'bg-green-50 border border-green-200 text-green-700', label: t('badgeActive') },
+    2: { cls: 'bg-green-50 border border-green-200 text-green-700', label: t('badgeActive') },
+    3: { cls: 'bg-amber-50 border border-[#fde68a] text-[#d97706]', label: t('badgeAwaitingReview') },
+    4: { cls: 'bg-blue-50 border border-blue-200 text-[#3b6bef]', label: t('badgeReply') },
+    5: { cls: 'bg-[#eff6ff] border border-blue-200 text-[#3b6bef]', label: t('badgeConfirmed') },
   };
 
   return (
@@ -114,8 +116,8 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#e8e3dc] bg-[#faf8f5] flex items-center justify-between">
         <div>
-          <div className="text-xs font-semibold text-[#1a1a1a]">Mirvo activity</div>
-          <div className="text-[10px] text-[#9a9a9a] mt-0.5">Running now</div>
+          <div className="text-xs font-semibold text-[#1a1a1a]">{t('headerTitle')}</div>
+          <div className="text-[10px] text-[#9a9a9a] mt-0.5">{t('headerSub')}</div>
         </div>
         <AnimatePresence mode="wait">
           <motion.span
@@ -145,12 +147,12 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               className="space-y-3"
             >
               <div>
-                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-1">Sourcing prospects</div>
-                <p className="text-[10px] text-[#4a4a5a]">SaaS · 50–200 employees · Series A</p>
+                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-1">{t('p1Title')}</div>
+                <p className="text-[10px] text-[#4a4a5a]">{t('p1Filter')}</p>
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-[9px] text-[#9a9a9a]">Prospects found</span>
+                  <span className="text-[9px] text-[#9a9a9a]">{t('p1ProgressLabel')}</span>
                   <span className="text-[9px] font-bold text-[#1a1a1a]">47</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-[#e8e3dc] overflow-hidden">
@@ -176,11 +178,12 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               className="space-y-3"
             >
               <div>
-                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-1">Drafting email</div>
+                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-1">{t('p2Title')}</div>
+                {/* Persona: proper noun, kept identical in EN + FR per positioning brief. */}
                 <p className="text-[10px] text-[#4a4a5a]">Sarah Chen · Acme Inc · VP Sales</p>
               </div>
               <div className="rounded-lg bg-[#faf8f5] border border-[#e8e3dc] px-3 py-2 space-y-1.5">
-                <div className="text-[9px] text-[#9a9a9a]">Subject: Quick question about sales stack</div>
+                <div className="text-[9px] text-[#9a9a9a]">{t('p2Subject')}</div>
                 <div className="flex items-center gap-1">
                   {[0, 1, 2].map((i) => (
                     <motion.span
@@ -190,7 +193,7 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                       transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
                     />
                   ))}
-                  <span className="text-[9px] text-[#9a9a9a] ml-1">Writing...</span>
+                  <span className="text-[9px] text-[#9a9a9a] ml-1">{t('p2Writing')}</span>
                 </div>
               </div>
             </motion.div>
@@ -207,16 +210,17 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               className="space-y-2"
             >
               <div>
-                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-0.5">Email ready for review</div>
+                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-0.5">{t('p3Title')}</div>
+                {/* Persona: proper noun, kept identical. */}
                 <p className="text-[10px] text-[#4a4a5a]">Sarah Chen · Acme Inc</p>
               </div>
               {/* Email container neutre — amber uniquement sur le label TO: */}
               <div className="rounded-lg bg-white border border-[#e8e3dc] px-3 py-2 space-y-1">
                 <div className="text-[9px] font-medium" style={{ color: '#d97706' }}>
-                  TO: sarah@acmeinc.com
+                  {t('p3To')}
                 </div>
                 <p className="text-[9px] text-[#1a1a1a] leading-[1.4]">
-                  Hi Sarah, I noticed Acme is expanding the sales team...
+                  {t('p3Preview')}
                 </p>
               </div>
               {/* Ghost amber button — pas de solid bleu imposant */}
@@ -228,7 +232,7 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                   <svg width="8" height="7" viewBox="0 0 8 7" fill="none" aria-hidden="true">
                     <path d="M1 3.5L3 5.5L7 1" stroke="#d97706" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="text-[10px] font-medium">Approve</span>
+                  <span className="text-[10px] font-medium">{t('p3Approve')}</span>
                 </div>
               </div>
             </motion.div>
@@ -251,15 +255,16 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <span className="text-[10px] font-semibold text-[#1a1a1a]">Reply received</span>
+                    <span className="text-[10px] font-semibold text-[#1a1a1a]">{t('p4Title')}</span>
                     <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[#3b6bef]">
-                      Reply
+                      {t('badgeReply')}
                     </span>
                   </div>
                   <p className="text-[10px] text-[#4a4a5a]">
+                    {/* Persona: proper noun, kept identical. */}
                     <span className="font-semibold text-[#1a1a1a]">Sarah Chen</span>
                     {' '}· Acme ·{' '}
-                    <span>&ldquo;Interested in a 15-min call&rdquo;</span>
+                    <span>{t('p4Quote')}</span>
                   </p>
                 </div>
               </div>
@@ -277,7 +282,8 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               className="space-y-2"
             >
               <div>
-                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-0.5">Meeting scheduled</div>
+                <div className="text-[10px] font-semibold text-[#1a1a1a] mb-0.5">{t('p5Title')}</div>
+                {/* Persona: proper noun, kept identical. */}
                 <p className="text-[10px] text-[#4a4a5a]">Sarah Chen · Acme Inc</p>
               </div>
               <div className="rounded-lg bg-[#3b6bef] px-3 py-2 flex items-center gap-2">
@@ -298,9 +304,9 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
                   />
                 </svg>
                 <div className="min-w-0">
-                  <div className="text-[10px] font-semibold text-white">Fri 10:00 · 30 min</div>
+                  <div className="text-[10px] font-semibold text-white">{t('p5Datetime')}</div>
                   <div className="text-[9px]" style={{ color: 'rgba(219,234,254,0.8)' }}>
-                    Added to your calendar
+                    {t('p5Confirm')}
                   </div>
                 </div>
               </div>
@@ -314,9 +320,9 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
       <div className="px-4 py-2.5 border-t border-[#e8e3dc] bg-[#faf8f5]">
         <div className="grid grid-cols-3 gap-2 text-center">
           {[
-            { label: 'Sourced', value: phase >= 1 ? '47' : '—', pulse: false },
-            { label: 'Replies', value: phase >= 4 ? '1' : '—', pulse: false },
-            { label: 'Booked', value: phase >= 5 ? '1' : '—', pulse: phase === 5 },
+            { label: t('statSourced'), value: phase >= 1 ? '47' : '—', pulse: false },
+            { label: t('statReplies'), value: phase >= 4 ? '1' : '—', pulse: false },
+            { label: t('statBooked'), value: phase >= 5 ? '1' : '—', pulse: phase === 5 },
           ].map((s) => (
             <div key={s.label}>
               <AnimatePresence mode="wait">
@@ -343,6 +349,7 @@ function DashboardCard({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
 // ─── Calendar panel ───────────────────────────────────────────────────────────
 
 function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: number; reduced: boolean }) {
+  const t = useTranslations('landing.hero.demo');
   const showSarah = phase === 5 || reduced;
   const [showBookedBadge, setShowBookedBadge] = useState(false);
 
@@ -360,11 +367,12 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
       style={{ boxShadow: '0 1px 3px rgba(26,26,26,0.06), 0 1px 2px -1px rgba(26,26,26,0.06)' }}
     >
       <div className="px-3 py-3 border-b border-[#e8e3dc] bg-[#faf8f5]">
-        <div className="text-xs font-semibold text-[#1a1a1a]">This week</div>
-        <div className="text-[10px] text-[#9a9a9a] mt-0.5">May 5–9, 2026</div>
+        <div className="text-xs font-semibold text-[#1a1a1a]">{t('calThisWeek')}</div>
+        <div className="text-[10px] text-[#9a9a9a] mt-0.5">{t('calDateRange')}</div>
       </div>
 
       <div className="flex-1 p-2.5 space-y-1.5 overflow-hidden">
+        {/* Personas: proper nouns, kept identical in EN + FR. */}
         {[
           { name: 'Marcus Webb', co: 'Blue Frontier', time: '11:30' },
           { name: 'Jordan Kim', co: 'NovaBridge', time: '14:00' },
@@ -425,13 +433,14 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               </svg>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
+                  {/* Persona: proper noun, kept identical. */}
                   <div className="text-[10px] font-semibold text-white truncate">Sarah Chen</div>
                   <span className="flex-shrink-0 text-[8px] font-bold" style={{ color: 'rgba(219,234,254,0.8)' }}>
-                    New
+                    {t('calNewLabel')}
                   </span>
                 </div>
                 <div className="text-[9px]" style={{ color: 'rgba(219,234,254,0.75)' }}>
-                  Acme · Fri 10:00 · 30 min
+                  {t('calSarahMeta')}
                 </div>
               </div>
             </motion.div>
@@ -449,7 +458,7 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
               transition={{ duration: 0.3 }}
               className="pl-1 text-[10px] font-semibold text-[#3b6bef]"
             >
-              Booked just now
+              {t('calBookedJustNow')}
             </motion.p>
           )}
         </AnimatePresence>
@@ -457,7 +466,7 @@ function CalendarPanel({ phase, loopKey, reduced }: { phase: Phase; loopKey: num
 
       <div className="px-3 py-2.5 border-t border-[#e8e3dc] bg-[#faf8f5]">
         <div className="flex items-center justify-between">
-          <span className="text-[9px] text-[#9a9a9a]">Meetings this week</span>
+          <span className="text-[9px] text-[#9a9a9a]">{t('calMeetingsThisWeek')}</span>
           <span className="text-xs font-bold text-[#1a1a1a]">{showSarah ? '3' : '2'}</span>
         </div>
       </div>
