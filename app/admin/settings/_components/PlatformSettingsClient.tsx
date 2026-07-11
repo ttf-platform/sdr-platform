@@ -13,7 +13,7 @@ export function PlatformSettingsClient({ initialSettings }: { initialSettings: R
     <div className="mx-auto max-w-3xl p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-[#1a1a1a]">Platform Settings</h1>
-        <p className="mt-1 text-sm text-[#4a4a5a]">Global configuration for the Sentra platform.</p>
+        <p className="mt-1 text-sm text-[#4a4a5a]">Global configuration for the Mirvo platform.</p>
       </div>
 
       <div className="space-y-4">
