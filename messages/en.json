@@ -404,7 +404,10 @@
     "errorMismatch": "Passwords do not match.",
     "errorTooShort": "Password must be at least 8 characters.",
     "errorInvalidLink": "This reset link has expired or is invalid. Please request a new one.",
-    "backToLogin": "← Back to sign in"
+    "backToLogin": "← Back to sign in",
+    "requestNewLink": "Request a new link",
+    "verifying": "Verifying reset link…",
+    "loading": "Loading…"
   },
   "signup": {
     "step0": "Account",
@@ -437,7 +440,43 @@
     "launching": "Launching...",
     "startTrial": "Start {plan} trial →",
     "somethingWentWrong": "Something went wrong. Please try again.",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "errorEmailExists": "An account with this email already exists. Please sign in instead.",
+    "checking": "Checking…"
+  },
+  "noWorkspace": {
+    "loading": "Loading…",
+    "workspaceNameDefault": "My workspace",
+    "workspaceNameWithFirstName": "{firstName}'s workspace",
+    "errorNameRequired": "Please give your workspace a name.",
+    "errorNameTooLong": "Workspace name must be 100 characters or less.",
+    "errorCreateFailed": "We could not create your workspace. Please try again.",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "heading": "Your workspace is no longer available",
+    "description1": "Following the end of your subscription, your previous workspace was removed as part of our data-retention policy.",
+    "description2": "Your account is still active. You can start a new workspace whenever you're ready.",
+    "workspaceNameLabel": "Workspace name",
+    "creating": "Creating…",
+    "createButton": "Create a new workspace",
+    "logOut": "Log out"
+  },
+  "status": {
+    "pageHeading": "Mirvo status",
+    "pageDescription": "Real-time status of all Mirvo services. Auto-refreshes every 30 seconds.",
+    "loadingStatus": "Loading status…",
+    "errorLoad": "Failed to load",
+    "errorUnable": "Unable to load status. Retrying…",
+    "loading": "Loading…",
+    "lastChecked": "Last checked: {timestamp}",
+    "statusOk": "All systems operational",
+    "statusDegraded": "Some services degraded",
+    "statusDown": "Major outage",
+    "serviceDatabase": "Database",
+    "servicePayments": "Payments",
+    "serviceAI": "AI",
+    "serviceEmail": "Email infrastructure",
+    "contactLine": "If you're experiencing issues not shown here, contact <link>hello@mirvo.ai</link>",
+    "refreshedAt": "Refreshed at {time}. Auto-refreshes every 30s."
   },
   "pricing": {
     "navLogin": "Login",

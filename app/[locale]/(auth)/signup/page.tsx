@@ -19,6 +19,7 @@ function SignupForm() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailExists, setEmailExists] = useState(false)
   const [data, setData] = useState({ email: '', password: '', name: '', workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
 
@@ -34,6 +35,7 @@ function SignupForm() {
     if (!data.email || !data.password || !data.name) return
     setLoading(true)
     setError('')
+    setEmailExists(false)
     try {
       const res = await fetch('/api/auth/check-email', {
         method: 'POST',
@@ -41,7 +43,8 @@ function SignupForm() {
         body: JSON.stringify({ email: data.email }),
       }).then(r => r.json())
       if (res.exists) {
-        setError('An account with this email already exists. Please sign in instead.')
+        setEmailExists(true)
+        setError(t('errorEmailExists'))
         setLoading(false)
         return
       }
@@ -106,7 +109,7 @@ function SignupForm() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg">
               {error}
-              {error.toLowerCase().includes('already exists') && (
+              {emailExists && (
                 <div className="mt-2">
                   <Link href="/login" className="font-semibold text-red-600 underline">
                     {t('signIn')} instead →
@@ -121,7 +124,7 @@ function SignupForm() {
               <input type="text" name="name" autoComplete="name" value={data.name} onChange={e=>setData({...data,name:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('fullName')} />
               <input type="email" name="email" autoComplete="email" spellCheck={false} value={data.email} onChange={e=>setData({...data,email:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('email')} />
               <input type="password" name="new-password" autoComplete="new-password" value={data.password} onChange={e=>setData({...data,password:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('passwordPlaceholder')} minLength={8} />
-              <button type="submit" disabled={!data.email||!data.password||!data.name||loading} className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? 'Checking…' : t('continue')}</button>
+              <button type="submit" disabled={!data.email||!data.password||!data.name||loading} className="w-full bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? t('checking') : t('continue')}</button>
               <p className="text-center text-xs text-[#8a7e6e]">{t('alreadyHaveAccount')} <Link href="/login" className="text-[#3b6bef] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] rounded">{t('signIn')}</Link></p>
             </form>
           )}

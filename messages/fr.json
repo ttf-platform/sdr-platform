@@ -404,7 +404,10 @@
     "errorMismatch": "Les mots de passe ne correspondent pas.",
     "errorTooShort": "Le mot de passe doit comporter au moins 8 caractères.",
     "errorInvalidLink": "Ce lien de réinitialisation a expiré ou est invalide. Veuillez en demander un nouveau.",
-    "backToLogin": "← Retour à la connexion"
+    "backToLogin": "← Retour à la connexion",
+    "requestNewLink": "Demander un nouveau lien",
+    "verifying": "Vérification du lien de réinitialisation…",
+    "loading": "Chargement…"
   },
   "signup": {
     "step0": "Compte",
@@ -437,7 +440,43 @@
     "launching": "Lancement...",
     "startTrial": "Démarrer l'essai {plan} →",
     "somethingWentWrong": "Une erreur s'est produite. Veuillez réessayer.",
-    "loading": "Chargement..."
+    "loading": "Chargement...",
+    "errorEmailExists": "Un compte existe déjà avec cet email.",
+    "checking": "Vérification…"
+  },
+  "noWorkspace": {
+    "loading": "Chargement…",
+    "workspaceNameDefault": "Mon workspace",
+    "workspaceNameWithFirstName": "Workspace de {firstName}",
+    "errorNameRequired": "Veuillez nommer votre workspace.",
+    "errorNameTooLong": "Le nom du workspace ne peut pas dépasser 100 caractères.",
+    "errorCreateFailed": "Nous n'avons pas pu créer votre workspace. Veuillez réessayer.",
+    "errorGeneric": "Une erreur est survenue. Veuillez réessayer.",
+    "heading": "Votre workspace n'est plus disponible",
+    "description1": "Suite à la fin de votre abonnement, votre workspace précédent a été supprimé conformément à notre politique de conservation des données.",
+    "description2": "Votre compte reste actif. Vous pouvez démarrer un nouveau workspace quand vous voulez.",
+    "workspaceNameLabel": "Nom du workspace",
+    "creating": "Création…",
+    "createButton": "Créer un nouveau workspace",
+    "logOut": "Se déconnecter"
+  },
+  "status": {
+    "pageHeading": "Statut Mirvo",
+    "pageDescription": "Statut en temps réel de tous les services Mirvo. Actualisation automatique toutes les 30 secondes.",
+    "loadingStatus": "Chargement du statut…",
+    "errorLoad": "Échec du chargement",
+    "errorUnable": "Impossible de charger le statut. Nouvelle tentative…",
+    "loading": "Chargement…",
+    "lastChecked": "Dernière vérification : {timestamp}",
+    "statusOk": "Tous les systèmes opérationnels",
+    "statusDegraded": "Certains services dégradés",
+    "statusDown": "Panne majeure",
+    "serviceDatabase": "Base de données",
+    "servicePayments": "Paiements",
+    "serviceAI": "IA",
+    "serviceEmail": "Infrastructure email",
+    "contactLine": "Si vous rencontrez un problème qui n'apparaît pas ici, contactez <link>hello@mirvo.ai</link>",
+    "refreshedAt": "Actualisé à {time}. Actualisation automatique toutes les 30 s."
   },
   "pricing": {
     "navLogin": "Connexion",

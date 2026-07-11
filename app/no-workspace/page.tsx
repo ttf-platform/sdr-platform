@@ -1,12 +1,22 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
+import { readDashboardLocaleSync, DEFAULT_DASHBOARD_LOCALE, type DashboardLocale } from '@/lib/locale'
+import enMessages from '../../messages/en.json'
+import frMessages from '../../messages/fr.json'
 
 const supabase = createClient()
 
-export default function NoWorkspacePage() {
+const MESSAGES_BY_LOCALE: Record<DashboardLocale, typeof enMessages> = {
+  en: enMessages,
+  fr: frMessages,
+}
+
+function NoWorkspaceForm() {
+  const t = useTranslations('noWorkspace')
   const [checking, setChecking] = useState(true)
-  const [workspaceName, setWorkspaceName] = useState('My workspace')
+  const [workspaceName, setWorkspaceName] = useState(t('workspaceNameDefault'))
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,16 +37,16 @@ export default function NoWorkspacePage() {
 
       const firstName = (session.user.user_metadata?.first_name as string | undefined)
         ?? (session.user.user_metadata?.full_name as string | undefined)?.split(' ')?.[0]
-      if (firstName) setWorkspaceName(`${firstName}\u2019s workspace`)
+      if (firstName) setWorkspaceName(t('workspaceNameWithFirstName', { firstName }))
       setChecking(false)
     })()
-  }, [])
+  }, [t])
 
   async function handleCreate() {
     if (creating) return
     const name = workspaceName.trim()
-    if (!name) { setError('Please give your workspace a name.'); return }
-    if (name.length > 100) { setError('Workspace name must be 100 characters or less.'); return }
+    if (!name) { setError(t('errorNameRequired')); return }
+    if (name.length > 100) { setError(t('errorNameTooLong')); return }
     setError(null)
     setCreating(true)
     try {
@@ -50,12 +60,12 @@ export default function NoWorkspacePage() {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        const message = typeof body?.error === 'string' ? body.error : 'We could not create your workspace. Please try again.'
+        const message = typeof body?.error === 'string' ? body.error : t('errorCreateFailed')
         throw new Error(message)
       }
       window.location.href = '/dashboard'
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      setError(err instanceof Error ? err.message : t('errorGeneric'))
       setCreating(false)
     }
   }
@@ -69,7 +79,7 @@ export default function NoWorkspacePage() {
   if (checking) {
     return (
       <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center">
-        <div className="text-sm text-[#4a4a5a]">Loading&hellip;</div>
+        <div className="text-sm text-[#4a4a5a]">{t('loading')}</div>
       </div>
     )
   }
@@ -78,18 +88,18 @@ export default function NoWorkspacePage() {
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center px-4 py-12">
       <main className="w-full max-w-md bg-white border border-[#e8e3dc] rounded-2xl p-8">
         <h1 className="text-xl font-semibold text-[#1a1a1a] mb-3">
-          Your workspace is no longer available
+          {t('heading')}
         </h1>
         <p className="text-sm text-[#4a4a5a] leading-relaxed mb-2">
-          Following the end of your subscription, your previous workspace was removed as part of our data-retention policy.
+          {t('description1')}
         </p>
         <p className="text-sm text-[#4a4a5a] leading-relaxed mb-6">
-          Your account is still active. You can start a new workspace whenever you&rsquo;re ready.
+          {t('description2')}
         </p>
 
         <form onSubmit={(e) => { e.preventDefault(); handleCreate() }}>
           <label htmlFor="workspaceName" className="block text-xs font-medium text-[#4a4a5a] mb-1">
-            Workspace name
+            {t('workspaceNameLabel')}
           </label>
           <input
             id="workspaceName"
@@ -113,7 +123,7 @@ export default function NoWorkspacePage() {
               disabled={creating}
               className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
             >
-              {creating ? 'Creating\u2026' : 'Create a new workspace'}
+              {creating ? t('creating') : t('createButton')}
             </button>
             <button
               type="button"
@@ -121,11 +131,26 @@ export default function NoWorkspacePage() {
               disabled={creating}
               className="w-full border border-[#e8e3dc] text-[#4a4a5a] hover:bg-[#f5f2ee] disabled:opacity-60 disabled:cursor-not-allowed rounded-xl py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
             >
-              Log out
+              {t('logOut')}
             </button>
           </div>
         </form>
       </main>
     </div>
+  )
+}
+
+export default function NoWorkspacePage() {
+  const [locale, setLocale] = useState<DashboardLocale>(DEFAULT_DASHBOARD_LOCALE)
+
+  useEffect(() => {
+    const cookieLocale = readDashboardLocaleSync()
+    if (cookieLocale !== DEFAULT_DASHBOARD_LOCALE) setLocale(cookieLocale)
+  }, [])
+
+  return (
+    <NextIntlClientProvider locale={locale} messages={MESSAGES_BY_LOCALE[locale]}>
+      <NoWorkspaceForm />
+    </NextIntlClientProvider>
   )
 }
