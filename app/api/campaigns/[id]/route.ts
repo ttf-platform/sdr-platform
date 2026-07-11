@@ -79,13 +79,7 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
 
   if (error) {
     console.error('[DELETE campaign]', error)
-    return NextResponse.json({
-      error:         'delete_failed',
-      debug_message: error.message,
-      debug_code:    (error as any).code,
-      debug_details: (error as any).details,
-      debug_hint:    (error as any).hint,
-    }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete campaign' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }
