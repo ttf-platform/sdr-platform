@@ -106,7 +106,7 @@ async function seed() {
   // 4. Seed workspace profile (ICP + tone)
   await admin.from('workspace_profiles').insert({
     workspace_id: workspace.id,
-    company_name: 'Sentra',
+    company_name: 'Mirvo',
     sender_name: 'Screenshots Bot',
     product_description: 'AI-powered outbound platform that automates SDR workflows end-to-end.',
     icp_description: 'B2B SaaS founders and early sales hires (Series A–B, 10–100 employees) running outbound without a dedicated SDR.',
