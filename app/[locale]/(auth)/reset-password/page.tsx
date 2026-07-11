@@ -77,13 +77,13 @@ function ResetPasswordForm() {
         <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
           {error}
           {error === t('errorInvalidLink') && (
-            <span> <Link href="/forgot-password" className="underline font-medium">Request a new link</Link>.</span>
+            <span> <Link href="/forgot-password" className="underline font-medium">{t('requestNewLink')}</Link>.</span>
           )}
         </div>
       )}
 
       {!sessionReady && !error && (
-        <p className="text-sm text-[#8a7e6e] text-center py-2">Verifying reset link…</p>
+        <p className="text-sm text-[#8a7e6e] text-center py-2">{t('verifying')}</p>
       )}
 
       {sessionReady && (
@@ -149,7 +149,7 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('title')}</h1>
         </div>
-        <Suspense fallback={<div className="bg-white rounded-xl border border-[#e8e3dc] p-6 text-center text-sm text-[#8a7e6e]">Loading…</div>}>
+        <Suspense fallback={<div className="bg-white rounded-xl border border-[#e8e3dc] p-6 text-center text-sm text-[#8a7e6e]">{t('loading')}</div>}>
           <ResetPasswordForm />
         </Suspense>
       </div>
