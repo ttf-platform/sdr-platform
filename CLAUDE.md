@@ -94,6 +94,16 @@ cp .env.local .env.local.backup
 ```
 `.env.local.backup` is gitignored and treated as the local source of truth for vars not synced to Vercel. To add a single var, edit `.env.local` directly — never global pull (will wipe local-only vars).
 
+## Security & secrets
+
+### Never print secret values in the clear
+Never display the value of a secret in the clear — API keys, tokens, service-role keys, passwords, connection strings — even in a read-only / audit context. Report only:
+- the variable name
+- its presence (yes / no)
+- if useful, a masked fingerprint (e.g. last 4 characters)
+
+Applies to any terminal output, report, diff, or chat message. When shelling out to read env, redact before printing (e.g. `sed 's/=.*/=<redacted>/'`).
+
 ## Tooling
 
 ### Skills (`.claude/skills/`)
