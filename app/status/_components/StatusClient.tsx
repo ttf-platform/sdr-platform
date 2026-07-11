@@ -38,11 +38,18 @@ function StatusContent() {
   // invisibility (see CLAUDE.md §Branding).
   function serviceLabel(service: string): string {
     switch (service) {
-      case 'database':  return t('serviceDatabase')
-      case 'stripe':    return t('servicePayments')
-      case 'anthropic': return t('serviceAI')
-      case 'resend':    return t('serviceEmail')
-      default:          return service
+      case 'database':                   return t('serviceDatabase')
+      case 'stripe':                     return t('servicePayments')
+      case 'stripe_webhook':             return t('servicePaymentWebhooks')
+      case 'anthropic':                  return t('serviceAI')
+      case 'resend':                     return t('serviceEmail')
+      case 'instantly_provider':         return t('serviceEmailDelivery')
+      case 'instantly_webhook':          return t('serviceEmailWebhooks')
+      case 'instantly_webhook_activity': return t('serviceEmailWebhookActivity')
+      // Vendor-invisibility: never render a raw check key. "Service" is a
+      // safe generic fallback in both FR and EN (same word) — if a new
+      // /api/health check is added, add a case here rather than let it leak.
+      default:                           return 'Service'
     }
   }
 
@@ -109,7 +116,7 @@ function StatusContent() {
                       <span className="text-lg">{conf.emoji}</span>
                       <div>
                         <p className="text-sm font-medium text-[#1a1a2e]">{serviceLabel(service)}</p>
-                        {check.error && <p className="text-xs text-red-600">{check.error}</p>}
+                        {check.error && <p className="text-xs text-red-600">{t('checkIssue')}</p>}
                       </div>
                     </div>
                     <div className="text-right">
