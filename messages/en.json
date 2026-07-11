@@ -466,6 +466,7 @@
     "loadingStatus": "Loading status…",
     "errorLoad": "Failed to load",
     "errorUnable": "Unable to load status. Retrying…",
+    "checkIssue": "Issue detected, we're on it.",
     "loading": "Loading…",
     "lastChecked": "Last checked: {timestamp}",
     "statusOk": "All systems operational",
@@ -475,6 +476,10 @@
     "servicePayments": "Payments",
     "serviceAI": "AI",
     "serviceEmail": "Email infrastructure",
+    "servicePaymentWebhooks": "Payment webhooks",
+    "serviceEmailDelivery": "Email delivery",
+    "serviceEmailWebhooks": "Email webhooks",
+    "serviceEmailWebhookActivity": "Email webhook activity",
     "contactLine": "If you're experiencing issues not shown here, contact <link>hello@mirvo.ai</link>",
     "refreshedAt": "Refreshed at {time}. Auto-refreshes every 30s."
   },
