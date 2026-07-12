@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface Props {
   campaignId:          string
@@ -12,6 +13,9 @@ interface Props {
 }
 
 export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, includeBookingLink, isRegenerate, onClose, onGenerated }: Props) {
+  const t = useTranslations('components.emailModals.generateDrafts')
+  const tCommon = useTranslations('components.emailModals.common')
+  const tErrors = useTranslations('components.emailModals.errors')
   const [mode, setMode]               = useState<'fast' | 'smart'>(defaultMode ?? 'smart')
   const [bookingLink, setBookingLink] = useState(includeBookingLink ?? false)
   const [includeSignature,    setIncludeSignature]    = useState<boolean | null>(null)
@@ -92,7 +96,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
       onGenerated()
     } catch {
       stopPoll()
-      setError('Generation failed. Please try again.')
+      setError(tErrors('generationFailed'))
       setGenerating(false)
     }
   }
@@ -104,7 +108,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-5 sm:p-8 text-center max-h-[calc(100vh-2rem)] overflow-y-auto">
           <div className="text-3xl mb-4">✨</div>
           <h2 className="text-base font-bold text-[#1a1a2e] mb-4">
-            {mode === 'smart' ? 'Mirvo AI is personalizing your emails…' : 'Generating emails…'}
+            {mode === 'smart' ? t('loadingTitleSmart') : t('loadingTitleFast')}
           </h2>
 
           <div className="w-full bg-[#f0ece6] rounded-full h-2 mb-3">
@@ -116,12 +120,12 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
 
           <p className="text-sm text-[#6b5e4e] mb-4">
             {progressCount > 0
-              ? `${progressCount} of ${prospectCount} emails done`
-              : `Preparing ${prospectCount} emails…`}
+              ? t('progressDone', { visible: progressCount, total: prospectCount })
+              : t('progressPreparing', { total: prospectCount })}
           </p>
 
           <div className="text-xs text-[#b0a898]">
-            Mode: {mode === 'smart' ? 'Smart' : 'Fast'}
+            {t('modeIndicator', { mode: mode === 'smart' ? t('modeSmartLabel') : t('modeFastLabel') })}
           </div>
         </div>
       </div>
@@ -135,7 +139,7 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#f0ece6]">
           <h2 className="text-base font-bold text-[#1a1a2e]">
-            {isRegenerate ? 'Regenerate emails' : 'Generate emails'} for {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
+            {isRegenerate ? t('titleRegenerate', { count: prospectCount }) : t('titleGenerate', { count: prospectCount })}
           </h2>
           <button onClick={onClose} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none">✕</button>
         </div>
@@ -144,21 +148,21 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
           {isRegenerate && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
               <span className="shrink-0 mt-0.5">⚠️</span>
-              <span>This will overwrite all existing drafts for this campaign.</span>
+              <span>{t('regenerateWarning')}</span>
             </div>
           )}
 
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input type="checkbox" checked={bookingLink} onChange={e => setBookingLink(e.target.checked)}
               className="rounded border-[#e8e3dc] text-[#3b6bef]" />
-            <span className="text-sm text-[#4a4a5a]">📅 Include calendar booking link in this email</span>
+            <span className="text-sm text-[#4a4a5a]">{t('includeBookingLink')}</span>
           </label>
 
           {includeSignature !== null && (
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input type="checkbox" checked={includeSignature} onChange={e => toggleSignature(e.target.checked)}
                 className="rounded border-[#e8e3dc] text-[#3b6bef]" />
-              <span className="text-sm text-[#4a4a5a]">✍️ Include email signature in generated emails</span>
+              <span className="text-sm text-[#4a4a5a]">{t('includeSignature')}</span>
             </label>
           )}
 
@@ -173,12 +177,12 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
               }`}
             >
               <div className="text-2xl mb-2">⚡</div>
-              <div className="font-semibold text-sm text-[#1a1a2e] mb-1">Fast</div>
+              <div className="font-semibold text-sm text-[#1a1a2e] mb-1">{t('fastTitle')}</div>
               <div className="text-xs text-[#6b5e4e] mb-3">
-                Same email for all prospects, with their name and company auto-filled.
+                {t('fastDescription')}
               </div>
               <div className="text-xs text-[#8a7e6e]">
-                <div>⏱ Ready in seconds</div>
+                <div>{t('fastMeta')}</div>
               </div>
             </button>
 
@@ -192,21 +196,21 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
               }`}
             >
               <span className="absolute top-3 right-3 text-[9px] bg-[#3b6bef] text-white px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">
-                Recommended
+                {t('smartRecommended')}
               </span>
               <div className="text-2xl mb-2">🎯</div>
-              <div className="font-semibold text-sm text-[#1a1a2e] mb-1">Smart</div>
+              <div className="font-semibold text-sm text-[#1a1a2e] mb-1">{t('smartTitle')}</div>
               <div className="text-xs text-[#6b5e4e] mb-3">
-                AI writes a unique opening line for each prospect based on their company and role.
+                {t('smartDescription')}
               </div>
               <div className="text-xs text-[#8a7e6e]">
-                {estimatedSeconds && <div>⏱ ~{estimatedSeconds}s for {prospectCount} prospects</div>}
+                {estimatedSeconds && <div>{t('smartEstimated', { seconds: estimatedSeconds, count: prospectCount })}</div>}
               </div>
             </button>
           </div>
 
           <p className="text-xs text-[#8a7e6e]">
-            1 email per prospect. You can edit any draft after generation.
+            {t('hint')}
           </p>
 
           {error && <p className="text-xs text-red-600">{error}</p>}
@@ -214,11 +218,11 @@ export function GenerateDraftsModal({ campaignId, prospectCount, defaultMode, in
           <div className="flex gap-2">
             <button onClick={onClose}
               className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">
-              Cancel
+              {tCommon('cancel')}
             </button>
             <button onClick={handleGenerate}
               className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold">
-              {isRegenerate ? 'Regenerate' : 'Generate'} {prospectCount} email{prospectCount !== 1 ? 's' : ''}
+              {isRegenerate ? t('ctaRegenerate', { count: prospectCount }) : t('ctaGenerate', { count: prospectCount })}
             </button>
           </div>
         </div>

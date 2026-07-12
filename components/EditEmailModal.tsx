@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { insertBookingUrl, stripBookingUrl } from '@/lib/normalize-body'
 import { renderSignature, appendSignature, stripSignature } from '@/lib/signature'
 
@@ -27,6 +28,9 @@ interface Props {
 }
 
 export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, onSaved }: Props) {
+  const t = useTranslations('components.emailModals.editEmail')
+  const tCommon = useTranslations('components.emailModals.common')
+  const tErrors = useTranslations('components.emailModals.errors')
   const [email,   setEmail]   = useState<EmailDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [subject, setSubject] = useState('')
@@ -76,10 +80,10 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
           setSubject(d.email.subject)
           setBody(d.email.body)
         } else {
-          setError('Failed to load email.')
+          setError(tErrors('failedToLoad'))
         }
       })
-      .catch(() => setError('Failed to load email.'))
+      .catch(() => setError(tErrors('failedToLoad')))
       .finally(() => setLoading(false))
   }, [emailId])
 
@@ -141,7 +145,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
 
       onSaved()
     } catch {
-      setError('Save failed. Please try again.')
+      setError(tErrors('saveFailed'))
       setSaving(false)
     }
   }
@@ -176,7 +180,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
         setBody(newBody)
       }
     } catch {
-      setError('Regeneration failed. Please try again.')
+      setError(tErrors('regenerationFailed'))
     } finally {
       setRegenning(false)
     }
@@ -200,7 +204,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#f0ece6] shrink-0">
           <div>
-            <h2 className="text-base font-bold text-[#1a1a2e]">Edit draft</h2>
+            <h2 className="text-base font-bold text-[#1a1a2e]">{t('title')}</h2>
             {prospectLabel && <p className="text-xs text-[#8a7e6e] mt-0.5">{prospectLabel}</p>}
           </div>
           <button
@@ -214,7 +218,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
         {/* Body */}
         <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-4">
           {loading ? (
-            <div className="text-sm text-[#8a7e6e] text-center py-8">Loading…</div>
+            <div className="text-sm text-[#8a7e6e] text-center py-8">{t('loading')}</div>
           ) : error && !email ? (
             <div className="text-sm text-red-600 text-center py-8">{error}</div>
           ) : (
@@ -222,12 +226,12 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
               {isSmartStep0 && (
                 <div className="flex items-center gap-2 text-xs text-[#3b6bef] bg-[#eef1fd] rounded-lg px-3 py-2">
                   <span>✨</span>
-                  <span>This email was personalized by Mirvo AI</span>
+                  <span>{t('smartBanner')}</span>
                 </div>
               )}
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-[#6b5e4e]">Subject</label>
+                <label className="text-xs font-medium text-[#6b5e4e]">{tCommon('subjectLabel')}</label>
                 <input
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
@@ -237,7 +241,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
               </div>
 
               <div className="flex flex-col gap-1 flex-1">
-                <label className="text-xs font-medium text-[#6b5e4e]">Body</label>
+                <label className="text-xs font-medium text-[#6b5e4e]">{tCommon('bodyLabel')}</label>
                 <textarea
                   value={body}
                   onChange={e => setBody(e.target.value)}
@@ -258,11 +262,11 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                       disabled={saving || regenning}
                       className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
                     />
-                    <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link</span>
+                    <span className="text-xs text-[#6b5e4e]">{tCommon('includeBookingLink')}</span>
                   </label>
                   {includeBookingLink && (
                     <p className="text-xs text-[#a89e8e] pl-5">
-                      Preview: <span className="text-[#3b6bef]">{`${appUrl}/book/${bookingSlug}`}</span>
+                      {tCommon('preview')} <span className="text-[#3b6bef]">{`${appUrl}/book/${bookingSlug}`}</span>
                     </p>
                   )}
                 </div>
@@ -278,7 +282,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                     disabled={saving || regenning}
                     className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
                   />
-                  <span className="text-xs text-[#6b5e4e]">✍️ Include email signature</span>
+                  <span className="text-xs text-[#6b5e4e]">{t('includeSignature')}</span>
                 </label>
               )}
 
@@ -287,7 +291,7 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                   onClick={() => setConfirmRegen(true)}
                   disabled={saving || regenning}
                   className="text-xs text-[#3b6bef] hover:underline disabled:opacity-40">
-                  {regenning ? 'Regenerating…' : '↺ Regenerate this email'}
+                  {regenning ? t('regenerating') : t('regenerate')}
                 </button>
               </div>
 
@@ -303,19 +307,19 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
               onClick={onClose}
               disabled={saving || regenning}
               className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm disabled:opacity-40">
-              Cancel
+              {tCommon('cancel')}
             </button>
             <button
               onClick={() => handleSave(false)}
               disabled={saving || regenning}
               className="flex-1 border border-[#3b6bef] text-[#3b6bef] rounded-lg py-2 text-sm font-medium disabled:opacity-40">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? tCommon('saving') : tCommon('save')}
             </button>
             <button
               onClick={() => handleSave(true)}
               disabled={saving || regenning}
               className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
-              {saving ? 'Saving…' : 'Save & approve'}
+              {saving ? tCommon('saving') : t('saveAndApprove')}
             </button>
           </div>
         )}
@@ -325,20 +329,20 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
       {confirmRegen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
-            <h3 className="text-base font-bold text-[#1a1a2e] mb-2">Regenerate email?</h3>
+            <h3 className="text-base font-bold text-[#1a1a2e] mb-2">{t('confirmTitle')}</h3>
             <p className="text-sm text-[#6b5e4e] mb-5">
-              This will overwrite your edits. Continue?
+              {t('confirmBody')}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmRegen(false)}
                 className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 onClick={handleRegenerate}
                 className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold">
-                Regenerate
+                {t('confirmAction')}
               </button>
             </div>
           </div>
