@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { normalizeBody } from '@/lib/normalize-body'
 
 interface FollowupStep {
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export function EditFollowupModal({ step, onSave, onClose }: Props) {
+  const t = useTranslations('components.emailModals.editFollowUp')
+  const tCommon = useTranslations('components.emailModals.common')
   const [delay,              setDelay]              = useState(step.delay_days)
   const [subject,            setSubject]            = useState(step.subject ?? '')
   const [body,               setBody]               = useState(step.body)
@@ -86,7 +89,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#f0ece6] shrink-0">
-          <h2 className="text-base font-bold text-[#1a1a2e]">Edit follow-up</h2>
+          <h2 className="text-base font-bold text-[#1a1a2e]">{t('title')}</h2>
           <button onClick={onClose} disabled={saving}
             className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none disabled:opacity-40">✕</button>
         </div>
@@ -96,7 +99,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
 
           {/* Delay */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-[#6b5e4e]">Send after (days of no reply)</label>
+            <label className="text-xs font-medium text-[#6b5e4e]">{t('delayLabel')}</label>
             <input
               type="number" min={1} max={60}
               value={delay}
@@ -109,7 +112,9 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
           {/* Subject */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-[#6b5e4e]">
-              Subject <span className="text-[#a89e8e] font-normal">(leave blank to thread reply)</span>
+              {t.rich('subjectHint', {
+                hint: (chunks) => <span className="text-[#a89e8e] font-normal">{chunks}</span>,
+              })}
             </label>
             <input
               type="text"
@@ -122,7 +127,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
 
           {/* Body */}
           <div className="flex flex-col gap-1 flex-1">
-            <label className="text-xs font-medium text-[#6b5e4e]">Body</label>
+            <label className="text-xs font-medium text-[#6b5e4e]">{tCommon('bodyLabel')}</label>
             <textarea
               value={body}
               onChange={e => setBody(e.target.value)}
@@ -143,11 +148,11 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
                   disabled={saving}
                   className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
                 />
-                <span className="text-xs text-[#6b5e4e]">📅 Include calendar booking link</span>
+                <span className="text-xs text-[#6b5e4e]">{tCommon('includeBookingLink')}</span>
               </label>
               {includeBookingLink && (
                 <p className="text-xs text-[#a89e8e] pl-5">
-                  Preview: <span className="text-[#3b6bef]">{`${appUrl}/book/${bookingSlug}`}</span>
+                  {tCommon('preview')} <span className="text-[#3b6bef]">{`${appUrl}/book/${bookingSlug}`}</span>
                 </p>
               )}
             </div>
@@ -163,7 +168,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
                 disabled={saving}
                 className="rounded border-[#e8e3dc] text-[#3b6bef] disabled:opacity-60"
               />
-              <span className="text-xs text-[#6b5e4e]">✍️ Include email signature in follow-ups</span>
+              <span className="text-xs text-[#6b5e4e]">{t('includeSignature')}</span>
             </label>
           )}
         </div>
@@ -172,11 +177,11 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
         <div className="flex gap-2 p-5 border-t border-[#f0ece6] shrink-0">
           <button onClick={onClose} disabled={saving}
             className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm disabled:opacity-40">
-            Cancel
+            {tCommon('cancel')}
           </button>
           <button onClick={handleSave} disabled={saving}
             className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? tCommon('saving') : tCommon('save')}
           </button>
         </div>
       </div>

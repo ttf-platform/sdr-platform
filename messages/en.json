@@ -2025,6 +2025,65 @@
       "policyLink": "Read our cookie policy",
       "reject": "Reject analytics",
       "accept": "Accept all"
+    },
+    "emailModals": {
+      "common": {
+        "subjectLabel": "Subject",
+        "bodyLabel": "Body",
+        "includeBookingLink": "📅 Include calendar booking link",
+        "preview": "Preview:",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving…"
+      },
+      "editEmail": {
+        "title": "Edit draft",
+        "loading": "Loading…",
+        "smartBanner": "This email was personalized by Mirvo AI",
+        "includeSignature": "✍️ Include email signature",
+        "regenerate": "↺ Regenerate this email",
+        "regenerating": "Regenerating…",
+        "saveAndApprove": "Save & approve",
+        "confirmTitle": "Regenerate email?",
+        "confirmBody": "This will overwrite your edits. Continue?",
+        "confirmAction": "Regenerate"
+      },
+      "editFollowUp": {
+        "title": "Edit follow-up",
+        "delayLabel": "Send after (days of no reply)",
+        "subjectHint": "Subject <hint>(leave blank to thread reply)</hint>",
+        "includeSignature": "✍️ Include email signature in follow-ups"
+      },
+      "generateDrafts": {
+        "loadingTitleSmart": "Mirvo AI is personalizing your emails…",
+        "loadingTitleFast": "Generating emails…",
+        "progressDone": "{visible} of {total} emails done",
+        "progressPreparing": "Preparing {total} emails…",
+        "modeIndicator": "Mode: {mode}",
+        "modeSmartLabel": "Smart",
+        "modeFastLabel": "Fast",
+        "titleGenerate": "Generate emails for {count, plural, one {# prospect} other {# prospects}}",
+        "titleRegenerate": "Regenerate emails for {count, plural, one {# prospect} other {# prospects}}",
+        "regenerateWarning": "This will overwrite all existing drafts for this campaign.",
+        "includeBookingLink": "📅 Include calendar booking link in this email",
+        "includeSignature": "✍️ Include email signature in generated emails",
+        "fastTitle": "Fast",
+        "fastDescription": "Same email for all prospects, with their name and company auto-filled.",
+        "fastMeta": "⏱ Ready in seconds",
+        "smartTitle": "Smart",
+        "smartRecommended": "Recommended",
+        "smartDescription": "AI writes a unique opening line for each prospect based on their company and role.",
+        "smartEstimated": "⏱ ~{seconds}s for {count, plural, one {# prospect} other {# prospects}}",
+        "hint": "1 email per prospect. You can edit any draft after generation.",
+        "ctaGenerate": "Generate {count, plural, one {# email} other {# emails}}",
+        "ctaRegenerate": "Regenerate {count, plural, one {# email} other {# emails}}"
+      },
+      "errors": {
+        "failedToLoad": "Failed to load email.",
+        "saveFailed": "Save failed. Please try again.",
+        "regenerationFailed": "Regeneration failed. Please try again.",
+        "generationFailed": "Generation failed. Please try again."
+      }
     }
   }
 }

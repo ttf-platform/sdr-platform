@@ -2025,6 +2025,65 @@
       "policyLink": "Notre politique de cookies",
       "reject": "Refuser les statistiques",
       "accept": "Tout accepter"
+    },
+    "emailModals": {
+      "common": {
+        "subjectLabel": "Objet",
+        "bodyLabel": "Corps",
+        "includeBookingLink": "📅 Inclure le lien de réservation",
+        "preview": "Aperçu :",
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…"
+      },
+      "editEmail": {
+        "title": "Modifier le brouillon",
+        "loading": "Chargement…",
+        "smartBanner": "Cet email a été personnalisé par l'IA de Mirvo",
+        "includeSignature": "✍️  Inclure la signature email",
+        "regenerate": "↺ Régénérer cet email",
+        "regenerating": "Régénération…",
+        "saveAndApprove": "Enregistrer et approuver",
+        "confirmTitle": "Régénérer l'email ?",
+        "confirmBody": "Cela écrasera vos modifications. Continuer ?",
+        "confirmAction": "Régénérer"
+      },
+      "editFollowUp": {
+        "title": "Modifier la relance",
+        "delayLabel": "Envoyer après (jours sans réponse)",
+        "subjectHint": "Objet <hint>(laisser vide pour répondre dans le fil)</hint>",
+        "includeSignature": "✍️  Inclure la signature email dans les relances"
+      },
+      "generateDrafts": {
+        "loadingTitleSmart": "L'IA de Mirvo personnalise vos emails…",
+        "loadingTitleFast": "Génération des emails…",
+        "progressDone": "{visible} emails sur {total} terminés",
+        "progressPreparing": "Préparation de {total} emails…",
+        "modeIndicator": "Mode : {mode}",
+        "modeSmartLabel": "Smart",
+        "modeFastLabel": "Fast",
+        "titleGenerate": "Générer les emails pour {count, plural, one {# prospect} other {# prospects}}",
+        "titleRegenerate": "Régénérer les emails pour {count, plural, one {# prospect} other {# prospects}}",
+        "regenerateWarning": "Cela écrasera tous les brouillons existants de cette campagne.",
+        "includeBookingLink": "📅 Inclure le lien de réservation dans cet email",
+        "includeSignature": "✍️  Inclure la signature email dans les emails générés",
+        "fastTitle": "Fast",
+        "fastDescription": "Le même email pour tous les prospects, avec leur nom et leur entreprise pré-remplis.",
+        "fastMeta": "⏱ Prêt en quelques secondes",
+        "smartTitle": "Smart",
+        "smartRecommended": "Recommandé",
+        "smartDescription": "L'IA rédige une accroche unique pour chaque prospect, selon son entreprise et son poste.",
+        "smartEstimated": "⏱ ~{seconds}s pour {count, plural, one {# prospect} other {# prospects}}",
+        "hint": "1 email par prospect. Vous pouvez modifier chaque brouillon après génération.",
+        "ctaGenerate": "Générer {count, plural, one {# email} other {# emails}}",
+        "ctaRegenerate": "Régénérer {count, plural, one {# email} other {# emails}}"
+      },
+      "errors": {
+        "failedToLoad": "Échec du chargement de l'email.",
+        "saveFailed": "Échec de l'enregistrement. Veuillez réessayer.",
+        "regenerationFailed": "Échec de la régénération. Veuillez réessayer.",
+        "generationFailed": "Échec de la génération. Veuillez réessayer."
+      }
     }
   }
 }
