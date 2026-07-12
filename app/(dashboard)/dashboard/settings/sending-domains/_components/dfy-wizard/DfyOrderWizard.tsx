@@ -31,9 +31,10 @@ export interface DfyWizardState extends DfyStep1State {
 export function DfyOrderWizard() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [state, setState] = useState<DfyWizardState>({
-    orderType: 'dfy',
-    domain:    '',
-    accounts:  [{ emailAddressPrefix: 'outreach', firstName: '', lastName: '' }],
+    orderType:        'dfy',
+    domain:           '',
+    forwardingDomain: '',
+    accounts:         [{ emailAddressPrefix: 'outreach', firstName: '', lastName: '' }],
   });
 
   function handleStep1Complete(next: DfyStep1State) {
@@ -61,6 +62,7 @@ export function DfyOrderWizard() {
         <DfyStep2Quote
           state={state}
           onBack={() => setStep(1)}
+          onEditStep1={() => setStep(1)}
           onComplete={handleStep2Complete}
         />
       )}
@@ -70,6 +72,7 @@ export function DfyOrderWizard() {
           state={state}
           quote={state.quote}
           onBack={() => setStep(2)}
+          onEditStep1={() => setStep(1)}
         />
       )}
     </div>

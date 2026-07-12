@@ -33,6 +33,12 @@ export interface DfyAccountDraft {
 export interface DfyStep1State {
   orderType: DfyOrderType;
   domain: string;
+  /**
+   * Public website the DFY sending domain redirects to. Required by product —
+   * prevents the derived domain from resolving to a parked page. Same rule
+   * across dfy and pre_warmed_up (verified against the provider API).
+   */
+  forwardingDomain: string;
   accounts: DfyAccountDraft[];
 }
 
@@ -55,6 +61,7 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
   const [accounts, setAccounts] = useState<DfyAccountDraft[]>(
     initialState.accounts.length > 0 ? initialState.accounts : [{ emailAddressPrefix: 'outreach', firstName: '', lastName: '' }],
   );
+  const [forwardingDomain, setForwardingDomain] = useState(initialState.forwardingDomain);
 
   // Pre-warmed picker state
   const [pool, setPool] = useState<PreWarmedDomain[] | null>(null);
@@ -155,13 +162,20 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
     a.lastName.trim().length <= 100;
 
   const allAccountsValid = accounts.every(accountValid);
-  const canContinue = domainReady && allAccountsValid;
+
+  const forwardingNormalized = forwardingDomain.trim().toLowerCase();
+  const forwardingFormatValid = DOMAIN_REGEX.test(forwardingNormalized);
+  const forwardingIsSelfCycle = forwardingNormalized.length > 0 && forwardingNormalized === domainNormalized;
+  const forwardingValid = forwardingFormatValid && !forwardingIsSelfCycle;
+
+  const canContinue = domainReady && allAccountsValid && forwardingValid;
 
   function handleContinue() {
     if (!canContinue) return;
     onComplete({
       orderType,
-      domain: domainNormalized,
+      domain:           domainNormalized,
+      forwardingDomain: forwardingNormalized,
       accounts: accounts.map((a) => ({
         emailAddressPrefix: a.emailAddressPrefix.trim().toLowerCase(),
         firstName:          a.firstName.trim(),
@@ -221,6 +235,16 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
           domains={visiblePool}
         />
       )}
+
+      {/* Redirect target (public client website) */}
+      <div className="mt-6">
+        <ForwardingDomainField
+          value={forwardingDomain}
+          formatValid={forwardingFormatValid}
+          selfCycle={forwardingIsSelfCycle}
+          onChange={setForwardingDomain}
+        />
+      </div>
 
       {/* Accounts */}
       <div className="mt-6">
@@ -563,6 +587,53 @@ function AccountRow({
           />
         </Field>
       </div>
+    </div>
+  );
+}
+
+function ForwardingDomainField({
+  value, formatValid, selfCycle, onChange,
+}: {
+  value: string;
+  formatValid: boolean;
+  selfCycle: boolean;
+  onChange: (v: string) => void;
+}) {
+  const showFormatError = value.length > 0 && !formatValid;
+  const showCycleError  = value.length > 0 && formatValid && selfCycle;
+  const errorMessage = showCycleError
+    ? 'Redirect target must differ from the ordered domain'
+    : showFormatError
+      ? 'Enter a valid domain like your-company.com'
+      : undefined;
+
+  return (
+    <div>
+      <label htmlFor="dfy-forwarding" className="mb-1 flex items-baseline gap-1 text-xs font-medium text-[#1a1a1a]">
+        Redirect target
+        <span className="text-red-500" aria-hidden="true">*</span>
+      </label>
+      <p className="mb-2 text-[11px] leading-relaxed text-[#4a4a5a]">
+        Anyone who lands on the sending domain will be redirected here — enter your public website
+        (e.g. <span className="font-mono">acme-corp.com</span>). Must differ from the domain being ordered.
+      </p>
+      <input
+        id="dfy-forwarding"
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value.trim())}
+        placeholder="your-company.com"
+        aria-invalid={errorMessage ? 'true' : 'false'}
+        aria-describedby={errorMessage ? 'dfy-forwarding-error' : undefined}
+        className={`w-full rounded-md border bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
+          errorMessage ? 'border-red-500' : 'border-[#e8e3dc]'
+        }`}
+      />
+      {errorMessage && (
+        <p id="dfy-forwarding-error" className="mt-1 text-xs text-red-600">
+          {errorMessage}
+        </p>
+      )}
     </div>
   );
 }

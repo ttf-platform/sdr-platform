@@ -163,6 +163,13 @@ export interface DfyOrderAccount {
 
 export interface DfyOrderItem {
   domain: string;
+  /**
+   * Public website the DFY domain redirects to. Prevents the derived sending
+   * domain from resolving to a parked page for anyone who visits it. Required
+   * by product — must be a valid domain, distinct from `domain`, and must not
+   * shadow any other item's `domain` in the same order.
+   */
+  forwardingDomain: string;
   accounts: DfyOrderAccount[];
 }
 
@@ -180,6 +187,8 @@ export interface CreateDfyOrderParams {
 
 export interface DfyOrderResultItem {
   domain: string;
+  /** Provider echo of the forwarding target — null if the provider didn't return it. */
+  forwardingDomain: string | null;
   accounts: DfyOrderAccount[];
   domainPrice: number;
   accountsPrice: number;
@@ -210,6 +219,7 @@ export interface DfyOrderResult {
   unavailableDomains: string[];
   blacklistDomains: string[];
   invalidDomains: string[];
+  invalidForwardingDomains: string[];
   domainsWithoutAccounts: string[];
   // Resolved items echoed back with per-item pricing
   orderItems: DfyOrderResultItem[];
@@ -522,14 +532,16 @@ export class MockEmailProvider implements IEmailProvider {
       unavailableDomains:        [],
       blacklistDomains:          [],
       invalidDomains:            [],
+      invalidForwardingDomains:  [],
       domainsWithoutAccounts:    params.items.filter(it => it.accounts.length === 0).map(it => it.domain),
       orderItems: params.items.map(it => ({
-        domain:         it.domain,
-        accounts:       it.accounts,
-        domainPrice:    PRICE_DOMAIN_YEAR,
-        accountsPrice:  it.accounts.length * PRICE_ACCOUNT_MONTH,
-        totalPrice:     PRICE_DOMAIN_YEAR + it.accounts.length * PRICE_ACCOUNT_MONTH,
-        totalDiscount:  0,
+        domain:           it.domain,
+        forwardingDomain: it.forwardingDomain,
+        accounts:         it.accounts,
+        domainPrice:      PRICE_DOMAIN_YEAR,
+        accountsPrice:    it.accounts.length * PRICE_ACCOUNT_MONTH,
+        totalPrice:       PRICE_DOMAIN_YEAR + it.accounts.length * PRICE_ACCOUNT_MONTH,
+        totalDiscount:    0,
       })),
       raw: { mock: true, simulation: params.simulate },
     };
@@ -1112,7 +1124,8 @@ export class InstantlyProvider implements IEmailProvider {
       simulation: params.simulate,
       order_type: params.orderType,
       items: params.items.map(item => ({
-        domain: item.domain,
+        domain:            item.domain,
+        forwarding_domain: item.forwardingDomain,
         accounts: item.accounts.map(a => ({
           email_address_prefix: a.emailAddressPrefix,
           first_name:           a.firstName,
@@ -1153,9 +1166,11 @@ export class InstantlyProvider implements IEmailProvider {
       unavailable_domains?: string[]
       blacklist_domains?: string[]
       invalid_domains?: string[]
+      invalid_forwarding_domains?: string[]
       domains_without_accounts?: string[]
       order_items?: Array<{
         domain?: string
+        forwarding_domain?: string
         accounts?: Array<{ email_address_prefix?: string; first_name?: string; last_name?: string }>
         domain_price?: number
         accounts_price?: number
@@ -1180,21 +1195,23 @@ export class InstantlyProvider implements IEmailProvider {
       paymentMethodBrand:      b.payment_method_brand ?? null,
       paymentMethodLast4:      b.payment_method_last_4_digits ?? null,
       paymentMethodNameOnCard: b.payment_method_name_on_card ?? null,
-      unavailableDomains:      Array.isArray(b.unavailable_domains)     ? b.unavailable_domains : [],
-      blacklistDomains:        Array.isArray(b.blacklist_domains)       ? b.blacklist_domains   : [],
-      invalidDomains:          Array.isArray(b.invalid_domains)         ? b.invalid_domains     : [],
-      domainsWithoutAccounts:  Array.isArray(b.domains_without_accounts) ? b.domains_without_accounts : [],
+      unavailableDomains:        Array.isArray(b.unavailable_domains)        ? b.unavailable_domains        : [],
+      blacklistDomains:          Array.isArray(b.blacklist_domains)          ? b.blacklist_domains          : [],
+      invalidDomains:            Array.isArray(b.invalid_domains)            ? b.invalid_domains            : [],
+      invalidForwardingDomains:  Array.isArray(b.invalid_forwarding_domains) ? b.invalid_forwarding_domains : [],
+      domainsWithoutAccounts:    Array.isArray(b.domains_without_accounts)   ? b.domains_without_accounts   : [],
       orderItems: Array.isArray(b.order_items) ? b.order_items.map(it => ({
-        domain:        it.domain ?? '',
-        accounts:      Array.isArray(it.accounts) ? it.accounts.map(a => ({
+        domain:           it.domain ?? '',
+        forwardingDomain: typeof it.forwarding_domain === 'string' ? it.forwarding_domain : null,
+        accounts:         Array.isArray(it.accounts) ? it.accounts.map(a => ({
           emailAddressPrefix: a.email_address_prefix ?? '',
           firstName:          a.first_name ?? '',
           lastName:           a.last_name ?? '',
         })) : [],
-        domainPrice:    it.domain_price ?? 0,
-        accountsPrice:  it.accounts_price ?? 0,
-        totalPrice:     it.total_price ?? 0,
-        totalDiscount:  it.total_discount ?? 0,
+        domainPrice:      it.domain_price ?? 0,
+        accountsPrice:    it.accounts_price ?? 0,
+        totalPrice:       it.total_price ?? 0,
+        totalDiscount:    it.total_discount ?? 0,
       })) : [],
       raw: body,
     }
