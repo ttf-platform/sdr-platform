@@ -24,15 +24,23 @@ interface Props {
   state: DfyWizardState;
   quote: DfyQuote;
   onBack: () => void;
+  /** Jump directly back to Step 1 to fix a domain / redirect target rejection. */
+  onEditStep1: () => void;
 }
 
 type CommitState =
   | { kind: 'idle' }
   | { kind: 'sending' }
   | { kind: 'success'; dfyOrderId: string }
-  | { kind: 'error'; status: number; message: string; orderError?: string | null };
+  | {
+      kind: 'error';
+      status: number;
+      message: string;
+      orderError?: string | null;
+      invalidForwardingDomains?: string[];
+    };
 
-export function DfyStep3Confirm({ state, quote, onBack }: Props) {
+export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
   const router = useRouter();
   const [commit, setCommit] = useState<CommitState>({ kind: 'idle' });
 
@@ -44,7 +52,11 @@ export function DfyStep3Confirm({ state, quote, onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderType: state.orderType,
-          items: [{ domain: state.domain, accounts: state.accounts }],
+          items: [{
+            domain:           state.domain,
+            forwardingDomain: state.forwardingDomain,
+            accounts:         state.accounts,
+          }],
           simulate: false,
         }),
       });
@@ -65,6 +77,7 @@ export function DfyStep3Confirm({ state, quote, onBack }: Props) {
         status: res.status,
         message: body.message ?? body.error ?? 'Order could not be placed',
         orderError: body.orderError,
+        invalidForwardingDomains: Array.isArray(body.invalidForwardingDomains) ? body.invalidForwardingDomains : [],
       });
     } catch (err) {
       setCommit({
@@ -97,6 +110,12 @@ export function DfyStep3Confirm({ state, quote, onBack }: Props) {
   const isProvider = commit.kind === 'error' && commit.status === 502;
   const isInternal = commit.kind === 'error' && commit.status === 500;
   const sending = commit.kind === 'sending';
+  const forwardingRejected =
+    commit.kind === 'error'
+    && (
+      (commit.invalidForwardingDomains?.length ?? 0) > 0
+      || commit.orderError === 'invalid_forwarding_domains'
+    );
 
   return (
     <div>
@@ -111,6 +130,10 @@ export function DfyStep3Confirm({ state, quote, onBack }: Props) {
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-[#4a4a5a]">You&apos;re ordering</span>
           <span className="text-sm font-medium text-[#1a1a1a]">{state.domain}</span>
+        </div>
+        <div className="mt-1 flex items-baseline justify-between">
+          <span className="text-sm text-[#4a4a5a]">Redirects to</span>
+          <span className="text-sm text-[#1a1a1a]">{state.forwardingDomain}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-sm text-[#4a4a5a]">Mailboxes</span>
@@ -138,7 +161,10 @@ export function DfyStep3Confirm({ state, quote, onBack }: Props) {
         <ErrorBanner tone="amber">
           <p className="font-medium">The provider declined this order</p>
           {commit.orderError && <p className="mt-1 text-xs">Reason: {commit.orderError}</p>}
-          <p className="mt-1 text-xs">No charge was made. Go back and try a different configuration.</p>
+          {forwardingRejected && (commit.invalidForwardingDomains?.length ?? 0) > 0 && (
+            <p className="mt-1 text-xs">Invalid redirect target: {commit.invalidForwardingDomains!.join(', ')}</p>
+          )}
+          <p className="mt-1 text-xs">No charge was made. {forwardingRejected ? 'Edit the redirect target below or go back.' : 'Go back and try a different configuration.'}</p>
         </ErrorBanner>
       )}
       {isProvider && (
@@ -169,15 +195,25 @@ export function DfyStep3Confirm({ state, quote, onBack }: Props) {
         >
           ← Back to quote
         </button>
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={sending || isCap}
-          aria-busy={sending}
-          className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {sending ? 'Placing order…' : `Confirm & charge $${quote.totalPrice.toFixed(2)}`}
-        </button>
+        {forwardingRejected ? (
+          <button
+            type="button"
+            onClick={onEditStep1}
+            className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
+          >
+            Edit redirect target →
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={sending || isCap}
+            aria-busy={sending}
+            className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sending ? 'Placing order…' : `Confirm & charge $${quote.totalPrice.toFixed(2)}`}
+          </button>
+        )}
       </div>
     </div>
   );

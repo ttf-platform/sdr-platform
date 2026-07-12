@@ -31,16 +31,19 @@ export interface DfyQuote {
   unavailableDomains: string[];
   blacklistDomains: string[];
   invalidDomains: string[];
+  invalidForwardingDomains: string[];
   domainsWithoutAccounts: string[];
 }
 
 interface Props {
   state: DfyWizardState;
   onBack: () => void;
+  /** Jump directly back to Step 1 to fix a domain / redirect target rejection. */
+  onEditStep1: () => void;
   onComplete: (quote: DfyQuote) => void;
 }
 
-export function DfyStep2Quote({ state, onBack, onComplete }: Props) {
+export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DfyQuote | null>(null);
@@ -55,7 +58,11 @@ export function DfyStep2Quote({ state, onBack, onComplete }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         orderType: state.orderType,
-        items: [{ domain: state.domain, accounts: state.accounts }],
+        items: [{
+          domain:           state.domain,
+          forwardingDomain: state.forwardingDomain,
+          accounts:         state.accounts,
+        }],
         simulate: true,
       }),
     })
@@ -100,6 +107,8 @@ export function DfyStep2Quote({ state, onBack, onComplete }: Props) {
   }
 
   if (!quote.orderIsValid) {
+    const forwardingRejected = quote.invalidForwardingDomains.length > 0
+      || quote.orderError === 'invalid_forwarding_domains';
     return (
       <Container>
         <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -114,8 +123,28 @@ export function DfyStep2Quote({ state, onBack, onComplete }: Props) {
           {quote.invalidDomains.length > 0 && (
             <p className="mt-1 text-xs">Invalid: {quote.invalidDomains.join(', ')}</p>
           )}
+          {quote.invalidForwardingDomains.length > 0 && (
+            <p className="mt-1 text-xs">Invalid redirect target: {quote.invalidForwardingDomains.join(', ')}</p>
+          )}
         </div>
-        <FooterBack onBack={onBack} />
+        <div className="mt-6 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
+          >
+            ← Back
+          </button>
+          {forwardingRejected && (
+            <button
+              type="button"
+              onClick={onEditStep1}
+              className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
+            >
+              Edit redirect target →
+            </button>
+          )}
+        </div>
       </Container>
     );
   }
