@@ -1764,6 +1764,121 @@
       "legacy": {
         "heroTitle": "☕ Morning Coffee Brief"
       }
+    },
+    "sendingDomains": {
+      "dfyWizard": {
+        "common": {
+          "back": "← Retour",
+          "backToSendingDomains": "Retour aux domaines d'envoi",
+          "continue": "Continuer vers le devis →",
+          "editRedirectTarget": "Modifier la redirection →",
+          "required": "Requis"
+        },
+        "page": {
+          "heading": "Commander un domaine d'envoi géré",
+          "subheading": "On enregistre le domaine, configure le DNS et le met en chauffe automatiquement. Vous ne payez qu'une fois votre commande confirmée."
+        },
+        "shell": {
+          "stepDomain": "Domaine",
+          "stepQuote": "Devis",
+          "stepConfirm": "Confirmation",
+          "progress": "Étape {currentStep} sur 3 · {label}"
+        },
+        "step1": {
+          "heading": "Choisissez votre domaine d'envoi",
+          "subheading": "Un nouveau domaine dédié se met en chauffe en arrière-plan pendant environ 3 semaines. Un domaine pré-chauffé de notre pool peut envoyer immédiatement.",
+          "modeDfyTitle": "Nouveau domaine dédié",
+          "modeDfySub": "Un domaine neuf · chauffe 3 semaines · idéal pour les gros volumes",
+          "modePreWarmedTitle": "Domaine pré-chauffé",
+          "modePreWarmedSub": "Choisi dans notre pool géré · envoi immédiat",
+          "domainLabel": "Domaine souhaité",
+          "domainPlaceholder": "getmirvo-mail.com",
+          "checkAvailability": "Vérifier la disponibilité",
+          "checking": "Vérification…",
+          "domainInvalid": "Entrez un domaine valide, comme example.com",
+          "pillAvailable": "Disponible",
+          "pillNotAvailable": "Indisponible",
+          "pillCheckFailed": "Échec de la vérification — réessayez",
+          "preWarmedLabel": "Choisir dans le pool pré-chauffé",
+          "preWarmedSearchPlaceholder": "Rechercher dans le pool…",
+          "preWarmedLoading": "Chargement du pool…",
+          "preWarmedNoMatch": "Aucun domaine ne correspond à votre recherche.",
+          "preWarmedShowing": "Affichage de {visible} sur {total}{suffix}",
+          "preWarmedFilteredSuffix": " filtrés",
+          "preWarmedPoolSuffix": " (pool : {count})",
+          "preWarmedShowMore": "Afficher plus",
+          "mailboxesHeading": "Boîtes à créer",
+          "mailboxesAdd": "+ Ajouter une boîte",
+          "accountLabel": "Boîte n° {index}",
+          "accountRemove": "Retirer",
+          "accountPrefixLabel": "Préfixe",
+          "accountPrefixError": "Lettres, chiffres, . _ - uniquement",
+          "accountPrefixPlaceholder": "outreach",
+          "accountFirstNameLabel": "Prénom",
+          "accountFirstNamePlaceholder": "Cyrus",
+          "accountLastNameLabel": "Nom",
+          "accountLastNamePlaceholder": "Mathieu",
+          "forwardingLabel": "Site de redirection",
+          "forwardingHelper": "Toute personne qui atterrit sur le domaine d'envoi sera redirigée ici — entrez votre site public (ex. <mono>acme-corp.com</mono>). Doit être différent du domaine commandé.",
+          "forwardingPlaceholder": "votre-entreprise.com",
+          "forwardingErrorCycle": "Le site de redirection doit être différent du domaine commandé",
+          "forwardingErrorInvalid": "Entrez un domaine valide, comme votre-entreprise.com"
+        },
+        "step2": {
+          "heading": "Vérifiez votre devis",
+          "subheading": "Aucun débit pour l'instant — ceci est un aperçu. On ne facture qu'à la confirmation, à l'étape suivante.",
+          "loading": "Récupération de votre devis… aucun débit pour l'instant.",
+          "errorFallback": "Impossible de récupérer le devis",
+          "quotePill": "Devis · aucun débit pour l'instant",
+          "summaryDomain": "Domaine",
+          "summaryMailboxes": "Boîtes",
+          "summaryOrderType": "Type de commande",
+          "summaryDomainsOrdered": "Domaines commandés",
+          "orderTypeDfy": "Nouveau dédié",
+          "orderTypePreWarmed": "Pré-chauffé",
+          "pricingHeading": "Tarif",
+          "pricingMailboxesLabel": "Boîtes ({count} × {price} $/mois)",
+          "pricingMailboxesValue": "{amount} $ / mois",
+          "pricingDomainsLabel": "Domaines ({count} × {price} $/an)",
+          "pricingDomainsValue": "{amount} $ / an",
+          "pricingDiscountLabel": "Remise",
+          "pricingDiscountValue": "− {amount} $",
+          "total": "Total dû aujourd'hui",
+          "paymentLine": "Paiement par{brandPrefix} se terminant par {last4}{nameSuffix}.",
+          "ctaContinue": "Vérifier et confirmer →"
+        },
+        "step3": {
+          "heading": "Confirmez et passez votre commande",
+          "subheading": "Cliquez ci-dessous pour confirmer. Votre carte enregistrée sera débitée de <amount>{amount} $</amount> et le provisionnement démarrera immédiatement.",
+          "summaryOrdering": "Vous commandez",
+          "summaryRedirectsTo": "Redirige vers",
+          "summaryMailboxes": "Boîtes",
+          "summaryTotal": "Total débité aujourd'hui",
+          "paymentLine": "Paiement par{brandPrefix} se terminant par {last4}.",
+          "successHeading": "Commande passée",
+          "successBody": "Vos boîtes sont en cours de provisionnement. Elles apparaîtront dans votre liste de domaines d'envoi sous 24 à 72 heures.",
+          "successReference": "Référence :",
+          "successRedirect": "Redirection vers vos domaines d'envoi…",
+          "ctaConfirm": "Confirmer et payer {amount} $",
+          "ctaSending": "Commande en cours…",
+          "ctaBack": "← Retour au devis"
+        },
+        "errors": {
+          "reason": "Motif : {orderError}",
+          "unavailable": "Indisponibles : {list}",
+          "blacklisted": "Sur liste noire : {list}",
+          "invalid": "Invalides : {list}",
+          "invalidForwarding": "Site de redirection invalide : {list}",
+          "orderCapTitle": "Limite de commandes DFY atteinte",
+          "providerRejectedTitle": "Le fournisseur a refusé cette commande",
+          "footerRetryDifferentConfig": "Aucun débit effectué. Revenez en arrière et essayez une autre configuration.",
+          "footerEditForwarding": "Aucun débit effectué. Modifiez le site de redirection ci-dessous, ou revenez en arrière.",
+          "providerErrorTitle": "Erreur temporaire du fournisseur",
+          "internalTitle": "Une erreur est survenue",
+          "internalBody": "{message}. Le support a été prévenu.",
+          "genericTitle": "Impossible de passer la commande"
+        }
+      }
     }
   },
   "components": {

@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DfyWizardState } from './DfyOrderWizard';
 
 export interface DfyQuote {
@@ -44,6 +45,9 @@ interface Props {
 }
 
 export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step2');
+  const tCommon = useTranslations('dashboard.sendingDomains.dfyWizard.common');
+  const tErrors = useTranslations('dashboard.sendingDomains.dfyWizard.errors');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<DfyQuote | null>(null);
@@ -68,7 +72,7 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
     })
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(body.message ?? body.error ?? 'Could not fetch quote');
+        if (!res.ok) throw new Error(body.message ?? body.error ?? t('errorFallback'));
         return body.quote as DfyQuote;
       })
       .then((q) => {
@@ -78,7 +82,7 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Could not fetch quote');
+        setError(err instanceof Error ? err.message : t('errorFallback'));
         setLoading(false);
       });
 
@@ -90,7 +94,7 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
   if (loading) {
     return (
       <Container>
-        <p className="text-sm text-[#4a4a5a]">Fetching your quote… no charge yet.</p>
+        <p className="text-sm text-[#4a4a5a]">{t('loading')}</p>
       </Container>
     );
   }
@@ -99,7 +103,7 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
     return (
       <Container>
         <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error ?? 'Could not fetch quote.'}
+          {error ?? t('errorFallback')}
         </div>
         <FooterBack onBack={onBack} />
       </Container>
@@ -112,19 +116,19 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
     return (
       <Container>
         <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <p className="font-medium">The provider rejected this order configuration.</p>
-          {quote.orderError && <p className="mt-1 text-xs">Reason: {quote.orderError}</p>}
+          <p className="font-medium">{tErrors('providerRejectedTitle')}</p>
+          {quote.orderError && <p className="mt-1 text-xs">{tErrors('reason', { orderError: quote.orderError })}</p>}
           {quote.unavailableDomains.length > 0 && (
-            <p className="mt-1 text-xs">Unavailable: {quote.unavailableDomains.join(', ')}</p>
+            <p className="mt-1 text-xs">{tErrors('unavailable', { list: quote.unavailableDomains.join(', ') })}</p>
           )}
           {quote.blacklistDomains.length > 0 && (
-            <p className="mt-1 text-xs">Blacklisted: {quote.blacklistDomains.join(', ')}</p>
+            <p className="mt-1 text-xs">{tErrors('blacklisted', { list: quote.blacklistDomains.join(', ') })}</p>
           )}
           {quote.invalidDomains.length > 0 && (
-            <p className="mt-1 text-xs">Invalid: {quote.invalidDomains.join(', ')}</p>
+            <p className="mt-1 text-xs">{tErrors('invalid', { list: quote.invalidDomains.join(', ') })}</p>
           )}
           {quote.invalidForwardingDomains.length > 0 && (
-            <p className="mt-1 text-xs">Invalid redirect target: {quote.invalidForwardingDomains.join(', ')}</p>
+            <p className="mt-1 text-xs">{tErrors('invalidForwarding', { list: quote.invalidForwardingDomains.join(', ') })}</p>
           )}
         </div>
         <div className="mt-6 flex items-center justify-between">
@@ -133,7 +137,7 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
             onClick={onBack}
             className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
           >
-            ← Back
+            {tCommon('back')}
           </button>
           {forwardingRejected && (
             <button
@@ -141,7 +145,7 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
               onClick={onEditStep1}
               className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
             >
-              Edit redirect target →
+              {tCommon('editRedirectTarget')}
             </button>
           )}
         </div>
@@ -152,45 +156,47 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
   return (
     <Container>
       <div className="mb-4 inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-        Quote · no charge yet
+        {t('quotePill')}
       </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
-        <SummaryRow label="Domain" value={state.domain} />
-        <SummaryRow label="Mailboxes" value={String(quote.numberOfAccountsOrdered)} />
-        <SummaryRow label="Order type" value={state.orderType === 'dfy' ? 'New dedicated' : 'Pre-warmed'} />
+        <SummaryRow label={t('summaryDomain')} value={state.domain} />
+        <SummaryRow label={t('summaryMailboxes')} value={String(quote.numberOfAccountsOrdered)} />
+        <SummaryRow label={t('summaryOrderType')} value={state.orderType === 'dfy' ? t('orderTypeDfy') : t('orderTypePreWarmed')} />
         <SummaryRow
-          label="Domains ordered"
+          label={t('summaryDomainsOrdered')}
           value={String(quote.numberOfDomainsOrdered)}
         />
       </div>
 
       <div className="rounded-md border border-[#e8e3dc] bg-[#fafaf7] p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#4a4a5a]">Pricing</h3>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#4a4a5a]">{t('pricingHeading')}</h3>
         <div className="space-y-1.5 text-sm">
           <PriceLine
-            label={`Mailboxes (${quote.numberOfAccountsOrdered} × $${quote.pricePerAccountPerMonth}/month)`}
-            value={`$${quote.totalPricePerMonth.toFixed(2)} / month`}
+            label={t('pricingMailboxesLabel', { count: quote.numberOfAccountsOrdered, price: quote.pricePerAccountPerMonth })}
+            value={t('pricingMailboxesValue', { amount: quote.totalPricePerMonth.toFixed(2) })}
           />
           <PriceLine
-            label={`Domains (${quote.numberOfDomainsOrdered} × $${quote.pricePerDomainPerYear}/year)`}
-            value={`$${quote.totalPricePerYear.toFixed(2)} / year`}
+            label={t('pricingDomainsLabel', { count: quote.numberOfDomainsOrdered, price: quote.pricePerDomainPerYear })}
+            value={t('pricingDomainsValue', { amount: quote.totalPricePerYear.toFixed(2) })}
           />
           {quote.totalDiscount > 0 && (
-            <PriceLine label="Discount" value={`− $${quote.totalDiscount.toFixed(2)}`} />
+            <PriceLine label={t('pricingDiscountLabel')} value={t('pricingDiscountValue', { amount: quote.totalDiscount.toFixed(2) })} />
           )}
         </div>
         <div className="mt-3 flex items-baseline justify-between border-t border-[#e8e3dc] pt-3">
-          <span className="text-sm font-medium text-[#1a1a1a]">Total due today</span>
+          <span className="text-sm font-medium text-[#1a1a1a]">{t('total')}</span>
           <span className="text-base font-semibold text-[#1a1a1a]">${quote.totalPrice.toFixed(2)}</span>
         </div>
       </div>
 
       {quote.paymentMethodLast4 && (
         <p className="mt-4 text-xs text-[#4a4a5a]">
-          Will charge {quote.paymentMethodBrand ? `${quote.paymentMethodBrand} ` : ''}
-          ending in {quote.paymentMethodLast4}
-          {quote.paymentMethodNameOnCard ? ` · ${quote.paymentMethodNameOnCard}` : ''}.
+          {t('paymentLine', {
+            brandPrefix: quote.paymentMethodBrand ? ` ${quote.paymentMethodBrand}` : '',
+            last4:       quote.paymentMethodLast4,
+            nameSuffix:  quote.paymentMethodNameOnCard ? ` · ${quote.paymentMethodNameOnCard}` : '',
+          })}
         </p>
       )}
 
@@ -200,14 +206,14 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
           onClick={onBack}
           className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
         >
-          ← Back
+          {tCommon('back')}
         </button>
         <button
           type="button"
           onClick={() => onComplete(quote)}
           className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
         >
-          Review and confirm →
+          {t('ctaContinue')}
         </button>
       </div>
     </Container>
@@ -215,18 +221,18 @@ export function DfyStep2Quote({ state, onBack, onEditStep1, onComplete }: Props)
 }
 
 function Container({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step2');
   return (
     <div>
-      <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">Review your quote</h2>
-      <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">
-        No charge yet — this is a preview. We&apos;ll only bill when you confirm in the next step.
-      </p>
+      <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">{t('heading')}</h2>
+      <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">{t('subheading')}</p>
       {children}
     </div>
   );
 }
 
 function FooterBack({ onBack }: { onBack: () => void }) {
+  const tCommon = useTranslations('dashboard.sendingDomains.dfyWizard.common');
   return (
     <div className="mt-6 flex items-center justify-start">
       <button
@@ -234,7 +240,7 @@ function FooterBack({ onBack }: { onBack: () => void }) {
         onClick={onBack}
         className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee]"
       >
-        ← Back
+        {tCommon('back')}
       </button>
     </div>
   );

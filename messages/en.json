@@ -1764,6 +1764,121 @@
       "legacy": {
         "heroTitle": "☕ Morning Coffee Brief"
       }
+    },
+    "sendingDomains": {
+      "dfyWizard": {
+        "common": {
+          "back": "← Back",
+          "backToSendingDomains": "Back to sending domains",
+          "continue": "Continue to quote →",
+          "editRedirectTarget": "Edit redirect target →",
+          "required": "Required"
+        },
+        "page": {
+          "heading": "Order a managed sending domain",
+          "subheading": "We'll register the domain, configure DNS, and warm it up automatically. You only pay once you confirm."
+        },
+        "shell": {
+          "stepDomain": "Domain",
+          "stepQuote": "Quote",
+          "stepConfirm": "Confirm",
+          "progress": "Step {currentStep} of 3 · {label}"
+        },
+        "step1": {
+          "heading": "Choose your sending domain",
+          "subheading": "A new dedicated domain warms up in the background over about 3 weeks. A pre-warmed domain from our pool can start sending immediately.",
+          "modeDfyTitle": "New dedicated domain",
+          "modeDfySub": "Pick a fresh domain · 3-week warm-up · best for high volume",
+          "modePreWarmedTitle": "Pre-warmed domain",
+          "modePreWarmedSub": "Pick from our managed pool · start sending immediately",
+          "domainLabel": "Desired domain",
+          "domainPlaceholder": "getmirvo-mail.com",
+          "checkAvailability": "Check availability",
+          "checking": "Checking…",
+          "domainInvalid": "Enter a valid domain like example.com",
+          "pillAvailable": "Available",
+          "pillNotAvailable": "Not available",
+          "pillCheckFailed": "Check failed — try again",
+          "preWarmedLabel": "Pick from the pre-warmed pool",
+          "preWarmedSearchPlaceholder": "Search the pool…",
+          "preWarmedLoading": "Loading the pool…",
+          "preWarmedNoMatch": "No domains match your search.",
+          "preWarmedShowing": "Showing {visible} of {total}{suffix}",
+          "preWarmedFilteredSuffix": " filtered",
+          "preWarmedPoolSuffix": " (pool: {count})",
+          "preWarmedShowMore": "Show more",
+          "mailboxesHeading": "Mailboxes to create",
+          "mailboxesAdd": "+ Add mailbox",
+          "accountLabel": "Mailbox #{index}",
+          "accountRemove": "Remove",
+          "accountPrefixLabel": "Prefix",
+          "accountPrefixError": "Letters, digits, . _ - only",
+          "accountPrefixPlaceholder": "outreach",
+          "accountFirstNameLabel": "First name",
+          "accountFirstNamePlaceholder": "Cyrus",
+          "accountLastNameLabel": "Last name",
+          "accountLastNamePlaceholder": "Mathieu",
+          "forwardingLabel": "Redirect target",
+          "forwardingHelper": "Anyone who lands on the sending domain will be redirected here — enter your public website (e.g. <mono>acme-corp.com</mono>). Must differ from the domain being ordered.",
+          "forwardingPlaceholder": "your-company.com",
+          "forwardingErrorCycle": "Redirect target must differ from the ordered domain",
+          "forwardingErrorInvalid": "Enter a valid domain like your-company.com"
+        },
+        "step2": {
+          "heading": "Review your quote",
+          "subheading": "No charge yet — this is a preview. We'll only bill when you confirm in the next step.",
+          "loading": "Fetching your quote… no charge yet.",
+          "errorFallback": "Could not fetch quote",
+          "quotePill": "Quote · no charge yet",
+          "summaryDomain": "Domain",
+          "summaryMailboxes": "Mailboxes",
+          "summaryOrderType": "Order type",
+          "summaryDomainsOrdered": "Domains ordered",
+          "orderTypeDfy": "New dedicated",
+          "orderTypePreWarmed": "Pre-warmed",
+          "pricingHeading": "Pricing",
+          "pricingMailboxesLabel": "Mailboxes ({count} × ${price}/month)",
+          "pricingMailboxesValue": "${amount} / month",
+          "pricingDomainsLabel": "Domains ({count} × ${price}/year)",
+          "pricingDomainsValue": "${amount} / year",
+          "pricingDiscountLabel": "Discount",
+          "pricingDiscountValue": "− ${amount}",
+          "total": "Total due today",
+          "paymentLine": "Will charge{brandPrefix} ending in {last4}{nameSuffix}.",
+          "ctaContinue": "Review and confirm →"
+        },
+        "step3": {
+          "heading": "Confirm and place your order",
+          "subheading": "Click below to confirm. Your card on file will be charged <amount>${amount}</amount> and we'll start provisioning immediately.",
+          "summaryOrdering": "You're ordering",
+          "summaryRedirectsTo": "Redirects to",
+          "summaryMailboxes": "Mailboxes",
+          "summaryTotal": "Total charged today",
+          "paymentLine": "Charged to{brandPrefix} ending in {last4}.",
+          "successHeading": "Order placed",
+          "successBody": "Your mailboxes are being provisioned. Expect them to appear in your sending domains list within 24-72 hours.",
+          "successReference": "Reference:",
+          "successRedirect": "Redirecting to your sending domains…",
+          "ctaConfirm": "Confirm & charge ${amount}",
+          "ctaSending": "Placing order…",
+          "ctaBack": "← Back to quote"
+        },
+        "errors": {
+          "reason": "Reason: {orderError}",
+          "unavailable": "Unavailable: {list}",
+          "blacklisted": "Blacklisted: {list}",
+          "invalid": "Invalid: {list}",
+          "invalidForwarding": "Invalid redirect target: {list}",
+          "orderCapTitle": "DFY order cap reached",
+          "providerRejectedTitle": "The provider declined this order",
+          "footerRetryDifferentConfig": "No charge was made. Go back and try a different configuration.",
+          "footerEditForwarding": "No charge was made. Edit the redirect target below or go back.",
+          "providerErrorTitle": "Temporary provider error",
+          "internalTitle": "Something went wrong",
+          "internalBody": "{message}. Support has been notified.",
+          "genericTitle": "Could not place the order"
+        }
+      }
     }
   },
   "components": {
