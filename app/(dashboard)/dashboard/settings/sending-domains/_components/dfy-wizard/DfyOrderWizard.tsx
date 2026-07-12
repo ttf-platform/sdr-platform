@@ -18,11 +18,10 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { DfyStep1Choose, type DfyStep1State } from './DfyStep1Choose';
 import { DfyStep2Quote, type DfyQuote } from './DfyStep2Quote';
 import { DfyStep3Confirm } from './DfyStep3Confirm';
-
-const STEP_LABELS = ['Domain', 'Quote', 'Confirm'] as const;
 
 export interface DfyWizardState extends DfyStep1State {
   quote?: DfyQuote;
@@ -84,10 +83,12 @@ export function DfyOrderWizard() {
 // Keeping a local copy avoids touching that component until A2a-UI-2 when
 // we may extract a generic version.
 function DfyProgressIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.shell');
+  const label = currentStep === 1 ? t('stepDomain') : currentStep === 2 ? t('stepQuote') : t('stepConfirm');
   return (
     <div className="mb-6 flex items-center justify-between">
       <span className="text-xs font-medium uppercase tracking-wider text-[#4a4a5a]">
-        Step {currentStep} of 3 · {STEP_LABELS[currentStep - 1]}
+        {t('progress', { currentStep, label })}
       </span>
       <div
         className="flex gap-1"

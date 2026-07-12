@@ -17,6 +17,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { DfyWizardState } from './DfyOrderWizard';
 import type { DfyQuote } from './DfyStep2Quote';
 
@@ -41,6 +42,9 @@ type CommitState =
     };
 
 export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step3');
+  const tCommon = useTranslations('dashboard.sendingDomains.dfyWizard.common');
+  const tErrors = useTranslations('dashboard.sendingDomains.dfyWizard.errors');
   const router = useRouter();
   const [commit, setCommit] = useState<CommitState>({ kind: 'idle' });
 
@@ -75,7 +79,7 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
       setCommit({
         kind: 'error',
         status: res.status,
-        message: body.message ?? body.error ?? 'Order could not be placed',
+        message: body.message ?? body.error ?? tErrors('genericTitle'),
         orderError: body.orderError,
         invalidForwardingDomains: Array.isArray(body.invalidForwardingDomains) ? body.invalidForwardingDomains : [],
       });
@@ -83,7 +87,7 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
       setCommit({
         kind: 'error',
         status: 0,
-        message: err instanceof Error ? err.message : 'Network error — please try again',
+        message: err instanceof Error ? err.message : tErrors('genericTitle'),
       });
     }
   }
@@ -92,15 +96,13 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
     return (
       <div>
         <div className="rounded-md border border-green-200 bg-green-50 p-4">
-          <h2 className="text-sm font-semibold text-green-900">Order placed</h2>
-          <p className="mt-1 text-xs text-green-900">
-            Your mailboxes are being provisioned. Expect them to appear in your sending domains list within 24-72 hours.
-          </p>
+          <h2 className="text-sm font-semibold text-green-900">{t('successHeading')}</h2>
+          <p className="mt-1 text-xs text-green-900">{t('successBody')}</p>
           <p className="mt-2 text-[11px] text-green-900/80">
-            Reference: <code className="font-mono">{commit.dfyOrderId}</code>
+            {t('successReference')} <code className="font-mono">{commit.dfyOrderId}</code>
           </p>
         </div>
-        <p className="mt-4 text-xs text-[#4a4a5a]">Redirecting to your sending domains…</p>
+        <p className="mt-4 text-xs text-[#4a4a5a]">{t('successRedirect')}</p>
       </div>
     );
   }
@@ -119,33 +121,37 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
 
   return (
     <div>
-      <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">Confirm and place your order</h2>
+      <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">{t('heading')}</h2>
       <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">
-        Click below to confirm. Your card on file will be charged
-        <span className="font-medium text-[#1a1a1a]"> ${quote.totalPrice.toFixed(2)} </span>
-        and we&apos;ll start provisioning immediately.
+        {t.rich('subheading', {
+          amount: quote.totalPrice.toFixed(2),
+          bold: (chunks) => <span className="font-medium text-[#1a1a1a]"> {chunks} </span>,
+        })}
       </p>
 
       <div className="rounded-md border border-[#e8e3dc] bg-[#fafaf7] p-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-[#4a4a5a]">You&apos;re ordering</span>
+          <span className="text-sm text-[#4a4a5a]">{t('summaryOrdering')}</span>
           <span className="text-sm font-medium text-[#1a1a1a]">{state.domain}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-sm text-[#4a4a5a]">Redirects to</span>
+          <span className="text-sm text-[#4a4a5a]">{t('summaryRedirectsTo')}</span>
           <span className="text-sm text-[#1a1a1a]">{state.forwardingDomain}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-sm text-[#4a4a5a]">Mailboxes</span>
+          <span className="text-sm text-[#4a4a5a]">{t('summaryMailboxes')}</span>
           <span className="text-sm text-[#1a1a1a]">{state.accounts.length}</span>
         </div>
         <div className="mt-3 flex items-baseline justify-between border-t border-[#e8e3dc] pt-3">
-          <span className="text-sm font-medium text-[#1a1a1a]">Total charged today</span>
+          <span className="text-sm font-medium text-[#1a1a1a]">{t('summaryTotal')}</span>
           <span className="text-base font-semibold text-[#1a1a1a]">${quote.totalPrice.toFixed(2)}</span>
         </div>
         {quote.paymentMethodLast4 && (
           <p className="mt-3 text-[11px] text-[#4a4a5a]">
-            Charged to {quote.paymentMethodBrand ? `${quote.paymentMethodBrand} ` : ''}ending in {quote.paymentMethodLast4}.
+            {t('paymentLine', {
+              brandPrefix: quote.paymentMethodBrand ? ` ${quote.paymentMethodBrand}` : '',
+              last4:       quote.paymentMethodLast4,
+            })}
           </p>
         )}
       </div>
@@ -153,35 +159,35 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
       {/* Error surfaces */}
       {isCap && (
         <ErrorBanner tone="amber">
-          <p className="font-medium">DFY order cap reached</p>
+          <p className="font-medium">{tErrors('orderCapTitle')}</p>
           <p className="mt-1 text-xs">{commit.message}</p>
         </ErrorBanner>
       )}
       {isRejected && (
         <ErrorBanner tone="amber">
-          <p className="font-medium">The provider declined this order</p>
-          {commit.orderError && <p className="mt-1 text-xs">Reason: {commit.orderError}</p>}
+          <p className="font-medium">{tErrors('providerRejectedTitle')}</p>
+          {commit.orderError && <p className="mt-1 text-xs">{tErrors('reason', { orderError: commit.orderError })}</p>}
           {forwardingRejected && (commit.invalidForwardingDomains?.length ?? 0) > 0 && (
-            <p className="mt-1 text-xs">Invalid redirect target: {commit.invalidForwardingDomains!.join(', ')}</p>
+            <p className="mt-1 text-xs">{tErrors('invalidForwarding', { list: commit.invalidForwardingDomains!.join(', ') })}</p>
           )}
-          <p className="mt-1 text-xs">No charge was made. {forwardingRejected ? 'Edit the redirect target below or go back.' : 'Go back and try a different configuration.'}</p>
+          <p className="mt-1 text-xs">{forwardingRejected ? tErrors('footerEditForwarding') : tErrors('footerRetryDifferentConfig')}</p>
         </ErrorBanner>
       )}
       {isProvider && (
         <ErrorBanner tone="red">
-          <p className="font-medium">Temporary provider error</p>
+          <p className="font-medium">{tErrors('providerErrorTitle')}</p>
           <p className="mt-1 text-xs">{commit.message}</p>
         </ErrorBanner>
       )}
       {isInternal && (
         <ErrorBanner tone="red">
-          <p className="font-medium">Something went wrong</p>
-          <p className="mt-1 text-xs">{commit.message}. Support has been notified.</p>
+          <p className="font-medium">{tErrors('internalTitle')}</p>
+          <p className="mt-1 text-xs">{tErrors('internalBody', { message: commit.message })}</p>
         </ErrorBanner>
       )}
       {commit.kind === 'error' && !isCap && !isRejected && !isProvider && !isInternal && (
         <ErrorBanner tone="red">
-          <p className="font-medium">Could not place the order</p>
+          <p className="font-medium">{tErrors('genericTitle')}</p>
           <p className="mt-1 text-xs">{commit.message}</p>
         </ErrorBanner>
       )}
@@ -193,7 +199,7 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
           disabled={sending}
           className="rounded-md border border-[#e8e3dc] bg-white px-4 py-2 text-sm font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          ← Back to quote
+          {t('ctaBack')}
         </button>
         {forwardingRejected ? (
           <button
@@ -201,7 +207,7 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
             onClick={onEditStep1}
             className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
           >
-            Edit redirect target →
+            {tCommon('editRedirectTarget')}
           </button>
         ) : (
           <button
@@ -211,7 +217,7 @@ export function DfyStep3Confirm({ state, quote, onBack, onEditStep1 }: Props) {
             aria-busy={sending}
             className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {sending ? 'Placing order…' : `Confirm & charge $${quote.totalPrice.toFixed(2)}`}
+            {sending ? t('ctaSending') : t('ctaConfirm', { amount: quote.totalPrice.toFixed(2) })}
           </button>
         )}
       </div>

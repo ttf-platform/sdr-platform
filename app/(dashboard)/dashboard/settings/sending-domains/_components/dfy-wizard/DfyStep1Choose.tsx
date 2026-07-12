@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 const DOMAIN_REGEX = /^[a-z0-9.-]+\.[a-z]{2,}$/i;
 const PREFIX_REGEX = /^[a-z0-9._-]+$/i;
@@ -55,6 +56,8 @@ interface Props {
 }
 
 export function DfyStep1Choose({ initialState, onComplete }: Props) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step1');
+  const tCommon = useTranslations('dashboard.sendingDomains.dfyWizard.common');
   const [orderType, setOrderType] = useState<DfyOrderType>(initialState.orderType);
   const [domain, setDomain] = useState(initialState.domain);
   const [availability, setAvailability] = useState<Availability>(initialState.domain ? 'idle' : 'idle');
@@ -186,25 +189,22 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
 
   return (
     <div>
-      <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">Choose your sending domain</h2>
-      <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">
-        A new dedicated domain warms up in the background over about 3 weeks. A pre-warmed domain
-        from our pool can start sending immediately.
-      </p>
+      <h2 className="mb-1 text-base font-semibold text-[#1a1a1a]">{t('heading')}</h2>
+      <p className="mb-6 text-sm leading-relaxed text-[#4a4a5a]">{t('subheading')}</p>
 
       {/* Mode toggle */}
       <div role="radiogroup" aria-label="Domain type" className="mb-6 grid gap-2 sm:grid-cols-2">
         <ModeCard
           checked={orderType === 'dfy'}
           onSelect={() => switchMode('dfy')}
-          title="New dedicated domain"
-          sub="Pick a fresh domain · 3-week warm-up · best for high volume"
+          title={t('modeDfyTitle')}
+          sub={t('modeDfySub')}
         />
         <ModeCard
           checked={orderType === 'pre_warmed_up'}
           onSelect={() => switchMode('pre_warmed_up')}
-          title="Pre-warmed domain"
-          sub="Pick from our managed pool · start sending immediately"
+          title={t('modePreWarmedTitle')}
+          sub={t('modePreWarmedSub')}
         />
       </div>
 
@@ -250,7 +250,7 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
       <div className="mt-6">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#1a1a1a]">
-            Mailboxes to create
+            {t('mailboxesHeading')}
             <span className="ml-1 text-[#4a4a5a] font-normal">({accounts.length}/{MAX_ACCOUNTS})</span>
           </h3>
           {accounts.length < MAX_ACCOUNTS && (
@@ -259,7 +259,7 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
               onClick={addAccount}
               className="rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ee] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef]"
             >
-              + Add mailbox
+              {t('mailboxesAdd')}
             </button>
           )}
         </div>
@@ -287,7 +287,7 @@ export function DfyStep1Choose({ initialState, onComplete }: Props) {
           disabled={!canContinue}
           className="rounded-md bg-[#3b6bef] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2f56c4] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Continue to quote →
+          {tCommon('continue')}
         </button>
       </div>
     </div>
@@ -337,12 +337,13 @@ function DfyDomainPicker({
   onChange: (v: string) => void;
   onCheck: () => void;
 }) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step1');
   const showError = domain.length > 0 && !domainValid;
 
   return (
     <div>
       <label htmlFor="dfy-domain" className="mb-1 flex items-baseline gap-1 text-xs font-medium text-[#1a1a1a]">
-        Desired domain
+        {t('domainLabel')}
         <span className="text-red-500" aria-hidden="true">*</span>
       </label>
       <div className="flex gap-2">
@@ -351,7 +352,7 @@ function DfyDomainPicker({
           type="text"
           value={domain}
           onChange={(e) => onChange(e.target.value.trim())}
-          placeholder="getmirvo-mail.com"
+          placeholder={t('domainPlaceholder')}
           aria-invalid={showError ? 'true' : 'false'}
           aria-describedby={showError ? 'dfy-domain-error' : undefined}
           className={`flex-1 rounded-md border bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
@@ -364,12 +365,12 @@ function DfyDomainPicker({
           disabled={!domainValid || availability === 'checking'}
           className="shrink-0 rounded-md border border-[#3b6bef] bg-white px-3 py-2 text-sm font-medium text-[#3b6bef] transition-colors hover:bg-[#3b6bef]/5 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {availability === 'checking' ? 'Checking…' : 'Check availability'}
+          {availability === 'checking' ? t('checking') : t('checkAvailability')}
         </button>
       </div>
       {showError && (
         <p id="dfy-domain-error" className="mt-1 text-xs text-red-600">
-          Enter a valid domain like example.com
+          {t('domainInvalid')}
         </p>
       )}
 
@@ -377,17 +378,17 @@ function DfyDomainPicker({
       <div className="mt-2 min-h-[20px]" aria-live="polite">
         {availability === 'available' && (
           <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-            Available
+            {t('pillAvailable')}
           </span>
         )}
         {availability === 'unavailable' && (
           <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
-            Not available
+            {t('pillNotAvailable')}
           </span>
         )}
         {availability === 'error' && (
           <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-            Check failed — try again
+            {t('pillCheckFailed')}
           </span>
         )}
       </div>
@@ -411,10 +412,11 @@ function PreWarmedPicker({
   onSelect: (d: string) => void;
   domains: PreWarmedDomain[];
 }) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step1');
   return (
     <div>
       <label htmlFor="dfy-prewarmed-filter" className="mb-1 flex items-baseline gap-1 text-xs font-medium text-[#1a1a1a]">
-        Pick from the pre-warmed pool
+        {t('preWarmedLabel')}
         <span className="text-red-500" aria-hidden="true">*</span>
       </label>
       <input
@@ -422,13 +424,13 @@ function PreWarmedPicker({
         type="search"
         value={filter}
         onChange={(e) => onFilterChange(e.target.value)}
-        placeholder="Search the pool…"
+        placeholder={t('preWarmedSearchPlaceholder')}
         className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20"
         disabled={loading || pool === null}
       />
 
       {loading && (
-        <p className="mt-3 text-xs text-[#4a4a5a]">Loading the pool…</p>
+        <p className="mt-3 text-xs text-[#4a4a5a]">{t('preWarmedLoading')}</p>
       )}
       {error && (
         <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
@@ -443,7 +445,7 @@ function PreWarmedPicker({
             className="mt-3 grid max-h-72 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-[#e8e3dc] bg-[#fafaf7] p-2 sm:grid-cols-2"
           >
             {domains.length === 0 && (
-              <p className="col-span-full px-1 py-2 text-xs text-[#4a4a5a]">No domains match your search.</p>
+              <p className="col-span-full px-1 py-2 text-xs text-[#4a4a5a]">{t('preWarmedNoMatch')}</p>
             )}
             {domains.map((d) => {
               const isSelected = selected === d.domain;
@@ -474,8 +476,13 @@ function PreWarmedPicker({
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-[#4a4a5a]">
             <span>
-              Showing {Math.min(visibleCount, totalCount)} of {totalCount}
-              {filter ? ' filtered' : ` (pool: ${(pool ?? []).length})`}
+              {t('preWarmedShowing', {
+                visible: Math.min(visibleCount, totalCount),
+                total:   totalCount,
+                suffix:  filter
+                  ? t('preWarmedFilteredSuffix')
+                  : t('preWarmedPoolSuffix', { count: (pool ?? []).length }),
+              })}
             </span>
             {visibleCount < totalCount && (
               <button
@@ -483,7 +490,7 @@ function PreWarmedPicker({
                 onClick={onShowMore}
                 className="text-[11px] font-medium text-[#3b6bef] hover:underline"
               >
-                Show more
+                {t('preWarmedShowMore')}
               </button>
             )}
           </div>
@@ -503,6 +510,8 @@ function AccountRow({
   onChange: (patch: Partial<DfyAccountDraft>) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step1');
+  const tCommon = useTranslations('dashboard.sendingDomains.dfyWizard.common');
   const prefixInvalid =
     account.emailAddressPrefix.length > 0 &&
     (!PREFIX_REGEX.test(account.emailAddressPrefix) || account.emailAddressPrefix.length > 64);
@@ -513,7 +522,7 @@ function AccountRow({
     <div className="rounded-md border border-[#e8e3dc] bg-white p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[#4a4a5a]">
-          Mailbox #{idx + 1}
+          {t('accountLabel', { index: idx + 1 })}
           {domain && account.emailAddressPrefix && PREFIX_REGEX.test(account.emailAddressPrefix) && (
             <span className="ml-2 font-normal normal-case text-[#1a1a1a]">
               → {account.emailAddressPrefix.toLowerCase()}@{domain}
@@ -527,23 +536,23 @@ function AccountRow({
             aria-label={`Remove mailbox ${idx + 1}`}
             className="text-xs text-[#4a4a5a] underline hover:text-red-600"
           >
-            Remove
+            {t('accountRemove')}
           </button>
         )}
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
         <Field
-          label="Prefix"
+          label={t('accountPrefixLabel')}
           htmlFor={`acct-${idx}-prefix`}
           required
-          error={prefixInvalid ? 'Letters, digits, . _ - only' : undefined}
+          error={prefixInvalid ? t('accountPrefixError') : undefined}
         >
           <input
             id={`acct-${idx}-prefix`}
             type="text"
             value={account.emailAddressPrefix}
             onChange={(e) => onChange({ emailAddressPrefix: e.target.value })}
-            placeholder="outreach"
+            placeholder={t('accountPrefixPlaceholder')}
             maxLength={64}
             className={`w-full rounded-md border bg-white px-2.5 py-1.5 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
               prefixInvalid ? 'border-red-500' : 'border-[#e8e3dc]'
@@ -551,17 +560,17 @@ function AccountRow({
           />
         </Field>
         <Field
-          label="First name"
+          label={t('accountFirstNameLabel')}
           htmlFor={`acct-${idx}-first`}
           required
-          error={firstInvalid ? 'Required' : undefined}
+          error={firstInvalid ? tCommon('required') : undefined}
         >
           <input
             id={`acct-${idx}-first`}
             type="text"
             value={account.firstName}
             onChange={(e) => onChange({ firstName: e.target.value })}
-            placeholder="Cyrus"
+            placeholder={t('accountFirstNamePlaceholder')}
             maxLength={100}
             className={`w-full rounded-md border bg-white px-2.5 py-1.5 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
               firstInvalid ? 'border-red-500' : 'border-[#e8e3dc]'
@@ -569,17 +578,17 @@ function AccountRow({
           />
         </Field>
         <Field
-          label="Last name"
+          label={t('accountLastNameLabel')}
           htmlFor={`acct-${idx}-last`}
           required
-          error={lastInvalid ? 'Required' : undefined}
+          error={lastInvalid ? tCommon('required') : undefined}
         >
           <input
             id={`acct-${idx}-last`}
             type="text"
             value={account.lastName}
             onChange={(e) => onChange({ lastName: e.target.value })}
-            placeholder="Mathieu"
+            placeholder={t('accountLastNamePlaceholder')}
             maxLength={100}
             className={`w-full rounded-md border bg-white px-2.5 py-1.5 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
               lastInvalid ? 'border-red-500' : 'border-[#e8e3dc]'
@@ -599,30 +608,32 @@ function ForwardingDomainField({
   selfCycle: boolean;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations('dashboard.sendingDomains.dfyWizard.step1');
   const showFormatError = value.length > 0 && !formatValid;
   const showCycleError  = value.length > 0 && formatValid && selfCycle;
   const errorMessage = showCycleError
-    ? 'Redirect target must differ from the ordered domain'
+    ? t('forwardingErrorCycle')
     : showFormatError
-      ? 'Enter a valid domain like your-company.com'
+      ? t('forwardingErrorInvalid')
       : undefined;
 
   return (
     <div>
       <label htmlFor="dfy-forwarding" className="mb-1 flex items-baseline gap-1 text-xs font-medium text-[#1a1a1a]">
-        Redirect target
+        {t('forwardingLabel')}
         <span className="text-red-500" aria-hidden="true">*</span>
       </label>
       <p className="mb-2 text-[11px] leading-relaxed text-[#4a4a5a]">
-        Anyone who lands on the sending domain will be redirected here — enter your public website
-        (e.g. <span className="font-mono">acme-corp.com</span>). Must differ from the domain being ordered.
+        {t.rich('forwardingHelper', {
+          mono: (chunks) => <span className="font-mono">{chunks}</span>,
+        })}
       </p>
       <input
         id="dfy-forwarding"
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value.trim())}
-        placeholder="your-company.com"
+        placeholder={t('forwardingPlaceholder')}
         aria-invalid={errorMessage ? 'true' : 'false'}
         aria-describedby={errorMessage ? 'dfy-forwarding-error' : undefined}
         className={`w-full rounded-md border bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-2 focus:ring-[#3b6bef]/20 ${
