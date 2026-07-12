@@ -2084,6 +2084,95 @@
         "regenerationFailed": "Échec de la régénération. Veuillez réessayer.",
         "generationFailed": "Échec de la génération. Veuillez réessayer."
       }
+    },
+    "campaignModals": {
+      "common": {
+        "optional": "(facultatif)"
+      },
+      "chooseTemplate": {
+        "title": "Choisir un modèle",
+        "subtitle": "Choisissez un point de départ. Vous pourrez tout ajuster avant de créer votre campagne."
+      },
+      "templates": {
+        "recruitmentClients": {
+          "label": "Clients recrutement",
+          "description": "Signez de nouveaux clients pour votre cabinet de recrutement ou de placement.",
+          "angle": "Les postes ouverts chez {{company}} qui restent des semaines non pourvus vous coûtent du chiffre d'affaires et font peser la charge sur le reste de vos équipes.",
+          "valueProp": "Nous pourvoyons vos postes spécialisés plus vite qu'un recrutement interne, sans alourdir votre équipe.",
+          "cta": "Vos postes à pourvoir, c'est un sujet en ce moment ?",
+          "targetPersona": "Fondateurs ou responsables recrutement d'entreprises en croissance avec des postes spécialisés à pourvoir"
+        },
+        "agencyClients": {
+          "label": "Contrats d'agence",
+          "description": "Décrochez de nouveaux clients en contrat récurrent pour votre agence.",
+          "angle": "Chez {{company}}, la croissance est souvent gérée en plus de l'activité : elle stagne, et personne ne la pilote vraiment.",
+          "valueProp": "Nous pilotons vos canaux d'acquisition comme une extension de votre équipe : des résultats, sans recrutement.",
+          "cta": "C'est un angle mort chez vous, ou déjà réglé ?",
+          "targetPersona": "Fondateurs ou responsables marketing de marques B2B ou DTC sans équipe marketing interne complète"
+        },
+        "consultant": {
+          "label": "Missions de conseil",
+          "description": "Décrochez des clients pour votre activité de conseil ou de temps partagé.",
+          "angle": "En croissance rapide, {{company}} tombe sur des problèmes jamais rencontrés avant, sans personne en interne qui les ait déjà réglés.",
+          "valueProp": "J'ai déjà résolu exactement ça à votre stade : j'interviens vite, sans temps de montée en charge.",
+          "cta": "Ça vaut un échange rapide pour en parler ?",
+          "targetPersona": "Fondateurs ou dirigeants d'entreprises qui franchissent une étape que vous avez déjà passée"
+        },
+        "b2bService": {
+          "label": "Prospection service B2B",
+          "description": "Touchez les décideurs des entreprises qui collent à votre offre.",
+          "angle": "Les équipes de {{company}} perdent du temps et de l'argent sur un problème précis que votre service fait disparaître.",
+          "valueProp": "Nous aidons des entreprises comme la vôtre à régler ça, sans effectif ni complexité en plus.",
+          "cta": "Ça vaut un rapide échange pour voir si c'est pour vous ?",
+          "targetPersona": "Décideurs d'entreprises correspondant à votre profil de client idéal"
+        },
+        "blank": {
+          "label": "Page blanche",
+          "description": "Partez de zéro avec une campagne entièrement personnalisée."
+        }
+      },
+      "newCampaign": {
+        "modalTitle": "Nouvelle campagne",
+        "cancel": "Annuler",
+        "createCta": "Créer la campagne",
+        "creating": "Création…",
+        "badgeAI": "✨ Pré-rempli depuis une suggestion IA",
+        "badgeTemplate": "🎯 Pré-rempli depuis un modèle",
+        "icpSectionTitle": "🎯 ICP : profil de client idéal",
+        "icpSectionSubtitle": "Une description en langage courant de la cible de cette campagne, utilisée pour personnaliser les emails. Pré-rempli depuis votre ICP maître, modifiez pour adapter cette campagne.",
+        "icpPlaceholder": "Fondateurs d'entreprises SaaS B2B en Europe, 10-50 employés, orientés outbound...",
+        "nameLabel": "Nom de la campagne",
+        "namePlaceholder": "ex. Prospection VP SaaS T3",
+        "defineIdealCustomerTitle": "Définissez votre client idéal",
+        "defineIdealCustomerSubtitle": "Filtres de ciblage structurés. Pré-rempli depuis votre ICP maître, modifiez pour adapter cette campagne.",
+        "targetIndustryLabel": "Secteur cible",
+        "targetIndustryPlaceholder": "ex. SaaS, FinTech, Santé",
+        "targetTitlesLabel": "Intitulés cibles",
+        "targetTitlesPlaceholder": "ex. VP Sales, Directeur commercial",
+        "targetRegionsLabel": "Régions cibles",
+        "targetRegionsPlaceholder": "ex. France, UK, DACH",
+        "companySizeLabel": "Taille de l'entreprise",
+        "companyRevenueLabel": "Chiffre d'affaires",
+        "pitchTitle": "Votre pitch",
+        "productAngleLabel": "Que fait votre produit ?",
+        "productAnglePlaceholder": "ex. Nous aidons les équipes B2B à conclure plus de deals grâce à des signaux d'intention pilotés par IA",
+        "valuePropLabel": "Proposition de valeur",
+        "valuePropPlaceholder": "ex. Signaux d'achat en temps réel depuis LinkedIn + l'activité web",
+        "proofPointsLabel": "Preuves",
+        "proofPointsPlaceholder": "ex. « Acme : 12 → 47 rendez-vous/mois en 90 jours », uniquement des chiffres réels, jamais inventés",
+        "proofCounter": "{count}/{max} · L'IA le citera mot pour mot. Laissez vide si vous n'avez pas encore de résultat réel.",
+        "proofTooltip": "Un résultat réel et vérifiable que l'IA pourra citer comme preuve dans chaque email de cette campagne. Utilisez une métrique concrète ou un client nommé : « Acme : 12 → 47 rendez-vous/mois en 90 jours » ou « Cogent : -38 % de coût d'acquisition ». L'IA le citera mot pour mot et n'inventera AUCUN chiffre. Laissez vide si vous n'avez pas de résultat réel à partager : l'IA n'en fabriquera jamais.",
+        "toneLabel": "Ton",
+        "languageLabel": "Langue"
+      },
+      "languages": {
+        "English": "Anglais",
+        "French": "Français"
+      },
+      "errors": {
+        "duplicateName": "⚠️  Une campagne portant ce nom existe déjà. Choisissez un autre nom.",
+        "requiredName": "Le nom de la campagne est requis."
+      }
     }
   }
 }

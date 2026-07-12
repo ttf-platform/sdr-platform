@@ -2084,6 +2084,95 @@
         "regenerationFailed": "Regeneration failed. Please try again.",
         "generationFailed": "Generation failed. Please try again."
       }
+    },
+    "campaignModals": {
+      "common": {
+        "optional": "(optional)"
+      },
+      "chooseTemplate": {
+        "title": "Choose a template",
+        "subtitle": "Pick a starting point — you can edit everything before creating."
+      },
+      "templates": {
+        "recruitmentClients": {
+          "label": "Recruitment Clients",
+          "description": "Land new client companies for your recruitment or staffing desk.",
+          "angle": "Open roles at {{company}} that stay unfilled for weeks quietly cost revenue and burn out the team covering the gap",
+          "valueProp": "We fill specialist roles faster than in-house hiring, on a model built for lean teams.",
+          "cta": "Worth a quick call about your open roles?",
+          "targetPersona": "Founders or Heads of Talent at growing companies with open specialist roles"
+        },
+        "agencyClients": {
+          "label": "Agency Retainers",
+          "description": "Win new retainer clients for your agency.",
+          "angle": "Most teams at {{company}} run growth on the side of their real job, so it stalls and no one owns it",
+          "valueProp": "We run your growth channels as an extension of your team, so you get output without another hire.",
+          "cta": "Open to a short call on what is working for similar brands?",
+          "targetPersona": "Founders or marketing leads at B2B or DTC brands without a full in-house marketing team"
+        },
+        "consultant": {
+          "label": "Consulting Engagements",
+          "description": "Win clients for your consulting or fractional practice.",
+          "angle": "Scaling fast means {{company}} keeps hitting problems it has never solved before, with no one in-house who has",
+          "valueProp": "I have solved exactly this for companies at your stage and can step in without a long ramp.",
+          "cta": "Would a quick call to talk it through be useful?",
+          "targetPersona": "Founders or executives at companies scaling through a stage you have navigated before"
+        },
+        "b2bService": {
+          "label": "B2B Service Outreach",
+          "description": "Reach decision-makers at companies that fit your service.",
+          "angle": "Teams at {{company}} lose time and money on a problem your service removes",
+          "valueProp": "We help companies like yours fix this without adding headcount or complexity.",
+          "cta": "Worth a quick conversation to see if it is a fit?",
+          "targetPersona": "Decision-makers at companies matching your ideal client profile"
+        },
+        "blank": {
+          "label": "Blank Canvas",
+          "description": "Start from scratch with a fully custom campaign."
+        }
+      },
+      "newCampaign": {
+        "modalTitle": "New Campaign",
+        "cancel": "Cancel",
+        "createCta": "Create Campaign",
+        "creating": "Creating…",
+        "badgeAI": "✨ Pre-filled from AI suggestion",
+        "badgeTemplate": "🎯 Pre-filled from template",
+        "icpSectionTitle": "🎯 ICP: Ideal Customer Profile",
+        "icpSectionSubtitle": "A plain-English description of who this campaign targets, used to personalize emails. Pre-filled from your Master ICP, edit to tailor this campaign.",
+        "icpPlaceholder": "Founders of B2B SaaS companies in Europe, 10-50 employees, focused on outbound sales...",
+        "nameLabel": "Campaign Name",
+        "namePlaceholder": "e.g. SaaS VP Outreach Q3",
+        "defineIdealCustomerTitle": "Define Your Ideal Customer",
+        "defineIdealCustomerSubtitle": "Structured targeting filters. Pre-filled from your Master ICP, edit to tailor this campaign.",
+        "targetIndustryLabel": "Target Industry",
+        "targetIndustryPlaceholder": "e.g. SaaS, FinTech, Healthcare",
+        "targetTitlesLabel": "Target Titles",
+        "targetTitlesPlaceholder": "e.g. VP of Sales, Head of Growth",
+        "targetRegionsLabel": "Target Regions",
+        "targetRegionsPlaceholder": "e.g. US, UK, DACH",
+        "companySizeLabel": "Company Size",
+        "companyRevenueLabel": "Company Revenue",
+        "pitchTitle": "Your Pitch",
+        "productAngleLabel": "What does your product do?",
+        "productAnglePlaceholder": "e.g. We help B2B teams close more deals with AI-driven intent signals",
+        "valuePropLabel": "Value Proposition",
+        "valuePropPlaceholder": "e.g. Real-time buying signals from LinkedIn + web activity",
+        "proofPointsLabel": "Proof points",
+        "proofPointsPlaceholder": "e.g. \"Acme: 12 → 47 meetings/month in 90 days\" — only real numbers, never invented",
+        "proofCounter": "{count}/{max} · The AI will quote this verbatim. Leave empty if you have no real result yet.",
+        "proofTooltip": "A real, verifiable result the AI can reference as proof in every email of this campaign. Use a concrete metric or a named client: \"Acme: 12 → 47 meetings/month in 90 days\" or \"Cogent: -38% acquisition cost\". The AI will quote it verbatim and will NOT invent numbers. Leave empty if you have no real result to share — the AI will never fabricate one.",
+        "toneLabel": "Tone",
+        "languageLabel": "Language"
+      },
+      "languages": {
+        "English": "English",
+        "French": "French"
+      },
+      "errors": {
+        "duplicateName": "⚠️ A campaign with this name already exists. Please choose a different name.",
+        "requiredName": "Campaign name is required."
+      }
     }
   }
 }

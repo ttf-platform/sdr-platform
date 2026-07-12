@@ -1,20 +1,33 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import type { CampaignTemplate } from '@/lib/campaign-templates'
 import { track } from '@/lib/track'
 import { Modal } from '@/components/ui/Modal'
 import { Tooltip } from '@/components/Tooltip'
 
-const PROOF_TOOLTIP =
-  'A real, verifiable result the AI can reference as proof in every email of this campaign. Use a concrete metric or a named client: "Acme: 12 → 47 meetings/month in 90 days" or "Cogent: -38% acquisition cost". The AI will quote it verbatim and will NOT invent numbers. Leave empty if you have no real result to share — the AI will never fabricate one.'
-
 const PROOF_MAX = 500
 
 const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
-const TONES        = ['Professional', 'Casual', 'Direct', 'Friendly', 'Witty']
-const LANGUAGES    = ['English', 'French']
+
+// Values only. Tone labels resolved at render via useTranslations → tTones(k).
+// Dynamic keys under dashboard.prospects.list.tones.* — reused across the app
+// (Master ICP form + this modal) to guarantee identical FR/EN copy.
+const TONES = ['professional', 'casual', 'direct', 'friendly', 'witty'] as const
+type ToneKey = typeof TONES[number]
+const TONE_ALIASES: Record<string, string> = { technical: 'direct', warm: 'friendly' }
+function normalizeTone(raw?: string | null): ToneKey {
+  const t = (raw || '').toLowerCase()
+  if ((TONES as readonly string[]).includes(t)) return t as ToneKey
+  return (TONE_ALIASES[t] ?? 'professional') as ToneKey
+}
+
+// Canonical EN values persisted in DB and consumed by lib/ai-voice.ts —
+// labels resolved via useTranslations → tLanguages(v).
+const LANGUAGES = ['English', 'French'] as const
+type LanguageValue = typeof LANGUAGES[number]
 
 interface Props {
   preset: CampaignTemplate | null
@@ -23,22 +36,47 @@ interface Props {
 }
 
 export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
+  const t         = useTranslations('components.campaignModals.newCampaign')
+  const tCommon   = useTranslations('components.campaignModals.common')
+  const tTemplates = useTranslations('components.campaignModals.templates')
+  const tLanguages = useTranslations('components.campaignModals.languages')
+  const tErrors   = useTranslations('components.campaignModals.errors')
+  const tTones    = useTranslations('dashboard.prospects.list.tones')
+
   const router     = useRouter()
   const isTemplate = !!preset && preset.id !== 'blank'
 
-  const [name,           setName]           = useState(isTemplate ? preset!.label : '')
+  // Standard template seeds resolve from i18n; AI presets carry inline strings.
+  // We use tTemplates.raw() instead of tTemplates() so ICU-syntax parsing does
+  // NOT run — the `angle` seeds contain the maison placeholder {{company}}
+  // which is consumed later by the AI generation prompt and must be preserved
+  // verbatim (ICU would reject it as MALFORMED_ARGUMENT).
+  const seed = (field: 'label' | 'angle' | 'valueProp' | 'cta' | 'targetPersona'): string => {
+    if (!isTemplate || !preset) return ''
+    if (preset.i18nKey) {
+      const raw = tTemplates.raw(`${preset.i18nKey}.${field}`)
+      return typeof raw === 'string' ? raw : ''
+    }
+    const inlineField = field === 'valueProp'     ? 'value_prop'
+                       : field === 'targetPersona' ? 'target_persona'
+                       : field
+    const v = (preset as unknown as Record<string, unknown>)[inlineField]
+    return typeof v === 'string' ? v : ''
+  }
+
+  const [name,           setName]           = useState(isTemplate ? seed('label') : '')
   const [targetIndustry, setTargetIndustry] = useState('')
   const [targetTitles,   setTargetTitles]   = useState('')
   const [targetRegions,  setTargetRegions]  = useState('')
   const [selectedSizes,  setSelectedSizes]  = useState<string[]>([])
   const [selectedRevs,   setSelectedRevs]   = useState<string[]>([])
-  const [angle,          setAngle]          = useState(preset?.angle ?? '')
-  const [valueProp,      setValueProp]      = useState(preset?.value_prop ?? '')
-  const [cta,            setCta]            = useState(preset?.cta ?? '')
-  const [targetPersona,  setTargetPersona]  = useState(preset?.target_persona ?? '')
+  const [angle,          setAngle]          = useState(seed('angle'))
+  const [valueProp,      setValueProp]      = useState(seed('valueProp'))
+  const [cta,            setCta]            = useState(seed('cta'))
+  const [targetPersona,  setTargetPersona]  = useState(seed('targetPersona'))
   const [proofPoints,    setProofPoints]    = useState('')
-  const [tone,           setTone]           = useState('Professional')
-  const [language,       setLanguage]       = useState('English')
+  const [tone,           setTone]           = useState<ToneKey>('professional')
+  const [language,       setLanguage]       = useState<LanguageValue>('English')
   const [creating,       setCreating]       = useState(false)
   const [error,          setError]          = useState('')
   const [nameError,      setNameError]      = useState('')
@@ -66,7 +104,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         if (p.target_company_revenue?.length && !selectedRevs.length) setSelectedRevs(p.target_company_revenue)
         if (p.product_description && !angle) setAngle(p.product_description)
         if (p.value_proposition && !valueProp) setValueProp(p.value_proposition)
-        if (p.tone) setTone(p.tone.charAt(0).toUpperCase() + p.tone.slice(1))
+        if (p.tone) setTone(normalizeTone(p.tone))
       })
       .catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,7 +118,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     if (!trimmed) return
     const res = await fetch(`/api/campaigns/check-name?name=${encodeURIComponent(trimmed)}`).then(r => r.json()).catch(() => null)
     if (res && !res.available) {
-      setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
+      setNameError(tErrors('duplicateName'))
     }
   }
 
@@ -102,7 +140,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
   }
 
   async function handleCreate() {
-    if (!name.trim()) { setNameError('Campaign name is required.'); flashNameField(); return }
+    if (!name.trim()) { setNameError(tErrors('requiredName')); flashNameField(); return }
     if (nameError) { flashNameField(); return }
     setCreating(true)
     setError('')
@@ -129,7 +167,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     }).then(r => r.json())
 
     if (res.error === 'duplicate_name') {
-      setNameError('⚠️ A campaign with this name already exists. Please choose a different name.')
+      setNameError(tErrors('duplicateName'))
       setCreating(false)
       flashNameField()
       return
@@ -146,7 +184,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
     <Modal
       isOpen
       onClose={onClose}
-      title="New Campaign"
+      title={t('modalTitle')}
       size="lg"
       footer={
         <>
@@ -155,14 +193,14 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
             disabled={creating}
             className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm disabled:opacity-50"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={handleCreate}
             disabled={creating}
             className="flex-1 bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50"
           >
-            {creating ? 'Creating…' : 'Create Campaign'}
+            {creating ? t('creating') : t('createCta')}
           </button>
         </>
       }
@@ -172,28 +210,26 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         {/* Badges */}
         {isFromAI && (
           <div className="flex items-center gap-2 bg-[#eef1fd] border border-[#3b6bef]/20 rounded-lg px-3 py-2 text-xs text-[#3b6bef] font-medium">
-            <span>✨</span><span>Pre-filled from AI suggestion</span>
+            <span>{t('badgeAI')}</span>
           </div>
         )}
         {!isFromAI && isTemplate && (
           <div className="flex items-center gap-2 bg-[#f5f0e8] border border-[#c8a96e]/20 rounded-lg px-3 py-2 text-xs text-[#8b6914] font-medium">
-            <span>🎯</span><span>Pre-filled from template</span>
+            <span>{t('badgeTemplate')}</span>
           </div>
         )}
 
         {/* ICP: Ideal Customer Profile */}
         <div>
           <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
-            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">🎯 ICP: Ideal Customer Profile</h3>
-            <p className="text-xs text-[#8a7e6e] mt-0.5">
-              A plain-English description of who this campaign targets, used to personalize emails. Pre-filled from your Master ICP, edit to tailor this campaign.
-            </p>
+            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">{t('icpSectionTitle')}</h3>
+            <p className="text-xs text-[#8a7e6e] mt-0.5">{t('icpSectionSubtitle')}</p>
           </div>
           <textarea
             aria-label="ICP description"
             value={targetPersona}
             onChange={e => setTargetPersona(e.target.value)}
-            placeholder="Founders of B2B SaaS companies in Europe, 10-50 employees, focused on outbound sales..."
+            placeholder={t('icpPlaceholder')}
             rows={3}
             className={`${inputCls} resize-none`}
           />
@@ -201,7 +237,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
 
         {/* Campaign Name */}
         <div>
-          <label className={labelCls} htmlFor="nc-campaign-name">Campaign Name <span className="text-red-500">*</span></label>
+          <label className={labelCls} htmlFor="nc-campaign-name">{t('nameLabel')} <span className="text-red-500">*</span></label>
           <input
             id="nc-campaign-name"
             ref={nameInputRef}
@@ -214,7 +250,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
               if (v.trim()) scheduleNameCheck(v, 500)
             }}
             onBlur={handleNameBlur}
-            placeholder="e.g. SaaS VP Outreach Q3"
+            placeholder={t('namePlaceholder')}
             className={`${inputCls} ${nameError ? 'border-red-400' : ''} ${nameFlashing ? 'animate-pulse ring-2 ring-red-300' : ''}`}
           />
           {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
@@ -223,27 +259,27 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         {/* Define Your Ideal Customer */}
         <div>
           <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
-            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Define Your Ideal Customer</h3>
-            <p className="text-xs text-[#8a7e6e] mt-0.5">Structured targeting filters. Pre-filled from your Master ICP, edit to tailor this campaign.</p>
+            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">{t('defineIdealCustomerTitle')}</h3>
+            <p className="text-xs text-[#8a7e6e] mt-0.5">{t('defineIdealCustomerSubtitle')}</p>
           </div>
           <div className="flex flex-col gap-4">
             <div>
-              <label className={labelCls} htmlFor="nc-target-industry">Target Industry</label>
+              <label className={labelCls} htmlFor="nc-target-industry">{t('targetIndustryLabel')}</label>
               <input id="nc-target-industry" type="text" value={targetIndustry} onChange={e => setTargetIndustry(e.target.value)}
-                placeholder="e.g. SaaS, FinTech, Healthcare" className={inputCls} />
+                placeholder={t('targetIndustryPlaceholder')} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls} htmlFor="nc-target-titles">Target Titles</label>
+              <label className={labelCls} htmlFor="nc-target-titles">{t('targetTitlesLabel')}</label>
               <input id="nc-target-titles" type="text" value={targetTitles} onChange={e => setTargetTitles(e.target.value)}
-                placeholder="e.g. VP of Sales, Head of Growth" className={inputCls} />
+                placeholder={t('targetTitlesPlaceholder')} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls} htmlFor="nc-target-regions">Target Regions</label>
+              <label className={labelCls} htmlFor="nc-target-regions">{t('targetRegionsLabel')}</label>
               <input id="nc-target-regions" type="text" value={targetRegions} onChange={e => setTargetRegions(e.target.value)}
-                placeholder="e.g. US, UK, DACH" className={inputCls} />
+                placeholder={t('targetRegionsPlaceholder')} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Company Size</label>
+              <label className={labelCls}>{t('companySizeLabel')}</label>
               <div className="flex flex-wrap gap-2">
                 {SIZE_OPTIONS.map(opt => (
                   <button key={opt}
@@ -259,7 +295,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
               </div>
             </div>
             <div>
-              <label className={labelCls}>Company Revenue</label>
+              <label className={labelCls}>{t('companyRevenueLabel')}</label>
               <div className="flex flex-wrap gap-2">
                 {REV_OPTIONS.map(opt => (
                   <button key={opt}
@@ -280,32 +316,32 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         {/* Your Pitch */}
         <div>
           <div className="mb-3 pb-1.5 border-b border-[#f0ece6]">
-            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">Your Pitch</h3>
+            <h3 className="text-xs font-bold text-[#1a1a2e] uppercase tracking-wider">{t('pitchTitle')}</h3>
           </div>
           <div className="flex flex-col gap-4">
             <div>
               <label className={labelCls} htmlFor="nc-product-angle">
-                What does your product do? <span className="text-red-500">*</span>
+                {t('productAngleLabel')} <span className="text-red-500">*</span>
               </label>
               <textarea
                 id="nc-product-angle"
                 value={angle}
                 onChange={e => setAngle(e.target.value)}
-                placeholder="e.g. We help B2B teams close more deals with AI-driven intent signals"
+                placeholder={t('productAnglePlaceholder')}
                 rows={2}
                 className={`${inputCls} resize-none`}
               />
             </div>
             <div>
               <label className={labelCls} htmlFor="nc-value-prop">
-                Value Proposition{' '}
-                <span className="text-[#a89e8e] font-normal normal-case tracking-normal">(optional)</span>
+                {t('valuePropLabel')}{' '}
+                <span className="text-[#a89e8e] font-normal normal-case tracking-normal">{tCommon('optional')}</span>
               </label>
               <textarea
                 id="nc-value-prop"
                 value={valueProp}
                 onChange={e => setValueProp(e.target.value)}
-                placeholder="e.g. Real-time buying signals from LinkedIn + web activity"
+                placeholder={t('valuePropPlaceholder')}
                 rows={2}
                 className={`${inputCls} resize-none`}
               />
@@ -313,10 +349,10 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <label className={`${labelCls} mb-0`} htmlFor="nc-proof-points">
-                  Proof points{' '}
-                  <span className="text-[#a89e8e] font-normal normal-case tracking-normal">(optional)</span>
+                  {t('proofPointsLabel')}{' '}
+                  <span className="text-[#a89e8e] font-normal normal-case tracking-normal">{tCommon('optional')}</span>
                 </label>
-                <Tooltip content={PROOF_TOOLTIP} placement="top">
+                <Tooltip content={t('proofTooltip')} placement="top">
                   <svg className="w-3.5 h-3.5 text-[#b0a898] hover:text-[#3b6bef] transition-colors" viewBox="0 0 20 20" fill="currentColor" aria-label="About Proof points">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
@@ -326,7 +362,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
                 id="nc-proof-points"
                 value={proofPoints}
                 onChange={e => setProofPoints(e.target.value.slice(0, PROOF_MAX))}
-                placeholder='e.g. "Acme: 12 → 47 meetings/month in 90 days" — only real numbers, never invented'
+                placeholder={t('proofPointsPlaceholder')}
                 rows={2}
                 maxLength={PROOF_MAX}
                 aria-describedby="nc-proof-points-help"
@@ -341,7 +377,7 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
                   : 'text-[#8a7e6e]'
                 }`}
               >
-                {proofPoints.length}/{PROOF_MAX} · The AI will quote this verbatim. Leave empty if you have no real result yet.
+                {t('proofCounter', { count: proofPoints.length, max: PROOF_MAX })}
               </p>
             </div>
           </div>
@@ -350,15 +386,15 @@ export function NewCampaignModal({ preset, isFromAI, onClose }: Props) {
         {/* Tone & Language */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelCls} htmlFor="nc-tone">Tone</label>
-            <select id="nc-tone" value={tone} onChange={e => setTone(e.target.value)} className={inputCls}>
-              {TONES.map(t => <option key={t}>{t}</option>)}
+            <label className={labelCls} htmlFor="nc-tone">{t('toneLabel')}</label>
+            <select id="nc-tone" value={tone} onChange={e => setTone(e.target.value as ToneKey)} className={inputCls}>
+              {TONES.map(k => <option key={k} value={k}>{tTones(k)}</option>)}
             </select>
           </div>
           <div>
-            <label className={labelCls} htmlFor="nc-language">Language</label>
-            <select id="nc-language" value={language} onChange={e => setLanguage(e.target.value)} className={inputCls}>
-              {LANGUAGES.map(l => <option key={l}>{l}</option>)}
+            <label className={labelCls} htmlFor="nc-language">{t('languageLabel')}</label>
+            <select id="nc-language" value={language} onChange={e => setLanguage(e.target.value as LanguageValue)} className={inputCls}>
+              {LANGUAGES.map(v => <option key={v} value={v}>{tLanguages(v)}</option>)}
             </select>
           </div>
         </div>
