@@ -2173,6 +2173,116 @@
         "duplicateName": "⚠️ A campaign with this name already exists. Please choose a different name.",
         "requiredName": "Campaign name is required."
       }
+    },
+    "exportProspectsModal": {
+      "title": "Export prospects",
+      "formatLabel": "Format",
+      "formatCsv": "CSV",
+      "formatXlsx": "Excel (XLSX)",
+      "whatToExport": "What to export",
+      "scopeSelected": "Selected rows",
+      "scopeSelectedCount": "({count})",
+      "scopeFiltered": "Filtered view",
+      "scopeFilteredCount": "({count, plural, one {# prospect} other {# prospects}})",
+      "scopeAll": "All prospects",
+      "scopeAllCount": "({count} total)",
+      "columnsLegend": "Columns to include",
+      "columnsShort": "Columns",
+      "cancel": "Cancel",
+      "exportCta": "Export {count, plural, =0 {prospects} one {# prospect} other {# prospects}}",
+      "exporting": "Exporting…",
+      "errorFallback": "Export failed ({status})",
+      "columns": {
+        "email": "Email",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "company": "Company",
+        "title": "Job title",
+        "linkedin_url": "LinkedIn URL",
+        "website": "Website",
+        "status": "Status",
+        "source": "Source",
+        "tags": "Tags",
+        "notes": "Notes",
+        "added_at": "Date added"
+      }
+    },
+    "sendingPreferences": {
+      "title": "Sending Preferences",
+      "subtitle": "Control when your emails are delivered to prospects.",
+      "defaultSendTime": "Default send time",
+      "recipientLocalTime": "recipient's local time",
+      "sendWindow": "Send window",
+      "to": "to",
+      "sendDaysLabel": "Send days",
+      "summary": "Emails will send {days} between {start} and {end}, recipient's local time.",
+      "daysNone": "no days selected",
+      "daysAll": "every day",
+      "reset": "Reset",
+      "save": "Save sending preferences",
+      "saving": "Saving...",
+      "days": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      }
+    },
+    "noteItem": {
+      "authorFallback": "You",
+      "edited": "(edited)",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "confirmTitle": "Delete this note?",
+      "confirmBody": "This action cannot be undone.",
+      "confirmDelete": "Delete",
+      "time": {
+        "justNow": "Just now",
+        "minutesShort": "{count}m ago",
+        "hoursShort": "{count}h ago",
+        "daysShort": "{count}d ago"
+      }
+    },
+    "autoFill": {
+      "button": {
+        "label": "✨ Auto-fill",
+        "analyzing": "Analyzing…",
+        "disabledTitle": "Enter your company website URL above to use auto-fill",
+        "errorExtraction": "Extraction failed. Try filling in manually.",
+        "errorNetwork": "Could not reach your website. Try filling in manually."
+      },
+      "preview": {
+        "title": "✨ Here's what we found",
+        "subtitle": "Review and edit before applying. Uncheck any field you don't want to fill.",
+        "notFound": "Not found on website",
+        "arrayPlaceholder": "comma-separated",
+        "cancel": "Cancel",
+        "applyCta": "Apply ({count, plural, one {# field} other {# fields}})"
+      },
+      "sections": {
+        "COMPANY": "COMPANY",
+        "PRODUCT": "PRODUCT",
+        "AUDIENCE": "AUDIENCE"
+      },
+      "fields": {
+        "industry": "Your industry",
+        "user_company_size": "Your company size",
+        "product_description": "Product description",
+        "value_proposition": "Value proposition",
+        "icp_description": "ICP description",
+        "target_industry": "Target industry",
+        "target_titles": "Decision-maker titles",
+        "target_regions": "Target regions",
+        "target_company_size": "Target company size",
+        "target_pain_points": "Pain points",
+        "email_tone": "Email tone"
+      }
     }
   }
 }

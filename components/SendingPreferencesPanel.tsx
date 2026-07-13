@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { SendingPrefs, DEFAULT_SENDING_PREFS, DAYS } from "@/lib/types/sending-prefs";
+import { useTranslations } from "next-intl";
+import { SendingPrefs, DEFAULT_SENDING_PREFS, DAY_VALUES } from "@/lib/types/sending-prefs";
 
 type Props = {
   open: boolean;
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export default function SendingPreferencesPanel({ open, onClose }: Props) {
+  const t = useTranslations("components.sendingPreferences");
+  const tDays = useTranslations("components.sendingPreferences.days");
   const [prefs, setPrefs] = useState<SendingPrefs>(DEFAULT_SENDING_PREFS);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,12 +47,12 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
 
   const reset = () => setPrefs(DEFAULT_SENDING_PREFS);
 
-  const activeDays = DAYS.filter(d => prefs.sendDays.includes(d.value)).map(d => d.label);
-  const daysLabel = activeDays.length === 0
-    ? "no days selected"
-    : activeDays.length === 7
-    ? "every day"
-    : activeDays.join(", ");
+  const activeDayLabels = DAY_VALUES.filter(v => prefs.sendDays.includes(v)).map(v => tDays(String(v)));
+  const daysLabel = activeDayLabels.length === 0
+    ? t("daysNone")
+    : activeDayLabels.length === 7
+    ? t("daysAll")
+    : activeDayLabels.join(", ");
 
   if (!open) return null;
 
@@ -57,8 +60,8 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
     <div className="bg-white border border-[#e8e3dc] rounded-xl mb-6">
       <div className="flex items-start justify-between p-6 pb-4">
         <div>
-          <h2 className="text-lg font-semibold text-[#1a1a2e]">Sending Preferences</h2>
-          <p className="text-sm text-[#8a7e6e] mt-1">Control when your emails are delivered to prospects.</p>
+          <h2 className="text-lg font-semibold text-[#1a1a2e]">{t("title")}</h2>
+          <p className="text-sm text-[#8a7e6e] mt-1">{t("subtitle")}</p>
         </div>
         <button onClick={onClose} className="text-[#8a7e6e] hover:text-[#1a1a2e]" aria-label="Close">
           <X className="w-5 h-5" />
@@ -67,25 +70,25 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
 
       <div className="border-t border-[#e8e3dc] px-6 py-5 space-y-5">
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-sm text-[#1a1a2e] w-36">Default send time</label>
+          <label className="text-sm text-[#1a1a2e] w-36">{t("defaultSendTime")}</label>
           <input
             type="time"
             value={prefs.defaultSendTime}
             onChange={e => setPrefs(p => ({ ...p, defaultSendTime: e.target.value }))}
             className="px-3 py-1.5 border border-[#e8e3dc] rounded-md text-sm bg-white text-[#1a1a2e]"
           />
-          <span className="text-sm text-[#8a7e6e]">recipient’s local time</span>
+          <span className="text-sm text-[#8a7e6e]">{t("recipientLocalTime")}</span>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-sm text-[#1a1a2e] w-36">Send window</label>
+          <label className="text-sm text-[#1a1a2e] w-36">{t("sendWindow")}</label>
           <input
             type="time"
             value={prefs.sendWindowStart}
             onChange={e => setPrefs(p => ({ ...p, sendWindowStart: e.target.value }))}
             className="px-3 py-1.5 border border-[#e8e3dc] rounded-md text-sm bg-white text-[#1a1a2e]"
           />
-          <span className="text-sm text-[#8a7e6e]">to</span>
+          <span className="text-sm text-[#8a7e6e]">{t("to")}</span>
           <input
             type="time"
             value={prefs.sendWindowEnd}
@@ -95,14 +98,14 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
         </div>
 
         <div>
-          <label className="text-sm text-[#1a1a2e] block mb-2">Send days</label>
+          <label className="text-sm text-[#1a1a2e] block mb-2">{t("sendDaysLabel")}</label>
           <div className="flex gap-2 flex-wrap">
-            {DAYS.map(d => {
-              const active = prefs.sendDays.includes(d.value);
+            {DAY_VALUES.map(v => {
+              const active = prefs.sendDays.includes(v);
               return (
                 <button
-                  key={d.value}
-                  onClick={() => toggleDay(d.value)}
+                  key={v}
+                  onClick={() => toggleDay(v)}
                   className={
                     "px-4 py-1.5 rounded-full text-sm border transition-colors " +
                     (active
@@ -110,7 +113,7 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
                       : "border-[#e8e3dc] text-[#8a7e6e] bg-white hover:bg-[#f5f2ee]")
                   }
                 >
-                  {d.label}
+                  {tDays(String(v))}
                 </button>
               );
             })}
@@ -118,7 +121,7 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
         </div>
 
         <div className="text-sm text-[#8a7e6e] bg-[#f5f2ee] rounded-md px-3 py-2">
-          Emails will send {daysLabel} between {prefs.sendWindowStart} and {prefs.sendWindowEnd}, recipient’s local time.
+          {t("summary", { days: daysLabel, start: prefs.sendWindowStart, end: prefs.sendWindowEnd })}
         </div>
       </div>
 
@@ -127,14 +130,14 @@ export default function SendingPreferencesPanel({ open, onClose }: Props) {
           onClick={reset}
           className="px-4 py-2 text-sm border border-[#e8e3dc] rounded-md text-[#1a1a2e] bg-white hover:bg-[#f5f2ee]"
         >
-          Reset
+          {t("reset")}
         </button>
         <button
           onClick={save}
           disabled={saving || loading}
           className="px-4 py-2 text-sm bg-[#3b6bef] text-white rounded-md hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save sending preferences"}
+          {saving ? t("saving") : t("save")}
         </button>
       </div>
     </div>
