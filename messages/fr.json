@@ -1879,6 +1879,118 @@
           "genericTitle": "Impossible de passer la commande"
         }
       }
+    },
+    "settings": {
+      "common": {
+        "save": "Enregistrer",
+        "saving": "Enregistrement...",
+        "saved": "✓ Enregistré",
+        "ok": "Ok ✓",
+        "optional": "Facultatif",
+        "usedInSignature": "Utilisé dans la signature",
+        "failedToSave": "Échec de l'enregistrement. Réessayez.",
+        "aiQuality": "+{pct}% de qualité IA",
+        "comingSoon": "Bientôt disponible",
+        "requiredFields": "Requis : {fields}",
+        "planTier": "{tier, select, starter {Starter} pro {Pro} power {Power} other {Starter}}"
+      },
+      "header": {
+        "breadcrumbDashboard": "Tableau de bord",
+        "breadcrumbCurrent": "Paramètres",
+        "title": "Paramètres",
+        "subtitle": "Profil du compte et de l'entreprise"
+      },
+      "toasts": {
+        "signatureSaved": "Signature enregistrée. Cela n'affectera que les futures générations et régénérations d'e-mails. Les brouillons existants ne seront pas modifiés.",
+        "autofillFailed": "Échec du remplissage automatique. Réessayez.",
+        "autofillSaved": "Enregistré. Nous avons rempli {count, plural, one {# champ} other {# champs}} à partir de votre site. Les détails de votre audience (intitulés de poste, régions, problématiques) figurent dans votre Master ICP. Ouvrez-le pour les vérifier.",
+        "openMasterIcp": "Ouvrir le Master ICP →",
+        "closeAriaLabel": "Fermer"
+      },
+      "account": {
+        "sectionTitle": "COMPTE",
+        "emailBadge": "e-mail",
+        "yourName": "Votre nom",
+        "yourNamePlaceholder": "Votre nom",
+        "yourTitle": "Votre fonction",
+        "yourTitlePlaceholder": "ex. Fondateur, CEO, Responsable commercial",
+        "yourTitleHint": "Juste votre fonction. Votre entreprise est ajoutée automatiquement dans la signature."
+      },
+      "plan": {
+        "sectionTitle": "FORMULE",
+        "trialSuffix": "{status, select, trialing { (Essai gratuit)} other {}}",
+        "freeTrialNote": "14 jours gratuits · sans carte bancaire",
+        "upgradeCta": "Mettre à niveau →",
+        "campaignsLabel": "Campagnes",
+        "emailsSentLabel": "E-mails envoyés",
+        "memberSinceLabel": "Membre depuis"
+      },
+      "signature": {
+        "sectionTitle": "SIGNATURE E-MAIL",
+        "description": "Signature en texte brut ajoutée à vos e-mails. Utilisez des variables pour une personnalisation automatique.",
+        "counter": "{count}/1000",
+        "previewTitle": "APERÇU",
+        "emptyPreview": "La signature apparaîtra ici…",
+        "includeInInitial": "Inclure dans les premiers e-mails",
+        "includeInFollowups": "Inclure dans les relances",
+        "followupsHint": "(les relances plus courtes sont plus efficaces)"
+      },
+      "company": {
+        "sectionTitle": "ENTREPRISE",
+        "companyName": "Nom de l'entreprise",
+        "displayName": "Nom d'affichage",
+        "displayNameTooltip": "Le nom qui apparaît comme expéditeur dans la boîte de réception de vos prospects. Si ce champ est vide, votre nom (section Compte) est utilisé par défaut. Renseignez-le pour afficher un nom plus formel (ex. « Robert Smith » plutôt que « Bob »).",
+        "displayNamePlaceholder": "ex. Robert Smith (par défaut : votre nom)",
+        "companyWebsite": "Site web de l'entreprise",
+        "companyWebsitePlaceholder": "ex. zobo.com",
+        "autoFillHint": "Gagnez du temps : nous analysons votre site web pour suggérer votre secteur, la description de votre produit, votre ICP, et plus encore.",
+        "industry": "Secteur",
+        "industryPlaceholder": "ex. SaaS, Fintech, Santé",
+        "companySize": "Taille de l'entreprise",
+        "companySizeEmpty": "Sélectionner une taille",
+        "workspaceTimezone": "Fuseau horaire de l'espace de travail",
+        "timezoneHint": "Utilisé pour afficher les rendez-vous et les disponibilités de réservation à votre heure locale"
+      },
+      "product": {
+        "sectionTitle": "PRODUIT",
+        "tooltip": "Votre ICP et les détails de votre produit sont utilisés par Mirvo AI pour personnaliser chaque e-mail. Plus ils sont précis, plus votre taux de réponse augmente. Ces valeurs par défaut préremplissent chaque nouvelle campagne.",
+        "description": "Description du produit",
+        "descCounter": "{count}/30 {count, plural, one {caractère} other {caractères}}{ok, select, true { ✓} other {}}",
+        "valueProposition": "Proposition de valeur",
+        "valueCounter": "{count}/20 {count, plural, one {caractère} other {caractères}}{ok, select, true { ✓} other {}}"
+      },
+      "prospectResearch": {
+        "sectionTitle": "RECHERCHE DE PROSPECTS",
+        "subtitle": "Vos crédits mensuels de recherche de prospects.",
+        "creditsLabel": "Crédits prospects",
+        "creditsPerMonth": "{count} crédits / mois sur votre formule",
+        "planLinePrefix": "formule {tier} · ",
+        "viewUsageCta": "Voir la consommation →"
+      },
+      "sendingDomains": {
+        "sectionTitle": "Domaines d'envoi",
+        "tooltip": "Configurez votre domaine dédié pour une délivrabilité durable. Il se met en chauffe progressivement sur environ 3 semaines, pendant que votre boîte mail connectée continue d'envoyer vos campagnes.",
+        "description": "Configurez l'adresse d'envoi de vos campagnes. Connectez votre domaine, publiez les enregistrements DNS, et laissez Mirvo le mettre en chauffe progressivement. Entre-temps, continuez d'envoyer depuis votre boîte mail connectée.",
+        "configureCta": "Configurer →"
+      },
+      "advanced": {
+        "sectionTitle": "PARAMÈTRES AVANCÉS",
+        "apiKeysTitle": "Clés API",
+        "apiKeysDesc": "Accès programmatique à vos données Mirvo pour des intégrations personnalisées, disponible au T4 2026",
+        "mailboxRotationTitle": "Rotation des boîtes mail",
+        "mailboxRotationDesc": "Alternez automatiquement entre plusieurs boîtes d'envoi pour protéger votre délivrabilité, disponible au T3 2026",
+        "gdprTitle": "RGPD et conformité",
+        "gdprDesc": "Gérez le suivi du consentement, les exigences d'opt-in et les préférences de désabonnement, disponible au T3 2026",
+        "dataExportTitle": "Export des données",
+        "dataExportDesc": "Téléchargez l'intégralité de votre base de contacts, l'historique de vos campagnes et vos analyses au format CSV, disponible au T3 2026"
+      },
+      "danger": {
+        "sectionTitle": "ZONE DE DANGER",
+        "changePassword": "Changer le mot de passe",
+        "changePasswordDesc": "Mettez à jour votre mot de passe de connexion",
+        "deleteAccount": "Supprimer le compte",
+        "deleteAccountDesc": "Supprimez définitivement votre compte et toutes vos données"
+      }
     }
   },
   "components": {

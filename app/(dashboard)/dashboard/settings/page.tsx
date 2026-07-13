@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
@@ -19,9 +20,6 @@ const WORKSPACE_TIMEZONES = [
   'Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC',
 ]
 
-const PRODUCT_TOOLTIP      = 'Your ICP and product details are used by Mirvo AI to personalize every email. The more precise, the higher your reply rate. These defaults auto-fill every new campaign.'
-const DISPLAY_NAME_TOOLTIP = "The name your prospects see in their inbox From field. Defaults to Your name (Account) if empty. Use this to display a more formal name (e.g. 'Robert Smith' instead of 'Bob')."
-
 const DEFAULT_SIGNATURE = '--\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
 
 const inputCls  = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]'
@@ -34,8 +32,9 @@ function QualityBadge({ pct }: { pct: string }) {
 }
 
 function FieldOk({ show }: { show: boolean }) {
+  const t = useTranslations('dashboard.settings.common')
   if (!show) return null
-  return <p className="text-xs mt-1 text-green-600">Ok ✓</p>
+  return <p className="text-xs mt-1 text-green-600">{t('ok')}</p>
 }
 
 function SaveButton({ section, saving, saved, onSave, missing = [], dirty }: {
@@ -46,6 +45,7 @@ function SaveButton({ section, saving, saved, onSave, missing = [], dirty }: {
   missing?: string[]
   dirty?:   boolean
 }) {
+  const t = useTranslations('dashboard.settings.common')
   const isSaving   = saving === section
   const hasMissing = missing.length > 0
   const isClean    = dirty === false
@@ -59,14 +59,14 @@ function SaveButton({ section, saving, saved, onSave, missing = [], dirty }: {
       disabled={isSaving}
       className={`bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity
         ${hasMissing ? 'opacity-50 cursor-not-allowed' : isClean ? 'opacity-40 cursor-default' : 'disabled:opacity-40'}`}>
-      {saved === section ? '✓ Saved' : isSaving ? 'Saving...' : 'Save'}
+      {saved === section ? t('saved') : isSaving ? t('saving') : t('save')}
     </button>
   )
 
   return (
     <div className="flex justify-end pt-3 mt-auto">
       {hasMissing
-        ? <Tooltip content={`Required: ${missing.join(', ')}`}>{btn}</Tooltip>
+        ? <Tooltip content={t('requiredFields', { fields: missing.join(', ') })}>{btn}</Tooltip>
         : btn}
     </div>
   )
@@ -96,6 +96,9 @@ const SNAP_DEFAULTS = {
 }
 
 export default function SettingsPage() {
+  const t = useTranslations('dashboard.settings')
+  const tCommon = useTranslations('dashboard.settings.common')
+  const locale = useLocale()
   const [user,          setUser]          = useState<any>(null)
   const [workspaceId,   setWorkspaceId]   = useState<string|null>(null)
   const [workspace,     setWorkspace]     = useState<any>(null)
@@ -248,7 +251,7 @@ export default function SettingsPage() {
     setSavingSection(null)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setToast({ type: 'error', msg: data.error || 'Failed to save. Please try again.' })
+      setToast({ type: 'error', msg: data.error || tCommon('failedToSave') })
       setTimeout(() => setToast(null), 4000)
       return
     }
@@ -256,7 +259,7 @@ export default function SettingsPage() {
     setTimeout(() => setSavedSection(null), 2000)
     onSuccess?.()
     if (section === 'signature') {
-      setToast({ type: 'info', msg: 'Signature saved. This will only affect future email generations and regenerations. Existing drafts won\'t be modified.' })
+      setToast({ type: 'info', msg: t('toasts.signatureSaved') })
       setTimeout(() => setToast(null), 7000)
     }
   }
@@ -280,7 +283,7 @@ export default function SettingsPage() {
     setSavingSection(null)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setToast({ type: 'error', msg: data.error || 'Failed to save. Please try again.' })
+      setToast({ type: 'error', msg: data.error || tCommon('failedToSave') })
       setTimeout(() => setToast(null), 4000)
       return
     }
@@ -342,7 +345,7 @@ export default function SettingsPage() {
 
     if (!res.ok) {
       setForm(prevForm)
-      setToast({ type: 'error', msg: 'Auto-fill failed. Please try again.' })
+      setToast({ type: 'error', msg: t('toasts.autofillFailed') })
       setTimeout(() => setToast(null), 4000)
       return
     }
@@ -352,9 +355,9 @@ export default function SettingsPage() {
 
     setToast({
       type:       'info',
-      msg:        `Saved. We filled ${filledCount} field${filledCount !== 1 ? 's' : ''} from your site. Your audience details (titles, regions, pain points) live in your Master ICP. Open it to review.`,
+      msg:        t('toasts.autofillSaved', { count: filledCount }),
       link:       '/dashboard/prospects?openIcp=1',
-      linkLabel:  'Open Master ICP →',
+      linkLabel:  t('toasts.openMasterIcp'),
       persistent: true,
     })
   }
@@ -398,7 +401,7 @@ export default function SettingsPage() {
               </a>
             )}
           </div>
-          <button type="button" aria-label="Close" onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0"><span aria-hidden="true">✕</span></button>
+          <button type="button" aria-label={t('toasts.closeAriaLabel')} onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0"><span aria-hidden="true">✕</span></button>
         </div>
       )}
 
@@ -409,10 +412,10 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-6">
         <div className="text-xs text-[#8a7e6e] mb-1">
-          <Link href="/dashboard" className="hover:text-[#1a1a2e]">Dashboard</Link> / Settings
+          <Link href="/dashboard" className="hover:text-[#1a1a2e]">{t('header.breadcrumbDashboard')}</Link> / {t('header.breadcrumbCurrent')}
         </div>
-        <h1 className="text-2xl font-bold text-[#1a1a2e]">Settings</h1>
-        <p className="text-sm text-[#8a7e6e]">Account & company profile</p>
+        <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('header.title')}</h1>
+        <p className="text-sm text-[#8a7e6e]">{t('header.subtitle')}</p>
       </div>
 
       {/* Loading skeleton */}
@@ -437,15 +440,15 @@ export default function SettingsPage() {
 
         {/* ACCOUNT */}
         <div className={cardCls}>
-          <div className={`${sectionHd} mb-4`}>ACCOUNT</div>
+          <div className={`${sectionHd} mb-4`}>{t('account.sectionTitle')}</div>
           <div className="flex flex-col gap-3 flex-1">
             <div className="flex items-center justify-between pb-3 border-b border-[#f0ece6]">
               <span className="text-sm text-[#6b5e4e] truncate">{user?.email}</span>
-              <span className="text-xs bg-[#f0ece6] text-[#8a7e6e] px-2 py-1 rounded ml-2">email</span>
+              <span className="text-xs bg-[#f0ece6] text-[#8a7e6e] px-2 py-1 rounded ml-2">{t('account.emailBadge')}</span>
             </div>
             <div>
               <label className={`${labelCls} mb-1 block`} htmlFor="set-your-name">
-                Your name <span className="text-red-500">*</span>
+                {t('account.yourName')} <span className="text-red-500">*</span>
               </label>
               <input
                 id="set-your-name"
@@ -453,23 +456,23 @@ export default function SettingsPage() {
                 onChange={e => setForm({...form, name: e.target.value})}
                 onBlur={() => touch('name')}
                 className={inputBorder('name', form.name)}
-                placeholder="Your name"
+                placeholder={t('account.yourNamePlaceholder')}
               />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-your-title">Your title</label>
-                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
-                <StatusBadge variant="gray">Used in email signature</StatusBadge>
+                <label className={labelCls} htmlFor="set-your-title">{t('account.yourTitle')}</label>
+                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">{tCommon('optional')}</span>
+                <StatusBadge variant="gray">{tCommon('usedInSignature')}</StatusBadge>
               </div>
               <input
                 id="set-your-title"
                 value={form.user_title}
                 onChange={e => setForm({...form, user_title: e.target.value})}
                 className={inputCls}
-                placeholder="e.g. Founder, CEO, Head of Sales"
+                placeholder={t('account.yourTitlePlaceholder')}
               />
-              <p className="text-xs text-[#8a7e6e] mt-1">Just your role. Your company is added automatically in the signature.</p>
+              <p className="text-xs text-[#8a7e6e] mt-1">{t('account.yourTitleHint')}</p>
             </div>
           </div>
           <SaveButton
@@ -477,38 +480,38 @@ export default function SettingsPage() {
             saving={savingSection}
             saved={savedSection}
             onSave={saveAccount}
-            missing={form.name.trim() ? [] : ['Your name']}
+            missing={form.name.trim() ? [] : [t('account.yourName')]}
             dirty={isDirtyAccount()}
           />
         </div>
 
         {/* PLAN */}
         <div className={cardCls}>
-          <div className={`${sectionHd} mb-4`}>PLAN</div>
+          <div className={`${sectionHd} mb-4`}>{t('plan.sectionTitle')}</div>
           <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium text-[#3b6bef]">
-                  {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string, string>)[ws?.plan_tier] ?? ws?.plan_tier ?? 'Starter'}
-                  {ws?.subscription_status === 'trialing' ? ' (Free Trial)' : ''}
+                  {tCommon('planTier', { tier: ws?.plan_tier ?? 'starter' })}
+                  {t('plan.trialSuffix', { status: ws?.subscription_status ?? 'other' })}
                 </div>
-                <div className="text-xs text-[#6b5e4e]">14 days free · no credit card required</div>
+                <div className="text-xs text-[#6b5e4e]">{t('plan.freeTrialNote')}</div>
               </div>
-              <Link href="/dashboard/billing" className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-medium">Upgrade →</Link>
+              <Link href="/dashboard/billing" className="bg-[#3b6bef] text-white text-xs px-3 py-1.5 rounded-lg font-medium">{t('plan.upgradeCta')}</Link>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
             <div className="border border-[#e8e3dc] rounded-xl p-3">
               <div className="text-xl font-bold text-[#1a1a2e]">{campaignCount}</div>
-              <div className="text-xs text-[#8a7e6e] mt-1">Campaigns</div>
+              <div className="text-xs text-[#8a7e6e] mt-1">{t('plan.campaignsLabel')}</div>
             </div>
             <div className="border border-[#e8e3dc] rounded-xl p-3">
               <div className="text-xl font-bold text-[#1a1a2e]">{emailCount}</div>
-              <div className="text-xs text-[#8a7e6e] mt-1">Emails Sent</div>
+              <div className="text-xs text-[#8a7e6e] mt-1">{t('plan.emailsSentLabel')}</div>
             </div>
             <div className="border border-[#e8e3dc] rounded-xl p-3">
-              <div className="text-xl font-bold text-[#1a1a2e]">{new Date(user?.created_at || '').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
-              <div className="text-xs text-[#8a7e6e] mt-1">Member Since</div>
+              <div className="text-xl font-bold text-[#1a1a2e]">{new Date(user?.created_at || '').toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', year: 'numeric' })}</div>
+              <div className="text-xs text-[#8a7e6e] mt-1">{t('plan.memberSinceLabel')}</div>
             </div>
           </div>
         </div>
@@ -516,9 +519,9 @@ export default function SettingsPage() {
 
       {/* EMAIL SIGNATURE: full width, between Account+Plan and Company+Product */}
       <div className={`${cardCls} mt-6`}>
-        <div className={`${sectionHd} mb-1`}>EMAIL SIGNATURE</div>
+        <div className={`${sectionHd} mb-1`}>{t('signature.sectionTitle')}</div>
         <p className="text-xs text-[#8a7e6e] mb-4">
-          Plain text signature appended to your emails. Use variables for automatic personalization.
+          {t('signature.description')}
         </p>
 
         <textarea
@@ -530,14 +533,14 @@ export default function SettingsPage() {
           placeholder={DEFAULT_SIGNATURE}
         />
         <div className="flex justify-end mt-1.5">
-          <span className="text-xs text-[#b0a898]">{form.email_signature.length}/1000</span>
+          <span className="text-xs text-[#b0a898]">{t('signature.counter', { count: form.email_signature.length })}</span>
         </div>
 
         {/* Live preview */}
         <div className="mt-4">
-          <div className={`${sectionHd} mb-2`}>PREVIEW</div>
+          <div className={`${sectionHd} mb-2`}>{t('signature.previewTitle')}</div>
           <div className="bg-[#f9f7f4] border border-[#e8e3dc] rounded-lg px-4 py-3 text-sm font-mono whitespace-pre-wrap text-[#4a3f35] leading-relaxed min-h-[3.5rem]">
-            {sigPreview || <span className="text-[#c0b8b0] italic">Signature will appear here…</span>}
+            {sigPreview || <span className="text-[#c0b8b0] italic">{t('signature.emptyPreview')}</span>}
           </div>
         </div>
 
@@ -550,7 +553,7 @@ export default function SettingsPage() {
               onChange={e => setForm({...form, signature_in_initial: e.target.checked})}
               className="w-4 h-4 accent-[#3b6bef]"
             />
-            <span className="text-sm text-[#1a1a2e]">Include in initial emails</span>
+            <span className="text-sm text-[#1a1a2e]">{t('signature.includeInInitial')}</span>
           </label>
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input
@@ -559,8 +562,8 @@ export default function SettingsPage() {
               onChange={e => setForm({...form, signature_in_followups: e.target.checked})}
               className="w-4 h-4 accent-[#3b6bef]"
             />
-            <span className="text-sm text-[#1a1a2e]">Include in follow-ups</span>
-            <span className="text-xs text-[#b0a898]">(shorter follow-ups perform better)</span>
+            <span className="text-sm text-[#1a1a2e]">{t('signature.includeInFollowups')}</span>
+            <span className="text-xs text-[#b0a898]">{t('signature.followupsHint')}</span>
           </label>
         </div>
 
@@ -582,10 +585,10 @@ export default function SettingsPage() {
 
         {/* COMPANY */}
         <div className={cardCls}>
-          <div className={`${sectionHd} mb-4`}>COMPANY</div>
+          <div className={`${sectionHd} mb-4`}>{t('company.sectionTitle')}</div>
           <div className="flex flex-col gap-3 flex-1">
             <div>
-              <label className={`${labelCls} mb-1 block`} htmlFor="set-company-name">Company name <span className="text-red-500">*</span></label>
+              <label className={`${labelCls} mb-1 block`} htmlFor="set-company-name">{t('company.companyName')} <span className="text-red-500">*</span></label>
               <input
                 id="set-company-name"
                 value={form.company_name}
@@ -596,22 +599,22 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-display-name">Display name</label>
-                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
-                <Tooltip content={DISPLAY_NAME_TOOLTIP}>
+                <label className={labelCls} htmlFor="set-display-name">{t('company.displayName')}</label>
+                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">{tCommon('optional')}</span>
+                <Tooltip content={t('company.displayNameTooltip')}>
                   <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </Tooltip>
               </div>
               <input id="set-display-name" value={form.sender_name} onChange={e => setForm({...form, sender_name: e.target.value})}
-                className={inputCls} placeholder="e.g. Robert Smith (defaults to your name)" />
+                className={inputCls} placeholder={t('company.displayNamePlaceholder')} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-company-website">Company website</label>
-                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">Optional</span>
-                <StatusBadge variant="gray">Used in email signature</StatusBadge>
+                <label className={labelCls} htmlFor="set-company-website">{t('company.companyWebsite')}</label>
+                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">{tCommon('optional')}</span>
+                <StatusBadge variant="gray">{tCommon('usedInSignature')}</StatusBadge>
               </div>
               <div className="flex items-start gap-2">
                 <input
@@ -619,7 +622,7 @@ export default function SettingsPage() {
                   value={form.company_website}
                   onChange={e => setForm({...form, company_website: e.target.value})}
                   className={`${inputCls} flex-1`}
-                  placeholder="e.g. zobo.com"
+                  placeholder={t('company.companyWebsitePlaceholder')}
                 />
                 <AutoFillFromUrlButton
                   websiteValue={form.company_website}
@@ -627,44 +630,44 @@ export default function SettingsPage() {
                 />
               </div>
               <p className="text-xs text-[#b0a898] mt-1.5">
-                Save time: we&apos;ll analyze your website to suggest your industry, product description, ICP, and more.
+                {t('company.autoFillHint')}
               </p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-industry">Industry</label>
-                <QualityBadge pct="Adds 10% to AI quality" />
+                <label className={labelCls} htmlFor="set-industry">{t('company.industry')}</label>
+                <QualityBadge pct={tCommon('aiQuality', { pct: 10 })} />
               </div>
               <input id="set-industry" value={form.user_industry} onChange={e => setForm({...form, user_industry: e.target.value})}
-                className={inputCls} placeholder="e.g. SaaS, Fintech, Healthcare" />
+                className={inputCls} placeholder={t('company.industryPlaceholder')} />
               <FieldOk show={!!form.user_industry} />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-company-size">Company size</label>
-                <QualityBadge pct="Adds 5% to AI quality" />
+                <label className={labelCls} htmlFor="set-company-size">{t('company.companySize')}</label>
+                <QualityBadge pct={tCommon('aiQuality', { pct: 5 })} />
               </div>
               <select id="set-company-size" value={form.user_company_size} onChange={e => setForm({...form, user_company_size: e.target.value})}
                 className={`${inputCls} bg-white`}>
-                <option value="">Select size</option>
+                <option value="">{t('company.companySizeEmpty')}</option>
                 {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <FieldOk show={!!form.user_company_size} />
             </div>
             <div>
-              <label className={`${labelCls} mb-1 block`} htmlFor="set-workspace-timezone">Workspace timezone</label>
+              <label className={`${labelCls} mb-1 block`} htmlFor="set-workspace-timezone">{t('company.workspaceTimezone')}</label>
               <select id="set-workspace-timezone" value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
                 className={`${inputCls} bg-white`}>
                 {WORKSPACE_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
               </select>
-              <p className="text-xs text-[#b0a898] mt-1">Used to display meetings and booking availability in your local time</p>
+              <p className="text-xs text-[#b0a898] mt-1">{t('company.timezoneHint')}</p>
             </div>
           </div>
           <SaveButton
             section="company"
             saving={savingSection}
             saved={savedSection}
-            missing={form.company_name.trim() ? [] : ['Company name']}
+            missing={form.company_name.trim() ? [] : [t('company.companyName')]}
             onSave={saveCompany}
             dirty={isDirtyCompany()}
           />
@@ -673,8 +676,8 @@ export default function SettingsPage() {
         {/* PRODUCT: id="icp" for onboarding checklist deeplink */}
         <div id="icp" className={cardCls}>
           <div className="flex items-center gap-1.5 mb-4">
-            <span className={sectionHd}>PRODUCT</span>
-            <Tooltip content={PRODUCT_TOOLTIP}>
+            <span className={sectionHd}>{t('product.sectionTitle')}</span>
+            <Tooltip content={t('product.tooltip')}>
               <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -683,8 +686,8 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-3 flex-1">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-product-description">Product description <span className="text-red-500">*</span></label>
-                <QualityBadge pct="Adds 15% to AI quality" />
+                <label className={labelCls} htmlFor="set-product-description">{t('product.description')} <span className="text-red-500">*</span></label>
+                <QualityBadge pct={tCommon('aiQuality', { pct: 15 })} />
               </div>
               <textarea
                 id="set-product-description"
@@ -697,18 +700,18 @@ export default function SettingsPage() {
                 rows={3}
               />
               <p className={`text-xs mt-1 ${form.product_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.product_description.length}/30 chars{form.product_description.length >= 30 ? ' ✓' : ''}
+                {t('product.descCounter', { count: form.product_description.length, ok: String(form.product_description.length >= 30) })}
               </p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-value-proposition">Value proposition</label>
-                <QualityBadge pct="Adds 15% to AI quality" />
+                <label className={labelCls} htmlFor="set-value-proposition">{t('product.valueProposition')}</label>
+                <QualityBadge pct={tCommon('aiQuality', { pct: 15 })} />
               </div>
               <textarea id="set-value-proposition" value={form.value_proposition} onChange={e => setForm({...form, value_proposition: e.target.value})}
                 className={`${inputCls} resize-none`} rows={2} />
               <p className={`text-xs mt-1 ${form.value_proposition.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {form.value_proposition.length}/20 chars{form.value_proposition.length >= 20 ? ' ✓' : ''}
+                {t('product.valueCounter', { count: form.value_proposition.length, ok: String(form.value_proposition.length >= 20) })}
               </p>
             </div>
           </div>
@@ -716,7 +719,7 @@ export default function SettingsPage() {
             section="product"
             saving={savingSection}
             saved={savedSection}
-            missing={form.product_description.trim() ? [] : ['Product description']}
+            missing={form.product_description.trim() ? [] : [t('product.description')]}
             onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition }, () => setSnapshot(s => ({ ...s, product_description: form.product_description, value_proposition: form.value_proposition })))}
             dirty={isDirtyProduct()}
           />
@@ -725,20 +728,20 @@ export default function SettingsPage() {
 
       {/* PROSPECT RESEARCH: full width */}
       <div className={`${cardCls} mt-6`}>
-        <div className={`${sectionHd} mb-1`}>PROSPECT RESEARCH</div>
-        <p className="text-xs text-[#8a7e6e] mb-3">Your monthly prospect research credits.</p>
+        <div className={`${sectionHd} mb-1`}>{t('prospectResearch.sectionTitle')}</div>
+        <p className="text-xs text-[#8a7e6e] mb-3">{t('prospectResearch.subtitle')}</p>
         <div className="border border-[#e8e3dc] rounded-xl p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 bg-[#3b6bef] rounded-lg flex items-center justify-center text-white text-sm">🔍</div>
             <div>
-              <div className="text-sm font-medium text-[#1a1a2e]">Prospect Credits</div>
+              <div className="text-sm font-medium text-[#1a1a2e]">{t('prospectResearch.creditsLabel')}</div>
               <div className="text-xs text-[#8a7e6e]">
-                {({ starter: 200, pro: 500, power: 750 } as Record<string, number>)[ws?.plan_tier ?? ''] ?? 200} credits / month on your plan
+                {t('prospectResearch.creditsPerMonth', { count: ({ starter: 200, pro: 500, power: 750 } as Record<string, number>)[ws?.plan_tier ?? ''] ?? 200 })}
               </div>
             </div>
           </div>
           <div className="text-xs text-[#8a7e6e]">
-            {({ starter: 'Starter', pro: 'Pro', power: 'Power' } as Record<string,string>)[ws?.plan_tier] ?? 'Starter'} plan · <Link href="/dashboard/billing" className="text-[#3b6bef] hover:underline">View usage →</Link>
+            {t('prospectResearch.planLinePrefix', { tier: tCommon('planTier', { tier: ws?.plan_tier ?? 'starter' }) })}<Link href="/dashboard/billing" className="text-[#3b6bef] hover:underline">{t('prospectResearch.viewUsageCta')}</Link>
           </div>
         </div>
       </div>
@@ -747,57 +750,57 @@ export default function SettingsPage() {
       <div className={`${cardCls} mt-6`}>
         <header className="flex items-center gap-2 mb-2">
           <span className="text-xl" aria-hidden>📬</span>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">Sending domains</h2>
-          <Tooltip content="Configure your dedicated domain for long-term deliverability. It warms up gradually over about 3 weeks, while your connected mailbox keeps your campaigns sending in the meantime." placement="top">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">{t('sendingDomains.sectionTitle')}</h2>
+          <Tooltip content={t('sendingDomains.tooltip')} placement="top">
             <svg className="w-3.5 h-3.5 text-[#8a7e6e] cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </Tooltip>
         </header>
-        <p className="text-sm text-[#4a4a5a] mb-4">Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Mirvo warm it up gradually. Meanwhile, keep sending from your connected mailbox.</p>
+        <p className="text-sm text-[#4a4a5a] mb-4">{t('sendingDomains.description')}</p>
         <Link
           href="/dashboard/settings/sending-domains"
           className="inline-flex items-center gap-1 text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
         >
-          Configure →
+          {t('sendingDomains.configureCta')}
         </Link>
       </div>
 
       {/* ADVANCED SETTINGS: full width */}
       <div className={`${cardCls} mt-6`}>
-        <div className={`${sectionHd} mb-4`}>ADVANCED SETTINGS</div>
+        <div className={`${sectionHd} mb-4`}>{t('advanced.sectionTitle')}</div>
         {[
-          { title: 'API Keys',          desc: 'Programmatic access to your Mirvo data for custom integrations, launching Q4 2026' },
-          { title: 'Mailbox Rotation',  desc: 'Auto-rotate between multiple sending mailboxes to protect deliverability, launching Q3 2026' },
-          { title: 'GDPR & Compliance', desc: 'Manage consent tracking, opt-in requirements, and unsubscribe preferences, launching Q3 2026' },
-          { title: 'Data Export',       desc: 'Download your full contact database, campaign history, and analytics as CSV, launching Q3 2026' },
+          { title: t('advanced.apiKeysTitle'),          desc: t('advanced.apiKeysDesc') },
+          { title: t('advanced.mailboxRotationTitle'),  desc: t('advanced.mailboxRotationDesc') },
+          { title: t('advanced.gdprTitle'),             desc: t('advanced.gdprDesc') },
+          { title: t('advanced.dataExportTitle'),       desc: t('advanced.dataExportDesc') },
         ].map(item => (
           <div key={item.title} className="flex items-center justify-between py-3 border-b border-[#f0ece6] last:border-0">
             <div>
               <div className="text-sm font-medium text-[#1a1a2e]">{item.title}</div>
               <div className="text-xs text-[#8a7e6e]">{item.desc}</div>
             </div>
-            <StatusBadge variant="orange">Coming soon</StatusBadge>
+            <StatusBadge variant="orange">{tCommon('comingSoon')}</StatusBadge>
           </div>
         ))}
       </div>
 
       {/* DANGER ZONE: full width */}
       <div className="bg-white border-2 border-red-100 rounded-xl p-5 mt-6">
-        <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-4">DANGER ZONE</div>
+        <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-4">{t('danger.sectionTitle')}</div>
         <div className="flex items-center justify-between py-2 border-b border-[#f0ece6]">
           <div>
-            <div className="text-sm font-medium text-[#1a1a2e]">Change password</div>
-            <div className="text-xs text-[#8a7e6e]">Update your login password</div>
+            <div className="text-sm font-medium text-[#1a1a2e]">{t('danger.changePassword')}</div>
+            <div className="text-xs text-[#8a7e6e]">{t('danger.changePasswordDesc')}</div>
           </div>
-          <button className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e]">Change password</button>
+          <button className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e]">{t('danger.changePassword')}</button>
         </div>
         <div className="flex items-center justify-between py-2 mt-2">
           <div>
-            <div className="text-sm font-medium text-red-600">Delete account</div>
-            <div className="text-xs text-[#8a7e6e]">Permanently delete your account and all data</div>
+            <div className="text-sm font-medium text-red-600">{t('danger.deleteAccount')}</div>
+            <div className="text-xs text-[#8a7e6e]">{t('danger.deleteAccountDesc')}</div>
           </div>
-          <button className="text-sm border border-red-200 text-red-500 px-3 py-1.5 rounded-lg">Delete account</button>
+          <button className="text-sm border border-red-200 text-red-500 px-3 py-1.5 rounded-lg">{t('danger.deleteAccount')}</button>
         </div>
       </div>
 

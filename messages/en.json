@@ -1879,6 +1879,118 @@
           "genericTitle": "Could not place the order"
         }
       }
+    },
+    "settings": {
+      "common": {
+        "save": "Save",
+        "saving": "Saving...",
+        "saved": "✓ Saved",
+        "ok": "Ok ✓",
+        "optional": "Optional",
+        "usedInSignature": "Used in email signature",
+        "failedToSave": "Failed to save. Please try again.",
+        "aiQuality": "Adds {pct}% to AI quality",
+        "comingSoon": "Coming soon",
+        "requiredFields": "Required: {fields}",
+        "planTier": "{tier, select, starter {Starter} pro {Pro} power {Power} other {Starter}}"
+      },
+      "header": {
+        "breadcrumbDashboard": "Dashboard",
+        "breadcrumbCurrent": "Settings",
+        "title": "Settings",
+        "subtitle": "Account & company profile"
+      },
+      "toasts": {
+        "signatureSaved": "Signature saved. This will only affect future email generations and regenerations. Existing drafts won't be modified.",
+        "autofillFailed": "Auto-fill failed. Please try again.",
+        "autofillSaved": "Saved. We filled {count, plural, one {# field} other {# fields}} from your site. Your audience details (titles, regions, pain points) live in your Master ICP. Open it to review.",
+        "openMasterIcp": "Open Master ICP →",
+        "closeAriaLabel": "Close"
+      },
+      "account": {
+        "sectionTitle": "ACCOUNT",
+        "emailBadge": "email",
+        "yourName": "Your name",
+        "yourNamePlaceholder": "Your name",
+        "yourTitle": "Your title",
+        "yourTitlePlaceholder": "e.g. Founder, CEO, Head of Sales",
+        "yourTitleHint": "Just your role. Your company is added automatically in the signature."
+      },
+      "plan": {
+        "sectionTitle": "PLAN",
+        "trialSuffix": "{status, select, trialing { (Free Trial)} other {}}",
+        "freeTrialNote": "14 days free · no credit card required",
+        "upgradeCta": "Upgrade →",
+        "campaignsLabel": "Campaigns",
+        "emailsSentLabel": "Emails Sent",
+        "memberSinceLabel": "Member Since"
+      },
+      "signature": {
+        "sectionTitle": "EMAIL SIGNATURE",
+        "description": "Plain text signature appended to your emails. Use variables for automatic personalization.",
+        "counter": "{count}/1000",
+        "previewTitle": "PREVIEW",
+        "emptyPreview": "Signature will appear here…",
+        "includeInInitial": "Include in initial emails",
+        "includeInFollowups": "Include in follow-ups",
+        "followupsHint": "(shorter follow-ups perform better)"
+      },
+      "company": {
+        "sectionTitle": "COMPANY",
+        "companyName": "Company name",
+        "displayName": "Display name",
+        "displayNameTooltip": "The name your prospects see in their inbox From field. Defaults to Your name (Account) if empty. Use this to display a more formal name (e.g. 'Robert Smith' instead of 'Bob').",
+        "displayNamePlaceholder": "e.g. Robert Smith (defaults to your name)",
+        "companyWebsite": "Company website",
+        "companyWebsitePlaceholder": "e.g. zobo.com",
+        "autoFillHint": "Save time: we'll analyze your website to suggest your industry, product description, ICP, and more.",
+        "industry": "Industry",
+        "industryPlaceholder": "e.g. SaaS, Fintech, Healthcare",
+        "companySize": "Company size",
+        "companySizeEmpty": "Select size",
+        "workspaceTimezone": "Workspace timezone",
+        "timezoneHint": "Used to display meetings and booking availability in your local time"
+      },
+      "product": {
+        "sectionTitle": "PRODUCT",
+        "tooltip": "Your ICP and product details are used by Mirvo AI to personalize every email. The more precise, the higher your reply rate. These defaults auto-fill every new campaign.",
+        "description": "Product description",
+        "descCounter": "{count}/30 {count, plural, one {char} other {chars}}{ok, select, true { ✓} other {}}",
+        "valueProposition": "Value proposition",
+        "valueCounter": "{count}/20 {count, plural, one {char} other {chars}}{ok, select, true { ✓} other {}}"
+      },
+      "prospectResearch": {
+        "sectionTitle": "PROSPECT RESEARCH",
+        "subtitle": "Your monthly prospect research credits.",
+        "creditsLabel": "Prospect Credits",
+        "creditsPerMonth": "{count} credits / month on your plan",
+        "planLinePrefix": "{tier} plan · ",
+        "viewUsageCta": "View usage →"
+      },
+      "sendingDomains": {
+        "sectionTitle": "Sending domains",
+        "tooltip": "Configure your dedicated domain for long-term deliverability. It warms up gradually over about 3 weeks, while your connected mailbox keeps your campaigns sending in the meantime.",
+        "description": "Configure where your campaign emails are sent from. Connect your domain, publish DNS records, and let Mirvo warm it up gradually. Meanwhile, keep sending from your connected mailbox.",
+        "configureCta": "Configure →"
+      },
+      "advanced": {
+        "sectionTitle": "ADVANCED SETTINGS",
+        "apiKeysTitle": "API Keys",
+        "apiKeysDesc": "Programmatic access to your Mirvo data for custom integrations, launching Q4 2026",
+        "mailboxRotationTitle": "Mailbox Rotation",
+        "mailboxRotationDesc": "Auto-rotate between multiple sending mailboxes to protect deliverability, launching Q3 2026",
+        "gdprTitle": "GDPR & Compliance",
+        "gdprDesc": "Manage consent tracking, opt-in requirements, and unsubscribe preferences, launching Q3 2026",
+        "dataExportTitle": "Data Export",
+        "dataExportDesc": "Download your full contact database, campaign history, and analytics as CSV, launching Q3 2026"
+      },
+      "danger": {
+        "sectionTitle": "DANGER ZONE",
+        "changePassword": "Change password",
+        "changePasswordDesc": "Update your login password",
+        "deleteAccount": "Delete account",
+        "deleteAccountDesc": "Permanently delete your account and all data"
+      }
     }
   },
   "components": {
