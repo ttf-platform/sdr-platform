@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 
 interface Note {
   id:         string
@@ -17,24 +18,26 @@ interface Props {
   onDelete:  (id: string) => void
 }
 
-function relativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins  = Math.floor(diff / 60_000)
-  const hours = Math.floor(diff / 3_600_000)
-  const days  = Math.floor(diff / 86_400_000)
-  if (mins  < 1)  return 'Just now'
-  if (mins  < 60) return `${mins}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days  < 7)  return `${days}d ago`
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
 export function NoteItem({ note, isAuthor, onEdit, onDelete }: Props) {
+  const t = useTranslations('components.noteItem')
+  const locale = useLocale()
   const [editing,   setEditing]   = useState(false)
   const [draft,     setDraft]     = useState(note.content)
   const [saving,    setSaving]    = useState(false)
   const [confirm,   setConfirm]   = useState(false)
   const [hovering,  setHovering]  = useState(false)
+
+  function relativeDate(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins  = Math.floor(diff / 60_000)
+    const hours = Math.floor(diff / 3_600_000)
+    const days  = Math.floor(diff / 86_400_000)
+    if (mins  < 1)  return t('time.justNow')
+    if (mins  < 60) return t('time.minutesShort', { count: mins })
+    if (hours < 24) return t('time.hoursShort',   { count: hours })
+    if (days  < 7)  return t('time.daysShort',    { count: days })
+    return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
 
   async function saveEdit() {
     const trimmed = draft.trim()
@@ -67,8 +70,8 @@ export function NoteItem({ note, isAuthor, onEdit, onDelete }: Props) {
       <div className="bg-[#faf8f5] border border-[#f0ece6] rounded-lg p-3">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[10px] text-[#8a7e6e]">
-            {note.author_name ?? 'You'} · {relativeDate(note.created_at)}
-            {note.updated_at !== note.created_at && ' (edited)'}
+            {note.author_name ?? t('authorFallback')} · {relativeDate(note.created_at)}
+            {note.updated_at !== note.created_at && ' ' + t('edited')}
           </span>
 
           {isAuthor && hovering && !editing && (
@@ -76,11 +79,11 @@ export function NoteItem({ note, isAuthor, onEdit, onDelete }: Props) {
               <button
                 onClick={() => { setDraft(note.content); setEditing(true) }}
                 className="text-[10px] text-[#8a7e6e] hover:text-[#3b6bef]"
-              >Edit</button>
+              >{t('edit')}</button>
               <button
                 onClick={() => setConfirm(true)}
                 className="text-[10px] text-[#8a7e6e] hover:text-red-500"
-              >Delete</button>
+              >{t('delete')}</button>
             </div>
           )}
         </div>
@@ -97,10 +100,10 @@ export function NoteItem({ note, isAuthor, onEdit, onDelete }: Props) {
             />
             <div className="flex justify-end gap-2 mt-1.5">
               <button onClick={() => setEditing(false)} disabled={saving}
-                className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] disabled:opacity-40">Cancel</button>
+                className="text-xs text-[#8a7e6e] hover:text-[#1a1a2e] disabled:opacity-40">{t('cancel')}</button>
               <button onClick={saveEdit} disabled={saving || !draft.trim()}
                 className="text-xs bg-[#3b6bef] text-white px-3 py-1 rounded-md hover:bg-[#2d5cd9] disabled:opacity-40">
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t('saving') : t('save')}
               </button>
             </div>
           </div>
@@ -112,13 +115,13 @@ export function NoteItem({ note, isAuthor, onEdit, onDelete }: Props) {
       {confirm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs mx-4 p-5">
-            <p className="text-sm font-semibold text-[#1a1a2e] mb-1">Delete this note?</p>
-            <p className="text-xs text-[#8a7e6e] mb-4">This action cannot be undone.</p>
+            <p className="text-sm font-semibold text-[#1a1a2e] mb-1">{t('confirmTitle')}</p>
+            <p className="text-xs text-[#8a7e6e] mb-4">{t('confirmBody')}</p>
             <div className="flex gap-2">
               <button onClick={() => setConfirm(false)}
-                className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">Cancel</button>
+                className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">{t('cancel')}</button>
               <button onClick={confirmDelete}
-                className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-semibold">Delete</button>
+                className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-semibold">{t('confirmDelete')}</button>
             </div>
           </div>
         </div>

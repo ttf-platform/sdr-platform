@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 export interface ExtractedFields {
   industry?:            string
@@ -25,30 +26,32 @@ interface Props {
 // Must match COMPANY_SIZES in prospects/page.tsx and settings/page.tsx
 const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 
+// Labels resolved at render via useTranslations. Field key and section key
+// are the canonical i18n lookup keys (matching messages/{en,fr}.json under
+// components.autoFill.fields.* / components.autoFill.sections.*).
 type FieldDef = {
   key:     keyof ExtractedFields
-  label:   string
   type:    'input' | 'textarea' | 'array' | 'select' | 'multisize'
-  section: string
+  section: 'COMPANY' | 'PRODUCT' | 'AUDIENCE'
   options?: string[]
 }
 
 const FIELDS: FieldDef[] = [
-  { key: 'industry',            label: 'Your industry',         type: 'input',     section: 'COMPANY' },
-  { key: 'user_company_size',   label: 'Your company size',     type: 'select',    section: 'COMPANY', options: SIZE_OPTIONS },
-  { key: 'product_description', label: 'Product description',   type: 'textarea',  section: 'PRODUCT' },
-  { key: 'value_proposition',   label: 'Value proposition',     type: 'textarea',  section: 'PRODUCT' },
-  { key: 'icp_description',     label: 'ICP description',       type: 'textarea',  section: 'AUDIENCE' },
-  { key: 'target_industry',     label: 'Target industry',       type: 'input',     section: 'AUDIENCE' },
-  { key: 'target_titles',       label: 'Decision-maker titles', type: 'array',     section: 'AUDIENCE' },
-  { key: 'target_regions',      label: 'Target regions',        type: 'array',     section: 'AUDIENCE' },
-  { key: 'target_company_size', label: 'Target company size',   type: 'multisize', section: 'AUDIENCE' },
-  { key: 'target_pain_points',  label: 'Pain points',           type: 'textarea',  section: 'AUDIENCE' },
-  { key: 'email_tone',          label: 'Email tone',            type: 'select',    section: 'AUDIENCE',
+  { key: 'industry',            type: 'input',     section: 'COMPANY' },
+  { key: 'user_company_size',   type: 'select',    section: 'COMPANY', options: SIZE_OPTIONS },
+  { key: 'product_description', type: 'textarea',  section: 'PRODUCT' },
+  { key: 'value_proposition',   type: 'textarea',  section: 'PRODUCT' },
+  { key: 'icp_description',     type: 'textarea',  section: 'AUDIENCE' },
+  { key: 'target_industry',     type: 'input',     section: 'AUDIENCE' },
+  { key: 'target_titles',       type: 'array',     section: 'AUDIENCE' },
+  { key: 'target_regions',      type: 'array',     section: 'AUDIENCE' },
+  { key: 'target_company_size', type: 'multisize', section: 'AUDIENCE' },
+  { key: 'target_pain_points',  type: 'textarea',  section: 'AUDIENCE' },
+  { key: 'email_tone',          type: 'select',    section: 'AUDIENCE',
     options: ['professional', 'casual', 'technical', 'warm'] },
 ]
 
-const SECTIONS = ['COMPANY', 'PRODUCT', 'AUDIENCE']
+const SECTIONS = ['COMPANY', 'PRODUCT', 'AUDIENCE'] as const
 
 function toStringArray(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string')
@@ -57,6 +60,9 @@ function toStringArray(v: unknown): string[] {
 }
 
 export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Props) {
+  const t = useTranslations('components.autoFill.preview')
+  const tFields = useTranslations('components.autoFill.fields')
+  const tSections = useTranslations('components.autoFill.sections')
   const [edited, setEdited]     = useState<ExtractedFields>({ ...extracted })
   const [selected, setSelected] = useState<Set<keyof ExtractedFields>>(
     () => new Set(Object.keys(extracted) as (keyof ExtractedFields)[]),
@@ -108,14 +114,12 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
         <div className="p-4 sm:p-5 border-b border-[#f0ece6] shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-[#1a1a2e]">✨ Here&apos;s what we found</h2>
+              <h2 className="text-base font-bold text-[#1a1a2e]">{t('title')}</h2>
               <p className="text-xs text-[#8a7e6e] mt-0.5 truncate max-w-sm">{url}</p>
             </div>
             <button onClick={onCancel} className="p-2 text-[#8a7e6e] hover:text-[#1a1a2e] text-xl leading-none shrink-0">✕</button>
           </div>
-          <p className="text-xs text-[#6b5e4e] mt-2">
-            Review and edit before applying. Uncheck any field you don&apos;t want to fill.
-          </p>
+          <p className="text-xs text-[#6b5e4e] mt-2">{t('subtitle')}</p>
         </div>
 
         {/* Body */}
@@ -126,7 +130,7 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
             if (!anyExtracted) return null
             return (
               <div key={section}>
-                <div className="text-[10px] font-bold text-[#8a7e6e] uppercase tracking-widest mb-3">{section}</div>
+                <div className="text-[10px] font-bold text-[#8a7e6e] uppercase tracking-widest mb-3">{tSections(section)}</div>
                 <div className="flex flex-col gap-3">
                   {sectionFields.map(field => {
                     const hasValue  = extracted[field.key] !== undefined
@@ -151,9 +155,9 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
                           className="mt-1 rounded border-[#e8e3dc] text-[#3b6bef] shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <label className="text-xs font-medium text-[#6b5e4e] block mb-1">{field.label}</label>
+                          <label className="text-xs font-medium text-[#6b5e4e] block mb-1">{tFields(field.key)}</label>
                           {!hasValue ? (
-                            <p className="text-xs text-[#b0a898] italic">Not found on website</p>
+                            <p className="text-xs text-[#b0a898] italic">{t('notFound')}</p>
                           ) : field.type === 'multisize' ? (
                             <div className="flex flex-wrap gap-1.5">
                               {SIZE_OPTIONS.map(opt => {
@@ -197,7 +201,7 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
                               value={displayValue}
                               onChange={e => updateArray(field.key, e.target.value)}
                               disabled={!isChecked}
-                              placeholder="comma-separated"
+                              placeholder={t('arrayPlaceholder')}
                               className="w-full border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#3b6bef] disabled:opacity-50"
                             />
                           ) : (
@@ -222,14 +226,14 @@ export function AutoFillPreviewModal({ extracted, url, onApply, onCancel }: Prop
         <div className="flex gap-2 p-5 border-t border-[#f0ece6] shrink-0">
           <button onClick={onCancel}
             className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2 text-sm">
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={handleApply}
             disabled={selectedCount === 0}
             className="flex-1 bg-[#3b6bef] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
           >
-            Apply ({selectedCount} field{selectedCount !== 1 ? 's' : ''})
+            {t('applyCta', { count: selectedCount })}
           </button>
         </div>
       </div>

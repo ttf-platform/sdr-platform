@@ -2173,6 +2173,116 @@
         "duplicateName": "⚠️  Une campagne portant ce nom existe déjà. Choisissez un autre nom.",
         "requiredName": "Le nom de la campagne est requis."
       }
+    },
+    "exportProspectsModal": {
+      "title": "Exporter les prospects",
+      "formatLabel": "Format",
+      "formatCsv": "CSV",
+      "formatXlsx": "Excel (XLSX)",
+      "whatToExport": "Éléments à exporter",
+      "scopeSelected": "Lignes sélectionnées",
+      "scopeSelectedCount": "({count})",
+      "scopeFiltered": "Vue filtrée",
+      "scopeFilteredCount": "({count, plural, one {# prospect} other {# prospects}})",
+      "scopeAll": "Tous les prospects",
+      "scopeAllCount": "({count} au total)",
+      "columnsLegend": "Colonnes à inclure",
+      "columnsShort": "Colonnes",
+      "cancel": "Annuler",
+      "exportCta": "Exporter {count, plural, =0 {les prospects} one {# prospect} other {# prospects}}",
+      "exporting": "Export en cours…",
+      "errorFallback": "Échec de l'export ({status})",
+      "columns": {
+        "email": "Email",
+        "first_name": "Prénom",
+        "last_name": "Nom",
+        "company": "Entreprise",
+        "title": "Poste",
+        "linkedin_url": "URL LinkedIn",
+        "website": "Site web",
+        "status": "Statut",
+        "source": "Source",
+        "tags": "Tags",
+        "notes": "Notes",
+        "added_at": "Date d'ajout"
+      }
+    },
+    "sendingPreferences": {
+      "title": "Préférences d'envoi",
+      "subtitle": "Contrôlez quand vos emails sont envoyés à vos prospects.",
+      "defaultSendTime": "Heure d'envoi par défaut",
+      "recipientLocalTime": "heure locale du destinataire",
+      "sendWindow": "Fenêtre d'envoi",
+      "to": "à",
+      "sendDaysLabel": "Jours d'envoi",
+      "summary": "Les emails partiront {days} entre {start} et {end}, heure locale du destinataire.",
+      "daysNone": "aucun jour sélectionné",
+      "daysAll": "tous les jours",
+      "reset": "Réinitialiser",
+      "save": "Enregistrer les préférences d'envoi",
+      "saving": "Enregistrement…",
+      "days": {
+        "0": "Dim",
+        "1": "Lun",
+        "2": "Mar",
+        "3": "Mer",
+        "4": "Jeu",
+        "5": "Ven",
+        "6": "Sam"
+      }
+    },
+    "noteItem": {
+      "authorFallback": "Vous",
+      "edited": "(modifié)",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "confirmTitle": "Supprimer cette note ?",
+      "confirmBody": "Cette action est irréversible.",
+      "confirmDelete": "Supprimer",
+      "time": {
+        "justNow": "À l'instant",
+        "minutesShort": "il y a {count} min",
+        "hoursShort": "il y a {count} h",
+        "daysShort": "il y a {count} j"
+      }
+    },
+    "autoFill": {
+      "button": {
+        "label": "✨ Remplissage automatique",
+        "analyzing": "Analyse…",
+        "disabledTitle": "Saisissez l'URL de votre site plus haut pour utiliser le remplissage automatique",
+        "errorExtraction": "Échec de l'extraction. Remplissez manuellement.",
+        "errorNetwork": "Impossible d'accéder à votre site. Remplissez manuellement."
+      },
+      "preview": {
+        "title": "✨ Voici ce qu'on a trouvé",
+        "subtitle": "Vérifiez et modifiez avant d'appliquer. Décochez les champs que vous ne voulez pas remplir.",
+        "notFound": "Introuvable sur le site",
+        "arrayPlaceholder": "séparés par des virgules",
+        "cancel": "Annuler",
+        "applyCta": "Appliquer ({count, plural, one {# champ} other {# champs}})"
+      },
+      "sections": {
+        "COMPANY": "ENTREPRISE",
+        "PRODUCT": "PRODUIT",
+        "AUDIENCE": "AUDIENCE"
+      },
+      "fields": {
+        "industry": "Votre secteur",
+        "user_company_size": "Taille de votre entreprise",
+        "product_description": "Description du produit",
+        "value_proposition": "Proposition de valeur",
+        "icp_description": "Description de l'ICP",
+        "target_industry": "Secteur cible",
+        "target_titles": "Postes des décideurs",
+        "target_regions": "Régions cibles",
+        "target_company_size": "Taille d'entreprise cible",
+        "target_pain_points": "Problématiques de votre cible",
+        "email_tone": "Ton de l'email"
+      }
     }
   }
 }
