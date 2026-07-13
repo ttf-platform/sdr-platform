@@ -1999,6 +1999,17 @@
         "tooShort": "Le mot de passe doit contenir au moins 8 caractères.",
         "mismatch": "Les deux mots de passe ne correspondent pas.",
         "success": "Mot de passe mis à jour."
+      },
+      "deleteAccount": {
+        "warning": "La suppression de votre compte est définitive. Toutes vos données (workspace, prospects, campagnes, historique) seront effacées.",
+        "gracePeriodNotice": "Vos données sont conservées 30 jours, puis supprimées définitivement. Pour restaurer votre compte pendant ce délai, contactez le support.",
+        "subscriptionNotice": "Votre abonnement sera annulé immédiatement.",
+        "confirmLabel": "Saisissez l'e-mail de votre compte pour confirmer.",
+        "confirmMismatch": "Cela ne correspond pas à l'e-mail de votre compte.",
+        "submit": "Supprimer définitivement mon compte",
+        "submitting": "Suppression…",
+        "success": "Votre compte a été supprimé.",
+        "error": "Une erreur s'est produite. Réessayez ou contactez le support."
       }
     }
   },

@@ -1999,6 +1999,17 @@
         "tooShort": "Password must be at least 8 characters.",
         "mismatch": "The two passwords don't match.",
         "success": "Password updated."
+      },
+      "deleteAccount": {
+        "warning": "Deleting your account is permanent. All your data (workspace, prospects, campaigns, history) will be erased.",
+        "gracePeriodNotice": "Your data is kept for 30 days, then permanently deleted. To restore your account within that window, contact support.",
+        "subscriptionNotice": "Your subscription will be canceled immediately.",
+        "confirmLabel": "Type your account e-mail to confirm.",
+        "confirmMismatch": "That doesn't match your account e-mail.",
+        "submit": "Permanently delete my account",
+        "submitting": "Deleting…",
+        "success": "Your account has been deleted.",
+        "error": "Something went wrong. Please try again or contact support."
       }
     }
   },

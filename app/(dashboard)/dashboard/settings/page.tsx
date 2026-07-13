@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
 import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 import { ChangePasswordModal } from '@/components/ChangePasswordModal'
+import { DeleteAccountModal } from '@/components/DeleteAccountModal'
 import { renderSignature } from '@/lib/signature'
 
 const supabase = createClient()
@@ -112,6 +113,7 @@ export default function SettingsPage() {
   const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string; persistent?: boolean } | null>(null)
   const [snapshot,      setSnapshot]      = useState(SNAP_DEFAULTS)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const pathname = usePathname()
   useEffect(() => { setToast(t => t?.persistent ? null : t) }, [pathname])
 
@@ -808,13 +810,20 @@ export default function SettingsPage() {
             <div className="text-sm font-medium text-red-600">{t('danger.deleteAccount')}</div>
             <div className="text-xs text-[#8a7e6e]">{t('danger.deleteAccountDesc')}</div>
           </div>
-          <button className="text-sm border border-red-200 text-red-500 px-3 py-1.5 rounded-lg">{t('danger.deleteAccount')}</button>
+          <button
+            type="button"
+            onClick={() => setDeleteAccountOpen(true)}
+            className="text-sm border border-red-200 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            {t('danger.deleteAccount')}
+          </button>
         </div>
       </div>
 
       </>}
 
       <ChangePasswordModal isOpen={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
+      <DeleteAccountModal isOpen={deleteAccountOpen} onClose={() => setDeleteAccountOpen(false)} email={user?.email} />
 
     </div>
   )
