@@ -9,6 +9,7 @@ import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
 import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
 import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
+import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { renderSignature } from '@/lib/signature'
 
 const supabase = createClient()
@@ -110,6 +111,7 @@ export default function SettingsPage() {
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
   const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string; persistent?: boolean } | null>(null)
   const [snapshot,      setSnapshot]      = useState(SNAP_DEFAULTS)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const pathname = usePathname()
   useEffect(() => { setToast(t => t?.persistent ? null : t) }, [pathname])
 
@@ -793,7 +795,13 @@ export default function SettingsPage() {
             <div className="text-sm font-medium text-[#1a1a2e]">{t('danger.changePassword')}</div>
             <div className="text-xs text-[#8a7e6e]">{t('danger.changePasswordDesc')}</div>
           </div>
-          <button className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e]">{t('danger.changePassword')}</button>
+          <button
+            type="button"
+            onClick={() => setChangePasswordOpen(true)}
+            className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
+          >
+            {t('danger.changePassword')}
+          </button>
         </div>
         <div className="flex items-center justify-between py-2 mt-2">
           <div>
@@ -805,6 +813,8 @@ export default function SettingsPage() {
       </div>
 
       </>}
+
+      <ChangePasswordModal isOpen={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
 
     </div>
   )

@@ -1990,6 +1990,15 @@
         "changePasswordDesc": "Mettez à jour votre mot de passe de connexion",
         "deleteAccount": "Supprimer le compte",
         "deleteAccountDesc": "Supprimez définitivement votre compte et toutes vos données"
+      },
+      "password": {
+        "newLabel": "Nouveau mot de passe",
+        "confirmLabel": "Confirmez le nouveau mot de passe",
+        "submit": "Mettre à jour le mot de passe",
+        "submitting": "Mise à jour…",
+        "tooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+        "mismatch": "Les deux mots de passe ne correspondent pas.",
+        "success": "Mot de passe mis à jour."
       }
     }
   },

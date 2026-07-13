@@ -1990,6 +1990,15 @@
         "changePasswordDesc": "Update your login password",
         "deleteAccount": "Delete account",
         "deleteAccountDesc": "Permanently delete your account and all data"
+      },
+      "password": {
+        "newLabel": "New password",
+        "confirmLabel": "Confirm new password",
+        "submit": "Update password",
+        "submitting": "Updating…",
+        "tooShort": "Password must be at least 8 characters.",
+        "mismatch": "The two passwords don't match.",
+        "success": "Password updated."
       }
     }
   },
