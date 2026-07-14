@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { SectionEyebrow } from './SectionEyebrow';
 
 function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -55,12 +56,7 @@ export function SectionFAQ() {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          <p
-            className="mb-5 font-bold uppercase text-[#3b6bef]"
-            style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
-          >
-            {t('eyebrow')}
-          </p>
+          <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
           <h2
             className="font-medium text-[#1a1a1a]"
             style={{

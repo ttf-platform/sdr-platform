@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { Package, CheckCircle2, CalendarCheck } from 'lucide-react';
 import { CTAButton } from './CTAButton';
+import { SectionEyebrow } from './SectionEyebrow';
 
 type Phase = 1 | 2 | 3 | 4 | 5;
 
@@ -524,13 +525,8 @@ export function Hero() {
             animate="show"
             className="flex flex-col"
           >
-            <motion.div variants={fadeUp} className="mb-5">
-              <p
-                className="font-bold text-[#3b6bef]"
-                style={{ fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase' }}
-              >
-                {t('eyebrow')}
-              </p>
+            <motion.div variants={fadeUp}>
+              <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
             </motion.div>
 
             <motion.h1

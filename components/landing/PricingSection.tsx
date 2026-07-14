@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
+import { SectionEyebrow } from './SectionEyebrow';
 import { Link } from '@/i18n/routing';
 
 export function PricingSection() {
@@ -45,9 +46,7 @@ export function PricingSection() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-16">
-          <div className="inline-block text-[10px] font-bold uppercase tracking-[0.18em] text-[#3b6bef] mb-5">
-            {t('eyebrow')}
-          </div>
+          <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
           <h2
             className="text-4xl lg:text-5xl font-light text-[#1a1a1a] mb-5 leading-tight"
             style={{ fontFamily: 'var(--font-fraunces)', fontStyle: 'italic' }}

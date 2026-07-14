@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { SectionEyebrow } from './SectionEyebrow';
 
 // Subtle rotations, not cartoonishly chaotic
 const rotations = [-2, 1.5, -1, 2, -1.5];
@@ -151,12 +152,7 @@ export function SectionProblem() {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const, delay: 0.08 }}
           >
             {/* Eyebrow */}
-            <p
-              className="mb-5 font-bold uppercase text-[#3b6bef]"
-              style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
-            >
-              {t('eyebrow')}
-            </p>
+            <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
 
             {/* h2 — DM Sans 500, no Fraunces (Fraunces Budget Rule: spent on hero h1) */}
             <h2

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { SectionEyebrow } from './SectionEyebrow';
 
 // ─── Step card visuals ────────────────────────────────────────────────────────
 
@@ -357,9 +358,7 @@ export function SectionHowItWorks() {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          <p className="mb-5 font-bold uppercase text-[#3b6bef]" style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}>
-            {t('eyebrow')}
-          </p>
+          <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
           <h2
             className="mb-4 font-medium text-[#1a1a1a] mx-auto"
             style={{ fontSize: 'clamp(1.875rem, 4vw, 2.5rem)', lineHeight: 1.1, letterSpacing: '-0.01em', maxWidth: '36rem' }}

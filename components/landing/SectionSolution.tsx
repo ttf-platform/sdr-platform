@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
+import { SectionEyebrow } from './SectionEyebrow';
 
 // X positions (0–100) in SVG viewBox for the 5 converging lines
 const chipXPositions = [5, 23, 50, 77, 95];
@@ -47,12 +48,7 @@ export function SectionSolution() {
           whileInView="visible"
           viewport={{ once: true, margin: '-80px' }}
         >
-          <p
-            className="mb-5 font-bold uppercase text-[#3b6bef]"
-            style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
-          >
-            {t('eyebrow')}
-          </p>
+          <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
 
           <h2
             className="mb-6 font-medium text-[#1a1a1a] mx-auto"

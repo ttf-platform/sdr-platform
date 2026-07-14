@@ -77,7 +77,7 @@
       "stat3Sub": "Sans formation commerciale"
     },
     "problem": {
-      "eyebrow": "Le Problème",
+      "eyebrow": "Le problème",
       "headline": "L'outbound ne devrait pas nécessiter 5 outils.",
       "body1": "Pour la plupart des petites équipes, la prospection à froid commence toujours pareil. Vous achetez un outil de données. Vous ajoutez une couche d'enrichissement. Vous configurez une plateforme d'envoi avec des outils de délivrabilité. Vous connectez un séquenceur multicanal. Vous greffez un lien de réservation à la fin.",
       "body2": "Cinq abonnements. Huit heures de configuration. Une nouvelle définition d'ICP copiée dans chaque outil. Et tous les lundis matin, quelque chose est cassé ou désynchronisé.",
@@ -98,7 +98,7 @@
       "setupValue": "8–12 heures"
     },
     "solution": {
-      "eyebrow": "La Solution",
+      "eyebrow": "La solution",
       "headline": "Un produit. Un prix. Une configuration qui fonctionne, point.",
       "body1": "Mirvo, c'est le rôle outbound que vous auriez autrement confié à un SDR : sourcer les bons acheteurs, rédiger les emails, gérer les réponses et réserver les rendez-vous. Sauf que Mirvo n'a pas besoin d'un salaire, ni de 6 semaines d'intégration, ni de trois outils pour faire son travail.",
       "body2": "À partir de 149 $/mois. 14 jours gratuits. Zéro stack à assembler.",
@@ -223,7 +223,7 @@
       "footerLink": "Détails complets des tarifs →"
     },
     "stackComparison": {
-      "eyebrow": "Le Coût Réel",
+      "eyebrow": "Le coût réel",
       "headline": "Trois façons de faire de l'outbound. Une seule qui a du sens avant 1M€ d'ARR.",
       "subtext": "La plupart des petites équipes ne réalisent pas qu'elles ont trois options. Jusqu'à ce qu'elles aient gaspillé un trimestre sur la mauvaise.",
       "strengthsLabel": "Points forts",

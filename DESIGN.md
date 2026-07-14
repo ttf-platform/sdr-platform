@@ -280,10 +280,12 @@ A horizontal fact grid functioning as a tonal pause between sections.
 - No animation, no interaction. A fact block, not a feature.
 
 ### Section Eyebrow
-- **Style:** 10px DM Sans 700, uppercase, 0.18em tracking, Blueprint Blue
-  (`#2563eb`). Margin-bottom 20px before the heading.
+- **Style:** 12px DM Sans 500, normal case, 0.01em tracking, Blueprint Blue
+  (`#3b6bef`). Margin-bottom 20px before the heading.
 - Standard pattern for landing sections L2–L4 (pricing, features, FAQ,
   how-it-works). Optional only where the heading is self-evident without it.
+- Implemented via `components/landing/SectionEyebrow.tsx` — one point of
+  truth, no inline duplication.
 
 ## 6. Do's and Don'ts
 

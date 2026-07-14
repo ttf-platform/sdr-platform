@@ -77,7 +77,7 @@
       "stat3Sub": "No sales training needed"
     },
     "problem": {
-      "eyebrow": "The Problem",
+      "eyebrow": "The problem",
       "headline": "Outbound shouldn't take 5 tools to set up.",
       "body1": "For most small teams, cold outreach starts the same way. You buy a data tool. You add an enrichment layer. You set up a sending platform with deliverability tooling. You glue in a multichannel sequencer. You stitch a booking link at the end.",
       "body2": "Five subscriptions. Eight hours of setup. A new ICP definition copied across each tool. And every Monday morning, something is broken or out of sync.",
@@ -98,7 +98,7 @@
       "setupValue": "8–12 hours"
     },
     "solution": {
-      "eyebrow": "The Solution",
+      "eyebrow": "The solution",
       "headline": "One product. One price. One setup that just works.",
       "body1": "Mirvo is the outbound role you'd otherwise hire a Sales Development Rep (SDR) to run: sourcing the right buyers, drafting the emails, handling replies, and booking meetings. Except Mirvo does not need a salary, doesn't need a 6-week ramp, and doesn't need three tools to do its job.",
       "body2": "From $149/mo. 14 days free. Zero stack to assemble.",
@@ -118,7 +118,7 @@
       "cta": "Start free trial, no credit card"
     },
     "howItWorks": {
-      "eyebrow": "Time to Result",
+      "eyebrow": "Time to result",
       "headline": "Send on day one. Meetings land on your calendar.",
       "subtext": "Most outbound stacks make you warm up a brand-new domain for weeks before the first email goes out. Mirvo starts from an inbox you already use — one that's already trusted — so you can send on day one and let the cadence build from there.",
       "step0Number": "01",
@@ -223,7 +223,7 @@
       "footerLink": "Full pricing details →"
     },
     "stackComparison": {
-      "eyebrow": "The True Cost",
+      "eyebrow": "The true cost",
       "headline": "Three ways to ship outbound. One that makes sense before $1M ARR.",
       "subtext": "Most small teams don't realize they have three options. Until they've sunk a quarter into the wrong one.",
       "strengthsLabel": "Strengths",

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { CTAButton } from './CTAButton';
+import { SectionEyebrow } from './SectionEyebrow';
 
 // ─── Principle icons ──────────────────────────────────────────────────────────
 
@@ -106,12 +107,7 @@ export function SectionBuiltForFounders() {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          <p
-            className="mb-5 font-bold uppercase text-[#3b6bef]"
-            style={{ fontSize: '0.625rem', letterSpacing: '0.18em' }}
-          >
-            {t('eyebrow')}
-          </p>
+          <SectionEyebrow>{t('eyebrow')}</SectionEyebrow>
           <h2
             className="mb-6 font-medium text-[#1a1a1a] mx-auto"
             style={{
