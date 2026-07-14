@@ -1003,7 +1003,7 @@
         "actions": {
           "icpSettings": "ICP Settings",
           "findProspects": "Find Prospects",
-          "findProspectsSoon": "",
+          "findProspectsSoon": "Soon",
           "findProspectsTooltip": "Find new prospects matching your ICP with AI",
           "pasteList": "Paste list",
           "addManually": "Add manually",
