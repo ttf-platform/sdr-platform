@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { Package, CheckCircle2, CalendarCheck } from 'lucide-react';
 import { CTAButton } from './CTAButton';
 
 type Phase = 1 | 2 | 3 | 4 | 5;
@@ -503,10 +504,10 @@ export function Hero() {
     };
   }, [reduced, loopKey]);
 
-  const stats = [
-    { value: t('stat0Value'), label: t('stat0Label') },
-    { value: t('stat1Value'), label: t('stat1Label') },
-    { value: t('stat2Value'), label: t('stat2Label') },
+  const proofs = [
+    { icon: Package,        label: t('proof0') },
+    { icon: CheckCircle2,   label: t('proof1') },
+    { icon: CalendarCheck,  label: t('proof2') },
   ];
 
   return (
@@ -561,24 +562,18 @@ export function Hero() {
               </CTAButton>
             </motion.div>
 
-            <motion.div
+            <motion.ul
               variants={fadeUp}
-              className="mb-6 flex flex-col divide-y divide-[#e8e3dc] sm:flex-row sm:divide-y-0 sm:divide-x"
+              className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2"
+              aria-label={t('eyebrow')}
             >
-              {stats.map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className={`flex flex-col py-3 sm:py-0 ${i === 0 ? 'sm:pr-5' : i === stats.length - 1 ? 'sm:pl-5' : 'sm:px-5'}`}
-                >
-                  <span className="text-lg font-bold text-[#1a1a1a] tabular-nums leading-tight">
-                    {stat.value}
-                  </span>
-                  <span className="text-[11px] text-[#4a4a5a]" style={{ fontWeight: 300 }}>
-                    {stat.label}
-                  </span>
-                </div>
+              {proofs.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex items-center gap-1.5 text-[0.8125rem] text-[#4a4a5a]" style={{ fontWeight: 400 }}>
+                  <Icon size={14} strokeWidth={1.75} aria-hidden="true" className="text-[#9a9a9a] flex-shrink-0" />
+                  <span>{label}</span>
+                </li>
               ))}
-            </motion.div>
+            </motion.ul>
 
             <motion.p
               variants={fadeUp}
