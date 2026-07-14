@@ -514,7 +514,7 @@ export function Hero() {
       <GrainOverlay />
 
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-8 lg:grid-cols-[5fr_6fr] lg:gap-16">
+        <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 md:gap-8 lg:grid-cols-[5fr_6fr] lg:gap-16">
 
           {/* ── Left: copy ── */}
           <motion.div
@@ -582,7 +582,7 @@ export function Hero() {
 
             <motion.p
               variants={fadeUp}
-              className="text-[0.75rem] text-[#6b6b6b]"
+              className="text-[0.75rem] text-[#4a4a5a]"
               style={{ fontWeight: 400 }}
             >
               {t('trustLine')}
