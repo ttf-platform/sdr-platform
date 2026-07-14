@@ -1978,11 +1978,11 @@
         "apiKeysTitle": "Clés API",
         "apiKeysDesc": "Accès programmatique à vos données Mirvo pour des intégrations personnalisées, disponible au T4 2026",
         "mailboxRotationTitle": "Rotation des boîtes mail",
-        "mailboxRotationDesc": "Alternez automatiquement entre plusieurs boîtes d'envoi pour protéger votre délivrabilité, disponible au T3 2026",
+        "mailboxRotationDesc": "Alternez automatiquement entre plusieurs boîtes d'envoi pour protéger votre délivrabilité, disponible au T4 2026",
         "gdprTitle": "RGPD et conformité",
-        "gdprDesc": "Gérez le suivi du consentement, les exigences d'opt-in et les préférences de désabonnement, disponible au T3 2026",
+        "gdprDesc": "Gérez le suivi du consentement, les exigences d'opt-in et les préférences de désabonnement, disponible au T4 2026",
         "dataExportTitle": "Export des données",
-        "dataExportDesc": "Téléchargez l'intégralité de votre base de contacts, l'historique de vos campagnes et vos analyses au format CSV, disponible au T3 2026"
+        "dataExportDesc": "Téléchargez l'intégralité de votre base de contacts, l'historique de vos campagnes et vos analyses au format CSV, disponible au T4 2026"
       },
       "danger": {
         "sectionTitle": "ZONE DE DANGER",

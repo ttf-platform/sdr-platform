@@ -1978,11 +1978,11 @@
         "apiKeysTitle": "API Keys",
         "apiKeysDesc": "Programmatic access to your Mirvo data for custom integrations, launching Q4 2026",
         "mailboxRotationTitle": "Mailbox Rotation",
-        "mailboxRotationDesc": "Auto-rotate between multiple sending mailboxes to protect deliverability, launching Q3 2026",
+        "mailboxRotationDesc": "Auto-rotate between multiple sending mailboxes to protect deliverability, launching Q4 2026",
         "gdprTitle": "GDPR & Compliance",
-        "gdprDesc": "Manage consent tracking, opt-in requirements, and unsubscribe preferences, launching Q3 2026",
+        "gdprDesc": "Manage consent tracking, opt-in requirements, and unsubscribe preferences, launching Q4 2026",
         "dataExportTitle": "Data Export",
-        "dataExportDesc": "Download your full contact database, campaign history, and analytics as CSV, launching Q3 2026"
+        "dataExportDesc": "Download your full contact database, campaign history, and analytics as CSV, launching Q4 2026"
       },
       "danger": {
         "sectionTitle": "DANGER ZONE",
