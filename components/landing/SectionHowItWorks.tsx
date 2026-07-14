@@ -4,13 +4,14 @@ import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 
-// ─── Step card visuals (static, no translation needed) ────────────────────────
+// ─── Step card visuals ────────────────────────────────────────────────────────
 
 function ICPVisual() {
+  const t = useTranslations('landing.howItWorks.visuals.icp');
   const rows = [
-    { label: 'Industry', value: 'SaaS' },
-    { label: 'Size', value: '50–200 employees' },
-    { label: 'Role', value: 'VP Sales' },
+    { label: t('industryLabel'), value: t('industryValue') },
+    { label: t('sizeLabel'),     value: t('sizeValue') },
+    { label: t('roleLabel'),     value: t('roleValue') },
   ];
   return (
     <div className="mt-8 rounded-md bg-[#f5f2ee] border border-[#e8e3dc] p-4" aria-hidden="true">
@@ -28,10 +29,11 @@ function ICPVisual() {
 }
 
 function ActivityVisual() {
+  const t = useTranslations('landing.howItWorks.visuals.activity');
   const rows = [
-    { dot: '#3b6bef', text: 'Sourced 47 prospects', time: 'Today', bold: false },
-    { dot: '#3b6bef', text: 'Drafted 47 emails', time: 'Today', bold: false },
-    { dot: '#d97706', text: 'Awaiting your approval', time: 'Now', bold: true },
+    { dot: '#3b6bef', text: t('sourced'),  time: t('timeToday'), bold: false },
+    { dot: '#3b6bef', text: t('drafted'),  time: t('timeToday'), bold: false },
+    { dot: '#d97706', text: t('awaiting'), time: t('timeNow'),   bold: true  },
   ];
   return (
     <div className="mt-8 rounded-md bg-[#f5f2ee] border border-[#e8e3dc] p-4 space-y-3" aria-hidden="true">
@@ -48,7 +50,7 @@ function ActivityVisual() {
       ))}
       <div className="pt-2 border-t border-[#e8e3dc]">
         <div className="inline-block rounded border border-[#3b6bef] px-3 py-1" style={{ fontSize: '11px', fontWeight: 700, color: '#3b6bef', letterSpacing: '0.06em' }}>
-          Approve all
+          {t('approveAll')}
         </div>
       </div>
     </div>
@@ -56,17 +58,18 @@ function ActivityVisual() {
 }
 
 function CalendarVisual() {
+  const t = useTranslations('landing.howItWorks.visuals.calendar');
   return (
     <div className="mt-8 rounded-md bg-[#f5f2ee] border border-[#e8e3dc] p-4" aria-hidden="true">
       <div className="mb-2 uppercase text-[#4a4a5a]" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em' }}>
-        Friday · 10:00
+        {t('slot')}
       </div>
       <div className="rounded-md bg-[#3b6bef] px-3 py-2 mb-2">
-        <div className="text-[12px] font-medium text-white">Sarah Chen · Acme Corp</div>
-        <div className="text-[10px] text-white" style={{ opacity: 0.8 }}>30 min · Discovery call</div>
+        <div className="text-[12px] font-medium text-white">{t('attendee')}</div>
+        <div className="text-[10px] text-white" style={{ opacity: 0.8 }}>{t('meta')}</div>
       </div>
       <div className="mt-3 text-[11px] font-bold text-[#3b6bef]" style={{ letterSpacing: '0.06em' }}>
-        ✓ Booked by Mirvo
+        {t('booked')}
       </div>
     </div>
   );

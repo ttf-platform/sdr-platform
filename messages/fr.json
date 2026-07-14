@@ -159,7 +159,31 @@
       "timelineBNode2Action": "Les rendez-vous se réservent",
       "timelineBNode3Label": "Étape 4",
       "timelineBNode3Action": "Le pipeline continue de se construire",
-      "disclaimer": "Le rythme de la cadence outbound varie selon l'ICP, la qualité des textes et les patterns de réponse. Le rôle de Mirvo est de la maintenir en mouvement."
+      "disclaimer": "Le rythme de la cadence outbound varie selon l'ICP, la qualité des textes et les patterns de réponse. Le rôle de Mirvo est de la maintenir en mouvement.",
+      "visuals": {
+        "icp": {
+          "industryLabel": "Secteur",
+          "industryValue": "SaaS",
+          "sizeLabel": "Taille",
+          "sizeValue": "50–200 employés",
+          "roleLabel": "Fonction",
+          "roleValue": "VP Sales"
+        },
+        "activity": {
+          "sourced": "47 prospects sourcés",
+          "drafted": "47 emails rédigés",
+          "awaiting": "En attente de votre validation",
+          "timeToday": "Aujourd'hui",
+          "timeNow": "Maintenant",
+          "approveAll": "Tout valider"
+        },
+        "calendar": {
+          "slot": "Vendredi · 10:00",
+          "attendee": "Sarah Chen · Acme Corp",
+          "meta": "30 min · Appel de découverte",
+          "booked": "✓ Réservé par Mirvo"
+        }
+      }
     },
     "pricing": {
       "eyebrow": "Tarifs",

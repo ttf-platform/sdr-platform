@@ -159,7 +159,31 @@
       "timelineBNode2Action": "Meetings get booked",
       "timelineBNode3Label": "Stage 4",
       "timelineBNode3Action": "Pipeline keeps building",
-      "disclaimer": "Outbound cadence pace varies by ICP, copy quality, and reply patterns. Mirvo's job is to keep it moving."
+      "disclaimer": "Outbound cadence pace varies by ICP, copy quality, and reply patterns. Mirvo's job is to keep it moving.",
+      "visuals": {
+        "icp": {
+          "industryLabel": "Industry",
+          "industryValue": "SaaS",
+          "sizeLabel": "Size",
+          "sizeValue": "50–200 employees",
+          "roleLabel": "Role",
+          "roleValue": "VP Sales"
+        },
+        "activity": {
+          "sourced": "Sourced 47 prospects",
+          "drafted": "Drafted 47 emails",
+          "awaiting": "Awaiting your approval",
+          "timeToday": "Today",
+          "timeNow": "Now",
+          "approveAll": "Approve all"
+        },
+        "calendar": {
+          "slot": "Friday · 10:00",
+          "attendee": "Sarah Chen · Acme Corp",
+          "meta": "30 min · Discovery call",
+          "booked": "✓ Booked by Mirvo"
+        }
+      }
     },
     "pricing": {
       "eyebrow": "Pricing",
