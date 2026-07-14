@@ -4,8 +4,8 @@ description: Autonomous B2B cold outreach — from cold list to booked meetings.
 colors:
   cream-bg: "#f5f2ee"
   subtle-bg: "#faf8f5"
-  blue-cta: "#2563eb"
-  blue-cta-hover: "#1d4ed8"
+  blue-cta: "#3b6bef"
+  blue-cta-hover: "#2a5bdf"
   blue-tint: "#eff6ff"
   ink: "#1a1a1a"
   mid-ink: "#4a4a5a"
@@ -13,6 +13,9 @@ colors:
   border-line: "#e8e3dc"
   border-subtle: "#d4cec7"
   white: "#ffffff"
+  attention-fill: "#fffbeb"
+  attention-border: "#fde68a"
+  attention-ink: "#d97706"
 typography:
   display:
     fontFamily: "Fraunces, Georgia, serif"
@@ -112,10 +115,10 @@ The blue is not decorative — it marks where the user should act or what the
 product has proven.
 
 ### Primary
-- **Blueprint Blue** (`#2563eb`): Primary CTAs, logo mark, proof-point accents
+- **Blueprint Blue** (`#3b6bef`): Primary CTAs, logo mark, proof-point accents
   within product mockups. Used on ≤15% of any given section. Its contrast
   against the warm field is the sharpest visual moment on the page.
-- **Deep Blueprint** (`#1d4ed8`): Hover state on primary buttons only.
+- **Deep Blueprint** (`#2a5bdf`): Hover state on primary buttons only.
   Never used at rest.
 - **Blueprint Wash** (`#eff6ff`): Background tint for featured cards and
   highlighted states. The only blue surface that is not a button or link.
@@ -135,6 +138,19 @@ product has proven.
   slight blue-purple shift prevents muddiness against the warm neutral field.
 - **Ash** (`#9a9a9a`): Metadata, disclaimers, label categories. Verify
   contrast (≥4.5:1) on Parchment backgrounds before use in small text.
+
+### Attention (HITL)
+A semantic amber triad reserved for one meaning: **an action is waiting for the
+user** (awaiting review, approval queue, human-in-the-loop indicators). Not for
+warnings, errors, or decoration.
+
+- **Attention Fill** (`#fffbeb`): Background of HITL badges and inline callouts.
+- **Attention Border** (`#fde68a`): Border of HITL badges.
+- **Attention Ink** (`#d97706`): Text, icon strokes, and border of ghost buttons
+  in HITL states.
+
+**Do not use Attention colors on the landing outside of the product-demo HITL
+indicators.** The AnnouncementPill dot below is a separate, older pattern.
 
 **The One Signal Rule.** Blueprint Blue appears on actions (buttons, links)
 and proof points (specific metrics, outcomes, the "Most popular" badge on the
@@ -239,9 +255,11 @@ Floating section precursors ("Replace 5 tools with one").
 
 - **Style:** `rounded-full`, white background, Unbleached Linen border, Ink
   Mist text, Ambient Low, 14px DM Sans weight 500.
-- **Indicator dot:** 6px, `bg-amber-400` with `animate-pulse`. The only amber
-  element on the landing; the only persistent animation allowed in a
-  non-reduced-motion hero. Do not replicate this pattern elsewhere.
+- **Indicator dot:** 6px, `bg-amber-400` (`#fbbf24`) with `animate-pulse`.
+  **Decorative** attention-getter, distinct from the semantic Attention triad
+  above. The only persistent animation allowed in a non-reduced-motion hero.
+  Do not reuse `amber-400` outside this dot; use the Attention tokens for any
+  HITL / awaiting-action indicator.
 
 ### Cards
 - **Corner Style:** Softly rounded (12px). Larger than buttons — establishes
