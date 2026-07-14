@@ -532,7 +532,7 @@ export function Hero() {
             <motion.h1
               variants={fadeUp}
               className="mb-6 font-light text-[#1a1a1a]"
-              style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.08, letterSpacing: '-0.01em' }}
+              style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.08, letterSpacing: '-0.01em', textWrap: 'balance' }}
             >
               {t('headlinePre')}
               <span style={{ fontFamily: 'var(--font-fraunces)', fontStyle: 'italic', fontWeight: 300 }}>
