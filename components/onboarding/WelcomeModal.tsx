@@ -24,9 +24,16 @@ interface WelcomeModalProps {
    *  until the user explicitly triggers Replay welcome tour from the
    *  avatar dropdown. */
   onDismissPermanent: () => Promise<void> | void
+  /** Called after "Let's go" temporary-dismiss completes. Provider wires this
+   *  to router.push('/dashboard/settings#icp') so the user lands on step 1. */
+  onLetsGo?: () => void
+  /** Called after "Try with sample data" seeds the sample workspace. Receives
+   *  the demo campaign_id so the provider can deep-link into the approval
+   *  queue (the aha screen with 5 pre-generated drafts). */
+  onTrySample?: (r: { campaign_id: string }) => void
 }
 
-export function WelcomeModal({ onDismissTemporary, onDismissPermanent }: WelcomeModalProps) {
+export function WelcomeModal({ onDismissTemporary, onDismissPermanent, onLetsGo, onTrySample }: WelcomeModalProps) {
   const [isOpen,          setIsOpen]          = useState(true)
   const [submitting,      setSubmitting]       = useState(false)
   const [loadingSample,   setLoadingSample]    = useState(false)
@@ -36,15 +43,21 @@ export function WelcomeModal({ onDismissTemporary, onDismissPermanent }: Welcome
     setSubmitting(true)
     await onDismissTemporary()
     setIsOpen(false)
+    onLetsGo?.()
   }
 
   async function handleTrySample() {
     setLoadingSample(true)
     try {
-      await fetch('/api/onboarding/load-sample-data', { method: 'POST' })
+      const res = await fetch('/api/onboarding/load-sample-data', { method: 'POST' })
+      const data = (await res.json()) as { ok?: boolean; campaign_id?: string }
       await onDismissTemporary()
       setIsOpen(false)
-      window.location.reload()
+      if (data.campaign_id && onTrySample) {
+        onTrySample({ campaign_id: data.campaign_id })
+      } else {
+        window.location.reload()
+      }
     } catch {
       setLoadingSample(false)
     }

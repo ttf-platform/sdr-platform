@@ -9,15 +9,23 @@ export async function POST() {
   const admin = createAdminClient()
   const { workspaceId } = guard
 
-  // Check if sample data already exists
-  const { count: existing } = await admin
+  // Check if sample data already exists. If so, still surface the demo
+  // campaign_id so the client can route into the approval queue — the whole
+  // "try sample" CTA depends on landing on the drafts, even on replay.
+  const { data: existingCampaigns } = await admin
     .from('campaigns')
-    .select('*', { count: 'exact', head: true })
+    .select('id')
     .eq('workspace_id', workspaceId)
     .eq('is_sample', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
 
-  if ((existing ?? 0) > 0) {
-    return NextResponse.json({ ok: true, already_loaded: true })
+  if (existingCampaigns && existingCampaigns.length > 0) {
+    return NextResponse.json({
+      ok:             true,
+      already_loaded: true,
+      campaign_id:    existingCampaigns[0].id,
+    })
   }
 
   // Insert sample campaign

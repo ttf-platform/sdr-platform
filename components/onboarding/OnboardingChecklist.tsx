@@ -39,25 +39,25 @@ const STEPS: ChecklistStep[] = [
     key: 'campaign_created',
     title: 'Create first campaign',
     description: 'Mirvo AI writes the emails',
-    href: () => '/dashboard/campaigns',
+    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}` : '/dashboard/campaigns',
   },
   {
     key: 'prospects_added',
     title: 'Add your prospects',
     description: 'CSV import or AI discovery',
-    href: () => '/dashboard/campaigns',
+    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}` : '/dashboard/campaigns',
   },
   {
     key: 'variants_reviewed',
     title: 'Review AI emails',
     description: 'Approval Queue — validate before send',
-    href: () => '/dashboard/campaigns',
+    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}?tab=approval_queue` : '/dashboard/campaigns',
   },
   {
     key: 'campaign_launched',
     title: 'Launch campaign',
     description: 'Send today from your connected mailbox',
-    href: () => '/dashboard/campaigns',
+    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}` : '/dashboard/campaigns',
   },
 ]
 
@@ -102,9 +102,67 @@ export function OnboardingChecklist() {
 
   if (loading || !data) return null
   if (data.stored.checklist_dismissed) return null
-  if (data.progress_percent === 100) return null
 
   const lastCampaignId = data.completions.last_campaign_id
+
+  // 100 % completion — a small celebration card replaces the checklist,
+  // rendered in the same slot with the same width/position, until the user
+  // dismisses it. Keeps the "you finished" moment tangible; hitting 100 %
+  // used to just make the widget vanish.
+  if (data.progress_percent === 100) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="fixed bottom-6 left-6 z-40 w-[340px] max-w-[calc(100vw-3rem)]"
+      >
+        <div className="bg-white rounded-xl shadow-2xl border border-[#e5e0d6] overflow-hidden p-4">
+          <div className="flex items-start gap-3">
+            <div className="relative w-9 h-9 shrink-0">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.4, times: [0, 0.5, 1], type: 'spring', stiffness: 300 }}
+                className="w-9 h-9 rounded-full bg-[#3b6bef] flex items-center justify-center"
+              >
+                <svg viewBox="0 0 16 16" className="w-5 h-5">
+                  <motion.path
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 8.5 L7 12 L13 5"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.35, delay: 0.15 }}
+                  />
+                </svg>
+              </motion.div>
+              <motion.div
+                initial={{ scale: 1, opacity: 0.7 }}
+                animate={{ scale: 2.8, opacity: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+                className="absolute inset-0 rounded-full bg-[#3b6bef] pointer-events-none"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-[#1a1a2e]">You&rsquo;re all set</div>
+              <div className="text-xs text-[#8a7e6e] mt-0.5 leading-relaxed">Mirvo is ready to run your outbound.</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={dismissChecklist}
+            className="mt-4 w-full text-xs font-medium text-[#6b5e4e] border border-[#e8e3dc] rounded-lg py-1.5 hover:bg-[#f7f4f0] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div

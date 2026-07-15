@@ -6,7 +6,7 @@ import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { readDashboardLocaleSync, writeDashboardLocale } from '@/lib/locale'
-import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio, ListChecks } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
@@ -14,7 +14,7 @@ import { PostHogIdentify } from '@/components/PostHogIdentify'
 import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
 import { InboxUnreadBadge } from '@/components/layout/InboxUnreadBadge'
 import { Toaster } from 'sonner'
-import { OnboardingProgressProvider } from '@/lib/hooks/useOnboardingProgress'
+import { OnboardingProgressProvider, useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
@@ -201,6 +201,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     <Settings size={14} /> {tShell('settings')}
                   </Link>
                   <ReplayWelcomeMenuItem onClick={() => setAvatarOpen(false)} />
+                  <ShowChecklistMenuItem onClick={() => setAvatarOpen(false)} />
                   <div className="border-t border-[#f0ece6]">
                     <Link href={"/" as Route} onClick={() => setAvatarOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#6b5e4e] hover:bg-[#f7f4f0]">
@@ -396,5 +397,29 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       />
     </div>
     </OnboardingProgressProvider>
+  )
+}
+
+// Kept colocated so DashboardShell owns its avatar menu content without
+// scattering one-liners across /components/onboarding. Only renders when
+// the checklist has been dismissed, since the checklist is otherwise already
+// visible on-screen.
+function ShowChecklistMenuItem({ onClick }: { onClick?: () => void }) {
+  const { data, resumeChecklist } = useOnboardingProgress()
+  if (!data?.stored?.checklist_dismissed) return null
+
+  async function handleClick() {
+    onClick?.()
+    await resumeChecklist()
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#f7f4f0] focus-visible:outline-none focus-visible:bg-[#f7f4f0]"
+    >
+      <ListChecks size={14} /> Show setup checklist
+    </button>
   )
 }

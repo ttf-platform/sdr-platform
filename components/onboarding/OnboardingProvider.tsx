@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import type { Route } from 'next'
 import { WelcomeModal } from './WelcomeModal'
 import { useOnboardingProgress, WELCOME_SESSION_KEY } from '@/lib/hooks/useOnboardingProgress'
 
@@ -19,7 +21,8 @@ import { useOnboardingProgress, WELCOME_SESSION_KEY } from '@/lib/hooks/useOnboa
  * the modal.
  */
 export function OnboardingProvider() {
-  const { data, loading, welcomeReplayNonce } = useOnboardingProgress()
+  const { data, loading, welcomeReplayNonce, refetch } = useOnboardingProgress()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const autoShowEvaluated = useRef(false)
   const lastReplayNonceSeen = useRef(0)
@@ -71,11 +74,26 @@ export function OnboardingProvider() {
     })
   }
 
+  function handleLetsGo() {
+    // Step 1 of the checklist — the ICP anchor on Settings.
+    router.push('/dashboard/settings#icp' as Route)
+  }
+
+  async function handleTrySample({ campaign_id }: { campaign_id: string }) {
+    router.push(`/dashboard/campaigns/${campaign_id}?tab=approval_queue` as Route)
+    // Refresh onboarding progress so the checklist reflects the sample seed
+    // (last_campaign_id, campaign_created, etc.) without waiting for a nav
+    // that already changed pathname.
+    await refetch()
+  }
+
   if (!open) return null
   return (
     <WelcomeModal
       onDismissTemporary={handleDismissTemporary}
       onDismissPermanent={handleDismissPermanent}
+      onLetsGo={handleLetsGo}
+      onTrySample={handleTrySample}
     />
   )
 }

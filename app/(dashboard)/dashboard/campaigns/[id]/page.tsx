@@ -1,7 +1,7 @@
 'use client'
 import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 import { Tooltip } from '@/components/Tooltip'
@@ -101,6 +101,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
   // Warmup capacity toast is shown at most once per browser session to avoid
   // spamming users who bulk-approve. Ref-based (not localStorage) — an
   // intentional refresh resets it, which matches the "session" semantic
@@ -108,7 +109,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const warmupToastShownRef = useRef(false)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
-  const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence' | 'approval_queue'>('overview')
+  const [tab, setTab] = useState<'overview' | 'prospects' | 'emails' | 'sequence' | 'approval_queue'>(() => {
+    const t = searchParams.get('tab')
+    return t === 'prospects' || t === 'emails' || t === 'sequence' || t === 'approval_queue' ? t : 'overview'
+  })
   const [loading, setLoading] = useState(true)
   const [generatingStep, setGeneratingStep] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
