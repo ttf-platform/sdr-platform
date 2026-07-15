@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 import { Tooltip } from '@/components/Tooltip'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
+import { AddFromBaseModal } from '@/components/AddFromBaseModal'
 import { ProspectSignalsDrawer } from './_components/ProspectSignalsDrawer'
 import { ApprovalQueueClient } from './_components/ApprovalQueueClient'
 import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
@@ -88,6 +89,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tFields = useTranslations('dashboard.campaigns.detail.overview.fields')
   const tEditForm = useTranslations('dashboard.campaigns.detail.overview.editForm')
   const tProspects = useTranslations('dashboard.campaigns.detail.prospects')
+  const tAddFromBase = useTranslations('components.addFromBaseModal')
   const tProspectsCols = useTranslations('dashboard.campaigns.detail.prospects.columns')
   const tEmails = useTranslations('dashboard.campaigns.detail.emails')
   const tEmailStatuses = useTranslations('dashboard.campaigns.detail.emailStatuses')
@@ -124,7 +126,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [tabProspects, setTabProspects]               = useState<TabProspect[]>([])
   const [tabProspectsTotal, setTabProspectsTotal]     = useState(0)
   const [tabProspectsLoading, setTabProspectsLoading] = useState(false)
-  const [prospectModal, setProspectModal]             = useState<null | 'csv' | 'manual'>(null)
+  const [prospectModal, setProspectModal]             = useState<null | 'csv' | 'manual' | 'base'>(null)
   const [showRemoveAll, setShowRemoveAll]             = useState(false)
   const [removingAll, setRemovingAll]                 = useState(false)
   const [tabRefreshKey, setTabRefreshKey]             = useState(0)
@@ -618,6 +620,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   {tProspects('removeAll')}
                 </button>
               )}
+              <button onClick={() => setProspectModal('base')}
+                className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">
+                {tAddFromBase('trigger')}
+              </button>
               <button onClick={() => setProspectModal('manual')}
                 className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee]">
                 {tProspects('addManually')}
@@ -790,6 +796,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
           {prospectModal === 'csv'    && <ImportCSVModal campaignId={id} campaignName={campaign?.name} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
           {prospectModal === 'manual' && <ManualAddModal campaignId={id} onClose={() => setProspectModal(null)} onImported={onProspectImported} />}
+          <AddFromBaseModal
+            isOpen={prospectModal === 'base'}
+            campaignId={id}
+            onClose={() => setProspectModal(null)}
+            onEnrolled={() => onProspectImported({ imported_contacts: 0, updated_contacts: 0, imported_assignments: 0, skipped_assignments_dedup: 0, skipped_invalid: 0, total_contacts_now: 0 })}
+          />
         </div>
       )}
 

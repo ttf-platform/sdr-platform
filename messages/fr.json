@@ -2331,6 +2331,20 @@
         "requiredName": "Le nom de la campagne est requis."
       }
     },
+    "addFromBaseModal": {
+      "trigger": "Depuis ma base",
+      "title": "Ajouter depuis vos prospects",
+      "searchPlaceholder": "Rechercher par nom, entreprise ou e-mail",
+      "alreadyIn": "Déjà dans la campagne",
+      "empty": "Aucun prospect dans votre base. Importez une liste d'abord.",
+      "loadMore": "Charger plus",
+      "submit": "Ajouter à la campagne",
+      "submitting": "Ajout…",
+      "selected": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
+      "successAdded": "{count, plural, one {# prospect ajouté à la campagne} other {# prospects ajoutés à la campagne}}",
+      "successSkipped": "{count, plural, one {# était déjà dans la campagne} other {# étaient déjà dans la campagne}}",
+      "error": "Une erreur s'est produite. Réessayez."
+    },
     "exportProspectsModal": {
       "title": "Exporter les prospects",
       "formatLabel": "Format",

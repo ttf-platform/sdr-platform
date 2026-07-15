@@ -2331,6 +2331,20 @@
         "requiredName": "Campaign name is required."
       }
     },
+    "addFromBaseModal": {
+      "trigger": "From my prospects",
+      "title": "Add from your prospects",
+      "searchPlaceholder": "Search by name, company, or email",
+      "alreadyIn": "Already in campaign",
+      "empty": "No prospects in your base yet. Import a list first.",
+      "loadMore": "Load more",
+      "submit": "Add to campaign",
+      "submitting": "Adding…",
+      "selected": "{count, plural, one {# selected} other {# selected}}",
+      "successAdded": "{count, plural, one {# prospect added to the campaign} other {# prospects added to the campaign}}",
+      "successSkipped": "{count, plural, one {# was already in the campaign} other {# were already in the campaign}}",
+      "error": "Something went wrong. Try again."
+    },
     "exportProspectsModal": {
       "title": "Export prospects",
       "formatLabel": "Format",
