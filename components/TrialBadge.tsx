@@ -1,47 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-
-const supabase = createClient()
+import { useWorkspace } from '@/lib/hooks/useWorkspace'
 
 export default function TrialBadge() {
-  const t                 = useTranslations('components.trialBadge')
-  const [trial, setTrial] = useState<{ endDate: string; status: string } | null>(null)
+  const t = useTranslations('components.trialBadge')
+  const { workspace } = useWorkspace()
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session || cancelled) return
-        const { data: member } = await supabase
-          .from('workspace_members')
-          .select('workspace_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
-        if (!member || cancelled) return
-        const { data: ws } = await supabase
-          .from('workspaces')
-          .select('trial_end_date, subscription_status')
-          .eq('id', member.workspace_id)
-          .maybeSingle()
-        if (cancelled) return
-        if (ws && ws.subscription_status === 'trialing' && ws.trial_end_date) {
-          setTrial({ endDate: ws.trial_end_date, status: ws.subscription_status })
-        }
-      } catch (e) {
-        // silent fail — badge just doesn't show
-      }
-    })()
-    return () => { cancelled = true }
-  }, [])
-
-  if (!trial) return null
+  const ws = workspace?.workspaces
+  if (!ws || ws.subscription_status !== 'trialing' || !ws.trial_end_date) return null
 
   const now = new Date()
-  const end = new Date(trial.endDate)
+  const end = new Date(ws.trial_end_date)
   const diffMs = end.getTime() - now.getTime()
   const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
   const isExpired = daysLeft <= 0
