@@ -1924,8 +1924,7 @@
       "toasts": {
         "signatureSaved": "Signature enregistrée. Cela n'affectera que les futures générations et régénérations d'e-mails. Les brouillons existants ne seront pas modifiés.",
         "autofillFailed": "Échec du remplissage automatique. Réessayez.",
-        "autofillSaved": "Enregistré. Nous avons rempli {count, plural, one {# champ} other {# champs}} à partir de votre site. Les détails de votre audience (intitulés de poste, régions, problématiques) figurent dans votre Master ICP. Ouvrez-le pour les vérifier.",
-        "openMasterIcp": "Ouvrir le Master ICP →",
+        "autofillSaved": "Enregistré. Nous avons rempli {count, plural, one {# champ} other {# champs}} depuis votre site.",
         "closeAriaLabel": "Fermer"
       },
       "account": {

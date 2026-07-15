@@ -1924,8 +1924,7 @@
       "toasts": {
         "signatureSaved": "Signature saved. This will only affect future email generations and regenerations. Existing drafts won't be modified.",
         "autofillFailed": "Auto-fill failed. Please try again.",
-        "autofillSaved": "Saved. We filled {count, plural, one {# field} other {# fields}} from your site. Your audience details (titles, regions, pain points) live in your Master ICP. Open it to review.",
-        "openMasterIcp": "Open Master ICP →",
+        "autofillSaved": "Saved. We filled {count, plural, one {# field} other {# fields}} from your site.",
         "closeAriaLabel": "Close"
       },
       "account": {

@@ -397,12 +397,10 @@ export default function SettingsPage() {
     setSnapshot(s => ({ ...s, ...settingsFormUpdate }))
 
     setToast({
-      type:       'info',
-      msg:        t('toasts.autofillSaved', { count: filledCount }),
-      link:       '/dashboard/prospects?openIcp=1',
-      linkLabel:  t('toasts.openMasterIcp'),
-      persistent: true,
+      type: 'info',
+      msg:  t('toasts.autofillSaved', { count: filledCount }),
     })
+    setTimeout(() => setToast(null), 4000)
   }
 
   const ws = (workspace?.workspaces as any)
@@ -669,29 +667,6 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-company-website">{t('company.companyWebsite')}</label>
-                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">{tCommon('optional')}</span>
-                <StatusBadge variant="gray">{tCommon('usedInSignature')}</StatusBadge>
-              </div>
-              <div className="flex items-start gap-2">
-                <input
-                  id="set-company-website"
-                  value={form.company_website}
-                  onChange={e => setForm({...form, company_website: e.target.value})}
-                  className={`${inputCls} flex-1`}
-                  placeholder={t('company.companyWebsitePlaceholder')}
-                />
-                <AutoFillFromUrlButton
-                  websiteValue={form.company_website}
-                  onApply={handleAutoFillApply}
-                />
-              </div>
-              <p className="text-xs text-[#b0a898] mt-1.5">
-                {t('company.autoFillHint')}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls} htmlFor="set-industry">{t('company.industry')}</label>
                 <QualityBadge pct={tCommon('aiQuality', { pct: 10 })} />
               </div>
@@ -741,6 +716,35 @@ export default function SettingsPage() {
             </Tooltip>
           </div>
           <div className="flex flex-col gap-3 flex-1">
+            {/* Company website + autofill — moved from Company card so first-run users
+                land directly on the parse-your-site affordance at step 1 (#icp).
+                State + dirty tracking + save scope stay on "company" (form.company_website
+                is shared, saveCompany still owns persistence for this field); autofill
+                POST /api/workspace/profile persists across both company + product/ICP
+                fields via handleAutoFillApply. */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={labelCls} htmlFor="set-company-website">{t('company.companyWebsite')}</label>
+                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">{tCommon('optional')}</span>
+                <StatusBadge variant="gray">{tCommon('usedInSignature')}</StatusBadge>
+              </div>
+              <div className="flex items-start gap-2">
+                <input
+                  id="set-company-website"
+                  value={form.company_website}
+                  onChange={e => setForm({...form, company_website: e.target.value})}
+                  className={`${inputCls} flex-1`}
+                  placeholder={t('company.companyWebsitePlaceholder')}
+                />
+                <AutoFillFromUrlButton
+                  websiteValue={form.company_website}
+                  onApply={handleAutoFillApply}
+                />
+              </div>
+              <p className="text-xs text-[#b0a898] mt-1.5">
+                {t('company.autoFillHint')}
+              </p>
+            </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <label className={labelCls} htmlFor="set-product-description">{t('product.description')} <span className="text-red-500">*</span></label>
