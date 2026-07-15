@@ -46,10 +46,11 @@ export async function assertPublicUrl(rawUrl: string): Promise<void> {
 }
 
 /**
- * Dispatcher undici qui valide ET pin l'IP connectée.
- * net.connect appelle lookup(hostname, options, cb) en attendant une seule adresse :
- * on résout tout, on rejette si UNE adresse est non-publique, puis on renvoie la
- * première (validée). Pas de seconde résolution indépendante => TOCTOU fermé.
+ * Dispatcher undici qui valide ET pin les IPs connectées.
+ * undici appelle lookup(hostname, { all: true }, cb) : on résout tout, on rejette
+ * si UNE adresse est non-publique, puis on renvoie le TABLEAU validé complet.
+ * Pas de seconde résolution indépendante => TOCTOU fermé. undici pioche dans la
+ * liste fournie, sans redemander au DNS.
  */
 export const ssrfDispatcher = new Agent({
   connect: {
@@ -65,7 +66,7 @@ export const ssrfDispatcher = new Agent({
             return callback(new Error('ssrf: non-public address blocked'), '', 0)
           }
         }
-        callback(null, list[0].address, list[0].family)
+        callback(null, list, 0)
       })
     },
   },
