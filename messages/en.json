@@ -2012,6 +2012,10 @@
         "deleteAccount": "Delete account",
         "deleteAccountDesc": "Permanently delete your account and all data"
       },
+      "load": {
+        "error": "We couldn't load your settings. Check your connection and try again.",
+        "retry": "Try again"
+      },
       "password": {
         "newLabel": "New password",
         "confirmLabel": "Confirm new password",

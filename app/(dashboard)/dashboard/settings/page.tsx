@@ -114,6 +114,8 @@ export default function SettingsPage() {
   const [snapshot,      setSnapshot]      = useState(SNAP_DEFAULTS)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadNonce, setLoadNonce] = useState(0)
   const pathname = usePathname()
   useEffect(() => { setToast(t => t?.persistent ? null : t) }, [pathname])
 
@@ -161,70 +163,107 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
+    let cancelled = false
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+    async function load() {
+      setLoadError(null)
+
+      // Session — retry 5× / 300ms to absorb post-signup cookie hydration.
+      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null
+      for (let i = 0; i < 5; i++) {
+        const { data } = await supabase.auth.getSession()
+        if (data.session) { session = data.session; break }
+        if (cancelled) return
+        await sleep(300)
+      }
+      if (cancelled) return
+      if (!session) { window.location.href = '/login'; return }
       setUser(session.user)
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('workspace_id, role, workspaces(name, plan_tier, subscription_status, credits, seats_limit)')
-        .eq('user_id', session.user.id)
-        .single()
-      if (!member) return
+
+      // Member — retry 3× / 400ms for post-signup replication lag.
+      let member: any = null
+      for (let i = 0; i < 3; i++) {
+        const { data } = await supabase
+          .from('workspace_members')
+          .select('workspace_id, role, workspaces(name, plan_tier, subscription_status, credits, seats_limit)')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+        if (data) { member = data; break }
+        if (cancelled) return
+        await sleep(400)
+      }
+      if (cancelled) return
+      if (!member) { window.location.href = '/no-workspace'; return }
       setWorkspaceId(member.workspace_id)
       setWorkspace(member)
 
-      const [{ data: p }, { count: cc }, { data: camps }] = await Promise.all([
-        supabase.from('workspace_profiles').select('*').eq('workspace_id', member.workspace_id).single(),
-        supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('workspace_id', member.workspace_id),
-        supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id),
-      ])
-      setCampaignCount(cc || 0)
-      setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
+      // Profile + counts — non-fatal: an empty profile still renders (default form).
+      try {
+        const [{ data: p }, { count: cc }, { data: camps }] = await Promise.all([
+          supabase.from('workspace_profiles').select('*').eq('workspace_id', member.workspace_id).maybeSingle(),
+          supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('workspace_id', member.workspace_id),
+          supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id),
+        ])
+        if (cancelled) return
+        setCampaignCount(cc || 0)
+        setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
 
-      if (p) {
-        const loaded = {
-          name:                   session.user.user_metadata?.full_name || '',
-          user_title:             p.user_title              || '',
-          company_name:           p.company_name            || '',
-          sender_name:            p.sender_name             || '',
-          company_website:        p.company_website         || '',
-          timezone:               (p.booking_config as any)?.timezone || 'America/Toronto',
-          user_industry:          p.user_industry           || '',
-          user_company_size:      p.user_company_size       || '',
-          product_description:    p.product_description     || '',
-          value_proposition:      p.value_proposition       || '',
-          tone:                   p.tone                    || 'professional',
-          icp_description:        p.icp_description         || '',
-          icp_industries:         p.icp_industries          ?? [],
-          icp_company_sizes:      p.icp_company_sizes       ?? (p.icp_company_size ? [p.icp_company_size] : []),
-          pain_points:            p.pain_points             || '',
-          target_titles:          p.target_titles           || '',
-          target_regions:         p.target_regions          || '',
-          company_revenue:        p.target_company_revenue  ?? [],
-          email_signature:        p.email_signature         ?? DEFAULT_SIGNATURE,
-          signature_in_initial:   p.signature_in_initial    ?? true,
-          signature_in_followups: p.signature_in_followups  ?? false,
+        if (p) {
+          const loaded = {
+            name:                   session.user.user_metadata?.full_name || '',
+            user_title:             p.user_title              || '',
+            company_name:           p.company_name            || '',
+            sender_name:            p.sender_name             || '',
+            company_website:        p.company_website         || '',
+            timezone:               (p.booking_config as any)?.timezone || 'America/Toronto',
+            user_industry:          p.user_industry           || '',
+            user_company_size:      p.user_company_size       || '',
+            product_description:    p.product_description     || '',
+            value_proposition:      p.value_proposition       || '',
+            tone:                   p.tone                    || 'professional',
+            icp_description:        p.icp_description         || '',
+            icp_industries:         p.icp_industries          ?? [],
+            icp_company_sizes:      p.icp_company_sizes       ?? (p.icp_company_size ? [p.icp_company_size] : []),
+            pain_points:            p.pain_points             || '',
+            target_titles:          p.target_titles           || '',
+            target_regions:         p.target_regions          || '',
+            company_revenue:        p.target_company_revenue  ?? [],
+            email_signature:        p.email_signature         ?? DEFAULT_SIGNATURE,
+            signature_in_initial:   p.signature_in_initial    ?? true,
+            signature_in_followups: p.signature_in_followups  ?? false,
+          }
+          setForm(loaded)
+          setSnapshot({
+            name:                   loaded.name,
+            user_title:             loaded.user_title,
+            company_name:           loaded.company_name,
+            sender_name:            loaded.sender_name,
+            company_website:        loaded.company_website,
+            timezone:               loaded.timezone,
+            user_industry:          loaded.user_industry,
+            user_company_size:      loaded.user_company_size,
+            product_description:    loaded.product_description,
+            value_proposition:      loaded.value_proposition,
+            email_signature:        loaded.email_signature,
+            signature_in_initial:   loaded.signature_in_initial,
+            signature_in_followups: loaded.signature_in_followups,
+          })
+        } else {
+          // profile row missing — seed name from auth metadata so the form
+          // isn't literally empty on first render. Save creates the row.
+          setForm(f => ({ ...f, name: session.user.user_metadata?.full_name || '' }))
         }
-        setForm(loaded)
-        setSnapshot({
-          name:                   loaded.name,
-          user_title:             loaded.user_title,
-          company_name:           loaded.company_name,
-          sender_name:            loaded.sender_name,
-          company_website:        loaded.company_website,
-          timezone:               loaded.timezone,
-          user_industry:          loaded.user_industry,
-          user_company_size:      loaded.user_company_size,
-          product_description:    loaded.product_description,
-          value_proposition:      loaded.value_proposition,
-          email_signature:        loaded.email_signature,
-          signature_in_initial:   loaded.signature_in_initial,
-          signature_in_followups: loaded.signature_in_followups,
-        })
+        setProfileLoaded(true)
+      } catch (err) {
+        if (cancelled) return
+        setLoadError(err instanceof Error ? err.message : 'unknown')
       }
-      setProfileLoaded(true)
-    })
-  }, [])
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [loadNonce])
 
   async function saveAccount() {
     setSavingSection('account')
@@ -422,8 +461,22 @@ export default function SettingsPage() {
         <p className="text-sm text-[#8a7e6e]">{t('header.subtitle')}</p>
       </div>
 
+      {/* Load error — terminal state with retry, never a silent skeleton */}
+      {loadError && !profileLoaded && (
+        <div className="bg-white border border-[#e8e3dc] rounded-xl p-6 text-center max-w-md mx-auto">
+          <p className="text-sm text-[#4a4a5a] mb-4">{t('load.error')}</p>
+          <button
+            type="button"
+            onClick={() => setLoadNonce(n => n + 1)}
+            className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"
+          >
+            {t('load.retry')}
+          </button>
+        </div>
+      )}
+
       {/* Loading skeleton */}
-      {!profileLoaded && (
+      {!profileLoaded && !loadError && (
         <div className="flex flex-col gap-6 animate-pulse">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-[#f5f2ee] rounded-xl h-56" />

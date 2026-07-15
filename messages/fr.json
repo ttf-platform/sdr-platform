@@ -2012,6 +2012,10 @@
         "deleteAccount": "Supprimer le compte",
         "deleteAccountDesc": "Supprimez définitivement votre compte et toutes vos données"
       },
+      "load": {
+        "error": "Impossible de charger vos paramètres. Vérifiez votre connexion et réessayez.",
+        "retry": "Réessayer"
+      },
       "password": {
         "newLabel": "Nouveau mot de passe",
         "confirmLabel": "Confirmez le nouveau mot de passe",
