@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BarChart2, Sun, Globe, Settings, Users, CreditCard, ChevronDown, Shield } from 'lucide-react'
+import { BarChart2, Sun, Globe, Users, CreditCard, ChevronDown, Shield } from 'lucide-react'
 
 type Props = {
   planTier: string
@@ -104,8 +104,7 @@ export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasLinkedIn, pathnam
           )}
 
           <Divider />
-          <SectionHeader label="Setup" />
-          <NavItem href="/dashboard/settings" icon={Settings} label="Settings" active={isActive('/dashboard/settings')} onClose={close} />
+          <SectionHeader label="Workspace" />
           {planTier === 'team' && (
             <NavItem href="/dashboard/team" icon={Users} label="Team" active={isActive('/dashboard/team')} onClose={close} />
           )}
