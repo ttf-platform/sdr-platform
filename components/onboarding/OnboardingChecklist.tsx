@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 import type { OnboardingCompletions } from '@/lib/hooks/useOnboardingProgress'
 
@@ -11,54 +12,19 @@ type StepKey = Exclude<keyof OnboardingCompletions, 'last_campaign_id'>
 
 interface ChecklistStep {
   key: StepKey
-  title: string
-  description: string
   href: (lastCampaignId: string | null) => string
 }
 
+// Step order + destination logic — copy lives in i18n
+// (components.onboarding.checklist.steps.<key>.{title,description}).
 const STEPS: ChecklistStep[] = [
-  {
-    key: 'icp_configured',
-    title: 'Define your ICP',
-    description: 'Tell Mirvo who you target',
-    href: () => '/dashboard/settings#icp',
-  },
-  {
-    key: 'domain_added',
-    title: 'Add sending domain',
-    description: 'Configure your domain for outbound',
-    href: () => '/dashboard/settings/sending-domains/order-dfy',
-  },
-  {
-    key: 'mailbox_connected',
-    title: 'Connect your mailbox',
-    description: 'Connect your mailbox — start sending today',
-    href: () => '/dashboard/settings/sending-domains',
-  },
-  {
-    key: 'campaign_created',
-    title: 'Create first campaign',
-    description: 'Mirvo AI writes the emails',
-    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}` : '/dashboard/campaigns',
-  },
-  {
-    key: 'prospects_added',
-    title: 'Add your prospects',
-    description: 'CSV import or AI discovery',
-    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}` : '/dashboard/campaigns',
-  },
-  {
-    key: 'variants_reviewed',
-    title: 'Review AI emails',
-    description: 'Approval Queue — validate before send',
-    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}?tab=approval_queue` : '/dashboard/campaigns',
-  },
-  {
-    key: 'campaign_launched',
-    title: 'Launch campaign',
-    description: 'Send today from your connected mailbox',
-    href: (lastCampaignId) => lastCampaignId ? `/dashboard/campaigns/${lastCampaignId}` : '/dashboard/campaigns',
-  },
+  { key: 'icp_configured',    href: () => '/dashboard/settings#icp' },
+  { key: 'domain_added',      href: () => '/dashboard/settings/sending-domains/order-dfy' },
+  { key: 'mailbox_connected', href: () => '/dashboard/settings/sending-domains' },
+  { key: 'campaign_created',  href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
+  { key: 'prospects_added',   href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
+  { key: 'variants_reviewed', href: (id) => id ? `/dashboard/campaigns/${id}?tab=approval_queue` : '/dashboard/campaigns' },
+  { key: 'campaign_launched', href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
 ]
 
 function SparkCheckmark({ isRecent }: { isRecent: boolean }) {
@@ -97,6 +63,7 @@ function SparkCheckmark({ isRecent }: { isRecent: boolean }) {
 }
 
 export function OnboardingChecklist() {
+  const t = useTranslations('components.onboarding.checklist')
   const { data, loading, recentlyCompleted, dismissChecklist } = useOnboardingProgress()
   const [collapsed, setCollapsed] = useState(false)
 
@@ -148,8 +115,8 @@ export function OnboardingChecklist() {
               />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-[#1a1a2e]">You&rsquo;re all set</div>
-              <div className="text-xs text-[#8a7e6e] mt-0.5 leading-relaxed">Mirvo is ready to run your outbound.</div>
+              <div className="text-sm font-semibold text-[#1a1a2e]">{t('celebration.title')}</div>
+              <div className="text-xs text-[#8a7e6e] mt-0.5 leading-relaxed">{t('celebration.description')}</div>
             </div>
           </div>
           <button
@@ -157,7 +124,7 @@ export function OnboardingChecklist() {
             onClick={dismissChecklist}
             className="mt-4 w-full text-xs font-medium text-[#6b5e4e] border border-[#e8e3dc] rounded-lg py-1.5 hover:bg-[#f7f4f0] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
           >
-            Close
+            {t('celebration.close')}
           </button>
         </div>
       </motion.div>
@@ -200,8 +167,8 @@ export function OnboardingChecklist() {
               </div>
             </div>
             <div className="text-left">
-              <div className="text-sm font-semibold text-[#1a1a2e]">Setup Mirvo</div>
-              <div className="text-xs text-[#8a7e6e]">{data.steps_completed}/{data.total_steps} steps done</div>
+              <div className="text-sm font-semibold text-[#1a1a2e]">{t('title')}</div>
+              <div className="text-xs text-[#8a7e6e]">{t('stepsDone', { done: data.steps_completed, total: data.total_steps })}</div>
             </div>
           </div>
           <svg
@@ -240,9 +207,9 @@ export function OnboardingChecklist() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-medium leading-snug ${isComplete ? 'text-[#8a7e6e] line-through' : 'text-[#1a1a2e]'}`}>
-                          {idx + 1}. {step.title}
+                          {idx + 1}. {t(`steps.${step.key}.title`)}
                         </div>
-                        <div className="text-xs text-[#8a7e6e] mt-0.5">{step.description}</div>
+                        <div className="text-xs text-[#8a7e6e] mt-0.5">{t(`steps.${step.key}.description`)}</div>
                       </div>
                     </Link>
                   )
@@ -254,7 +221,7 @@ export function OnboardingChecklist() {
                   onClick={dismissChecklist}
                   className="w-full text-xs text-[#8a7e6e] hover:text-[#6b5e4e] py-1 transition-colors"
                 >
-                  Hide for now
+                  {t('hideForNow')}
                 </button>
               </div>
             </motion.div>

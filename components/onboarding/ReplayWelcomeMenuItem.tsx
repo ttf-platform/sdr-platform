@@ -1,6 +1,7 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 
 /**
@@ -16,6 +17,7 @@ import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
  * the modal.
  */
 export function ReplayWelcomeMenuItem({ onClick }: { onClick?: () => void }) {
+  const t = useTranslations('components.onboarding.menu')
   const { replayWelcome } = useOnboardingProgress()
 
   async function handleClick() {
@@ -29,7 +31,7 @@ export function ReplayWelcomeMenuItem({ onClick }: { onClick?: () => void }) {
       onClick={handleClick}
       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#f7f4f0] focus-visible:outline-none focus-visible:bg-[#f7f4f0]"
     >
-      <Sparkles size={14} /> Replay welcome tour
+      <Sparkles size={14} /> {t('replayWelcome')}
     </button>
   )
 }

@@ -2356,6 +2356,115 @@
       "successSkipped": "{count, plural, one {# était déjà dans la campagne} other {# étaient déjà dans la campagne}}",
       "error": "Une erreur s'est produite. Réessayez."
     },
+    "onboarding": {
+      "welcome": {
+        "title": "Bienvenue sur Mirvo",
+        "description": "Votre agent commercial IA est prêt. Voici votre configuration en 7 étapes : connectez votre boîte mail et vous pouvez envoyer vos premiers e-mails dès aujourd'hui.",
+        "steps": {
+          "icp_configured": {
+            "title": "Définissez votre ICP",
+            "description": "Dites à Mirvo qui vous ciblez : l'IA s'en sert pour personnaliser chaque e-mail."
+          },
+          "domain_added": {
+            "title": "Ajoutez votre domaine d'envoi",
+            "description": "Configurez le DNS pour la délivrabilité à long terme : connectez une boîte que vous utilisez déjà et vous pouvez commencer à envoyer dès aujourd'hui."
+          },
+          "mailbox_connected": {
+            "title": "Connectez votre boîte mail",
+            "description": "Reliez Gmail ou Outlook : Mirvo met votre domaine dédié en chauffe sur environ 3 semaines, pendant que votre boîte connectée continue d'assurer vos envois."
+          },
+          "campaign_created": {
+            "title": "Créez votre première campagne",
+            "description": "Mirvo AI génère une séquence personnalisée en plusieurs étapes, adaptée à votre ICP."
+          },
+          "prospects_added": {
+            "title": "Ajoutez vos prospects",
+            "description": "Import CSV ou découverte de prospects par IA : aucun crédit consommé pour un CSV."
+          },
+          "variants_reviewed": {
+            "title": "Relisez les e-mails générés par l'IA",
+            "description": "La file de validation vous laisse valider chaque e-mail avant qu'il n'atteigne un prospect."
+          },
+          "campaign_launched": {
+            "title": "Lancez : envoyez dès aujourd'hui",
+            "description": "Connectez votre boîte existante et commencez à envoyer tout de suite. Le passage à un domaine d'envoi dédié vient plus tard, quand vous êtes prêt."
+          }
+        },
+        "cta": {
+          "letsGo": "C'est parti →",
+          "letsGoLoading": "Chargement…",
+          "trySample": "Essayer d'abord avec des données d'exemple →",
+          "trySampleLoading": "Chargement des données d'exemple…",
+          "never": "Ne plus afficher",
+          "neverSaving": "Enregistrement…"
+        },
+        "day1Banner": {
+          "label": "Envoi dès le jour 1 :",
+          "body": "connectez une boîte que vous utilisez déjà et démarrez aujourd'hui : les messageries lui font déjà confiance. Quand vous passez à un domaine d'envoi dédié, il monte en chauffe progressivement pendant que votre boîte connectée continue d'assurer les envois."
+        }
+      },
+      "checklist": {
+        "title": "Configurer Mirvo",
+        "stepsDone": "{done}/{total} étapes terminées",
+        "hideForNow": "Masquer pour l'instant",
+        "steps": {
+          "icp_configured": {
+            "title": "Définissez votre ICP",
+            "description": "Dites à Mirvo qui vous ciblez"
+          },
+          "domain_added": {
+            "title": "Ajoutez un domaine d'envoi",
+            "description": "Configurez votre domaine pour la prospection"
+          },
+          "mailbox_connected": {
+            "title": "Connectez votre boîte mail",
+            "description": "Connectez votre boîte : envoyez dès aujourd'hui"
+          },
+          "campaign_created": {
+            "title": "Créez une première campagne",
+            "description": "Mirvo AI rédige les e-mails"
+          },
+          "prospects_added": {
+            "title": "Ajoutez vos prospects",
+            "description": "Import CSV ou découverte IA"
+          },
+          "variants_reviewed": {
+            "title": "Relisez les e-mails IA",
+            "description": "File de validation : validez avant l'envoi"
+          },
+          "campaign_launched": {
+            "title": "Lancez la campagne",
+            "description": "Envoyez dès aujourd'hui depuis votre boîte connectée"
+          }
+        },
+        "celebration": {
+          "title": "Tout est prêt",
+          "description": "Mirvo est prêt à lancer votre prospection.",
+          "close": "Fermer"
+        },
+        "toast": {
+          "stepComplete": "{step} ✓",
+          "description": "Progression de configuration mise à jour",
+          "stepLabels": {
+            "icp_configured": "ICP défini",
+            "domain_added": "Domaine d'envoi ajouté",
+            "mailbox_connected": "Boîte mail connectée",
+            "campaign_created": "Première campagne créée",
+            "prospects_added": "Premier prospect ajouté",
+            "variants_reviewed": "Premier e-mail validé",
+            "campaign_launched": "Première campagne lancée"
+          }
+        }
+      },
+      "menu": {
+        "replayWelcome": "Revoir le tour de bienvenue",
+        "showChecklist": "Afficher la checklist de configuration"
+      },
+      "resume": {
+        "cta": "Reprendre la configuration",
+        "ariaLabel": "Reprendre la configuration"
+      }
+    },
     "exportProspectsModal": {
       "title": "Exporter les prospects",
       "formatLabel": "Format",

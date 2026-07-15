@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import type { ReactNode } from 'react'
 
@@ -33,15 +34,9 @@ export interface OnboardingProgressData {
 
 type StepKey = Exclude<keyof OnboardingCompletions, 'last_campaign_id'>
 
-const STEP_LABELS: Record<StepKey, string> = {
-  icp_configured:    'ICP defined',
-  domain_added:      'Sending domain added',
-  mailbox_connected: 'Mailbox connected',
-  campaign_created:  'First campaign created',
-  prospects_added:   'First prospect added',
-  variants_reviewed: 'First email variant approved',
-  campaign_launched: 'First campaign launched',
-}
+// Step labels for the completion toast are held in i18n
+// (components.onboarding.checklist.toast.stepLabels.<key>) — resolved at
+// render time inside OnboardingProgressProvider via useTranslations().
 
 const STEP_KEYS: StepKey[] = [
   'icp_configured',
@@ -78,6 +73,7 @@ export const WELCOME_SESSION_KEY = 'mirvo_welcome_seen_session'
 const OnboardingContext = createContext<OnboardingContextValue | undefined>(undefined)
 
 export function OnboardingProgressProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations('components.onboarding.checklist.toast')
   const [data, setData] = useState<OnboardingProgressData | null>(null)
   const [loading, setLoading] = useState(true)
   const [recentlyCompleted, setRecentlyCompleted] = useState<StepKey | null>(null)
@@ -97,8 +93,8 @@ export function OnboardingProgressProvider({ children }: { children: ReactNode }
           const isNowComplete = json.completions[key] === true
           if (wasIncomplete && isNowComplete) {
             setRecentlyCompleted(key)
-            toast.success(`${STEP_LABELS[key]} ✓`, {
-              description: 'Onboarding progress updated',
+            toast.success(t('stepComplete', { step: t(`stepLabels.${key}`) }), {
+              description: t('description'),
               duration: 3500,
             })
             setTimeout(() => setRecentlyCompleted(null), 2000)

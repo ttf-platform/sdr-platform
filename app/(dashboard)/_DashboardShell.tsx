@@ -405,6 +405,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 // the checklist has been dismissed, since the checklist is otherwise already
 // visible on-screen.
 function ShowChecklistMenuItem({ onClick }: { onClick?: () => void }) {
+  const t = useTranslations('components.onboarding.menu')
   const { data, resumeChecklist } = useOnboardingProgress()
   if (!data?.stored?.checklist_dismissed) return null
 
@@ -419,7 +420,7 @@ function ShowChecklistMenuItem({ onClick }: { onClick?: () => void }) {
       onClick={handleClick}
       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#f7f4f0] focus-visible:outline-none focus-visible:bg-[#f7f4f0]"
     >
-      <ListChecks size={14} /> Show setup checklist
+      <ListChecks size={14} /> {t('showChecklist')}
     </button>
   )
 }

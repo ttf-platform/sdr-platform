@@ -2356,6 +2356,115 @@
       "successSkipped": "{count, plural, one {# was already in the campaign} other {# were already in the campaign}}",
       "error": "Something went wrong. Try again."
     },
+    "onboarding": {
+      "welcome": {
+        "title": "Welcome to Mirvo",
+        "description": "Your AI sales agent is ready. Here's your 7-step setup — connect your mailbox and you can send your first emails today.",
+        "steps": {
+          "icp_configured": {
+            "title": "Define your ICP",
+            "description": "Tell Mirvo who you target — AI uses this to personalize every email."
+          },
+          "domain_added": {
+            "title": "Add your sending domain",
+            "description": "Configure DNS for long-term deliverability — connect a mailbox you already use, and you can start sending today."
+          },
+          "mailbox_connected": {
+            "title": "Connect your mailbox",
+            "description": "Link Gmail or Outlook — Mirvo warms up your dedicated domain over about 3 weeks, while your connected mailbox keeps your outreach running."
+          },
+          "campaign_created": {
+            "title": "Create your first campaign",
+            "description": "Mirvo AI generates a personalized multi-step sequence tailored to your ICP."
+          },
+          "prospects_added": {
+            "title": "Add your prospects",
+            "description": "CSV import or AI prospect discovery — no credits consumed for CSV."
+          },
+          "variants_reviewed": {
+            "title": "Review AI-generated emails",
+            "description": "Approval Queue lets you validate every email before it reaches a prospect."
+          },
+          "campaign_launched": {
+            "title": "Launch — send today",
+            "description": "Connect your existing mailbox and start sending right away. Scaling to a dedicated sending domain comes later, when you're ready."
+          }
+        },
+        "cta": {
+          "letsGo": "Let's go →",
+          "letsGoLoading": "Loading…",
+          "trySample": "Try with sample data first →",
+          "trySampleLoading": "Loading sample data…",
+          "never": "Don't show this again",
+          "neverSaving": "Saving…"
+        },
+        "day1Banner": {
+          "label": "Day-1 sending:",
+          "body": "connect a mailbox you already use and start today — it's already trusted by inboxes. When you move to a dedicated sending domain, it warms up gradually while your connected mailbox keeps things running."
+        }
+      },
+      "checklist": {
+        "title": "Setup Mirvo",
+        "stepsDone": "{done}/{total} steps done",
+        "hideForNow": "Hide for now",
+        "steps": {
+          "icp_configured": {
+            "title": "Define your ICP",
+            "description": "Tell Mirvo who you target"
+          },
+          "domain_added": {
+            "title": "Add sending domain",
+            "description": "Configure your domain for outbound"
+          },
+          "mailbox_connected": {
+            "title": "Connect your mailbox",
+            "description": "Connect your mailbox — start sending today"
+          },
+          "campaign_created": {
+            "title": "Create first campaign",
+            "description": "Mirvo AI writes the emails"
+          },
+          "prospects_added": {
+            "title": "Add your prospects",
+            "description": "CSV import or AI discovery"
+          },
+          "variants_reviewed": {
+            "title": "Review AI emails",
+            "description": "Approval Queue — validate before send"
+          },
+          "campaign_launched": {
+            "title": "Launch campaign",
+            "description": "Send today from your connected mailbox"
+          }
+        },
+        "celebration": {
+          "title": "You're all set",
+          "description": "Mirvo is ready to run your outbound.",
+          "close": "Close"
+        },
+        "toast": {
+          "stepComplete": "{step} ✓",
+          "description": "Onboarding progress updated",
+          "stepLabels": {
+            "icp_configured": "ICP defined",
+            "domain_added": "Sending domain added",
+            "mailbox_connected": "Mailbox connected",
+            "campaign_created": "First campaign created",
+            "prospects_added": "First prospect added",
+            "variants_reviewed": "First email variant approved",
+            "campaign_launched": "First campaign launched"
+          }
+        }
+      },
+      "menu": {
+        "replayWelcome": "Replay welcome tour",
+        "showChecklist": "Show setup checklist"
+      },
+      "resume": {
+        "cta": "Resume setup",
+        "ariaLabel": "Resume onboarding"
+      }
+    },
     "exportProspectsModal": {
       "title": "Export prospects",
       "formatLabel": "Format",
