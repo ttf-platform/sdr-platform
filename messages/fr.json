@@ -2345,6 +2345,17 @@
       "successSkipped": "{count, plural, one {# était déjà dans la campagne} other {# étaient déjà dans la campagne}}",
       "error": "Une erreur s'est produite. Réessayez."
     },
+    "addToCampaignModal": {
+      "trigger": "Ajouter à une campagne",
+      "title": "{count, plural, one {Ajouter # prospect à une campagne} other {Ajouter # prospects à une campagne}}",
+      "selectPlaceholder": "Choisissez une campagne",
+      "noCampaigns": "Créez d'abord une campagne.",
+      "submit": "Ajouter à la campagne",
+      "submitting": "Ajout…",
+      "successAdded": "{count, plural, one {# prospect ajouté à la campagne} other {# prospects ajoutés à la campagne}}",
+      "successSkipped": "{count, plural, one {# était déjà dans la campagne} other {# étaient déjà dans la campagne}}",
+      "error": "Une erreur s'est produite. Réessayez."
+    },
     "exportProspectsModal": {
       "title": "Exporter les prospects",
       "formatLabel": "Format",

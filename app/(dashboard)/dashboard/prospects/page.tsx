@@ -16,6 +16,7 @@ import { CreateTagModal } from '@/components/CreateTagModal'
 import { NoteItem } from '@/components/NoteItem'
 import { TagFilterDropdown } from '@/components/TagFilterDropdown'
 import { ExportProspectsModal } from '@/components/ExportProspectsModal'
+import { AddToCampaignModal } from '@/components/AddToCampaignModal'
 import { Spinner } from '@/components/ui/Spinner'
 import { ProspectMobileCard } from './_components/ProspectMobileCard'
 import { safeExternalHref } from '@/lib/url-safety'
@@ -518,6 +519,7 @@ export default function ProspectsPage() {
   const tPagination = useTranslations('dashboard.prospects.list.pagination')
   const tBulk = useTranslations('dashboard.prospects.list.bulk')
   const tCommon = useTranslations('dashboard.common')
+  const tAddToCampaign = useTranslations('components.addToCampaignModal')
 
   const searchParams = useSearchParams()
   const [contacts, setContacts]         = useState<Contact[]>([])
@@ -539,6 +541,7 @@ export default function ProspectsPage() {
   const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
   const [modal, setModal]               = useState<null | 'csv' | 'manual' | 'paste'>(null)
   const [showExport, setShowExport]     = useState(false)
+  const [showAddToCampaign, setShowAddToCampaign] = useState(false)
   const [refreshKey, setRefreshKey]     = useState(0)
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
@@ -1185,6 +1188,10 @@ export default function ProspectsPage() {
                 className="text-xs text-white/60 hover:text-white/90 transition-colors">{tBulk('clear')}</button>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => setShowAddToCampaign(true)}
+                className="bg-white text-[#1a1a2e] border border-white/30 hover:bg-[#f5f2ee] text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">
+                {tAddToCampaign('trigger')}
+              </button>
               <button onClick={() => setShowExport(true)}
                 className="bg-[#3b6bef] hover:bg-[#2a5adf] text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">
                 <span aria-hidden="true">⬇</span> {tBulk('exportCount', { count: selectedIds.size })}
@@ -1218,6 +1225,14 @@ export default function ProspectsPage() {
       {modal === 'csv'    && <ImportCSVModal campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
       {modal === 'manual' && <ManualAddModal campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
       {modal === 'paste'  && <PasteModal     campaigns={campaigns} onClose={() => setModal(null)} onImported={onImported} />}
+
+      <AddToCampaignModal
+        isOpen={showAddToCampaign}
+        onClose={() => setShowAddToCampaign(false)}
+        contactIds={[...selectedIds]}
+        campaigns={campaigns}
+        onAdded={() => { setSelectedIds(new Set()); setRefreshKey(k => k + 1) }}
+      />
 
       <ExportProspectsModal
         isOpen={showExport}

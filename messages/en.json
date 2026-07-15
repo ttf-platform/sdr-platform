@@ -2345,6 +2345,17 @@
       "successSkipped": "{count, plural, one {# was already in the campaign} other {# were already in the campaign}}",
       "error": "Something went wrong. Try again."
     },
+    "addToCampaignModal": {
+      "trigger": "Add to campaign",
+      "title": "{count, plural, one {Add # prospect to a campaign} other {Add # prospects to a campaign}}",
+      "selectPlaceholder": "Choose a campaign",
+      "noCampaigns": "Create a campaign first.",
+      "submit": "Add to campaign",
+      "submitting": "Adding…",
+      "successAdded": "{count, plural, one {# prospect added to the campaign} other {# prospects added to the campaign}}",
+      "successSkipped": "{count, plural, one {# was already in the campaign} other {# were already in the campaign}}",
+      "error": "Something went wrong. Try again."
+    },
     "exportProspectsModal": {
       "title": "Export prospects",
       "formatLabel": "Format",
