@@ -12,6 +12,7 @@ import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { DeleteAccountModal } from '@/components/DeleteAccountModal'
 import { renderSignature } from '@/lib/signature'
+import { useWorkspace } from '@/lib/hooks/useWorkspace'
 
 const supabase = createClient()
 
@@ -101,9 +102,9 @@ export default function SettingsPage() {
   const t = useTranslations('dashboard.settings')
   const tCommon = useTranslations('dashboard.settings.common')
   const locale = useLocale()
-  const [user,          setUser]          = useState<any>(null)
-  const [workspaceId,   setWorkspaceId]   = useState<string|null>(null)
-  const [workspace,     setWorkspace]     = useState<any>(null)
+  // Session + workspace_members are owned by WorkspaceProvider.
+  const { user, workspace } = useWorkspace()
+  const workspaceId = workspace?.workspace_id ?? null
   const [campaignCount, setCampaignCount] = useState(0)
   const [emailCount,    setEmailCount]    = useState(0)
   const [savingSection, setSavingSection] = useState<string|null>(null)
@@ -162,48 +163,25 @@ export default function SettingsPage() {
     return inputCls
   }
 
+  // Profile + campaign counts. Session + workspace_members are now loaded
+  // by WorkspaceProvider (lib/hooks/useWorkspace); this effect runs once the
+  // provider hands us a workspaceId. Retry loops for session + member were
+  // preserved verbatim inside the provider (see commit 0c858050 fix for
+  // fresh signup skeleton), so this call-site can assume workspaceId is
+  // valid the moment it fires.
   useEffect(() => {
+    if (!user || !workspaceId) return
     let cancelled = false
-    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
     async function load() {
       setLoadError(null)
 
-      // Session — retry 5× / 300ms to absorb post-signup cookie hydration.
-      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null
-      for (let i = 0; i < 5; i++) {
-        const { data } = await supabase.auth.getSession()
-        if (data.session) { session = data.session; break }
-        if (cancelled) return
-        await sleep(300)
-      }
-      if (cancelled) return
-      if (!session) { window.location.href = '/login'; return }
-      setUser(session.user)
-
-      // Member — retry 3× / 400ms for post-signup replication lag.
-      let member: any = null
-      for (let i = 0; i < 3; i++) {
-        const { data } = await supabase
-          .from('workspace_members')
-          .select('workspace_id, role, workspaces(name, plan_tier, subscription_status, credits, seats_limit)')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
-        if (data) { member = data; break }
-        if (cancelled) return
-        await sleep(400)
-      }
-      if (cancelled) return
-      if (!member) { window.location.href = '/no-workspace'; return }
-      setWorkspaceId(member.workspace_id)
-      setWorkspace(member)
-
       // Profile + counts — non-fatal: an empty profile still renders (default form).
       try {
         const [{ data: p }, { count: cc }, { data: camps }] = await Promise.all([
-          supabase.from('workspace_profiles').select('*').eq('workspace_id', member.workspace_id).maybeSingle(),
-          supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('workspace_id', member.workspace_id),
-          supabase.from('campaigns').select('sent_count').eq('workspace_id', member.workspace_id),
+          supabase.from('workspace_profiles').select('*').eq('workspace_id', workspaceId).maybeSingle(),
+          supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
+          supabase.from('campaigns').select('sent_count').eq('workspace_id', workspaceId),
         ])
         if (cancelled) return
         setCampaignCount(cc || 0)
@@ -211,7 +189,7 @@ export default function SettingsPage() {
 
         if (p) {
           const loaded = {
-            name:                   session.user.user_metadata?.full_name || '',
+            name:                   user!.user_metadata?.full_name || '',
             user_title:             p.user_title              || '',
             company_name:           p.company_name            || '',
             sender_name:            p.sender_name             || '',
@@ -252,7 +230,7 @@ export default function SettingsPage() {
         } else {
           // profile row missing — seed name from auth metadata so the form
           // isn't literally empty on first render. Save creates the row.
-          setForm(f => ({ ...f, name: session.user.user_metadata?.full_name || '' }))
+          setForm(f => ({ ...f, name: user!.user_metadata?.full_name || '' }))
         }
         setProfileLoaded(true)
       } catch (err) {
@@ -263,7 +241,7 @@ export default function SettingsPage() {
 
     load()
     return () => { cancelled = true }
-  }, [loadNonce])
+  }, [user, workspaceId, loadNonce])
 
   async function saveAccount() {
     setSavingSection('account')

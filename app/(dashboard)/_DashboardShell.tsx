@@ -20,14 +20,16 @@ import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist
 import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
 import { SampleDataBanner } from '@/components/onboarding/SampleDataBanner'
 import { ReplayWelcomeMenuItem } from '@/components/onboarding/ReplayWelcomeMenuItem'
+import { useWorkspace } from '@/lib/hooks/useWorkspace'
 
 const supabase = createClient()
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const tNav = useTranslations('dashboard.nav')
   const tShell = useTranslations('dashboard.shell')
-  const [user, setUser] = useState<any>(null)
-  const [workspace, setWorkspace] = useState<any>(null)
+  // Session + workspace_members bootstrap is owned by WorkspaceProvider
+  // (lib/hooks/useWorkspace). Consumers here just read.
+  const { user, workspace } = useWorkspace()
   const [billingData, setBillingData] = useState<{ blocked: boolean; daysRemaining: number; status: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
@@ -53,43 +55,35 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
+  // Trial banner + admin flag + workspace_profiles locale sync. Runs when the
+  // provider finishes bootstrapping (workspace becomes non-null) and re-runs
+  // if the provider ever refetches. Redirects /login and /no-workspace are
+  // owned by the provider — deliberately not duplicated here.
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { window.location.href = '/login'; return }
-      setUser(session.user)
-      const { data: member } = await supabase.from('workspace_members')
-        .select('workspace_id, workspaces(name, plan, plan_tier, credits, subscription_status, trial_end_date)')
-        .eq('user_id', session.user.id).single()
-      // Authenticated user with no workspace membership — most commonly the
-      // aftermath of the J+30 post-cancellation purge. The account still
-      // exists; the workspace does not. Send them to the recovery page
-      // instead of rendering an empty dashboard shell.
-      if (!member) { window.location.href = '/no-workspace'; return }
-      setWorkspace(member)
-      const ws = member.workspaces as any
-      const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
-      setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
-      fetch('/api/admin/check').then(r => r.json()).then(d => { if (d?.isAdmin) setIsSentraAdmin(true) }).catch(() => {})
+    if (!workspace) return
+    const ws = workspace.workspaces as any
+    const ts = getTrialStatus({ subscription_status: ws?.subscription_status, trial_end_date: ws?.trial_end_date })
+    setBillingData({ blocked: ts.blockedActions, daysRemaining: ts.daysRemaining, status: ts.status })
+    fetch('/api/admin/check').then(r => r.json()).then(d => { if (d?.isAdmin) setIsSentraAdmin(true) }).catch(() => {})
 
-      // Sync the dashboard locale cookie against workspace_profiles.language.
-      // If the DB language changed (e.g. admin flipped it, or a settings page
-      // update landed) and diverges from the cookie posed at login, update
-      // the cookie so the NEXT reload picks up the new locale. We deliberately
-      // do NOT force a re-hydration of the current render — avoids a visible
-      // EN↔FR flash mid-session. A hard refresh applies the change.
-      supabase
-        .from('workspace_profiles')
-        .select('language')
-        .eq('workspace_id', member.workspace_id)
-        .maybeSingle()
-        .then(({ data: profile }) => {
-          const dbLang = profile?.language
-          if (dbLang === 'en' || dbLang === 'fr') {
-            if (readDashboardLocaleSync() !== dbLang) writeDashboardLocale(dbLang)
-          }
-        })
-    })
-  }, [])
+    // Sync the dashboard locale cookie against workspace_profiles.language.
+    // If the DB language changed (e.g. admin flipped it, or a settings page
+    // update landed) and diverges from the cookie posed at login, update
+    // the cookie so the NEXT reload picks up the new locale. We deliberately
+    // do NOT force a re-hydration of the current render — avoids a visible
+    // EN↔FR flash mid-session. A hard refresh applies the change.
+    supabase
+      .from('workspace_profiles')
+      .select('language')
+      .eq('workspace_id', workspace.workspace_id)
+      .maybeSingle()
+      .then(({ data: profile }) => {
+        const dbLang = profile?.language
+        if (dbLang === 'en' || dbLang === 'fr') {
+          if (readDashboardLocaleSync() !== dbLang) writeDashboardLocale(dbLang)
+        }
+      })
+  }, [workspace])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
