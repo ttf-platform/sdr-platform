@@ -5,16 +5,18 @@ import { onboardingProgressPatchSchema, badRequest } from '@/lib/schemas'
 
 // Auto-detect step completions via live DB queries.
 // ICP fields live on workspace_profiles (not workspaces).
+// 5 steps: mailbox_connected implies domain_added (a verified email_account
+// requires a row to exist), and campaign_launched (status='active') implies
+// variants_reviewed (approval is a prerequisite for launch) — those pairs
+// were merged in lot A.
 async function detectCompletions(workspaceId: string) {
   const admin = createAdminClient()
 
   const [
     { data: profile },
-    { count: emailAccountsTotal },
     { count: emailAccountsVerified },
     { data: latestCampaign, count: campaignsCount },
     { count: prospectsCount },
-    { count: approvedEmailsCount },
     { count: launchedCount },
   ] = await Promise.all([
     // Step 1 — ICP configured: product_description + icp_description both present
@@ -24,20 +26,14 @@ async function detectCompletions(workspaceId: string) {
       .eq('workspace_id', workspaceId)
       .single(),
 
-    // Step 2 — Sending domain added: any email_account record
-    admin
-      .from('email_accounts')
-      .select('*', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId),
-
-    // Step 3 — Mailbox connected: DNS verified
+    // Step 2 — Sending inbox connected: DNS verified (covers "domain added")
     admin
       .from('email_accounts')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('setup_status', 'verified'),
 
-    // Step 4 — Campaign created (exclude demo/sample campaigns)
+    // Step 3 — Campaign created (exclude demo/sample campaigns)
     admin
       .from('campaigns')
       .select('id', { count: 'exact' })
@@ -46,22 +42,15 @@ async function detectCompletions(workspaceId: string) {
       .order('created_at', { ascending: false })
       .limit(1),
 
-    // Step 5 — At least 1 prospect added (exclude demo/sample prospects)
+    // Step 4 — At least 1 prospect added (exclude demo/sample prospects)
     admin
       .from('prospects')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('is_sample', false),
 
-    // Step 6 — At least 1 email draft approved (exclude demo/sample emails)
-    admin
-      .from('prospect_emails')
-      .select('*', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('is_sample', false)
-      .eq('status', 'approved'),
-
-    // Step 7 — Campaign launched (status = active, exclude demo/sample campaigns)
+    // Step 5 — Campaign launched (status='active') — implicitly covers
+    // variants_reviewed since approval is required before launch.
     admin
       .from('campaigns')
       .select('*', { count: 'exact', head: true })
@@ -73,21 +62,17 @@ async function detectCompletions(workspaceId: string) {
   const icp_configured = Boolean(
     profile?.icp_description?.trim() && profile?.product_description?.trim()
   )
-  const domain_added       = (emailAccountsTotal ?? 0) > 0
   const mailbox_connected  = (emailAccountsVerified ?? 0) > 0
   const campaign_created   = (campaignsCount ?? 0) > 0
   const prospects_added    = (prospectsCount ?? 0) >= 1
-  const variants_reviewed  = (approvedEmailsCount ?? 0) >= 1
   const campaign_launched  = (launchedCount ?? 0) >= 1
   const last_campaign_id   = latestCampaign?.[0]?.id ?? null
 
   return {
     icp_configured,
-    domain_added,
     mailbox_connected,
     campaign_created,
     prospects_added,
-    variants_reviewed,
     campaign_launched,
     last_campaign_id,
   }
@@ -113,11 +98,9 @@ export async function GET() {
 
   const stepsCompleted = [
     completions.icp_configured,
-    completions.domain_added,
     completions.mailbox_connected,
     completions.campaign_created,
     completions.prospects_added,
-    completions.variants_reviewed,
     completions.campaign_launched,
   ].filter(Boolean).length
 
@@ -125,9 +108,9 @@ export async function GET() {
     workspace_id:     workspaceId,
     stored:           storedState,
     completions,
-    progress_percent: Math.round((stepsCompleted / 7) * 100),
+    progress_percent: Math.round((stepsCompleted / 5) * 100),
     steps_completed:  stepsCompleted,
-    total_steps:      7,
+    total_steps:      5,
   })
 }
 

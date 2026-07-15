@@ -17,14 +17,14 @@ interface ChecklistStep {
 
 // Step order + destination logic — copy lives in i18n
 // (components.onboarding.checklist.steps.<key>.{title,description}).
+// 5 steps after lot A merge: domain+mailbox → mailbox_connected;
+// review+launch → campaign_launched (routes to approval queue).
 const STEPS: ChecklistStep[] = [
   { key: 'icp_configured',    href: () => '/dashboard/settings#icp' },
-  { key: 'domain_added',      href: () => '/dashboard/settings/sending-domains/order-dfy' },
   { key: 'mailbox_connected', href: () => '/dashboard/settings/sending-domains' },
   { key: 'campaign_created',  href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
   { key: 'prospects_added',   href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
-  { key: 'variants_reviewed', href: (id) => id ? `/dashboard/campaigns/${id}?tab=approval_queue` : '/dashboard/campaigns' },
-  { key: 'campaign_launched', href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
+  { key: 'campaign_launched', href: (id) => id ? `/dashboard/campaigns/${id}?tab=approval_queue` : '/dashboard/campaigns' },
 ]
 
 function SparkCheckmark({ isRecent }: { isRecent: boolean }) {

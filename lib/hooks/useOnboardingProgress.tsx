@@ -8,11 +8,9 @@ import type { ReactNode } from 'react'
 
 export interface OnboardingCompletions {
   icp_configured: boolean
-  domain_added: boolean
   mailbox_connected: boolean
   campaign_created: boolean
   prospects_added: boolean
-  variants_reviewed: boolean
   campaign_launched: boolean
   last_campaign_id: string | null
 }
@@ -40,11 +38,9 @@ type StepKey = Exclude<keyof OnboardingCompletions, 'last_campaign_id'>
 
 const STEP_KEYS: StepKey[] = [
   'icp_configured',
-  'domain_added',
   'mailbox_connected',
   'campaign_created',
   'prospects_added',
-  'variants_reviewed',
   'campaign_launched',
 ]
 

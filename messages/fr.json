@@ -2359,19 +2359,15 @@
     "onboarding": {
       "welcome": {
         "title": "Bienvenue sur Mirvo",
-        "description": "Votre agent commercial IA est prêt. Voici votre configuration en 7 étapes : connectez votre boîte mail et vous pouvez envoyer vos premiers e-mails dès aujourd'hui.",
+        "description": "Votre agent commercial IA est prêt. Voici votre configuration en 5 étapes : connectez votre boîte mail et vous pouvez envoyer vos premiers e-mails dès aujourd'hui.",
         "steps": {
           "icp_configured": {
             "title": "Définissez votre ICP",
             "description": "Dites à Mirvo qui vous ciblez : l'IA s'en sert pour personnaliser chaque e-mail."
           },
-          "domain_added": {
-            "title": "Ajoutez votre domaine d'envoi",
-            "description": "Configurez le DNS pour la délivrabilité à long terme : connectez une boîte que vous utilisez déjà et vous pouvez commencer à envoyer dès aujourd'hui."
-          },
           "mailbox_connected": {
-            "title": "Connectez votre boîte mail",
-            "description": "Reliez Gmail ou Outlook : Mirvo met votre domaine dédié en chauffe sur environ 3 semaines, pendant que votre boîte connectée continue d'assurer vos envois."
+            "title": "Connectez votre boîte d'envoi",
+            "description": "Reliez Gmail ou Outlook et envoyez dès aujourd'hui. Mirvo met un domaine dédié en chauffe en arrière-plan quand vous passez à l'échelle."
           },
           "campaign_created": {
             "title": "Créez votre première campagne",
@@ -2381,13 +2377,9 @@
             "title": "Ajoutez vos prospects",
             "description": "Import CSV ou découverte de prospects par IA : aucun crédit consommé pour un CSV."
           },
-          "variants_reviewed": {
-            "title": "Relisez les e-mails générés par l'IA",
-            "description": "La file de validation vous laisse valider chaque e-mail avant qu'il n'atteigne un prospect."
-          },
           "campaign_launched": {
-            "title": "Lancez : envoyez dès aujourd'hui",
-            "description": "Connectez votre boîte existante et commencez à envoyer tout de suite. Le passage à un domaine d'envoi dédié vient plus tard, quand vous êtes prêt."
+            "title": "Relire, valider & envoyer",
+            "description": "Validez vos brouillons IA dans la file, puis envoyez depuis votre boîte connectée."
           }
         },
         "cta": {
@@ -2412,13 +2404,9 @@
             "title": "Définissez votre ICP",
             "description": "Dites à Mirvo qui vous ciblez"
           },
-          "domain_added": {
-            "title": "Ajoutez un domaine d'envoi",
-            "description": "Configurez votre domaine pour la prospection"
-          },
           "mailbox_connected": {
-            "title": "Connectez votre boîte mail",
-            "description": "Connectez votre boîte : envoyez dès aujourd'hui"
+            "title": "Connectez votre boîte d'envoi",
+            "description": "Reliez une boîte : envoyez dès aujourd'hui"
           },
           "campaign_created": {
             "title": "Créez une première campagne",
@@ -2428,13 +2416,9 @@
             "title": "Ajoutez vos prospects",
             "description": "Import CSV ou découverte IA"
           },
-          "variants_reviewed": {
-            "title": "Relisez les e-mails IA",
-            "description": "File de validation : validez avant l'envoi"
-          },
           "campaign_launched": {
-            "title": "Lancez la campagne",
-            "description": "Envoyez dès aujourd'hui depuis votre boîte connectée"
+            "title": "Relire, valider & envoyer",
+            "description": "Validez dans la file, puis lancez"
           }
         },
         "celebration": {
@@ -2447,11 +2431,9 @@
           "description": "Progression de configuration mise à jour",
           "stepLabels": {
             "icp_configured": "ICP défini",
-            "domain_added": "Domaine d'envoi ajouté",
             "mailbox_connected": "Boîte mail connectée",
             "campaign_created": "Première campagne créée",
             "prospects_added": "Premier prospect ajouté",
-            "variants_reviewed": "Premier e-mail validé",
             "campaign_launched": "Première campagne lancée"
           }
         }

@@ -7,30 +7,24 @@ import { motion } from 'framer-motion'
 
 type StepKey =
   | 'icp_configured'
-  | 'domain_added'
   | 'mailbox_connected'
   | 'campaign_created'
   | 'prospects_added'
-  | 'variants_reviewed'
   | 'campaign_launched'
 
 const STEP_ICONS: Record<StepKey, string> = {
   icp_configured:    '🎯',
-  domain_added:      '🌐',
   mailbox_connected: '✉️',
   campaign_created:  '🚀',
   prospects_added:   '👥',
-  variants_reviewed: '✓',
   campaign_launched: '📤',
 }
 
 const STEP_ORDER: StepKey[] = [
   'icp_configured',
-  'domain_added',
   'mailbox_connected',
   'campaign_created',
   'prospects_added',
-  'variants_reviewed',
   'campaign_launched',
 ]
 
