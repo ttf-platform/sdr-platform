@@ -19,7 +19,7 @@ export function HelpLayout({
     <div className="min-h-screen bg-[#faf8f5]">
       <header className="border-b border-[#e8e3dc] bg-white sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3 text-sm">
-          <Link href={`/${locale}/dashboard` as Route} className="text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors hidden sm:inline">
+          <Link href={'/dashboard' as Route} className="text-[#6b5e4e] hover:text-[#1a1a1a] transition-colors hidden sm:inline">
             Dashboard
           </Link>
           <span className="text-[#6b5e4e] hidden sm:inline">/</span>
@@ -45,7 +45,7 @@ export function HelpLayout({
         <div className="mt-12 rounded-xl border border-[#e8e3dc] bg-white p-5 text-sm text-[#4a4a5a]">
           <p>
             Still stuck?{' '}
-            <Link href={`/${locale}/dashboard` as Route} className="text-[#3b6bef] underline">
+            <Link href={'/dashboard' as Route} className="text-[#3b6bef] underline">
               Open the AI assistant
             </Link>{' '}
             in your dashboard (bottom-right help button).
