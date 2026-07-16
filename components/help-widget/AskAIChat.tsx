@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { ChatMarkdown } from './ChatMarkdown'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -263,13 +264,19 @@ export function AskAIChat({ onBack, onClose }: Props) {
                   : 'bg-[#f0ece6] text-[#1a1a2e] rounded-bl-sm'
               }`}
             >
-              {msg.content || (loading && msg.role === 'assistant' ? (
-                <span className="inline-flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8a7e6e] animate-bounce" style={{ animationDelay: '0ms' }}/>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8a7e6e] animate-bounce" style={{ animationDelay: '150ms' }}/>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8a7e6e] animate-bounce" style={{ animationDelay: '300ms' }}/>
-                </span>
-              ) : '')}
+              {msg.role === 'assistant' ? (
+                msg.content
+                  ? <ChatMarkdown content={msg.content} />
+                  : loading
+                    ? (
+                      <span className="inline-flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#8a7e6e] animate-bounce" style={{ animationDelay: '0ms' }}/>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#8a7e6e] animate-bounce" style={{ animationDelay: '150ms' }}/>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#8a7e6e] animate-bounce" style={{ animationDelay: '300ms' }}/>
+                      </span>
+                    )
+                    : ''
+              ) : msg.content}
             </div>
           </div>
         ))}
