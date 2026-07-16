@@ -471,7 +471,8 @@ export default function ProfileIcpPage() {
             placeholder={t('icp.aiPlaceholder')}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
           />
-          <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-[#8a7e6e] mt-2">{t('icp.regenerateHint')}</p>
+          <div className="flex items-center justify-between mt-2 gap-3 flex-wrap">
             <span className={`text-xs ${form.icp_description.length >= 30 ? 'text-green-600' : 'text-[#8a7e6e]'}`}>
               {form.icp_description.length >= 30
                 ? t('icp.charsCounterDone', { count: form.icp_description.length, limit: 30 })
@@ -481,7 +482,7 @@ export default function ProfileIcpPage() {
               type="button"
               onClick={handleAiParse}
               disabled={aiParsing || !form.icp_description.trim()}
-              className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40"
+              className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 whitespace-nowrap"
             >
               {aiParsing ? t('icp.parsing') : `✨ ${t('icp.parseWithAi')}`}
             </button>

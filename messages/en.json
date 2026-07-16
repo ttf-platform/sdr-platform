@@ -889,7 +889,7 @@
         "website": "Company website",
         "websiteBadge": "Used in signature",
         "websitePlaceholder": "e.g. zobo.com",
-        "websiteHint": "Save time: we'll analyze your website and pre-fill both the offer and the ICP section below.",
+        "websiteHint": "Paste your website and we'll fill in your profile and ICP automatically.",
         "productDescription": "Product description",
         "valueProposition": "Value proposition",
         "industry": "Your industry",
@@ -908,7 +908,8 @@
         "aiTextareaLabel": "ICP description",
         "charsCounter": "{count}/{limit} chars",
         "charsCounterDone": "{count}/{limit} chars ✓",
-        "parseWithAi": "Parse with AI",
+        "regenerateHint": "Edit your ICP description if needed, then regenerate your criteria below.",
+        "parseWithAi": "Regenerate criteria",
         "parsing": "Parsing…",
         "structuredIcp": "Structured ICP",
         "labels": {
