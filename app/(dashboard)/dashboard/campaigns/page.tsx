@@ -320,7 +320,7 @@ export default function CampaignsPage() {
               <p className="text-xs text-[#8a7e6e] mt-4">
                 💡 {tEmpty.rich('configureIcp', {
                   link: chunks => (
-                    <Link href="/dashboard/settings#icp" className="underline hover:text-[#3b6bef] transition-colors">{chunks}</Link>
+                    <Link href="/dashboard/profile#icp" className="underline hover:text-[#3b6bef] transition-colors">{chunks}</Link>
                   ),
                 })}
               </p>
