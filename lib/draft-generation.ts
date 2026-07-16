@@ -1,7 +1,7 @@
 // Core campaign draft generation, shared by generate-drafts and regenerate-drafts routes.
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
-  renderTemplate, generateOpeningLine, assembleSmartBody,
+  renderTemplate, generateOpeningLine, assembleSmartBody, dedupeFirstNameRepeats,
   type ContactVars, type CampaignContext,
 } from '@/lib/personalization'
 import { renderSignature, appendSignature } from '@/lib/signature'
@@ -350,8 +350,13 @@ export async function generateDraftsForCampaign(
 
     if (mode === 'smart' && isInitial) {
       const opening = openingLines.get(item.prospect_id)
-      if (opening) body = assembleSmartBody(body, opening)
+      if (opening) body = assembleSmartBody(body, opening, item.vars.first_name)
     }
+
+    // Belt-and-suspenders: dedup the prospect's first name for template-only
+    // paths too (follow-ups, template mode initial). Only strips
+    // proper-name-clause repeats after the first isolated-word occurrence.
+    body = dedupeFirstNameRepeats(body, item.vars.first_name)
 
     if ((campaign as any).include_booking_link_initial && isInitial && bookingUrl) {
       body = body.trimEnd() + '\n\n' + bookingUrl

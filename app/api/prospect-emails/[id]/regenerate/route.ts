@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
-  renderTemplate, generateOpeningLine, assembleSmartBody,
+  renderTemplate, generateOpeningLine, assembleSmartBody, dedupeFirstNameRepeats,
   type ContactVars,
 } from '@/lib/personalization'
 import { getAnthropicClient } from '@/lib/anthropic'
@@ -105,8 +105,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       value_prop: campaign.value_prop,
       language:   campaign.language,
     }, step.body ?? '', guard.workspaceId)
-    if (opening) bodyOut = assembleSmartBody(bodyOut, opening)
+    if (opening) bodyOut = assembleSmartBody(bodyOut, opening, vars.first_name)
   }
+
+  // Belt-and-suspenders: strip proper-name-clause repeats for template-only
+  // paths (follow-up regeneration, template mode initial).
+  bodyOut = dedupeFirstNameRepeats(bodyOut, vars.first_name)
 
   // 5. Overwrite draft — reset review state
   const { data: updated, error } = await admin

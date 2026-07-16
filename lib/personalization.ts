@@ -83,6 +83,11 @@ PROSPECT:
 REST OF THE EMAIL (will follow your opening):
 ${templateBody}
 
+CRITICAL RULES -- first name (non-negotiable):
+- The prospect's first name (${vars.first_name ?? '<none>'}) must appear EXACTLY ONCE in the whole email — only in the greeting line "Hi {{first_name}}," that already exists below.
+- NEVER use the first name again anywhere: not in the opening, not in the body, not in the CTA, not in the sign-off.
+- DO NOT start the opening with the first name (e.g., avoid "${vars.first_name ?? 'Bob'}, saw that..."). Open with the hook, situation, or context — not the name.
+
 CRITICAL RULES -- anti-fabrication:
 - Use ONLY the data provided above. NEVER invent details about the prospect.
 - DO NOT invent: recent funding, milestones, named clients, recent posts, events attended, \
@@ -140,15 +145,95 @@ export async function generateOpeningLine(
   }
 }
 
+// ─── First-name deduplication (conservative) ──────────────────────────────────
+// Rule: the prospect's first name must appear at most ONCE in the whole email
+// (in the greeting, if the template has one). Sonnet is prompted to comply,
+// but this is a belt-and-suspenders guard for the tail cases where the AI
+// still restarts the opening with the prospect's name.
+//
+// Conservative to avoid false positives on names that are also English words
+// (Grace, Will, Mark, Bill, Sam, Rob, Chris, Faith, Hope, Joy, Dawn, Sky, …):
+//   1. Case-sensitive word-boundary match, so lowercase "will" (modal verb)
+//      does not collide with a capitalised "Will".
+//   2. Only strip repeats that clearly follow the proper-name-clause pattern
+//      "\bName[,:]" at the start of a line/paragraph. Mid-sentence references
+//      like "Bob and I discussed" are left untouched.
+//   3. If firstName length < 2, do nothing (avoid single-char matches).
+
+const REGEX_META = /[.*+?^${}()|[\]\\]/g
+
+function escapeRegex(s: string): string {
+  return s.replace(REGEX_META, '\\$&')
+}
+
+/**
+ * Removes leading-first-name prefixes from an AI opening line before it is
+ * inserted into the body. Example: "Bob, saw that Acme is hiring…" becomes
+ * "Saw that Acme is hiring…". Case-sensitive.
+ */
+export function stripLeadingFirstName(opening: string, firstName: string | null | undefined): string {
+  if (!firstName || firstName.length < 2) return opening
+  const escaped = escapeRegex(firstName)
+  // Matches "Name" or "Name," or "Name:" or "Name –" etc at the start.
+  const leadingRe = new RegExp(`^${escaped}[\\s,:;!\\-\\u2013\\u2014]+`)
+  const stripped = opening.replace(leadingRe, '').trimStart()
+  if (stripped === opening) return opening
+  // Recapitalise the new first character if it was mid-sentence (post-comma).
+  if (stripped.length > 0 && /^[a-z]/.test(stripped)) {
+    return stripped[0].toUpperCase() + stripped.slice(1)
+  }
+  return stripped
+}
+
+/**
+ * If the first name appears more than once as an isolated word in the body,
+ * strip proper-name-clause repeats — "Name," / "Name:" at the start of a
+ * line/paragraph. The standard greeting uses "Hi {{first_name}}," so the
+ * greeting is not preceded by `^` or `\n` directly (it has "Hi " in front),
+ * meaning this regex leaves the greeting untouched and only strips repeated
+ * proper-name-clause openers introduced elsewhere.
+ *
+ * Never touches mid-sentence references or in-word substrings ("Bob and I
+ * discussed" or "Marks" when firstName is "Mark").
+ */
+export function dedupeFirstNameRepeats(body: string, firstName: string | null | undefined): string {
+  if (!firstName || firstName.length < 2) return body
+  const escaped = escapeRegex(firstName)
+  // Fast check: are there multiple isolated-word occurrences at all?
+  const all = new RegExp(`\\b${escaped}\\b`, 'g')
+  const matches = body.match(all)
+  if (!matches || matches.length <= 1) return body
+
+  // Strip proper-name-clause openers ("Bob," / "Bob:") at the start of a
+  // line or paragraph. The greeting "Hi {name}," does not match this pattern
+  // (name is preceded by "Hi ", not by `^` or `\n`) and is preserved.
+  // After stripping, re-capitalise the first letter of the continuation so
+  // "Bob, the way you scaled…" becomes "The way you scaled…" (safe because
+  // the strip target is always at the very start of a line).
+  const repeatClauseRe = new RegExp(`(^|\\n)${escaped}[,:]\\s?([a-z])?`, 'g')
+  return body.replace(repeatClauseRe, (_match, before, firstChar) => {
+    if (firstChar) return before + firstChar.toUpperCase()
+    return before
+  })
+}
+
 // ─── Smart body assembly ──────────────────────────────────────────────────────
 // Inserts AI opening line after the greeting salutation (if present),
 // replacing the first content paragraph. Preserves "Hi {{first_name}}," greeting.
 // Format: [greeting]\n\n[AI opening]\n\n[body from 2nd paragraph onward]
+//
+// The optional firstName argument enables the two-tier first-name dedup guard
+// described above. If omitted, the assembler behaves like before.
 
-export function assembleSmartBody(renderedBody: string, openingLine: string): string {
-  const opening = openingLine.trimEnd()
+export function assembleSmartBody(
+  renderedBody: string,
+  openingLine: string,
+  firstName?: string | null,
+): string {
+  const opening = stripLeadingFirstName(openingLine.trimEnd(), firstName)
   const firstBlank = renderedBody.indexOf('\n\n')
 
+  let assembled: string
   if (firstBlank >= 0) {
     const firstPara      = renderedBody.slice(0, firstBlank).trim()
     const afterFirstBlank = renderedBody.slice(firstBlank + 2)
@@ -158,16 +243,19 @@ export function assembleSmartBody(renderedBody: string, openingLine: string): st
     if (firstPara.length <= 30 && firstPara.endsWith(',')) {
       const secondBlank = afterFirstBlank.indexOf('\n\n')
       const rest        = secondBlank >= 0 ? afterFirstBlank.slice(secondBlank) : ''
-      return firstPara + '\n\n' + opening + rest
+      assembled = firstPara + '\n\n' + opening + rest
+    } else {
+      // No greeting: replace first paragraph with AI opening, keep the rest
+      assembled = opening + '\n\n' + afterFirstBlank
     }
-
-    // No greeting: replace first paragraph with AI opening, keep the rest
-    return opening + '\n\n' + afterFirstBlank
+  } else {
+    const firstNewline = renderedBody.indexOf('\n')
+    if (firstNewline >= 0) {
+      assembled = opening + '\n\n' + renderedBody.slice(firstNewline + 1).trimStart()
+    } else {
+      assembled = opening + '\n\n' + renderedBody
+    }
   }
 
-  const firstNewline = renderedBody.indexOf('\n')
-  if (firstNewline >= 0) {
-    return opening + '\n\n' + renderedBody.slice(firstNewline + 1).trimStart()
-  }
-  return opening + '\n\n' + renderedBody
+  return dedupeFirstNameRepeats(assembled, firstName)
 }
