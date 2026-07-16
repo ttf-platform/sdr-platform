@@ -2060,6 +2060,12 @@
         "valueProposition": "Proposition de valeur",
         "valueCounter": "{count}/20 {count, plural, one {caractère} other {caractères}}{ok, select, true { ✓} other {}}"
       },
+      "profileLink": {
+        "sectionTitle": "OFFRE & ICP",
+        "badge": "Déplacé",
+        "description": "Votre description de produit, proposition de valeur, l'analyse de site et l'ICP vivent désormais dans leur propre onglet — pour que l'analyse remplisse chaque champ là où vous le voyez.",
+        "cta": "Ouvrir Profil & ICP"
+      },
       "prospectResearch": {
         "sectionTitle": "RECHERCHE DE PROSPECTS",
         "subtitle": "Vos crédits mensuels de recherche de prospects.",

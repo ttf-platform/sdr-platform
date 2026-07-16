@@ -2060,6 +2060,12 @@
         "valueProposition": "Value proposition",
         "valueCounter": "{count}/20 {count, plural, one {char} other {chars}}{ok, select, true { ✓} other {}}"
       },
+      "profileLink": {
+        "sectionTitle": "OFFER & ICP",
+        "badge": "Moved",
+        "description": "Your product description, value proposition, website autofill and ICP now live in their own tab, so the parse writes every field where you can see it.",
+        "cta": "Open Profile & ICP"
+      },
       "prospectResearch": {
         "sectionTitle": "PROSPECT RESEARCH",
         "subtitle": "Your monthly prospect research credits.",
