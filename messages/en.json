@@ -627,6 +627,7 @@
   "dashboard": {
     "nav": {
       "dashboard": "Dashboard",
+      "profile": "Profile & ICP",
       "campaigns": "Campaigns",
       "signals": "Signals",
       "inbox": "Inbox",

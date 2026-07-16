@@ -6,7 +6,7 @@ import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { readDashboardLocaleSync, writeDashboardLocale } from '@/lib/locale'
-import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio, ListChecks } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio, ListChecks, Target } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
@@ -109,6 +109,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // Nav items — labelKey references dashboard.nav.* i18n key.
   const navItems = [
     { href: '/dashboard',           labelKey: 'dashboard', icon: LayoutDashboard },
+    { href: '/dashboard/profile',   labelKey: 'profile',   icon: Target },
     { href: '/dashboard/campaigns', labelKey: 'campaigns', icon: Megaphone },
     { href: '/dashboard/signals',   labelKey: 'signals',   icon: Radio },
     { href: '/dashboard/inbox',     labelKey: 'inbox',     icon: Mail },
