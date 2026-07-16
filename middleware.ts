@@ -7,6 +7,47 @@ import { globalRateLimit, writeRateLimit } from '@/lib/ratelimit'
 
 const isDev = process.env.NODE_ENV === 'development'
 
+// Supported locales for the auth-guard redirect target. Kept aligned with
+// i18n/routing.ts (single source of truth: routing.locales, routing.defaultLocale).
+type Locale = 'en' | 'fr'
+const DEFAULT_LOCALE: Locale = 'en'
+
+function isLocale(v: string | undefined): v is Locale {
+  return v === 'en' || v === 'fr'
+}
+
+/**
+ * Resolve the redirect locale for an unauthenticated /dashboard request.
+ * Priority: our bespoke dashboard cookie (set at login / by _DashboardShell) →
+ * next-intl's cookie (used by /[locale]/* routes) → default 'en'.
+ */
+function resolveRedirectLocale(request: NextRequest): Locale {
+  const dashboardCookie = request.cookies.get('mirvo_dashboard_locale')?.value
+  if (isLocale(dashboardCookie)) return dashboardCookie
+  const nextLocaleCookie = request.cookies.get('NEXT_LOCALE')?.value
+  if (isLocale(nextLocaleCookie)) return nextLocaleCookie
+  return DEFAULT_LOCALE
+}
+
+/**
+ * Copy every cookie written by the Supabase SSR client on `from` (typically
+ * `supabaseResponse`, mutated by the set/remove callbacks during token refresh)
+ * onto `to` (a fresh redirect / next response). Without this the refreshed
+ * auth tokens are dropped when the middleware returns a NextResponse.redirect,
+ * silently ending a session that could have been kept alive — the exact bug
+ * seen on the Stripe portal round-trip.
+ *
+ * We iterate on `from.cookies.getAll()` because Supabase's SSR client mutates
+ * that jar as part of `auth.getUser()` when it decides to refresh the tokens.
+ * The set/remove callbacks in this middleware update `supabaseResponse` in
+ * place with each mutation, so a single copy at the end catches the final state.
+ */
+function propagateAuthCookies(from: NextResponse, to: NextResponse): void {
+  for (const cookie of from.cookies.getAll()) {
+    to.cookies.set(cookie)
+  }
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const SUPABASE_HOST = SUPABASE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '')
 
@@ -124,9 +165,11 @@ export async function middleware(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
+      const locale = resolveRedirectLocale(request)
       const url = request.nextUrl.clone()
-      url.pathname = '/en/login'
+      url.pathname = `/${locale}/login`
       const redirect = NextResponse.redirect(url)
+      propagateAuthCookies(supabaseResponse, redirect)
       applySecurityHeaders(redirect)
       return redirect
     }
