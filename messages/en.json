@@ -874,6 +874,78 @@
         "networkError": "Network error"
       }
     },
+    "profile": {
+      "breadcrumbDashboard": "Dashboard",
+      "breadcrumbCurrent": "Profile & ICP",
+      "header": {
+        "title": "Profile & ICP",
+        "subtitle": "Your offer and your Ideal Customer Profile — Mirvo uses this to personalize every campaign."
+      },
+      "offer": {
+        "sectionTitle": "YOUR OFFER",
+        "tooltip": "The product, its value, and who runs it. Auto-fill from your website to bootstrap all fields, including ICP.",
+        "description": "Drop your website and let Mirvo fill your offer AND your ICP in one shot. Review below, edit anything, then save.",
+        "website": "Company website",
+        "websiteBadge": "Used in signature",
+        "websitePlaceholder": "e.g. zobo.com",
+        "websiteHint": "Save time: we'll analyze your website and pre-fill both the offer and the ICP section below.",
+        "productDescription": "Product description",
+        "valueProposition": "Value proposition",
+        "industry": "Your industry",
+        "industryPlaceholder": "e.g. SaaS, Fintech, Healthcare",
+        "companySize": "Your company size",
+        "companySizeEmpty": "Select size",
+        "chars": "{count}/{limit} chars",
+        "charsDone": "{count}/{limit} chars ✓"
+      },
+      "icp": {
+        "sectionTitle": "IDEAL CUSTOMER PROFILE",
+        "sourceOfTruth": "Source of truth",
+        "description": "This is your refined ideal customer profile — the source of truth every new campaign builds on. Autofill from your website above gives a first draft; sharpen it here, then save.",
+        "aiHelper": "Describe your target ICP in plain English and let AI structure it",
+        "aiPlaceholder": "e.g. I want to target B2B SaaS founders in Europe struggling with outbound and with 10-200 employees...",
+        "aiTextareaLabel": "ICP description",
+        "charsCounter": "{count}/{limit} chars",
+        "charsCounterDone": "{count}/{limit} chars ✓",
+        "parseWithAi": "Parse with AI",
+        "parsing": "Parsing…",
+        "structuredIcp": "Structured ICP",
+        "labels": {
+          "industry": "Target industry",
+          "titles": "Target titles",
+          "regions": "Target regions",
+          "painPoints": "Pain points",
+          "companySize": "Target company size (select all that apply)",
+          "companyRevenue": "Target company revenue",
+          "emailTone": "Email tone"
+        },
+        "placeholders": {
+          "industry": "e.g. SaaS, Fintech",
+          "titles": "e.g. CEO, CTO, VP Sales",
+          "regions": "e.g. US, Europe, APAC",
+          "painPoints": "e.g. struggling with outbound, missing quota, manual prospecting takes too long..."
+        },
+        "optional": "(optional)",
+        "tones": {
+          "professional": "Professional",
+          "casual": "Casual",
+          "direct": "Direct",
+          "friendly": "Friendly",
+          "witty": "Witty"
+        }
+      },
+      "actions": {
+        "saveOffer": "Save offer",
+        "saveIcp": "Save ICP",
+        "saving": "Saving…",
+        "saved": "✓ Saved",
+        "close": "Close"
+      },
+      "toasts": {
+        "autofillSaved": "Saved. We filled {count, plural, one {# field} other {# fields}} from your site.",
+        "autofillFailed": "Auto-fill failed. Please try again."
+      }
+    },
     "pipeline": {
       "board": {
         "header": {
