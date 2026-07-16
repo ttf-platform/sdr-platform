@@ -1779,7 +1779,13 @@
         "apply": "Apply",
         "applying": "Applying...",
         "footerNote": "Applied to your next renewal invoice.",
-        "unknownError": "Unknown error"
+        "unknownError": "Unknown error",
+        "invalidCode": "Invalid or expired code",
+        "discountApplied": "Discount applied",
+        "discountPercent": "−{percent}%",
+        "discountAmount": "−{amount}",
+        "appliedNow": "Applied to your next invoice.",
+        "appliedAtCheckout": "Applied when you subscribe."
       },
       "toasts": {
         "checkoutFailed": "Checkout failed",

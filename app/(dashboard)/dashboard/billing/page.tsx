@@ -56,10 +56,23 @@ export default function BillingPage() {
   const searchParams = useSearchParams()
   const checkoutResult = searchParams.get('checkout')
 
-  const [usage, setUsage]         = useState<UsageData | null>(null)
-  const [interval, setInterval]   = useState<'monthly' | 'yearly'>('monthly')
-  const [promoCode, setPromoCode] = useState('')
-  const [promoMsg, setPromoMsg]   = useState<{ ok: boolean; text: string } | null>(null)
+  // Validated promo (server-verified). Remembered across renders so it rides
+  // along on startCheckout() even before the user has a subscription — the
+  // whole point of B2. Cleared whenever the user edits the input again.
+  type ValidatedPromo = {
+    code:              string
+    label:             string
+    applied:           boolean
+    percent_off:       number | null
+    amount_off:        number | null
+    currency:          string | null
+  }
+
+  const [usage, setUsage]                     = useState<UsageData | null>(null)
+  const [interval, setInterval]               = useState<'monthly' | 'yearly'>('monthly')
+  const [promoCode, setPromoCode]             = useState('')
+  const [validatedPromo, setValidatedPromo]   = useState<ValidatedPromo | null>(null)
+  const [promoError, setPromoError]           = useState<string | null>(null)
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null)
   const [loadingPortal, setLoadingPortal]     = useState(false)
   const [loadingPromo, setLoadingPromo]       = useState(false)
@@ -84,7 +97,10 @@ export default function BillingPage() {
   async function startCheckout(plan: string) {
     setLoadingCheckout(plan)
     const body: Record<string, string> = { plan, interval }
-    if (promoCode.trim()) body.promo_code = promoCode.trim()
+    // Only forward a promo code the server already validated. Prevents a
+    // typo in the input field from silently reaching Stripe (or worse,
+    // being ignored server-side while looking accepted on the UI).
+    if (validatedPromo) body.promo_code = validatedPromo.code
     const res = await fetch('/api/stripe/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -116,15 +132,55 @@ export default function BillingPage() {
     else { setToast(res.error ?? tToasts('portalError')); setLoadingPortal(false) }
   }
 
+  function formatDiscountAmount(amount: number, currency: string | null): string {
+    // Stripe returns amount_off in the smallest currency unit (e.g. cents).
+    // We format it with Intl. Missing/unknown currency falls back to raw units
+    // with a "$" prefix so the pill still communicates something meaningful.
+    const value = amount / 100
+    if (!currency) return `$${value.toFixed(0)}`
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency.toUpperCase(), maximumFractionDigits: 0 }).format(value)
+    } catch {
+      return `${currency.toUpperCase()} ${value.toFixed(0)}`
+    }
+  }
+
   async function applyPromo() {
-    if (!promoCode.trim()) return
-    setLoadingPromo(true); setPromoMsg(null)
+    const trimmed = promoCode.trim()
+    if (!trimmed) return
+    setLoadingPromo(true); setPromoError(null); setValidatedPromo(null)
     const res = await fetch('/api/stripe/promo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ promo_code: promoCode.trim() }),
+      body: JSON.stringify({ promo_code: trimmed }),
     }).then(r => r.json())
-    setPromoMsg({ ok: !!res.success, text: res.message ?? res.error ?? tPromo('unknownError') })
     setLoadingPromo(false)
+
+    if (res?.success && res?.discount) {
+      const d = res.discount as { percent_off: number | null; amount_off: number | null; currency: string | null }
+      const label = d.percent_off != null
+        ? tPromo('discountPercent', { percent: d.percent_off })
+        : d.amount_off != null
+          ? tPromo('discountAmount',  { amount: formatDiscountAmount(d.amount_off, d.currency) })
+          : tPromo('discountApplied')
+      setValidatedPromo({
+        code:        res.code,
+        applied:     !!res.applied,
+        label,
+        percent_off: d.percent_off,
+        amount_off:  d.amount_off,
+        currency:    d.currency,
+      })
+    } else {
+      setPromoError(tPromo('invalidCode'))
+    }
+  }
+
+  function onPromoInputChange(next: string) {
+    setPromoCode(next.toUpperCase())
+    // Any edit invalidates the previous server confirmation so the pill and
+    // the checkout body never disagree with what the user currently sees.
+    if (validatedPromo) setValidatedPromo(null)
+    if (promoError)     setPromoError(null)
   }
 
   async function toggleOverage() {
@@ -226,7 +282,54 @@ export default function BillingPage() {
         )}
       </div>
 
-      {/* ── Section 2: Usage ──────────────────────────────────────────────── */}
+      {/* ── Section 2: Promo code ─────────────────────────────────────────── */}
+      {/* Sits directly under "Add payment method" so trial users see the promo
+          option before they check out — B2 fix. Pre-checkout: the server
+          validates the code and returns the discount preview; the client keeps
+          it in `validatedPromo` and re-injects the code into /api/stripe/checkout
+          when the user clicks a plan CTA. Post-subscription: same call also
+          applies the coupon to the live subscription. */}
+      <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
+        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('promoCode')}</div>
+        <div className="flex gap-2">
+          <input
+            value={promoCode}
+            onChange={e => onPromoInputChange(e.target.value)}
+            placeholder={tPromo('placeholder')}
+            className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] uppercase"
+          />
+          <button
+            onClick={applyPromo}
+            disabled={loadingPromo || !promoCode.trim() || !!validatedPromo}
+            className="bg-[#1a1a2e] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40"
+          >
+            {loadingPromo ? tPromo('applying') : tPromo('apply')}
+          </button>
+        </div>
+
+        {validatedPromo && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-50 text-green-700">
+              {validatedPromo.label}
+            </span>
+            <span className="text-xs text-[#6b5e4e]">
+              {validatedPromo.applied ? tPromo('appliedNow') : tPromo('appliedAtCheckout')}
+            </span>
+          </div>
+        )}
+
+        {promoError && (
+          <div className="mt-3">
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-700">
+              {promoError}
+            </span>
+          </div>
+        )}
+
+        <p className="text-xs text-[#b0a898] mt-3">{tPromo('footerNote')}</p>
+      </div>
+
+      {/* ── Section 3: Usage ──────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
         <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('usage')}</div>
         {!usage ? (
@@ -254,7 +357,7 @@ export default function BillingPage() {
         )}
       </div>
 
-      {/* ── Section 3: Plans ──────────────────────────────────────────────── */}
+      {/* ── Section 4: Plans ──────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">{tLabels('plans')}</div>
@@ -330,7 +433,7 @@ export default function BillingPage() {
         )}
       </div>
 
-      {/* ── Section 4: Overage ────────────────────────────────────────────── */}
+      {/* ── Section 5: Overage ────────────────────────────────────────────── */}
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-4">
         <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('overage')}</div>
         <div className="flex items-start justify-between gap-4">
@@ -356,26 +459,6 @@ export default function BillingPage() {
             <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${usage?.overage_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
-      </div>
-
-      {/* ── Section 5: Promo code ─────────────────────────────────────────── */}
-      <div className="bg-white border border-[#e8e3dc] rounded-xl p-5 mb-6">
-        <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider mb-4">{tLabels('promoCode')}</div>
-        <div className="flex gap-2">
-          <input value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())}
-            placeholder={tPromo('placeholder')}
-            className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] uppercase" />
-          <button onClick={applyPromo} disabled={loadingPromo || !promoCode.trim()}
-            className="bg-[#1a1a2e] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40">
-            {loadingPromo ? tPromo('applying') : tPromo('apply')}
-          </button>
-        </div>
-        {promoMsg && (
-          <p className={`text-xs mt-2 font-medium ${promoMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
-            {promoMsg.ok ? '✓ ' : '✕ '}{promoMsg.text}
-          </p>
-        )}
-        <p className="text-xs text-[#b0a898] mt-2">{tPromo('footerNote')}</p>
       </div>
     </div>
   )
