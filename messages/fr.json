@@ -1779,7 +1779,13 @@
         "apply": "Appliquer",
         "applying": "Application…",
         "footerNote": "Appliqué à votre prochaine facture de renouvellement.",
-        "unknownError": "Erreur inconnue"
+        "unknownError": "Erreur inconnue",
+        "invalidCode": "Code invalide ou expiré",
+        "discountApplied": "Réduction appliquée",
+        "discountPercent": "−{percent} %",
+        "discountAmount": "−{amount}",
+        "appliedNow": "Appliqué à votre prochaine facture.",
+        "appliedAtCheckout": "Appliqué au moment de la souscription."
       },
       "toasts": {
         "checkoutFailed": "Le paiement a échoué",
