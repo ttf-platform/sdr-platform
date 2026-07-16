@@ -1,0 +1,91 @@
+---
+title: Setup walkthrough
+description: The master onboarding doc. Each step takes under 5 minutes, and total active time lands around 20 minutes.
+slug: setup-walkthrough
+category: getting-started
+order: 2
+last_updated: 2026-07-16
+---
+
+# Setup walkthrough
+
+This is the master onboarding doc. Each step has its own deep-dive article where useful. Follow the order below.
+
+Total active time: around 20 minutes. First drafts can appear in your Approval Queue within an hour of finishing the walkthrough.
+
+<Callout type="info">
+Already signed in? Open your [dashboard](/dashboard) and follow along. A setup checklist pinned in the bottom-left corner of every dashboard page tracks your progress.
+</Callout>
+
+## Define your ICP
+
+Open the **Profile & ICP** tab. Two sections live there: **Offer** (`#offre`) and **Ideal Customer Profile** (`#icp`). The fastest way to fill both is the auto-fill button: paste your website URL in the Offer section and Mirvo pre-fills your product description, value proposition, industry, company size, and every field in the ICP block in a single click. Review, tweak, save.
+
+Master ICP is the ground truth Mirvo uses for every email it drafts. Time spent here pays back on every downstream draft, so the two-minute review after auto-fill is worth it.
+
+Direct link: [dashboard/profile#icp](/dashboard/profile#icp)
+
+<Screenshot placeholder alt='Profile & ICP page with Offer and Ideal Customer Profile sections and the paste-your-website auto-fill button' caption='Profile & ICP page: paste your website, auto-fill sends the parsed profile into both the Offer and ICP sections' />
+
+Deep dive: [Your Master ICP](/help/master-icp)
+
+## Connect your sending inbox
+
+Open **Settings, Sending Domains** and connect Gmail or Outlook through the OAuth flow. Takes about 30 seconds. Replies land in Mirvo's inbox, not your personal one, so your real inbox stays quiet.
+
+If you plan to scale volume, add a dedicated sending domain later on the same page. Mirvo warms it up in the background while your connected mailbox keeps sending, so there's no downtime and no separate step to complete before day one.
+
+Direct link: [dashboard/settings/sending-domains](/dashboard/settings/sending-domains)
+
+<Screenshot placeholder alt='Sending Domains page with Gmail and Outlook connect buttons plus the optional custom-domain warmup card' caption='Sending Domains page: connect a mailbox to send today, add a dedicated domain any time' />
+
+Deep dive: [Linking your mailbox](/help/linking-your-mailbox)
+
+## Create your first campaign
+
+Click **Campaigns, New campaign**. Mirvo AI drafts the full sequence for you: opening email, follow-ups, cadence. The AI reads your Master ICP, so the sharper that is, the better the drafts.
+
+Optional: attach a Signal at creation time to narrow drafting to prospects hitting a buying moment. Without a Signal, the campaign drafts for every targeted prospect.
+
+Direct link: [dashboard/campaigns](/dashboard/campaigns)
+
+<Screenshot placeholder alt='New Campaign form showing the AI sequence step and optional Signal picker' caption='New Campaign: name it, pick a template or blank, add an optional Signal, Mirvo AI writes the sequence' />
+
+Deep dive: [Create your first campaign](/help/create-your-first-campaign)
+
+## Add your prospects
+
+Two ways to populate the list:
+
+- **Import.** Upload a CSV or paste rows. Required columns: email, first name, company. Other columns become merge fields the AI can pull into drafts.
+- **AI discovery.** Filter Mirvo's prospect database by industry, role, company size, geography, and tech stack. No CSV required.
+
+You can mix both inside the same campaign.
+
+Direct link: [dashboard/prospects](/dashboard/prospects)
+
+<Screenshot placeholder alt='Prospects page with Import CSV and AI discovery entry points' caption='Prospects page: import a CSV or discover new prospects that match your ICP' />
+
+Deep dive: [Picking your prospects](/help/picking-your-prospects)
+
+## Review, approve & send
+
+Drafts appear in the **Approval Queue** shortly after you launch the campaign. For each one:
+
+- **Read.** Does the personalization make sense? Does the ask fit the prospect?
+- **Edit inline.** Any change is saved instantly.
+- **Approve.** Approved drafts go into the send queue and leave from your connected mailbox on their scheduled cadence.
+
+Nothing goes out without your approval. Once the rhythm feels right, you can switch specific campaigns to auto-approve and step back to the analytics view.
+
+To open it, go to your campaign detail page and click the Approval Queue tab.
+
+<Screenshot placeholder alt='Approval Queue with a draft expanded, personalization highlighted, Edit and Approve buttons visible' caption='Approval Queue: read, edit, approve. Sending starts from your connected mailbox on the campaign cadence' />
+
+Deep dive: [Approval Queue workflow](/help/approval-queue-workflow)
+
+## What's next
+
+- [What are Signals?](/help/what-are-signals): the optional precision layer that narrows drafting to buying moments
+- [Plans and pricing](/help/plans-pricing): quotas, credits, what's included
+- [Troubleshooting common issues](/help/troubleshooting): if something doesn't work

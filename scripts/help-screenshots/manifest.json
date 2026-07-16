@@ -1,73 +1,53 @@
 [
   {
-    "article_slug": "7-step-setup",
+    "article_slug": "setup-walkthrough",
     "index": 1,
-    "alt": "Settings, Mailboxes page with \"Add mailbox\" button highlighted, showing Gmail and Outlook options",
-    "caption": "Settings, Mailboxes page with \"Add mailbox\" button highlighted, showing Gmail and Outlook options",
-    "file": "7-step-setup-1.png",
-    "target_url": "/dashboard/settings",
-    "state_required": "mailbox-connected",
-    "skip_reason": ""
-  },
-  {
-    "article_slug": "7-step-setup",
-    "index": 2,
-    "alt": "Master ICP form with example values filled in",
-    "caption": "Master ICP form with example values filled in",
-    "file": "7-step-setup-2.png",
-    "target_url": "/dashboard/settings",
+    "alt": "Profile & ICP page with Offer and Ideal Customer Profile sections and the paste-your-website auto-fill button",
+    "caption": "Profile & ICP page: paste your website, auto-fill sends the parsed profile into both the Offer and ICP sections",
+    "file": "setup-walkthrough-1.png",
+    "target_url": "/dashboard/profile#icp",
     "state_required": "master-icp-filled",
-    "skip_reason": ""
+    "skip_reason": "pending regeneration for 5-step setup walkthrough"
   },
   {
-    "article_slug": "7-step-setup",
+    "article_slug": "setup-walkthrough",
+    "index": 2,
+    "alt": "Sending Domains page with Gmail and Outlook connect buttons plus the optional custom-domain warmup card",
+    "caption": "Sending Domains page: connect a mailbox to send today, add a dedicated domain any time",
+    "file": "setup-walkthrough-2.png",
+    "target_url": "/dashboard/settings/sending-domains",
+    "state_required": "mailbox-connected",
+    "skip_reason": "pending regeneration for 5-step setup walkthrough"
+  },
+  {
+    "article_slug": "setup-walkthrough",
     "index": 3,
-    "alt": "Sending Domains 3-step wizard, showing DNS records to add",
-    "caption": "Sending Domains 3-step wizard, showing DNS records to add",
-    "file": "7-step-setup-3.png",
-    "target_url": "/dashboard/settings/sending-domains/new",
+    "alt": "New Campaign form showing the AI sequence step and optional Signal picker",
+    "caption": "New Campaign: name it, pick a template or blank, add an optional Signal, Mirvo AI writes the sequence",
+    "file": "setup-walkthrough-3.png",
+    "target_url": "/dashboard/campaigns",
     "state_required": "none",
-    "skip_reason": ""
+    "skip_reason": "pending regeneration for 5-step setup walkthrough"
   },
   {
-    "article_slug": "7-step-setup",
+    "article_slug": "setup-walkthrough",
     "index": 4,
-    "alt": "Prospects page with toggle between \"Import\" and \"Search\" tabs",
-    "caption": "Prospects page with toggle between \"Import\" and \"Search\" tabs",
-    "file": "7-step-setup-4.png",
+    "alt": "Prospects page with Import CSV and AI discovery entry points",
+    "caption": "Prospects page: import a CSV or discover new prospects that match your ICP",
+    "file": "setup-walkthrough-4.png",
     "target_url": "/dashboard/prospects",
     "state_required": "none",
-    "skip_reason": ""
+    "skip_reason": "pending regeneration for 5-step setup walkthrough"
   },
   {
-    "article_slug": "7-step-setup",
+    "article_slug": "setup-walkthrough",
     "index": 5,
-    "alt": "Campaign creation form with prospect selection, sequence steps, and optional Signal section",
-    "caption": "Campaign creation form with prospect selection, sequence steps, and optional Signal section",
-    "file": "7-step-setup-5.png",
-    "target_url": "/dashboard/campaigns/new",
-    "state_required": "none",
-    "skip_reason": ""
-  },
-  {
-    "article_slug": "7-step-setup",
-    "index": 6,
-    "alt": "Approval Queue with a draft email expanded, showing AI-generated personalization and edit/approve buttons",
-    "caption": "Approval Queue with a draft email expanded, showing AI-generated personalization and edit/approve buttons",
-    "file": "7-step-setup-6.png",
+    "alt": "Approval Queue with a draft expanded, personalization highlighted, Edit and Approve buttons visible",
+    "caption": "Approval Queue: read, edit, approve. Sending starts from your connected mailbox on the campaign cadence",
+    "file": "setup-walkthrough-5.png",
     "target_url": "/dashboard/campaigns",
     "state_required": "campaign-launched-with-drafts",
-    "skip_reason": ""
-  },
-  {
-    "article_slug": "7-step-setup",
-    "index": 7,
-    "alt": "Mirvo inbox with replies sorted by intent category, showing positive/objection/OOO labels",
-    "caption": "Mirvo inbox with replies sorted by intent category, showing positive/objection/OOO labels",
-    "file": "7-step-setup-7.png",
-    "target_url": "/dashboard/inbox",
-    "state_required": "replies-received",
-    "skip_reason": "intent-sorted reply inbox not fully built"
+    "skip_reason": "pending regeneration for 5-step setup walkthrough"
   },
   {
     "article_slug": "adding-a-sending-domain",

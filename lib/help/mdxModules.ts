@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 
 import HowMirvoWorks from '@/content/help/how-mirvo-works.mdx'
-import SevenStepSetup from '@/content/help/7-step-setup.mdx'
+import SetupWalkthrough from '@/content/help/setup-walkthrough.mdx'
 import MasterICP from '@/content/help/master-icp.mdx'
 import AddingSendingDomain from '@/content/help/adding-a-sending-domain.mdx'
 import ChoosingYourSendingSetup from '@/content/help/choosing-your-sending-setup.mdx'
@@ -25,7 +25,7 @@ import ReadingYourReplyInbox from '@/content/help/reading-your-reply-inbox.mdx'
 
 export const MDX_MODULES: Record<string, ComponentType> = {
   'how-mirvo-works': HowMirvoWorks,
-  '7-step-setup': SevenStepSetup,
+  'setup-walkthrough': SetupWalkthrough,
   'master-icp': MasterICP,
   'adding-a-sending-domain': AddingSendingDomain,
   'choosing-your-sending-setup': ChoosingYourSendingSetup,
