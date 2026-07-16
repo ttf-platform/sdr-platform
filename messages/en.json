@@ -1103,6 +1103,15 @@
           "export": "Export",
           "importCsv": "Import CSV"
         },
+        "icpSummary": {
+          "title": "Master ICP",
+          "sourceOfTruth": "Source of truth",
+          "industry": "Industry:",
+          "titles": "Titles:",
+          "regions": "Regions:",
+          "sizes": "Sizes:",
+          "editCta": "Edit in Profile & ICP"
+        },
         "masterIcp": {
           "title": "Master ICP",
           "sourceOfTruth": "Source of truth",

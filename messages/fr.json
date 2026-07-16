@@ -1103,6 +1103,15 @@
           "export": "Exporter",
           "importCsv": "Importer un CSV"
         },
+        "icpSummary": {
+          "title": "ICP principal",
+          "sourceOfTruth": "Référence",
+          "industry": "Secteur :",
+          "titles": "Postes :",
+          "regions": "Régions :",
+          "sizes": "Tailles :",
+          "editCta": "Éditer dans Profil & ICP"
+        },
         "masterIcp": {
           "title": "ICP principal",
           "sourceOfTruth": "Référence",

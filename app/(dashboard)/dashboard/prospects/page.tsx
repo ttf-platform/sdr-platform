@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -7,7 +8,6 @@ import {
   LifecyclePill, statusBadgeClass,
   type ImportResult,
 } from '@/components/ProspectModals'
-import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Tag } from '@/components/Tag'
@@ -510,10 +510,9 @@ function SidePanel({ contactId, currentUserId, onClose, onDeleted, onContactTags
 export default function ProspectsPage() {
   const tHeader = useTranslations('dashboard.prospects.list.header')
   const tActions = useTranslations('dashboard.prospects.list.actions')
-  const tIcp = useTranslations('dashboard.prospects.list.masterIcp')
+  const tIcpSummary = useTranslations('dashboard.prospects.list.icpSummary')
   const tFilters = useTranslations('dashboard.prospects.list.filters')
   const tSources = useTranslations('dashboard.prospects.list.sources')
-  const tTones = useTranslations('dashboard.prospects.list.tones')
   const tStatuses = useTranslations('dashboard.prospects.list.statuses')
   const tTable = useTranslations('dashboard.prospects.list.table')
   const tPagination = useTranslations('dashboard.prospects.list.pagination')
@@ -550,24 +549,17 @@ export default function ProspectsPage() {
   const [currentUserId, setCurrentUserId]   = useState<string | null>(null)
   const searchTimeout                   = useRef<ReturnType<typeof setTimeout>>()
 
-  // ── ICP panel ───────────────────────────────────────────────────────────────
-  const [icpOpen,     setIcpOpen]     = useState(false)
-  const [icpSaving,   setIcpSaving]   = useState(false)
-  const [icpSaved,    setIcpSaved]    = useState(false)
-  const [wid,         setWid]         = useState<string|null>(null)
-  const [fullProfile, setFullProfile] = useState<any>(null)
-  const [aiParsing,   setAiParsing]   = useState(false)
-  const [icpForm,     setIcpForm]     = useState({
-    icp_description:  '',
-    industry:         '',
-    target_titles:    '',
-    target_regions:   '',
-    company_sizes:    [] as string[],
-    company_revenue:  [] as string[],
-    pain_points:      '',
-    tone:             'professional' as ToneKey,
-  })
-  const [icpOriginal, setIcpOriginal] = useState(icpForm)
+  // Master ICP editor lives at /dashboard/profile#icp since PR (Prof & ICP lot).
+  // A lightweight read-only summary is fetched into `icpSummary` for the small
+  // card at the top of this page (see JSX below).
+  const [icpSummary, setIcpSummary] = useState<{
+    icp_description: string
+    icp_industries:  string[]
+    target_titles:   string
+    target_regions:  string
+    icp_company_sizes: string[]
+    pain_points:     string
+  } | null>(null)
 
   useEffect(() => {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCampaigns(d.campaigns ?? []))
@@ -578,13 +570,11 @@ export default function ProspectsPage() {
     })
   }, [])
 
-  // Open Master ICP panel when ?openIcp=1 is in the URL
+  // Legacy ?openIcp=1 → redirect to /dashboard/profile#icp (the ICP editor
+  // now lives on its own page; kept as a redirect so old bookmarks work).
   useEffect(() => {
     if (searchParams.get('openIcp') === '1') {
-      setIcpOpen(true)
-      setTimeout(() => {
-        document.getElementById('master-icp-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
+      window.location.href = '/dashboard/profile#icp'
     }
   }, [searchParams])
 
@@ -618,97 +608,23 @@ export default function ProspectsPage() {
     return () => clearTimeout(searchTimeout.current)
   }, [search])
 
+  // Read-only summary for the small ICP card at the top of this page.
   useEffect(() => {
     fetch('/api/workspace-profile')
       .then(r => r.json())
       .then(d => {
         const p = d.profile
         if (!p) return
-        setWid(p.workspace_id)
-        setFullProfile(p)
-        const loaded = {
-          icp_description:  p.icp_description  || '',
-          industry:         p.icp_industries?.[0] || '',
-          target_titles:    p.target_titles     || '',
-          target_regions:   p.target_regions    || '',
-          company_sizes:    p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []),
-          company_revenue:  p.target_company_revenue ?? [],
-          pain_points:      p.pain_points       || '',
-          tone:             normalizeTone(p.tone),
-        }
-        setIcpForm(loaded)
-        setIcpOriginal(loaded)
+        setIcpSummary({
+          icp_description:   p.icp_description || '',
+          icp_industries:    p.icp_industries ?? [],
+          target_titles:     p.target_titles || '',
+          target_regions:    p.target_regions || '',
+          icp_company_sizes: p.icp_company_sizes ?? (p.icp_company_size ? [p.icp_company_size] : []),
+          pain_points:       p.pain_points || '',
+        })
       })
   }, [])
-
-  const profileForScore = fullProfile ? {
-    user_industry:          fullProfile.user_industry,
-    user_company_size:      fullProfile.user_company_size,
-    product_description:    fullProfile.product_description,
-    value_proposition:      fullProfile.value_proposition,
-    icp_description:        icpForm.icp_description,
-    sender_name:            fullProfile.sender_name,
-    icp_industries:         icpForm.industry ? [icpForm.industry] : [],
-    icp_company_sizes:      icpForm.company_sizes,
-    icp_company_size:       icpForm.company_sizes[0] ?? '',
-    pain_points:            icpForm.pain_points,
-    target_titles:          icpForm.target_titles,
-    target_regions:         icpForm.target_regions,
-    target_company_revenue: icpForm.company_revenue,
-    tone:                   icpForm.tone,
-  } : null
-
-  const icpDirty = JSON.stringify(icpForm) !== JSON.stringify(icpOriginal)
-
-  async function saveIcp() {
-    if (!wid) return
-    setIcpSaving(true)
-    await fetch('/api/workspace/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        workspace_id:           wid,
-        icp_description:        icpForm.icp_description,
-        icp_industries:         icpForm.industry ? [icpForm.industry] : [],
-        target_titles:          icpForm.target_titles,
-        target_regions:         icpForm.target_regions,
-        icp_company_sizes:      icpForm.company_sizes,
-        target_company_revenue: icpForm.company_revenue,
-        pain_points:            icpForm.pain_points,
-        tone:                   icpForm.tone,
-      }),
-    })
-    setIcpOriginal(icpForm)
-    setIcpSaving(false)
-    setIcpSaved(true)
-    setTimeout(() => setIcpSaved(false), 2000)
-  }
-
-  async function handleAiParse() {
-    if (!icpForm.icp_description.trim()) return
-    setAiParsing(true)
-    try {
-      const res = await fetch('/api/icp/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: icpForm.icp_description }),
-      })
-      const data = await res.json()
-      if (data.icp) {
-        const { icp } = data
-        setIcpForm(f => ({
-          ...f,
-          industry:       icp.industries?.[0]  || f.industry,
-          target_titles:  icp.titles?.join(', ') || f.target_titles,
-          target_regions: icp.regions?.join(', ') || f.target_regions,
-          company_sizes:  icp.company_sizes?.length ? icp.company_sizes.filter((s: string) => COMPANY_SIZES.includes(s)) : f.company_sizes,
-          company_revenue: icp.revenue?.length ? icp.revenue.filter((r: string) => REVENUE_RANGES.includes(r)) : f.company_revenue,
-          pain_points:    icp.pain_points || f.pain_points,
-        }))
-      }
-    } catch { /* silent fail */ }
-    setAiParsing(false)
-  }
 
   function onImported(_res: ImportResult) {
     setRefreshKey(k => k + 1)
@@ -750,11 +666,6 @@ export default function ProspectsPage() {
 
   return (
     <div>
-      {/* Profile quality badge */}
-      {profileForScore && (
-        <ProfileQualityBadge profile={profileForScore} hideEditLink={true} className="mb-4" />
-      )}
-
       {/* Header */}
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
@@ -764,10 +675,12 @@ export default function ProspectsPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setIcpOpen(v => !v)}
-            className={`border px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${icpOpen ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#dde6fd] bg-[#eef1fd] text-[#3b6bef] hover:bg-[#dde6fd]'}`}>
+          <Link
+            href="/dashboard/profile#icp"
+            className="border border-[#dde6fd] bg-[#eef1fd] text-[#3b6bef] hover:bg-[#dde6fd] px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
+          >
             🎯 {tActions('icpSettings')}
-          </button>
+          </Link>
           <button disabled title={tActions('findProspectsTooltip')}
             className="border border-[#e8e3dc] bg-[#f7f4f0] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 cursor-not-allowed">
             🔍 {tActions('findProspects')}
@@ -792,185 +705,37 @@ export default function ProspectsPage() {
         </div>
       </div>
 
-      {/* ── Master ICP Panel ─────────────────────────────────────────────────── */}
-      {icpOpen && (
-        <div id="master-icp-panel" className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-6 mb-4">
-
-          {/* Panel header */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span>🎯</span>
-              <span className="font-semibold text-[#1a1a2e]">{tIcp('title')}</span>
-              <StatusBadge variant="blueprint">{tIcp('sourceOfTruth')}</StatusBadge>
-              <Tooltip content={tIcp('tooltip')}>
-                <InfoIcon />
-              </Tooltip>
+      {/* ── ICP summary (read-only) — editor lives at /dashboard/profile#icp ── */}
+      {icpSummary && icpSummary.icp_description.trim() && (
+        <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-xl p-4 mb-4 flex items-start gap-4">
+          <span className="text-lg leading-none shrink-0 mt-0.5" aria-hidden="true">🎯</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="font-semibold text-sm text-[#1a1a2e]">{tIcpSummary('title')}</span>
+              <StatusBadge variant="blueprint">{tIcpSummary('sourceOfTruth')}</StatusBadge>
             </div>
-            <button onClick={() => setIcpOpen(false)} className="text-[#8a7e6e] hover:text-[#1a1a2e] text-lg leading-none">✕</button>
-          </div>
-          <p className="text-sm text-[#6b5e4e] mb-5">
-            {tIcp('description')}
-          </p>
-
-          {/* ICP description — single textarea, scored + AI parse */}
-          <div className="bg-white border border-[#dde6fd] rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[#3b6bef] font-medium text-sm">✨ {tIcp('aiHelper')}</span>
-            </div>
-            <textarea
-              aria-label={tIcp('aiTextareaLabel')}
-              value={icpForm.icp_description}
-              onChange={e => setIcpForm(f => ({ ...f, icp_description: e.target.value }))}
-              rows={4}
-              placeholder={tIcp('aiPlaceholder')}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-2">
-                <span className={`text-xs ${icpForm.icp_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                  {icpForm.icp_description.length >= 30
-                    ? tIcp('charsCounterDone', { count: icpForm.icp_description.length, limit: 30 })
-                    : tIcp('charsCounter', { count: icpForm.icp_description.length, limit: 30 })}
-                </span>
-                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 15 })}</StatusBadge>
-              </div>
-              <button onClick={handleAiParse} disabled={aiParsing || !icpForm.icp_description.trim()}
-                className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors">
-                {aiParsing ? tIcp('parsing') : `✨ ${tIcp('parseWithAi')}`}
-              </button>
+            <p className="text-sm text-[#4a4a5a] line-clamp-2">{icpSummary.icp_description}</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-[#8a7e6e]">
+              {icpSummary.icp_industries.filter(Boolean).length > 0 && (
+                <span>{tIcpSummary('industry')} <strong className="text-[#1a1a2e]">{icpSummary.icp_industries.filter(Boolean).join(', ')}</strong></span>
+              )}
+              {icpSummary.target_titles.trim() && (
+                <span>{tIcpSummary('titles')} <strong className="text-[#1a1a2e]">{icpSummary.target_titles}</strong></span>
+              )}
+              {icpSummary.target_regions.trim() && (
+                <span>{tIcpSummary('regions')} <strong className="text-[#1a1a2e]">{icpSummary.target_regions}</strong></span>
+              )}
+              {icpSummary.icp_company_sizes.length > 0 && (
+                <span>{tIcpSummary('sizes')} <strong className="text-[#1a1a2e]">{icpSummary.icp_company_sizes.join(', ')}</strong></span>
+              )}
             </div>
           </div>
-
-          {/* Structured ICP */}
-          <h3 className="text-blue-600 font-semibold mb-6">{tIcp('structuredIcp')}</h3>
-
-          {/* Ligne 1 — Industry + Titles */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-industry">{tIcp('labels.industry')}</label>
-                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 10 })}</StatusBadge>
-              </div>
-              <input id="icp-industry" value={icpForm.industry} onChange={e => setIcpForm(f => ({ ...f, industry: e.target.value }))}
-                className={inputCls} placeholder={tIcp('placeholders.industry')} />
-              <FieldOk show={!!icpForm.industry} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-titles">{tIcp('labels.titles')}</label>
-                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 10 })}</StatusBadge>
-              </div>
-              <input id="icp-titles" value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
-                className={inputCls} placeholder={tIcp('placeholders.titles')} />
-              <FieldOk show={!!icpForm.target_titles} />
-            </div>
-          </div>
-
-          {/* Ligne 2 — Regions + Pain points */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-regions">{tIcp('labels.regions')}</label>
-                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
-              </div>
-              <input id="icp-regions" value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
-                className={inputCls} placeholder={tIcp('placeholders.regions')} />
-              <FieldOk show={!!icpForm.target_regions} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="icp-pain-points">{tIcp('labels.painPoints')}</label>
-                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
-                <Tooltip content={tIcp('painPointsTooltip')}>
-                  <InfoIcon />
-                </Tooltip>
-              </div>
-              <textarea
-                id="icp-pain-points"
-                value={icpForm.pain_points}
-                onChange={e => setIcpForm(f => ({ ...f, pain_points: e.target.value }))}
-                rows={3}
-                placeholder={tIcp('placeholders.painPoints')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-[#3b6bef] resize-none"
-              />
-              <p className={`text-xs mt-1 ${icpForm.pain_points.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {icpForm.pain_points.length >= 20
-                  ? tIcp('charsCounterDone', { count: icpForm.pain_points.length, limit: 20 })
-                  : tIcp('charsCounter', { count: icpForm.pain_points.length, limit: 20 })}
-              </p>
-            </div>
-          </div>
-
-          {/* Ligne 3 — Company size + Company Revenue (grid 2 cols) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <label className={labelCls}>{tIcp('labels.companySize')}</label>
-                <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {COMPANY_SIZES.map(s => {
-                  const active = icpForm.company_sizes.includes(s)
-                  return (
-                    <button key={s} type="button"
-                      onClick={() => setIcpForm(f => ({ ...f, company_sizes: active ? f.company_sizes.filter(x => x !== s) : [...f.company_sizes, s] }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
-                      {s}
-                    </button>
-                  )
-                })}
-              </div>
-              <FieldOk show={icpForm.company_sizes.length > 0} />
-            </div>
-            <div>
-              <label className={`${labelCls} mb-2 block`}>
-                {tIcp('labels.companyRevenue')} <span className="text-[#b0a898] font-normal">{tIcp('optional')}</span>
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {REVENUE_RANGES.map(r => {
-                  const active = icpForm.company_revenue.includes(r)
-                  return (
-                    <button key={r} type="button"
-                      onClick={() => setIcpForm(f => ({ ...f, company_revenue: active ? f.company_revenue.filter(x => x !== r) : [...f.company_revenue, r] }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
-                      {r}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Tone */}
-          <h3 className="text-blue-600 font-semibold mb-4">{tIcp('toneTitle')}</h3>
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <label className={labelCls}>{tIcp('labels.emailTone')}</label>
-              <StatusBadge variant="gray">{tIcp('aiQualityAdds', { percent: 5 })}</StatusBadge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TONES.map(k => (
-                <button key={k} type="button"
-                  onClick={() => setIcpForm(f => ({ ...f, tone: k }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${icpForm.tone === k ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] text-[#6b5e4e] hover:border-[#3b6bef]'}`}>
-                  {tTones(k)}
-                </button>
-              ))}
-            </div>
-            <FieldOk show={!!icpForm.tone} />
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setIcpForm(icpOriginal)} disabled={!icpDirty}
-              className="border border-[#e8e3dc] text-[#6b5e4e] px-4 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              {tIcp('reset')}
-            </button>
-            <button onClick={saveIcp} disabled={icpSaving || !icpDirty}
-              className="bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors">
-              {icpSaved ? tIcp('saved') : icpSaving ? tCommon('saving') : tIcp('save')}
-            </button>
-          </div>
+          <Link
+            href="/dashboard/profile#icp"
+            className="text-xs font-medium text-[#3b6bef] hover:underline whitespace-nowrap shrink-0 self-center"
+          >
+            {tIcpSummary('editCta')} →
+          </Link>
         </div>
       )}
 
