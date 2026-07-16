@@ -627,6 +627,7 @@
   "dashboard": {
     "nav": {
       "dashboard": "Tableau de bord",
+      "profile": "Profil & ICP",
       "campaigns": "Campagnes",
       "signals": "Signaux",
       "inbox": "Messages",
@@ -874,6 +875,79 @@
         "networkError": "Erreur réseau"
       }
     },
+    "profile": {
+      "breadcrumbDashboard": "Tableau de bord",
+      "breadcrumbCurrent": "Profil & ICP",
+      "header": {
+        "title": "Profil & ICP",
+        "subtitle": "Votre offre et votre profil client idéal — Mirvo s'en sert pour personnaliser chaque campagne."
+      },
+      "offer": {
+        "sectionTitle": "VOTRE OFFRE",
+        "tooltip": "Le produit, sa valeur, et qui le porte. L'analyse de votre site remplit tous les champs, y compris l'ICP.",
+        "description": "Collez l'URL de votre site et Mirvo remplit votre offre ET votre ICP d'un seul coup. Vérifiez ci-dessous, ajustez, puis enregistrez.",
+        "website": "Site web de l'entreprise",
+        "websiteBadge": "Utilisé dans la signature",
+        "websitePlaceholder": "ex. zobo.com",
+        "websiteHint": "Collez votre site et nous remplissons votre profil et votre ICP automatiquement.",
+        "productDescription": "Description du produit",
+        "valueProposition": "Proposition de valeur",
+        "industry": "Votre secteur",
+        "industryPlaceholder": "ex. SaaS, Fintech, Santé",
+        "companySize": "Taille de votre entreprise",
+        "companySizeEmpty": "Choisir une taille",
+        "chars": "{count}/{limit} caractères",
+        "charsDone": "{count}/{limit} caractères ✓"
+      },
+      "icp": {
+        "sectionTitle": "PROFIL CLIENT IDÉAL",
+        "sourceOfTruth": "Source de vérité",
+        "description": "C'est votre profil client idéal affiné — la source de vérité sur laquelle chaque nouvelle campagne s'appuie. L'analyse du site ci-dessus donne un premier jet ; affinez ici, puis enregistrez.",
+        "aiHelper": "Décrivez votre ICP en langage naturel, l'IA le structure",
+        "aiPlaceholder": "ex. Je cible des fondateurs de SaaS B2B en Europe qui galèrent avec la prospection sortante et qui ont 10 à 200 employés...",
+        "aiTextareaLabel": "Description de l'ICP",
+        "charsCounter": "{count}/{limit} caractères",
+        "charsCounterDone": "{count}/{limit} caractères ✓",
+        "regenerateHint": "Ajustez votre description d'ICP si besoin, puis régénérez vos critères ci-dessous.",
+        "parseWithAi": "Régénérer les critères",
+        "parsing": "Analyse…",
+        "structuredIcp": "ICP structuré",
+        "labels": {
+          "industry": "Secteur cible",
+          "titles": "Intitulés de poste ciblés",
+          "regions": "Régions cibles",
+          "painPoints": "Problématiques",
+          "companySize": "Taille d'entreprise cible (plusieurs choix possibles)",
+          "companyRevenue": "Chiffre d'affaires cible",
+          "emailTone": "Ton des e-mails"
+        },
+        "placeholders": {
+          "industry": "ex. SaaS, Fintech",
+          "titles": "ex. CEO, CTO, VP Sales",
+          "regions": "ex. FR, Europe, APAC",
+          "painPoints": "ex. galère avec la prospection sortante, quota manqué, prospection manuelle chronophage..."
+        },
+        "optional": "(facultatif)",
+        "tones": {
+          "professional": "Professionnel",
+          "casual": "Décontracté",
+          "direct": "Direct",
+          "friendly": "Amical",
+          "witty": "Percutant"
+        }
+      },
+      "actions": {
+        "saveOffer": "Enregistrer l'offre",
+        "saveIcp": "Enregistrer l'ICP",
+        "saving": "Enregistrement…",
+        "saved": "✓ Enregistré",
+        "close": "Fermer"
+      },
+      "toasts": {
+        "autofillSaved": "Enregistré. Nous avons rempli {count, plural, one {# champ} other {# champs}} depuis votre site.",
+        "autofillFailed": "L'analyse a échoué. Réessayez."
+      }
+    },
     "pipeline": {
       "board": {
         "header": {
@@ -1030,6 +1104,15 @@
           "addManually": "Ajouter manuellement",
           "export": "Exporter",
           "importCsv": "Importer un CSV"
+        },
+        "icpSummary": {
+          "title": "ICP principal",
+          "sourceOfTruth": "Référence",
+          "industry": "Secteur :",
+          "titles": "Postes :",
+          "regions": "Régions :",
+          "sizes": "Tailles :",
+          "editCta": "Éditer dans Profil & ICP"
         },
         "masterIcp": {
           "title": "ICP principal",
@@ -1978,6 +2061,12 @@
         "descCounter": "{count}/30 {count, plural, one {caractère} other {caractères}}{ok, select, true { ✓} other {}}",
         "valueProposition": "Proposition de valeur",
         "valueCounter": "{count}/20 {count, plural, one {caractère} other {caractères}}{ok, select, true { ✓} other {}}"
+      },
+      "profileLink": {
+        "sectionTitle": "OFFRE & ICP",
+        "badge": "Déplacé",
+        "description": "Votre description de produit, proposition de valeur, l'analyse de site et l'ICP vivent désormais dans leur propre onglet — pour que l'analyse remplisse chaque champ là où vous le voyez.",
+        "cta": "Ouvrir Profil & ICP"
       },
       "prospectResearch": {
         "sectionTitle": "RECHERCHE DE PROSPECTS",

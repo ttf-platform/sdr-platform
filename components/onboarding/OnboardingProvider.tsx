@@ -76,7 +76,7 @@ export function OnboardingProvider() {
 
   function handleLetsGo() {
     // Step 1 of the checklist — the ICP anchor on Settings.
-    router.push('/dashboard/settings#icp' as Route)
+    router.push('/dashboard/profile#icp' as Route)
   }
 
   async function handleTrySample({ campaign_id }: { campaign_id: string }) {

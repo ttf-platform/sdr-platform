@@ -4,11 +4,8 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
-import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { Tooltip } from '@/components/Tooltip'
 import { StatusBadge } from '@/components/StatusBadge'
-import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
-import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { DeleteAccountModal } from '@/components/DeleteAccountModal'
 import { renderSignature } from '@/lib/signature'
@@ -150,8 +147,7 @@ export default function SettingsPage() {
   })
 
   function isDirtyAccount()   { return form.name !== snapshot.name || form.user_title !== snapshot.user_title }
-  function isDirtyCompany()   { return form.company_name !== snapshot.company_name || form.sender_name !== snapshot.sender_name || form.company_website !== snapshot.company_website || form.timezone !== snapshot.timezone || form.user_industry !== snapshot.user_industry || form.user_company_size !== snapshot.user_company_size }
-  function isDirtyProduct()   { return form.product_description !== snapshot.product_description || form.value_proposition !== snapshot.value_proposition }
+  function isDirtyCompany()   { return form.company_name !== snapshot.company_name || form.sender_name !== snapshot.sender_name || form.timezone !== snapshot.timezone }
   function isDirtySignature() { return form.email_signature !== snapshot.email_signature || form.signature_in_initial !== snapshot.signature_in_initial || form.signature_in_followups !== snapshot.signature_in_followups }
 
   function touch(field: string) {
@@ -295,10 +291,7 @@ export default function SettingsPage() {
         workspace_id:       workspaceId,
         company_name:       form.company_name,
         sender_name:        form.sender_name,
-        company_website:    form.company_website,
         workspace_timezone: form.timezone,
-        user_industry:      form.user_industry,
-        user_company_size:  form.user_company_size,
       }),
     })
     setSavingSection(null)
@@ -310,95 +303,15 @@ export default function SettingsPage() {
     }
     setSnapshot(s => ({
       ...s,
-      company_name:      form.company_name,
-      sender_name:       form.sender_name,
-      company_website:   form.company_website,
-      timezone:          form.timezone,
-      user_industry:     form.user_industry,
-      user_company_size: form.user_company_size,
+      company_name: form.company_name,
+      sender_name:  form.sender_name,
+      timezone:     form.timezone,
     }))
     setSavedSection('company')
     setTimeout(() => setSavedSection(null), 2000)
   }
 
-  async function handleAutoFillApply(extracted: ExtractedFields) {
-    const prevForm = { ...form }
-
-    // Build settings + ICP form updates
-    const settingsFormUpdate: Partial<typeof form> = {}
-    if (extracted.industry          !== undefined) settingsFormUpdate.user_industry       = extracted.industry as string
-    if (extracted.user_company_size !== undefined) settingsFormUpdate.user_company_size   = extracted.user_company_size as string
-    if (extracted.product_description !== undefined) settingsFormUpdate.product_description = extracted.product_description as string
-    if (extracted.value_proposition !== undefined) settingsFormUpdate.value_proposition   = extracted.value_proposition as string
-
-    const icpFormUpdate: Partial<typeof form> = {}
-    if (extracted.icp_description     !== undefined) icpFormUpdate.icp_description  = extracted.icp_description as string
-    if (extracted.target_industry     !== undefined) icpFormUpdate.icp_industries   = [extracted.target_industry as string]
-    if (extracted.target_titles       !== undefined) icpFormUpdate.target_titles    = (extracted.target_titles as string[]).join(', ')
-    if (extracted.target_regions      !== undefined) icpFormUpdate.target_regions   = (extracted.target_regions as string[]).join(', ')
-    if (extracted.target_company_size !== undefined) icpFormUpdate.icp_company_sizes = extracted.target_company_size as string[]
-    if (extracted.target_pain_points  !== undefined) icpFormUpdate.pain_points      = extracted.target_pain_points as string
-    if (extracted.email_tone          !== undefined) icpFormUpdate.tone             = extracted.email_tone as string
-
-    setForm(f => ({ ...f, ...settingsFormUpdate, ...icpFormUpdate }))
-
-    // Build API payload
-    const payload: Record<string, unknown> = { workspace_id: workspaceId }
-    if (extracted.industry            !== undefined) payload.user_industry    = extracted.industry
-    if (extracted.user_company_size   !== undefined) payload.user_company_size = extracted.user_company_size
-    if (extracted.product_description !== undefined) payload.product_description = extracted.product_description
-    if (extracted.value_proposition   !== undefined) payload.value_proposition = extracted.value_proposition
-    if (extracted.icp_description     !== undefined) payload.icp_description  = extracted.icp_description
-    if (extracted.target_industry     !== undefined) payload.icp_industries   = [extracted.target_industry]
-    if (extracted.target_titles       !== undefined) payload.target_titles    = (extracted.target_titles as string[]).join(', ')
-    if (extracted.target_regions      !== undefined) payload.target_regions   = (extracted.target_regions as string[]).join(', ')
-    if (extracted.target_company_size !== undefined) payload.icp_company_sizes = extracted.target_company_size
-    if (extracted.target_pain_points  !== undefined) payload.pain_points      = extracted.target_pain_points
-    if (extracted.email_tone          !== undefined) payload.tone             = extracted.email_tone
-
-    const filledCount = Object.keys(payload).length - 1 // exclude workspace_id
-
-    const res = await fetch('/api/workspace/profile', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    })
-
-    if (!res.ok) {
-      setForm(prevForm)
-      setToast({ type: 'error', msg: t('toasts.autofillFailed') })
-      setTimeout(() => setToast(null), 4000)
-      return
-    }
-
-    // Update snapshot for settings fields (now persisted)
-    setSnapshot(s => ({ ...s, ...settingsFormUpdate }))
-
-    setToast({
-      type: 'info',
-      msg:  t('toasts.autofillSaved', { count: filledCount }),
-    })
-    setTimeout(() => setToast(null), 4000)
-  }
-
   const ws = (workspace?.workspaces as any)
-
-  const profileForScore = {
-    user_industry:          form.user_industry,
-    user_company_size:      form.user_company_size,
-    product_description:    form.product_description,
-    icp_description:        form.icp_description,
-    sender_name:            form.sender_name,
-    value_proposition:      form.value_proposition,
-    icp_industries:         form.icp_industries,
-    icp_company_sizes:      form.icp_company_sizes,
-    icp_company_size:       form.icp_company_sizes[0] ?? '',
-    pain_points:            form.pain_points,
-    target_titles:          form.target_titles,
-    target_regions:         form.target_regions,
-    target_company_revenue: form.company_revenue,
-    tone:                   form.tone,
-  }
 
   const sigPreview = previewSignature(
     form.email_signature,
@@ -422,10 +335,6 @@ export default function SettingsPage() {
           </div>
           <button type="button" aria-label={t('toasts.closeAriaLabel')} onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0"><span aria-hidden="true">✕</span></button>
         </div>
-      )}
-
-      {profileLoaded && (
-        <ProfileQualityBadge profile={profileForScore} hideEditLink={true} sticky dismissible className="mb-4" />
       )}
 
       {/* Header */}
@@ -644,27 +553,6 @@ export default function SettingsPage() {
                 className={inputCls} placeholder={t('company.displayNamePlaceholder')} />
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-industry">{t('company.industry')}</label>
-                <QualityBadge pct={tCommon('aiQuality', { pct: 10 })} />
-              </div>
-              <input id="set-industry" value={form.user_industry} onChange={e => setForm({...form, user_industry: e.target.value})}
-                className={inputCls} placeholder={t('company.industryPlaceholder')} />
-              <FieldOk show={!!form.user_industry} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-company-size">{t('company.companySize')}</label>
-                <QualityBadge pct={tCommon('aiQuality', { pct: 5 })} />
-              </div>
-              <select id="set-company-size" value={form.user_company_size} onChange={e => setForm({...form, user_company_size: e.target.value})}
-                className={`${inputCls} bg-white`}>
-                <option value="">{t('company.companySizeEmpty')}</option>
-                {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <FieldOk show={!!form.user_company_size} />
-            </div>
-            <div>
               <label className={`${labelCls} mb-1 block`} htmlFor="set-workspace-timezone">{t('company.workspaceTimezone')}</label>
               <select id="set-workspace-timezone" value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
                 className={`${inputCls} bg-white`}>
@@ -683,85 +571,22 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* PRODUCT: id="icp" for onboarding checklist deeplink */}
-        <div id="icp" className={cardCls}>
-          <div className="flex items-center gap-1.5 mb-4">
-            <span className={sectionHd}>{t('product.sectionTitle')}</span>
-            <Tooltip content={t('product.tooltip')}>
-              <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </Tooltip>
+        {/* Offer + ICP live at /dashboard/profile now — the previous PRODUCT card
+            (with company_website + parse + product_description + value_proposition)
+            was moved there so that the parse writes ICP columns and the user
+            sees every field update on the same page. */}
+        <div className={`${cardCls} bg-[#f7f8ff] border-[#dde6fd]`}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className={sectionHd}>{t('profileLink.sectionTitle')}</span>
+            <StatusBadge variant="blueprint">{t('profileLink.badge')}</StatusBadge>
           </div>
-          <div className="flex flex-col gap-3 flex-1">
-            {/* Company website + autofill — moved from Company card so first-run users
-                land directly on the parse-your-site affordance at step 1 (#icp).
-                State + dirty tracking + save scope stay on "company" (form.company_website
-                is shared, saveCompany still owns persistence for this field); autofill
-                POST /api/workspace/profile persists across both company + product/ICP
-                fields via handleAutoFillApply. */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-company-website">{t('company.companyWebsite')}</label>
-                <span className="text-xs text-[#b0a898] bg-[#f5f2ee] px-1.5 py-0.5 rounded-full">{tCommon('optional')}</span>
-                <StatusBadge variant="gray">{tCommon('usedInSignature')}</StatusBadge>
-              </div>
-              <div className="flex items-start gap-2">
-                <input
-                  id="set-company-website"
-                  value={form.company_website}
-                  onChange={e => setForm({...form, company_website: e.target.value})}
-                  className={`${inputCls} flex-1`}
-                  placeholder={t('company.companyWebsitePlaceholder')}
-                />
-                <AutoFillFromUrlButton
-                  websiteValue={form.company_website}
-                  onApply={handleAutoFillApply}
-                />
-              </div>
-              <p className="text-xs text-[#b0a898] mt-1.5">
-                {t('company.autoFillHint')}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-product-description">{t('product.description')} <span className="text-red-500">*</span></label>
-                <QualityBadge pct={tCommon('aiQuality', { pct: 15 })} />
-              </div>
-              <textarea
-                id="set-product-description"
-                value={form.product_description}
-                onChange={e => setForm({...form, product_description: e.target.value})}
-                onBlur={() => touch('product_description')}
-                className={`${touched.has('product_description') && !form.product_description.trim()
-                  ? 'border-red-300 focus:border-red-400'
-                  : 'border-[#e8e3dc] focus:border-[#3b6bef]'} w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
-                rows={3}
-              />
-              <p className={`text-xs mt-1 ${form.product_description.length >= 30 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {t('product.descCounter', { count: form.product_description.length, ok: String(form.product_description.length >= 30) })}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className={labelCls} htmlFor="set-value-proposition">{t('product.valueProposition')}</label>
-                <QualityBadge pct={tCommon('aiQuality', { pct: 15 })} />
-              </div>
-              <textarea id="set-value-proposition" value={form.value_proposition} onChange={e => setForm({...form, value_proposition: e.target.value})}
-                className={`${inputCls} resize-none`} rows={2} />
-              <p className={`text-xs mt-1 ${form.value_proposition.length >= 20 ? 'text-green-600' : 'text-[#b0a898]'}`}>
-                {t('product.valueCounter', { count: form.value_proposition.length, ok: String(form.value_proposition.length >= 20) })}
-              </p>
-            </div>
-          </div>
-          <SaveButton
-            section="product"
-            saving={savingSection}
-            saved={savedSection}
-            missing={form.product_description.trim() ? [] : [t('product.description')]}
-            onSave={() => saveSection('product', { product_description: form.product_description, value_proposition: form.value_proposition }, () => setSnapshot(s => ({ ...s, product_description: form.product_description, value_proposition: form.value_proposition })))}
-            dirty={isDirtyProduct()}
-          />
+          <p className="text-sm text-[#4a4a5a] mb-4 flex-1">{t('profileLink.description')}</p>
+          <Link
+            href="/dashboard/profile"
+            className="inline-flex items-center gap-1 self-start bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            {t('profileLink.cta')} →
+          </Link>
         </div>
       </div>
 

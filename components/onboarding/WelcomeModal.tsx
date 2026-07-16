@@ -39,7 +39,7 @@ interface WelcomeModalProps {
    *  avatar dropdown. */
   onDismissPermanent: () => Promise<void> | void
   /** Called after "Let's go" temporary-dismiss completes. Provider wires this
-   *  to router.push('/dashboard/settings#icp') so the user lands on step 1. */
+   *  to router.push('/dashboard/profile#icp') so the user lands on step 1. */
   onLetsGo?: () => void
   /** Called after "Try with sample data" seeds the sample workspace. Receives
    *  the demo campaign_id so the provider can deep-link into the approval

@@ -20,7 +20,7 @@ interface ChecklistStep {
 // 5 steps after lot A merge: domain+mailbox → mailbox_connected;
 // review+launch → campaign_launched (routes to approval queue).
 const STEPS: ChecklistStep[] = [
-  { key: 'icp_configured',    href: () => '/dashboard/settings#icp' },
+  { key: 'icp_configured',    href: () => '/dashboard/profile#icp' },
   { key: 'mailbox_connected', href: () => '/dashboard/settings/sending-domains' },
   { key: 'campaign_created',  href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
   { key: 'prospects_added',   href: (id) => id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns' },
