@@ -242,12 +242,12 @@
   {
     "article_slug": "master-icp",
     "index": 1,
-    "alt": "Master ICP form with the three sections filled in with concrete examples",
-    "caption": "Master ICP form with the three sections filled in with concrete examples",
+    "alt": "Profile & ICP page with the Ideal Customer Profile section expanded, ICP description filled in, Regenerate criteria button visible, structured fields populated below",
+    "caption": "Profile & ICP page: the Ideal Customer Profile section with a filled description and Regenerate criteria structuring the fields below",
     "file": "master-icp-1.png",
-    "target_url": "/dashboard/settings",
+    "target_url": "/dashboard/profile#icp",
     "state_required": "master-icp-filled",
-    "skip_reason": ""
+    "skip_reason": "pending regeneration for Profile & ICP layout (Settings-based screenshot is outdated)"
   },
   {
     "article_slug": "picking-your-prospects",

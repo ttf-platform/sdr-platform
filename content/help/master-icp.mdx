@@ -1,35 +1,47 @@
 ---
-title: Your Master ICP
-description: How to fill in your Master ICP correctly, why it matters, and common mistakes that hurt draft quality.
+title: Your ICP
+description: How to fill in your ICP correctly, why it matters, and common mistakes that hurt draft quality.
 slug: master-icp
 category: getting-started
 order: 3
-last_updated: 2026-05-29
+last_updated: 2026-07-16
 ---
 
-# Your Master ICP
+# Your ICP
 
-The Master ICP is the single most important setting in Mirvo. Every email Mirvo drafts uses it as the ground truth for tone, relevance, and the pain angle. A vague ICP produces generic drafts. A sharp ICP produces emails that get replies.
+Your ICP is the single most important setting in Mirvo. Every email Mirvo drafts uses it as ground truth for tone, relevance, and pain framing. A vague ICP produces generic drafts. A sharp ICP produces emails that get replies.
 
-This article covers how to fill it in correctly, with concrete good/bad examples.
+You edit it in the **Profile & ICP** tab (second entry in the sidebar), in the section labelled **Ideal Customer Profile**. Direct link: [dashboard/profile#icp](/dashboard/profile#icp).
 
-## The three sections
+The fastest way to bootstrap it is right above, in the **Your Offer** section: paste your website URL, click **Auto-fill**. Mirvo parses your site and pre-fills both the Offer and the ICP fields in a single click. Review, sharpen, save. Nothing beats a two-minute review after auto-fill.
 
-### 1. Who you sell to
+## How to sharpen each field
 
-Job titles, company size, industry, and any other qualifier that defines your target. The more specific, the better.
+The ICP block is one free-text description at the top, followed by structured criteria. Fill both; the free-text description is what the AI uses to reason about relevance, and the structured criteria are what filtering, targeting, and Signals hook onto.
+
+### ICP description
+
+A plain-English description of your buyer: who they are, the situation they're in, and what they care about. Concrete, in their language, not marketing copy.
 
 **Too vague:**
 > "B2B companies with a sales team"
 
 **Better:**
-> "VP of Sales or Head of Revenue at SaaS companies, 20-200 employees, Series A to B, selling to SMBs. They're running a 3-5 person sales team without a dedicated SDR. Usually using HubSpot or Salesforce."
+> "VP of Sales or Head of Revenue at SaaS companies, 20-200 employees, Series A to B, selling to SMBs. They run a 3-5 person sales team with no dedicated SDR. Usually using HubSpot or Salesforce."
 
 The second version tells Mirvo what the prospect's situation actually looks like. That context flows directly into personalization.
 
 **Common mistake:** copying your marketing site's "ideal customer" section. Marketing copy is written for scanning, not for AI context. Write it like you're briefing a new salesperson on day one.
 
-### 2. What pain you solve
+Once the description reads right, click **Regenerate criteria**. Mirvo reads the description and populates the structured fields below (target titles, industries, regions, company sizes, pain points, tone). Review each pill and text field, correct anything that drifts.
+
+### Target titles, industries, regions, company sizes, revenue
+
+These are what Mirvo uses to filter prospects and match Signals. Keep them tight. Ten specific titles beats a shortlist that includes "any sales or growth role." A single industry beats "SaaS or Fintech or Marketplaces." Overly broad criteria drag reply rates down because you send to prospects who don't fit.
+
+**Company sizes** and **target revenue** are multi-select pills. Pick the ranges you actually sell into today.
+
+### Pain points
 
 Not a feature list. A specific outcome the prospect cares about, written in the language they'd use themselves.
 
@@ -39,32 +51,25 @@ Not a feature list. A specific outcome the prospect cares about, written in the 
 **Better:**
 > "The VP of Sales is spending 3 hours a week on list-building that their reps should be doing, or they've tried an SDR who ramped slowly and left. They need pipeline without the overhead. Mirvo gets them 5-10 qualified conversations per month without headcount."
 
-Include the language your best prospects use when describing their problem. If you've talked to customers, quote them.
+Include the language your best prospects use when describing the problem. Quote them if you have call notes.
 
-### 3. Tone of voice
+### Tone
 
-Three to five examples of how you'd write to a prospect. This isn't about formal vs casual. It's about the specific phrases and attitudes that match your brand and your buyers.
+The tone selector has five presets: **Professional**, **Casual**, **Direct**, **Friendly**, **Witty**. Pick the one that matches how you'd actually talk to a prospect on a first call. If you want to shape voice more finely, add the campaign-level tone override at launch time.
 
-**Example (good):**
-> - "We've done this ourselves, so I know what doesn't work."
-> - "No fluff, here's what we do and why it might matter to you."
-> - "Straight line: you should try this if X, skip it if Y."
-
-Avoid generic descriptors like "professional but friendly." Give Mirvo actual sentences to model.
-
-<Screenshot src='/help/screenshots/master-icp-1.png' alt='Master ICP form with the three sections filled in with concrete examples' caption='Master ICP form with the three sections filled in with concrete examples' />
+<Screenshot placeholder alt='Profile & ICP page with the Ideal Customer Profile section expanded, ICP description filled in, Regenerate criteria button visible, structured fields populated below' caption='Profile & ICP page: the Ideal Customer Profile section with a filled description and Regenerate criteria structuring the fields below' />
 
 ## How ICP impacts drafts
 
 When Mirvo drafts an email, it combines:
 
-1. The prospect's data (company, role, recent activity, signal context if active)
-2. Your Master ICP (who you sell to, their pain, your tone)
+1. The prospect's data (company, role, recent activity, Signal context if active)
+2. Your ICP (description, structured criteria, pain points, tone)
 
 The ICP shapes the angle, the pain framing, and the call to action. A prospect who matches your ICP precisely gets a highly specific email. A prospect who's only a partial match gets a more general draft. That's by design: Mirvo doesn't invent relevance.
 
 <Callout type="tip">
-After your first batch of drafts, read 5 of them critically. If they sound generic, the ICP is the first thing to sharpen.
+After your first batch of drafts, read five of them critically. If they sound generic, the ICP is the first thing to sharpen. Update the description, click Regenerate criteria, save.
 </Callout>
 
 ## What not to put in the ICP
@@ -74,13 +79,13 @@ After your first batch of drafts, read 5 of them critically. If they sound gener
 - Competitive comparisons
 - Aspirational language ("we're on a mission to...")
 
-The ICP should describe the buyer, not your company.
+The ICP describes the buyer, not your company.
 
 ## Updating the ICP
 
-You can update it any time. Updates apply to new drafts generated after the change. Existing approved drafts are not affected.
+Open [dashboard/profile#icp](/dashboard/profile#icp). Edit the description or the structured fields directly, then click **Save ICP**. Updates apply to new drafts generated after the change. Existing approved drafts are not affected.
 
-Best practice: update the ICP after every 10 conversations where you learn something new about your buyers' language or pain points.
+Best practice: update the ICP after every ten conversations where you learn something new about your buyers' language or pain points.
 
 ## Where to go next
 
