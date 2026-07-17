@@ -977,8 +977,8 @@
           "subtitle": "Suivez vos leads du premier contact jusqu'à la conclusion de la vente"
         },
         "actions": {
-          "sync": "Synchroniser",
-          "syncing": "Synchronisation…",
+          "refresh": "Rafraîchir",
+          "refreshing": "Rafraîchissement…",
           "kanban": "Kanban",
           "list": "Liste",
           "addLead": "Ajouter un lead"
@@ -1103,8 +1103,8 @@
           "unnamedContact": "—"
         },
         "toasts": {
-          "syncNoNew": "Tous les prospects ont déjà une opportunité",
-          "syncCreated": "✓ {count, plural, one {# opportunité ajoutée} other {# opportunités ajoutées}} depuis vos prospects",
+          "syncNoNew": "Pipeline à jour — aucun prospect engagé à ajouter",
+          "syncCreated": "✓ {count, plural, one {# prospect engagé ajouté} other {# prospects engagés ajoutés}} au pipeline",
           "dealAdded": "✓ Opportunité ajoutée au pipeline",
           "updateFailed": "Échec de la mise à jour de l'opportunité, modifications annulées"
         }

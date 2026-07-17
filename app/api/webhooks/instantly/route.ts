@@ -26,6 +26,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
+import { ensureDealForProspect } from '@/lib/deals'
 import {
   extractFields,
   normalizeEvent,
@@ -423,6 +424,13 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
   // TODO D3.1: the BOUNCED handler (~L468) and future OPENED events do
   // NOT propagate to prospects.status either — global prospects.status
   // debt, separate sprint.
+  // Track the prospect we just marked as replied — used below to auto-create
+  // an engaged deal so the reviewer sees the lead in the pipeline right away.
+  // Both branches resolve the same prospectId + campaign_id so downstream
+  // deal creation stays branch-agnostic.
+  let repliedProspectId: string | null = null
+  let repliedCampaignId: string | null = null
+
   if (pe?.prospect_id) {
     const { error: pErr } = await admin
       .from('prospects')
@@ -431,6 +439,14 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
       .eq('workspace_id', workspaceId)
       .in('status', ['found', 'emailed', 'opened'])
     if (pErr) console.error('[webhook/instantly] REPLY prospects.status update failed:', pErr.message)
+    repliedProspectId = pe.prospect_id
+    const { data: prospect } = await admin
+      .from('prospects')
+      .select('campaign_id')
+      .eq('id', pe.prospect_id)
+      .eq('workspace_id', workspaceId)
+      .maybeSingle()
+    repliedCampaignId = prospect?.campaign_id ?? null
   } else if (isPlausibleEmail(fields.leadEmail)) {
     // Orphan reply — no prospect_email match. Fall back to email-based
     // resolution, same pattern as UNSUBSCRIBED (L546-550).
@@ -441,6 +457,34 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
       .eq('email', fields.leadEmail.toLowerCase())
       .in('status', ['found', 'emailed', 'opened'])
     if (pErr) console.error('[webhook/instantly] REPLY prospects.status update (email fallback) failed:', pErr.message)
+    const { data: prospect } = await admin
+      .from('prospects')
+      .select('id, campaign_id')
+      .eq('workspace_id', workspaceId)
+      .eq('email', fields.leadEmail.toLowerCase())
+      .maybeSingle()
+    if (prospect?.id) {
+      repliedProspectId = prospect.id
+      repliedCampaignId = prospect.campaign_id ?? null
+    }
+  }
+
+  // Auto-create the deal at the 'replied' stage. Best-effort — a deal-side
+  // failure must not break the reply write above or the webhook response.
+  // `ensureDealForProspect` is idempotent: if a deal already exists it stays
+  // untouched, so a subsequent reply / meeting handler is free to advance it.
+  if (repliedProspectId) {
+    try {
+      await ensureDealForProspect(admin, {
+        workspaceId,
+        prospectId:  repliedProspectId,
+        campaignId:  repliedCampaignId,
+        stage:       'replied',
+        source:      'campaign_reply',
+      })
+    } catch (err) {
+      console.error('[webhook/instantly] REPLY deal auto-create failed:', err instanceof Error ? err.message : err)
+    }
   }
 
   analyzeMessageSentiment(inserted.id).catch(err =>

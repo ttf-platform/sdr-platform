@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
+import { ensureDealForProspect } from '@/lib/deals'
 
 const MOCK_REPLIES = [
   "Hi, I saw your message — this looks interesting. Can we schedule a quick call?",
@@ -104,6 +105,26 @@ export async function POST(
       .eq('workspace_id', pe.workspace_id)
       .in('status', ['found', 'emailed', 'opened']),
   ])
+
+  // Mirror the prod webhook: auto-create a deal at the 'replied' stage.
+  // Best-effort — a failure here does not undo the reply insert above.
+  try {
+    const { data: prospectMeta } = await admin
+      .from('prospects')
+      .select('campaign_id')
+      .eq('id', pe.prospect_id)
+      .eq('workspace_id', pe.workspace_id)
+      .maybeSingle()
+    await ensureDealForProspect(admin, {
+      workspaceId: pe.workspace_id,
+      prospectId:  pe.prospect_id,
+      campaignId:  prospectMeta?.campaign_id ?? null,
+      stage:       'replied',
+      source:      'campaign_reply',
+    })
+  } catch (err) {
+    console.error('[simulate-reply] deal auto-create failed:', err instanceof Error ? err.message : err)
+  }
 
   // Fire-and-forget sentiment analysis
   if (message?.id) {

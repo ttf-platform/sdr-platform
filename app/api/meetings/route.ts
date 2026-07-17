@@ -2,33 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { billingGuard } from '@/lib/billing-guard'
+import { ensureDealAtMeetingBooked } from '@/lib/deals'
 import { meetingCreateSchema, badRequest } from '@/lib/schemas'
-
-const MEETING_BLOCKED_STAGES = ['proposal_sent', 'closed_won', 'closed_lost']
-
-async function syncDealOnMeetingBooked(
-  workspaceId: string,
-  prospectId: string,
-  campaignId: string | null,
-) {
-  const admin = createAdminClient()
-  const { data: deal } = await admin
-    .from('deals').select('id, stage')
-    .eq('prospect_id', prospectId).eq('workspace_id', workspaceId)
-    .maybeSingle()
-
-  const now = new Date().toISOString()
-  if (deal) {
-    if (!MEETING_BLOCKED_STAGES.includes(deal.stage)) {
-      await admin.from('deals').update({ stage: 'meeting_booked', stage_changed_at: now, updated_at: now }).eq('id', deal.id)
-    }
-  } else {
-    await admin.from('deals').insert({
-      workspace_id: workspaceId, prospect_id: prospectId,
-      campaign_id: campaignId, source: 'meeting_booked', stage: 'meeting_booked',
-    })
-  }
-}
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -112,7 +87,11 @@ export async function POST(request: Request) {
     const { data: prospect } = await supabase
       .from('prospects').select('campaign_id')
       .eq('id', prospect_id).eq('workspace_id', member.workspace_id).maybeSingle()
-    await syncDealOnMeetingBooked(member.workspace_id, prospect_id, prospect?.campaign_id ?? null)
+    await ensureDealAtMeetingBooked(createAdminClient(), {
+      workspaceId: member.workspace_id,
+      prospectId:  prospect_id,
+      campaignId:  prospect?.campaign_id ?? null,
+    })
   }
 
   return NextResponse.json({ meeting }, { status: 201 })

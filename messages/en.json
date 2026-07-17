@@ -977,8 +977,8 @@
           "subtitle": "Track leads from first touch to closed deal"
         },
         "actions": {
-          "sync": "Sync",
-          "syncing": "Syncing…",
+          "refresh": "Refresh",
+          "refreshing": "Refreshing…",
           "kanban": "Kanban",
           "list": "List",
           "addLead": "Add Lead"
@@ -1103,8 +1103,8 @@
           "unnamedContact": "—"
         },
         "toasts": {
-          "syncNoNew": "All prospects already have deals",
-          "syncCreated": "✓ {count, plural, one {# deal} other {# deals}} added from prospects",
+          "syncNoNew": "Pipeline up to date — no engaged prospects to add",
+          "syncCreated": "✓ {count, plural, one {# engaged prospect} other {# engaged prospects}} added to the pipeline",
           "dealAdded": "✓ Deal added to pipeline",
           "updateFailed": "Failed to update deal — changes reverted"
         }

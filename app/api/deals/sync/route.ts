@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+// Sync = backfill for engaged prospects only. Cold statuses (found / emailed
+// / opened) are intentionally excluded so the pipeline never fills with
+// prospects who have not yet demonstrated intent — the KPI is
+// "conversations", not "leads sourced". Reply auto-creates a deal now via
+// the /api/webhooks/instantly reply handler; sync stays as a safety-net
+// refresh for prospects that predate the auto-creation.
 const STATUS_TO_STAGE: Record<string, string> = {
-  found:    'new_lead',
-  emailed:  'contacted',
-  opened:   'opened',
   replied:  'replied',
   meeting:  'meeting_booked',
 }

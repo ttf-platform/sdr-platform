@@ -877,9 +877,16 @@ export default function PipelinePage() {
           <p className="text-sm text-[#8a7e6e]">{t('header.subtitle')}</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <button onClick={sync} disabled={syncing}
-            className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40 transition-colors flex items-center gap-1.5">
-            {syncing ? `↻ ${tActions('syncing')}` : `↻ ${tActions('sync')}`}
+          {/* Refresh is now the safety-net button, not the primary path.
+              Reply auto-creates the deal (see webhooks/instantly REPLY),
+              so this only backfills engaged prospects that predate the
+              auto-creation. Rendered as a subdued text-only action. */}
+          <button
+            onClick={sync}
+            disabled={syncing}
+            className="text-xs font-medium text-[#8a7e6e] hover:text-[#3b6bef] transition-colors disabled:opacity-40 disabled:hover:text-[#8a7e6e] flex items-center gap-1"
+          >
+            ↻ {syncing ? tActions('refreshing') : tActions('refresh')}
           </button>
           {/* Segmented view switcher — kanban / list. Container carries the
               border + radius; buttons keep only the state colours. The List
