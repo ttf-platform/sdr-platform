@@ -232,9 +232,6 @@ export default function MeetingsPage() {
           <button onClick={() => setShowCreate(true)} className="bg-[#3b6bef] text-white px-3 py-2 rounded-lg text-sm font-medium">
             + {tHeader('createBtn')}
           </button>
-          <button onClick={copyLink} className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium">
-            🔗 {copied ? tHeader('copyLinkCopied') : tHeader('copyLink')}
-          </button>
           <button onClick={() => setShowScheduler(true)} className="border border-[#3b6bef] text-[#3b6bef] px-3 py-2 rounded-lg text-sm font-medium">
             ⚙ {tHeader('schedulerSettings')}
           </button>
