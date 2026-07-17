@@ -1247,7 +1247,7 @@
         },
         "tabs": {
           "myCampaigns": "Mes campagnes",
-          "aiSuggestions": "Suggestions IA"
+          "aiSuggestions": "Idées de campagnes"
         },
         "loading": "Chargement des campagnes…",
         "emptyState": {
@@ -1275,7 +1275,7 @@
           "archived": "Archivée"
         },
         "suggestions": {
-          "title": "Campagnes suggérées par l'IA",
+          "title": "Idées de campagnes",
           "subtitle": "Mirvo analyse votre ICP et votre produit pour suggérer des stratégies de campagne à fort potentiel de conversion.",
           "refresh": "Actualiser les suggestions",
           "analyzingTitle": "Analyse de votre produit et de votre ICP…",
