@@ -18,10 +18,17 @@
  * - SameSite   : Lax
  * - Secure     : true in production, false in dev (localhost is http)
  * - Max-Age    : 1 year
- * - Written by : (a) POST /api/auth/login after signInWithPassword succeeds,
- *                    bootstrapped from workspace_profiles.language;
- *                (b) _DashboardShell when the workspace fetch resolves a
- *                    language that differs from the current cookie value.
+ * - Written by : (a) POST /api/auth/signup — pins 'en' on the freshly created
+ *                    workspace so the very first dashboard render has a value
+ *                    to read;
+ *                (b) _DashboardShell after mount — reads
+ *                    workspace_profiles.language and calls
+ *                    writeDashboardLocale() when it differs from the cookie.
+ *
+ *                Login itself is fully client-side (signInWithPassword from
+ *                app/[locale]/(auth)/login/page.tsx) and does NOT write the
+ *                cookie — the shell's post-hydration sync takes care of FR
+ *                users on their next dashboard visit.
  *
  * Fail-safe: cookie absent, invalid, or on SSR → 'en'. Never crash.
  */
