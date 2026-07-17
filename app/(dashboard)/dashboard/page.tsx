@@ -153,7 +153,7 @@ export default function DashboardPage() {
       {/* Today's Focus — only when campaigns exist */}
       {!loading && !empty && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Link href="/dashboard/campaigns"
+          <Link href="/dashboard/approvals"
             className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 transition-colors block">
             <div className="flex items-center gap-2 mb-3">
               <span>✉</span>
