@@ -1,0 +1,24 @@
+-- Migration 073 — deals unique index on (workspace_id, prospect_id)
+--
+-- Enforces "one deal per prospect per workspace" at the database level.
+--
+-- The check-then-insert pattern used in lib/deals.ts (ensureDealForProspect,
+-- ensureDealAtMeetingBooked) is not atomic: two webhooks arriving within a
+-- few ms for the same prospect (e.g. a REPLY event and a booking sitting
+-- in a Cloudflare retry) could both pass the .maybeSingle() check and both
+-- INSERT, producing duplicate deal rows. This partial-unique index turns
+-- the second INSERT into a 23505 unique_violation, which lib/deals.ts
+-- catches and treats as a NO-OP (the deal already exists from the racing
+-- caller — nothing to do).
+--
+-- Applied to prod EU on 2026-07-18, verified idempotent (0 pre-existing
+-- duplicates by (workspace_id, prospect_id) at apply time). This file
+-- versions the change in the repo so a fresh restore reproduces the
+-- constraint identically.
+--
+-- Idempotent via IF NOT EXISTS — safe to re-run.
+--
+-- Rollback:
+--   DROP INDEX IF EXISTS public.idx_deals_workspace_prospect;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deals_workspace_prospect
+  ON public.deals (workspace_id, prospect_id);
