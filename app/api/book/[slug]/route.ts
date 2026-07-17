@@ -1,39 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ensureDealAtMeetingBooked } from '@/lib/deals'
 import { generateICS } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
 import { bookingCreateSchema, badRequest } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
-
-// Auto-advance (or create) a deal when a meeting is booked.
-// Meeting booked is a hard factual signal — always advances UNLESS deal is
-// already past the meeting stage (proposal_sent, closed_won, closed_lost).
-// Does NOT touch manual_override so user-set positions are preserved.
-const MEETING_BLOCKED_STAGES = ['proposal_sent', 'closed_won', 'closed_lost']
-
-async function syncDealOnMeetingBooked(
-  admin: ReturnType<typeof createAdminClient>,
-  workspaceId: string,
-  prospectId: string,
-  campaignId: string | null,
-) {
-  const { data: deal } = await admin
-    .from('deals').select('id, stage')
-    .eq('prospect_id', prospectId).eq('workspace_id', workspaceId)
-    .maybeSingle()
-
-  const now = new Date().toISOString()
-  if (deal) {
-    if (!MEETING_BLOCKED_STAGES.includes(deal.stage)) {
-      await admin.from('deals').update({ stage: 'meeting_booked', stage_changed_at: now, updated_at: now }).eq('id', deal.id)
-    }
-  } else {
-    await admin.from('deals').insert({
-      workspace_id: workspaceId, prospect_id: prospectId,
-      campaign_id: campaignId, source: 'meeting_booked', stage: 'meeting_booked',
-    })
-  }
-}
 
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
 
@@ -190,7 +161,11 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     .eq('workspace_id', profile.workspace_id).eq('email', attendee_email)
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (prospect) {
-    await syncDealOnMeetingBooked(admin, profile.workspace_id, prospect.id, prospect.campaign_id ?? null)
+    await ensureDealAtMeetingBooked(admin, {
+      workspaceId: profile.workspace_id,
+      prospectId:  prospect.id,
+      campaignId:  prospect.campaign_id ?? null,
+    })
   }
 
   const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
