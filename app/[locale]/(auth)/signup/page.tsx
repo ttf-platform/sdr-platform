@@ -6,8 +6,6 @@ import { Link } from '@/i18n/routing'
 import { track } from '@/lib/track'
 import { Turnstile } from '@marsidev/react-turnstile'
 
-const tones = ['professional', 'friendly', 'direct', 'casual'] as const
-type Tone = typeof tones[number]
 const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
 
 function SignupForm() {
@@ -20,15 +18,8 @@ function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [emailExists, setEmailExists] = useState(false)
-  const [data, setData] = useState({ email: '', password: '', name: '', workspaceName: '', companyName: '', product: '', icp: '', tone: 'professional' })
+  const [data, setData] = useState({ email: '', password: '', name: '', companyName: '' })
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
-
-  const toneLabels: Record<Tone, string> = {
-    professional: t('toneProfessional'),
-    friendly: t('toneFriendly'),
-    direct: t('toneDirect'),
-    casual: t('toneCasual'),
-  }
 
   async function handleStep0(e: FormEvent) {
     e.preventDefault()
@@ -64,8 +55,7 @@ function SignupForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: data.email, password: data.password, name: data.name,
-        workspaceName: data.workspaceName, companyName: data.companyName,
-        product: data.product, icp: data.icp, tone: data.tone,
+        companyName: data.companyName,
         plan_tier: plan,
         captchaToken,
       })
@@ -80,7 +70,7 @@ function SignupForm() {
     window.location.href = '/dashboard'
   }
 
-  const steps = [t('step0'), t('step1'), t('step2'), t('step3')]
+  const steps = [t('step0'), t('step1')]
 
   return (
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center p-4">
@@ -129,37 +119,15 @@ function SignupForm() {
             </form>
           )}
           {step === 1 && (<>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step1Title')}</h2>
-            <p className="text-sm text-[#8a7e6e]">{t('step1Sub')}</p>
-            <input type="text" value={data.workspaceName} onChange={e=>setData({...data,workspaceName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('workspacePlaceholder')} />
-            <div className="flex gap-2">
-              <button onClick={()=>setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
-              <button onClick={()=>setStep(2)} disabled={!data.workspaceName} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('continue')}</button>
-            </div>
-          </>)}
-          {step === 2 && (<>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step2Title')}</h2>
-            <input type="text" value={data.companyName} onChange={e=>setData({...data,companyName:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]" placeholder={t('companyNamePlaceholder')} />
-            <div>
-              <label className="text-xs font-semibold text-[#6b5e4e] mb-1 block">{t('productLabel')}</label>
-              <textarea required value={data.product} onChange={e=>setData({...data,product:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef] resize-none" rows={3} placeholder={t('productPlaceholder')} />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={()=>setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
-              <button onClick={()=>setStep(3)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('continue')}</button>
-            </div>
-          </>)}
-          {step === 3 && (<>
-            <div className="bg-[#f7f8ff] border border-[#dde6fd] rounded-lg px-3 py-2 text-xs text-[#3b6bef] font-medium">
-              🎉 {t('step3Badge')}
-            </div>
-            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('step3Title')}</h2>
-            <textarea value={data.icp} onChange={e=>setData({...data,icp:e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef] resize-none" rows={3} placeholder={t('icpPlaceholder')} />
-            <div className="grid grid-cols-2 gap-2">
-              {tones.map(tone => (
-                <button key={tone} onClick={()=>setData({...data,tone})} className={"px-3 py-2 rounded-lg text-sm border " + (data.tone===tone ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{toneLabels[tone]}</button>
-              ))}
-            </div>
+            <h2 className="text-lg font-bold text-[#1a1a2e]">{t('companyStepTitle')}</h2>
+            <input
+              type="text"
+              autoComplete="organization"
+              value={data.companyName}
+              onChange={e=>setData({...data,companyName:e.target.value})}
+              className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[#3b6bef]"
+              placeholder={t('companyNamePlaceholder')}
+            />
             <div className="flex justify-center">
               <Turnstile
                 siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
@@ -170,8 +138,8 @@ function SignupForm() {
               />
             </div>
             <div className="flex gap-2">
-              <button onClick={()=>setStep(2)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
-              <button onClick={handleFinish} disabled={!data.icp||loading||!captchaToken} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
+              <button onClick={()=>setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg min-h-[44px] py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{t('back')}</button>
+              <button onClick={handleFinish} disabled={!data.companyName||loading||!captchaToken} className="flex-1 bg-[#1a1a2e] text-white rounded-lg min-h-[44px] py-2.5 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2">{loading ? t('launching') : t('startTrial', { plan: PLAN_LABELS[plan] })}</button>
             </div>
           </>)}
         </div>
