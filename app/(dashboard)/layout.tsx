@@ -16,9 +16,12 @@
 // "Loading…" screen — the user is not reading closely, no perceived flash
 // of translated content on the nav or main dashboard body.
 //
-// Bootstrap: POST /api/auth/login writes the cookie from
-// workspace_profiles.language after signInWithPassword succeeds, so the
-// cookie is already present on the very first render after login.
+// Bootstrap: fresh sign-ups get the cookie pinned to 'en' by the signup
+// route (app/api/auth/signup/route.ts). Login is fully client-side
+// (signInWithPassword from app/[locale]/(auth)/login/page.tsx) and does
+// NOT write the cookie itself; instead, DashboardShell reads the user's
+// workspace_profiles.language on first render and calls
+// writeDashboardLocale() to sync the cookie to what the profile says.
 //
 // Fail-safe: any invalid / missing cookie → 'en' (see lib/locale).
 import { useEffect, useState } from 'react'

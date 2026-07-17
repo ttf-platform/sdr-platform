@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(vercel env pull*)",
+      "Bash(git push * --force*)",
+      "Bash(git push --force*)"
+    ],
+    "ask": [
+      "Bash(git push*)"
+    ],
+    "allow": [
+      "Edit",
+      "Write",
+      "Bash(npm run *)",
+      "Bash(npm install*)",
+      "Bash(npx tsc*)",
+      "Bash(npx *)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git fetch*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(sed *)",
+      "Bash(node *)",
+      "Bash(gh pr *)"
+    ]
+  }
+}
