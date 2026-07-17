@@ -86,12 +86,12 @@ function SignupForm() {
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
+          <Link href="/" className="inline-flex items-center gap-2 mb-4 rounded-lg hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f5f2ee]">
             <div className="w-8 h-8 bg-[#1a1a2e] rounded-lg flex items-center justify-center">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
             <span className="text-lg font-bold text-[#1a1a2e]">Mir<span className="text-[#3b6bef]">vo</span></span>
-          </div>
+          </Link>
           <div className="inline-flex items-center gap-1.5 bg-[#eef1fd] border border-[#dde6fd] text-[#3b6bef] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
             ✦ {t('trialBadge', { plan: PLAN_LABELS[plan] })}
           </div>

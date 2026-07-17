@@ -28,12 +28,12 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 mb-6">
+          <Link href="/" className="inline-flex items-center gap-2 mb-6 rounded-lg hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f5f2ee]">
             <div className="w-8 h-8 bg-[#1a1a2e] rounded-lg flex items-center justify-center">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
             <span className="text-lg font-bold text-[#1a1a2e]">Mir<span className="text-[#3b6bef]">vo</span></span>
-          </div>
+          </Link>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">{t('welcomeBack')}</h1>
         </div>
         <form onSubmit={handle} className="bg-white rounded-xl border border-[#e8e3dc] p-6 flex flex-col gap-4">
