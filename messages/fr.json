@@ -1594,8 +1594,6 @@
         "title": "Rendez-vous",
         "subtitle": "Vos prochains rendez-vous et votre page de réservation",
         "createBtn": "Créer",
-        "copyLink": "Copier le lien",
-        "copyLinkCopied": "Copié !",
         "schedulerSettings": "Réglages de réservation"
       },
       "banner": {

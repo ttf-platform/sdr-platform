@@ -1594,8 +1594,6 @@
         "title": "Meetings",
         "subtitle": "Upcoming meetings and your booking page",
         "createBtn": "Create",
-        "copyLink": "Copy link",
-        "copyLinkCopied": "Copied!",
         "schedulerSettings": "Scheduler settings"
       },
       "banner": {
