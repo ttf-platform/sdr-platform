@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
+import { assertIcpConfigured } from '@/lib/require-icp'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDraftsForCampaign } from '@/lib/draft-generation'
 import { rateLimitByWorkspace } from '@/lib/rate-limit'
@@ -9,6 +10,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const params = await context.params
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const icp = await assertIcpConfigured(guard.workspaceId)
+  if (icp.blocked) return icp.response
 
   const rl = await rateLimitByWorkspace(guard.workspaceId, { limit: 10, window: '1 m', prefix: 'llm-regenerate-drafts' })
   if (!rl.allowed) return rl.response

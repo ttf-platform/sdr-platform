@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
+import { assertIcpConfigured } from '@/lib/require-icp'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignCreateSchema, badRequest } from '@/lib/schemas'
 
@@ -35,6 +36,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
+
+  const icp = await assertIcpConfigured(guard.workspaceId)
+  if (icp.blocked) return icp.response
 
   let rawBody: unknown
   try { rawBody = await request.json() }

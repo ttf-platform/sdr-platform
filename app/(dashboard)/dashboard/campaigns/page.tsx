@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import SendingPreferencesPanel from '@/components/SendingPreferencesPanel'
 import { ChooseTemplateModal } from '@/components/ChooseTemplateModal'
 import { NewCampaignModal } from '@/components/NewCampaignModal'
@@ -114,6 +115,31 @@ function CampaignCard({ c, onDelete }: { c: Campaign; onDelete: (id: string) => 
   )
 }
 
+// Blocking state shown wherever an ICP-gated action would be taken (new
+// campaign empty state, AI suggestions tab). The header "+ New campaign"
+// button surfaces the toast+CTA path via guardIcp() to keep the layout stable.
+function IcpGateCard({
+  tIcpGate,
+}: {
+  tIcpGate: (key: string) => string
+}) {
+  return (
+    <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
+      <div className="text-3xl mb-3">🎯</div>
+      <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{tIcpGate('title')}</h2>
+      <p className="text-sm text-[#8a7e6e] mb-6 max-w-md mx-auto">
+        {tIcpGate('description')}
+      </p>
+      <Link
+        href="/dashboard/profile#icp"
+        className="inline-flex items-center gap-2 bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+      >
+        {tIcpGate('cta')}
+      </Link>
+    </div>
+  )
+}
+
 function AISuggestionCard({ s, onLaunch }: { s: AISuggestion; onLaunch: () => void }) {
   const t = useTranslations('dashboard.campaigns.list.suggestions')
   return (
@@ -163,6 +189,7 @@ export default function CampaignsPage() {
   const tSuggestions = useTranslations('dashboard.campaigns.list.suggestions')
   const tDelete = useTranslations('dashboard.campaigns.list.deleteModal')
   const tCommon = useTranslations('dashboard.common')
+  const tIcpGate = useTranslations('dashboard.campaigns.icpGate')
 
   const searchParams = useSearchParams()
   const { data: onboarding } = useOnboardingProgress()
@@ -201,22 +228,48 @@ export default function CampaignsPage() {
     }
   }
 
+  // Kept in sync with /api/onboarding/progress (icp_configured). When either
+  // product_description or icp_description is empty, any LLM-consuming action
+  // (create campaign, launch from AI suggestion, refresh suggestions) is
+  // blocked at the button-click / tab-render level. The backend re-enforces
+  // the same rule via assertIcpConfigured() — this frontend guard is UX only.
+  const icpConfigured = onboarding?.completions.icp_configured === true
+
+  function guardIcp(): boolean {
+    if (icpConfigured) return true
+    toast.error(tIcpGate('toastTitle'), {
+      description: tIcpGate('toastDescription'),
+      action: {
+        label:   tIcpGate('toastCta'),
+        onClick: () => { window.location.href = '/dashboard/profile#icp' },
+      },
+    })
+    return false
+  }
+
   async function loadSuggestions() {
+    if (!icpConfigured) { setSLoaded(true); return }
     setSLoading(true)
     const res = await fetch('/api/campaigns/ai-suggestions').then(r => r.json())
+    if (res?.error === 'icp_not_configured') { guardIcp(); setSLoading(false); setSLoaded(true); return }
     setSuggestions(res.suggestions ?? [])
     setSLoaded(true)
     setSLoading(false)
   }
 
   async function handleRefreshSuggestions() {
+    if (!guardIcp()) return
     setSLoading(true)
     const res = await fetch('/api/campaigns/ai-suggestions/refresh', { method: 'POST' }).then(r => r.json())
+    if (res?.error === 'icp_not_configured') { guardIcp(); setSLoading(false); return }
     if (res.suggestions) setSuggestions(res.suggestions)
     setSLoading(false)
   }
 
-  function openChooseTemplate() { setChooseTemplate(true) }
+  function openChooseTemplate() {
+    if (!guardIcp()) return
+    setChooseTemplate(true)
+  }
 
   function handleTemplateSelect(template: CampaignTemplate) {
     setChooseTemplate(false)
@@ -226,6 +279,7 @@ export default function CampaignsPage() {
   }
 
   function handleLaunchFromAI(s: AISuggestion) {
+    if (!guardIcp()) return
     setPreset({
       id:             'ai-' + s.id,
       emoji:          '✨',
@@ -304,28 +358,23 @@ export default function CampaignsPage() {
         campaignsLoading ? (
           <div className="py-10 flex justify-center"><SpinnerWithText text={t('loading')} /></div>
         ) : campaigns.length === 0 ? (
-          <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
-            <div className="text-3xl mb-3">✨</div>
-            <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{tEmpty('title')}</h2>
-            <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
-              {tEmpty('description')}
-            </p>
-            <button
-              onClick={openChooseTemplate}
-              className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-            >
-              + {tHeader('newCampaign')}
-            </button>
-            {onboarding && !onboarding.completions.icp_configured && (
-              <p className="text-xs text-[#8a7e6e] mt-4">
-                💡 {tEmpty.rich('configureIcp', {
-                  link: chunks => (
-                    <Link href="/dashboard/profile#icp" className="underline hover:text-[#3b6bef] transition-colors">{chunks}</Link>
-                  ),
-                })}
+          !icpConfigured ? (
+            <IcpGateCard tIcpGate={tIcpGate} />
+          ) : (
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center">
+              <div className="text-3xl mb-3">✨</div>
+              <h2 className="text-lg font-bold text-[#1a1a2e] mb-2">{tEmpty('title')}</h2>
+              <p className="text-sm text-[#8a7e6e] mb-6 max-w-sm mx-auto">
+                {tEmpty('description')}
               </p>
-            )}
-          </div>
+              <button
+                onClick={openChooseTemplate}
+                className="inline-block bg-[#3b6bef] hover:bg-[#2a5bdf] text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
+                + {tHeader('newCampaign')}
+              </button>
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {campaigns.map(c => (
@@ -337,6 +386,9 @@ export default function CampaignsPage() {
 
       {/* Tab: AI Suggestions */}
       {activeTab === 'suggestions' && (
+        !icpConfigured ? (
+          <IcpGateCard tIcpGate={tIcpGate} />
+        ) : (
         <div>
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -382,6 +434,7 @@ export default function CampaignsPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {/* Delete confirmation modal */}
