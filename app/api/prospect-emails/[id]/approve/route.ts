@@ -142,11 +142,30 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: 'provider_mock_mode' }, { status: 422 })
   }
 
-  // 3. Reserve the row — concurrent approvals race on this update.
-  await admin
+  // 3. Reserve the row — compare-and-set on status. The earlier read at
+  //    line 81 is a TOCTOU boundary: two concurrent POSTs on the same id
+  //    can both pass the `sending|sent` gate above and race to enqueue the
+  //    same lead twice. Constraining the UPDATE with `.in('status', […])`
+  //    turns the reservation into an atomic Postgres transition — only one
+  //    of the racing callers gets a row back; the other one sees zero rows
+  //    and bows out with 409. Values allowed on the LHS mirror the pre-CAS
+  //    read: draft/edited are the normal draft state, and 'approved' is
+  //    the parked-by-old-bulk-approve state (that route is removed, but any
+  //    rows still in that limbo can still be pushed to sending here — the
+  //    read at line 92 already excluded sending/sent).
+  const { data: reserved, error: reserveError } = await admin
     .from('prospect_emails')
     .update({ status: 'sending', approved_at: new Date().toISOString() })
     .eq('id', pe.id)
+    .in('status', ['draft', 'edited', 'approved'])
+    .select('id')
+  if (reserveError) {
+    return NextResponse.json({ error: reserveError.message }, { status: 500 })
+  }
+  if (!reserved || reserved.length === 0) {
+    // Another concurrent approve won the race and transitioned this row.
+    return NextResponse.json({ error: 'already_sent' }, { status: 409 })
+  }
 
   // 4. Recipient info. Filter by workspace explicitly even though pe is
   //    already workspace-scoped — RLS plus explicit code filter is the

@@ -74,7 +74,7 @@
 
 **Prospects** : `/prospects` (GET/POST), `/import`, `/export`, `/bulk-delete`, `/[id]` (GET/PATCH/DELETE), `/[id]/signals`, `/[id]/notes`, `/[id]/tags`, `/[id]/tags/[tag_id]`, `/[id]/generate-personalized`
 
-**Emails (drafts)** : `/prospect-emails` (GET), `/[id]` (GET/PATCH/DELETE), `/[id]/approve`, `/[id]/regenerate`, `/[id]/reject`, `/[id]/undo`, `/bulk-approve`, `/bulk-reject`, `/bulk-delete`
+**Emails (drafts)** : `/prospect-emails` (GET), `/[id]` (GET/PATCH/DELETE), `/[id]/approve`, `/[id]/regenerate`, `/[id]/reject`, `/[id]/undo`, `/bulk-reject`, `/bulk-delete`, `/approval-queue` (GET, workspace-wide)
 
 **Email variants** : `/prospect-email-variants/[id]` (GET/PATCH)
 
@@ -122,7 +122,7 @@
 | Email generation AI — personnalisation | IMPLÉMENTÉ FONCTIONNEL | `lib/personalization.ts` — `languageDirective` injecté (#112) |
 | Email generation AI — voix partagée | IMPLÉMENTÉ FONCTIONNEL | `lib/ai-voice.ts` — `HUMAN_VOICE_RULES`, `STRATEGY_VOICE_RULES`, `selfRevisionBlock(wordCap)`, `languageDirective(language)`. Règle name-once + title hint (#114). Em-dashes bannis de l'output. |
 | Signals — génération personnalisée (signal→problème) | IMPLÉMENTÉ FONCTIONNEL | `app/api/prospects/[id]/generate-personalized/route.ts` — intro problem-first cadrant le signal comme problème, pas comme name-drop ; `HUMAN_VOICE_RULES` injecté ; `signals.description` utilisé comme hypothèse (#115) |
-| Approval Queue | IMPLÉMENTÉ FONCTIONNEL | `app/api/prospect-emails/`, `/bulk-approve` ; `app/api/campaigns/[id]/approval-queue` |
+| Approval Queue | IMPLÉMENTÉ FONCTIONNEL | `app/api/prospect-emails/approval-queue` (workspace-wide) + `app/(dashboard)/dashboard/approvals/` ; `app/api/campaigns/[id]/approval-queue` (per-campaign, variants) |
 | **Outbound send — provider réel** | **STUB-MOCK** | `lib/email-provider-adapter.ts` — MockEmailProvider actif (Instantly stub = throw "not yet implemented"). *(Activation Instantly prévue juste avant launch.)* |
 | Signals — builder | IMPLÉMENTÉ FONCTIONNEL | `app/(dashboard)/dashboard/signals/page.tsx` |
 | Signals — auto-scan cron | IMPLÉMENTÉ FONCTIONNEL | `app/api/cron/auto-scan-signals/route.ts` (5am UTC daily) ; helper `scanSignalOnCampaign` (#45) |

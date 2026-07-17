@@ -247,11 +247,21 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   async function bulkApproveEmails() {
     if (selectedEmailIds.size === 0) return
     setBulkApprovingEmails(true)
-    await fetch('/api/prospect-emails/bulk-approve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [...selectedEmailIds] }),
-    })
+    // Loop the unitary approve — the only path that actually pushes to the
+    // provider (ensureCampaign/enqueueLead/activateCampaign). The former
+    // /api/prospect-emails/bulk-approve endpoint only flipped status to
+    // 'approved' with no downstream worker, so approved drafts were parked
+    // indefinitely — a dead-end bug fixed by /dashboard/approvals.
+    const ids = [...selectedEmailIds]
+    const BATCH = 4
+    let cursor = 0
+    await Promise.all(Array.from({ length: Math.min(BATCH, ids.length) }, async () => {
+      while (true) {
+        const i = cursor++
+        if (i >= ids.length) return
+        try { await fetch(`/api/prospect-emails/${ids[i]}/approve`, { method: 'POST' }) } catch { /* per-item errors swallowed to keep bulk moving; refresh below reveals what succeeded */ }
+      }
+    }))
     setBulkApprovingEmails(false)
     setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
