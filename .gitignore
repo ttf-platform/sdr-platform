@@ -35,9 +35,15 @@ next-env.d.ts
 .playwright-mcp/
 landing-prod-snapshot.md
 
+# Playwright auth storageState — contains a live Supabase session token
+scripts/.playwright-auth.json
+
 # Env file backups — CRITICAL (gap closure : .env*.local pattern actuel ne couvre PAS .backup.*)
 .env*.backup*
 .env.local.backup*
 
 # Dev screenshots in repo root (assets app dans /public préservés)
 /*.png
+
+# A1 provider test scripts (throwaway, never commit)
+scripts/a1-test/
