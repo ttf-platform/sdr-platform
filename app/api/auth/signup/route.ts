@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const parsed = signupSchema.safeParse(rawBody)
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload', issues: parsed.error.issues }, { status: 400 })
 
-  const { email, password, name, workspaceName, companyName, product, icp, tone, plan_tier, captchaToken } = parsed.data
+  const { email, password, name, companyName, plan_tier, captchaToken } = parsed.data
 
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
                 || request.headers.get('x-real-ip')
@@ -125,14 +125,17 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).slice(2, 6)
+  // Slug derives from companyName (workspace identity == company). Truncate
+  // aggressively before appending the random suffix so a long company name
+  // does not overflow whatever DB or URL constraints downstream code assumes.
+  const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40) + '-' + Math.random().toString(36).slice(2, 6)
   const now       = new Date()
   const trialEnd  = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
 
   const { data: workspace, error: wsError } = await admin
     .from('workspaces')
     .insert({
-      name:                workspaceName,
+      name:                companyName,
       slug,
       plan:                'trial',
       plan_tier:           tier,
@@ -175,9 +178,20 @@ export async function POST(request: NextRequest) {
   // sender identity) into placeholder mode — recoverable via a later
   // settings save. Never roll back workspace+member for this. TODO D4.1:
   // lazy-create workspace_profiles on first read when the row is missing.
+  // Signup now only captures user + company. product_description, icp_description
+  // and tone are filled later via the Profile & ICP tab (#235). tone defaults
+  // to 'professional' to satisfy any downstream reader that treats null as an
+  // error. onboarding_completed = false signals that the profile still needs
+  // the user's product / ICP input — no gate currently reads this flag to
+  // block /dashboard access (verified 2026-07-17), so users land normally.
   const { error: profileError } = await admin.from('workspace_profiles').insert({
-    workspace_id: workspace.id, company_name: companyName, product_description: product,
-    icp_description: icp, tone, onboarding_completed: true, booking_slug: bookingSlug,
+    workspace_id:        workspace.id,
+    company_name:        companyName,
+    product_description: '',
+    icp_description:     '',
+    tone:                'professional',
+    onboarding_completed: false,
+    booking_slug:        bookingSlug,
   })
   if (profileError) {
     console.error('[signup] workspace_profiles insert failed (non-fatal, profile can be created later):', profileError.message)
