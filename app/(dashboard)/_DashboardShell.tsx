@@ -370,7 +370,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <SampleDataBanner />
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-6 pt-6 pb-28">
         {children}
       </main>
 
