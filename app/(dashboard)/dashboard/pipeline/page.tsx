@@ -881,14 +881,23 @@ export default function PipelinePage() {
             className="border border-[#e8e3dc] bg-white text-[#1a1a2e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] disabled:opacity-40 transition-colors flex items-center gap-1.5">
             {syncing ? `↻ ${tActions('syncing')}` : `↻ ${tActions('sync')}`}
           </button>
-          <button onClick={() => setView('kanban')}
-            className={`border px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
-            ⊞ {tActions('kanban')}
-          </button>
-          <button onClick={() => setView('list')}
-            className={`border px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'border-[#e8e3dc] bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
-            ☰ {tActions('list')}
-          </button>
+          {/* Segmented view switcher — kanban / list. Container carries the
+              border + radius; buttons keep only the state colours. The List
+              button's left border matches its own state so the divider blends
+              into the blue when List is active (no ghost 1px gray seam inside
+              the brand-blue segment). */}
+          <div className="inline-flex rounded-lg border border-[#e8e3dc] overflow-hidden">
+            <button onClick={() => setView('kanban')}
+              aria-pressed={view === 'kanban'}
+              className={`px-3 py-2 text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-[#3b6bef] text-white cursor-default' : 'bg-white text-[#1a1a2e] hover:bg-[#f5f2ee]'}`}>
+              ⊞ {tActions('kanban')}
+            </button>
+            <button onClick={() => setView('list')}
+              aria-pressed={view === 'list'}
+              className={`px-3 py-2 text-sm font-medium transition-colors border-l ${view === 'list' ? 'bg-[#3b6bef] text-white border-[#3b6bef] cursor-default' : 'bg-white text-[#1a1a2e] hover:bg-[#f5f2ee] border-[#e8e3dc]'}`}>
+              ☰ {tActions('list')}
+            </button>
+          </div>
           {/* "+ Add Lead" button + tooltip — tight group, tooltip right-aligned to avoid viewport overflow */}
           <div className="flex items-center gap-0.5">
             <button onClick={() => setAddLeadOpen(true)}
