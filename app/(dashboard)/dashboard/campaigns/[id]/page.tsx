@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
+import { useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 import { Tooltip } from '@/components/Tooltip'
 import { ImportCSVModal, ManualAddModal, statusBadgeClass, type ImportResult } from '@/components/ProspectModals'
 import { AddFromBaseModal } from '@/components/AddFromBaseModal'
@@ -98,9 +99,27 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tToasts = useTranslations('dashboard.campaigns.detail.toasts')
   const tCampaignStatuses = useTranslations('dashboard.campaigns.list.statuses')  // REUSE Lot 2A.4.1
   const tCommon = useTranslations('dashboard.common')
+  const tIcpGate = useTranslations('dashboard.campaigns.icpGate')
 
   const { id } = use(params)
   const router = useRouter()
+  const { data: onboarding } = useOnboardingProgress()
+  const icpConfigured = onboarding?.completions.icp_configured === true
+
+  function openGenerateDraftsModal(isRegen: boolean) {
+    if (!icpConfigured) {
+      toast.error(tIcpGate('toastTitle'), {
+        description: tIcpGate('toastDescription'),
+        action: {
+          label:   tIcpGate('toastCta'),
+          onClick: () => { window.location.href = '/dashboard/profile#icp' },
+        },
+      })
+      return
+    }
+    setGenerateDraftsIsRegen(isRegen)
+    setShowGenerateDraftsModal(true)
+  }
   const searchParams = useSearchParams()
   // Warmup capacity toast is shown at most once per browser session to avoid
   // spamming users who bulk-approve. Ref-based (not localStorage) — an
@@ -413,12 +432,37 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
   async function generateMissingDrafts() {
     if (!campaign) return
+    if (!icpConfigured) {
+      toast.error(tIcpGate('toastTitle'), {
+        description: tIcpGate('toastDescription'),
+        action: {
+          label:   tIcpGate('toastCta'),
+          onClick: () => { window.location.href = '/dashboard/profile#icp' },
+        },
+      })
+      return
+    }
     setGeneratingMissing(true)
-    await fetch(`/api/campaigns/${id}/generate-drafts`, {
+    const res = await fetch(`/api/campaigns/${id}/generate-drafts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: campaign.personalization_mode ?? 'fast' }),
     })
+    // Belt-and-suspenders: even if the frontend guard is bypassed, the
+    // backend answers 422 with { error: 'icp_not_configured' } and we surface
+    // the same toast/CTA rather than a silent failure.
+    if (res.status === 422) {
+      const body = await res.json().catch(() => null)
+      if (body?.error === 'icp_not_configured') {
+        toast.error(tIcpGate('toastTitle'), {
+          description: tIcpGate('toastDescription'),
+          action: {
+            label:   tIcpGate('toastCta'),
+            onClick: () => { window.location.href = '/dashboard/profile#icp' },
+          },
+        })
+      }
+    }
     setGeneratingMissing(false)
     setEmailsRefreshKey(k => k + 1)
   }
@@ -844,7 +888,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <p className="text-sm text-[#8a7e6e] mb-4">
                 {tEmails('emptyNoDraftsDescription', { count: tabProspectsTotal })}
               </p>
-              <button onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
+              <button onClick={() => openGenerateDraftsModal(false)}
                 className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold">
                 ✨ {tEmails('emptyNoDraftsCta')}
               </button>
@@ -877,7 +921,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setGenerateDraftsIsRegen(true); setShowGenerateDraftsModal(true) }}
+                    onClick={() => openGenerateDraftsModal(true)}
                     className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee]">
                     ↺ {tEmails('regenerateAll')}
                   </button>
@@ -1086,7 +1130,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <p className="text-xs text-[#8a7e6e] mb-4">{t('sequence.emptyDescription')}</p>
               {(campaign?.prospects_count ?? 0) > 0 && (
                 <button
-                  onClick={() => { setGenerateDraftsIsRegen(false); setShowGenerateDraftsModal(true) }}
+                  onClick={() => openGenerateDraftsModal(false)}
                   className="bg-[#3b6bef] text-white px-5 py-2 rounded-lg text-sm font-semibold"
                 >
                   ✨ {t('sequence.emptyCta')}

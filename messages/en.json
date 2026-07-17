@@ -1260,6 +1260,14 @@
       }
     },
     "campaigns": {
+      "icpGate": {
+        "title": "Complete your ICP first",
+        "description": "Mirvo needs your product description and ICP to generate campaigns worth reviewing. It takes 2 minutes.",
+        "cta": "Complete my ICP →",
+        "toastTitle": "ICP required",
+        "toastDescription": "Fill in your product and ICP before generating campaigns or drafts.",
+        "toastCta": "Complete →"
+      },
       "list": {
         "header": {
           "title": "Campaigns",
@@ -1274,8 +1282,7 @@
         "loading": "Loading campaigns…",
         "emptyState": {
           "title": "Your first campaign",
-          "description": "Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today from your connected mailbox.",
-          "configureIcp": "<link>Configure your ICP first</link> for higher-quality personalization"
+          "description": "Mirvo AI generates a personalized multi-step email sequence for each prospect — tailored to your ICP and any Signal matches. Sends today from your connected mailbox."
         },
         "card": {
           "demo": "Demo",

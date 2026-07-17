@@ -1260,6 +1260,14 @@
       }
     },
     "campaigns": {
+      "icpGate": {
+        "title": "Complétez d'abord votre ICP",
+        "description": "Mirvo a besoin de la description de votre produit et de votre ICP pour générer des campagnes utiles. Deux minutes suffisent.",
+        "cta": "Compléter mon ICP →",
+        "toastTitle": "ICP requis",
+        "toastDescription": "Renseignez votre produit et votre ICP avant de générer des campagnes ou des brouillons.",
+        "toastCta": "Compléter →"
+      },
       "list": {
         "header": {
           "title": "Campagnes",
@@ -1274,8 +1282,7 @@
         "loading": "Chargement des campagnes…",
         "emptyState": {
           "title": "Votre première campagne",
-          "description": "Mirvo IA génère une séquence d'e-mails personnalisée en plusieurs étapes pour chaque prospect, adaptée à votre ICP et aux correspondances de vos signaux. Envoi le jour même depuis votre boîte de réception connectée.",
-          "configureIcp": "<link>Configurez d'abord votre ICP</link> pour une personnalisation de meilleure qualité"
+          "description": "Mirvo IA génère une séquence d'e-mails personnalisée en plusieurs étapes pour chaque prospect, adaptée à votre ICP et aux correspondances de vos signaux. Envoi le jour même depuis votre boîte de réception connectée."
         },
         "card": {
           "demo": "Démo",
