@@ -402,7 +402,12 @@ export default function BillingPage() {
                   <div className="font-bold text-[#1a1a2e] text-sm">{p.name}</div>
                   {isCurrent && <span className="text-xs bg-[#3b6bef] text-white px-2 py-0.5 rounded-full">{tPlans('currentBadge')}</span>}
                 </div>
-                <div className="text-xl font-bold text-[#1a1a2e] mb-3">{price}</div>
+                <div className="text-xl font-bold text-[#1a1a2e] mb-3 flex items-baseline gap-1.5">
+                  {interval === 'yearly' && (
+                    <span className="text-sm font-normal text-[#8a7e6e] line-through">${p.monthly * 12}</span>
+                  )}
+                  <span>{price}</span>
+                </div>
                 <ul className="flex flex-col gap-1.5 mb-4 text-xs text-[#4a4a5a]">
                   {p.inherits && (
                     <li className="text-[10px] font-semibold text-[#8a7e6e] mb-0.5">{tPlans('inheritsFrom', { previousPlan: p.inherits })}</li>
