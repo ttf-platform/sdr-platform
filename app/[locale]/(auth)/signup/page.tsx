@@ -5,6 +5,35 @@ import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { track } from '@/lib/track'
 import { Turnstile } from '@marsidev/react-turnstile'
+import { isAnalyticsAllowed } from '@/lib/cookie-consent'
+
+// Keys we read from the sentra_utm localStorage record and forward to the
+// signup API. Kept in sync with lib/schemas/auth.ts::acquisitionSchema —
+// unknown keys are stripped server-side either way, but explicit filtering
+// here avoids ever sending garbage over the wire.
+const ACQUISITION_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer'] as const
+const UTM_STORAGE_KEY = 'sentra_utm'
+
+// Read the first-touch record synchronously (client-side only). Returns an
+// object with only the known acquisition keys populated, or null if the
+// record is missing / corrupt / user rejected analytics.
+function readAcquisition(): Record<string, string> | null {
+  if (typeof window === 'undefined') return null
+  if (!isAnalyticsAllowed()) return null
+  try {
+    const raw = localStorage.getItem(UTM_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const out: Record<string, string> = {}
+    for (const key of ACQUISITION_KEYS) {
+      const v = parsed[key]
+      if (typeof v === 'string' && v.length > 0) out[key] = v
+    }
+    return Object.keys(out).length > 0 ? out : null
+  } catch {
+    return null
+  }
+}
 
 const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', power: 'Power' }
 
@@ -50,6 +79,7 @@ function SignupForm() {
   async function handleFinish() {
     setLoading(true)
     setError('')
+    const acquisition = readAcquisition()
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -58,6 +88,7 @@ function SignupForm() {
         companyName: data.companyName,
         plan_tier: plan,
         captchaToken,
+        ...(acquisition ? { acquisition } : {}),
       })
     }).then(r => r.json())
     if (!res.success) {

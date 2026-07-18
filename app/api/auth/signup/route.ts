@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const parsed = signupSchema.safeParse(rawBody)
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload', issues: parsed.error.issues }, { status: 400 })
 
-  const { email, password, name, companyName, plan_tier, captchaToken } = parsed.data
+  const { email, password, name, companyName, plan_tier, captchaToken, acquisition } = parsed.data
 
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
                 || request.headers.get('x-real-ip')
@@ -132,6 +132,11 @@ export async function POST(request: NextRequest) {
   const now       = new Date()
   const trialEnd  = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
 
+  // First-touch acquisition. `acquisition` has already been validated by
+  // signupSchema (known keys only, 200/255-char caps, unknown keys stripped)
+  // and is null when the client had no record or the user rejected analytics.
+  // Written verbatim into workspaces.acquisition — never overwritten later,
+  // so a workspace's first attribution row stays as the historical anchor.
   const { data: workspace, error: wsError } = await admin
     .from('workspaces')
     .insert({
@@ -142,6 +147,7 @@ export async function POST(request: NextRequest) {
       subscription_status: 'trialing',
       trial_start_date:    now.toISOString(),
       trial_end_date:      trialEnd.toISOString(),
+      acquisition:         acquisition ?? null,
     })
     .select().single()
 
