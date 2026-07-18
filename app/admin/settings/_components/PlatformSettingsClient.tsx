@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Check } from 'lucide-react';
+import { Toggle } from '@/components/ui/Toggle';
 
 type SettingValue = { value: unknown; description: string | null; updated_at: string };
 type Settings = Record<string, SettingValue>;
@@ -108,19 +109,19 @@ function FeatureFlagsCard({ initial }: { initial: { signups_enabled: boolean; ma
 
   return (
     <Card title="Feature flags" subtitle="Master switches for platform behavior">
-      <Toggle
+      <LabeledToggle
         label="Signups enabled"
         description="When off, the signup page is blocked for new users."
         value={flags.signups_enabled}
         onChange={(v) => setFlags((f) => ({ ...f, signups_enabled: v }))}
       />
-      <Toggle
+      <LabeledToggle
         label="Maintenance mode"
         description="When on, displays a maintenance banner and disables non-essential features."
         value={flags.maintenance_mode}
         onChange={(v) => setFlags((f) => ({ ...f, maintenance_mode: v }))}
       />
-      <Toggle
+      <LabeledToggle
         label="Widget Help enabled"
         description="When off, hides the floating Help widget across the app."
         value={flags.widget_help_enabled}
@@ -361,22 +362,14 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
   );
 }
 
-function Toggle({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
+function LabeledToggle({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="flex items-start justify-between gap-4 rounded-md border border-[#f0ebe4] bg-[#fafaf9] p-3">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium text-[#1a1a1a]">{label}</div>
         <div className="mt-0.5 text-xs text-[#4a4a5a]">{description}</div>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={value}
-        onClick={() => onChange(!value)}
-        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${value ? 'bg-[#3b6bef]' : 'bg-[#d1d5db]'}`}
-      >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-0.5'}`} />
-      </button>
+      <Toggle checked={value} onChange={onChange} ariaLabel={label} />
     </div>
   );
 }

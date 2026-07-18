@@ -14,6 +14,7 @@ import { GenerateDraftsModal } from '@/components/GenerateDraftsModal'
 import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
 import { CampaignProspectMobileCard } from './_components/CampaignProspectMobileCard'
+import { Toggle } from '@/components/ui/Toggle'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -1155,14 +1156,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 <div className="text-[0.88rem] font-medium text-gray-900">{t('sequence.stopOnReplyLabel')}</div>
                 <div className="text-[0.78rem] text-gray-500 mt-0.5">{t('sequence.stopOnReplyDescription')}</div>
               </div>
-              <Toggle checked={stopSettings.smart_stop_on_reply} onChange={v => patchStopSetting({ smart_stop_on_reply: v })} />
+              <Toggle checked={stopSettings.smart_stop_on_reply} onChange={v => patchStopSetting({ smart_stop_on_reply: v })} ariaLabel={t('sequence.stopOnReplyLabel')} />
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <div>
                 <div className="text-[0.88rem] font-medium text-gray-900">{t('sequence.stopOnBounceLabel')}</div>
                 <div className="text-[0.78rem] text-gray-500 mt-0.5">{t('sequence.stopOnBounceDescription')}</div>
               </div>
-              <Toggle checked={stopSettings.smart_stop_on_bounce} onChange={v => patchStopSetting({ smart_stop_on_bounce: v })} />
+              <Toggle checked={stopSettings.smart_stop_on_bounce} onChange={v => patchStopSetting({ smart_stop_on_bounce: v })} ariaLabel={t('sequence.stopOnBounceLabel')} />
             </div>
           </div>
         </div>
@@ -1277,16 +1278,3 @@ function StepCard({ step, idx, totalSteps, saving, onEdit, onAiWrite, onRemove }
   )
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600/30 ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}
-    >
-      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
-    </button>
-  )
-}

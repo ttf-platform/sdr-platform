@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import CreditUsageIndicator from '@/components/CreditUsageIndicator'
+import { Toggle } from '@/components/ui/Toggle'
 import { track } from '@/lib/track'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -459,10 +460,12 @@ export default function BillingPage() {
               </p>
             )}
           </div>
-          <button onClick={toggleOverage} disabled={overageLoading || !usage}
-            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${usage?.overage_enabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'} disabled:opacity-40`}>
-            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${usage?.overage_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
+          <Toggle
+            checked={!!usage?.overage_enabled}
+            onChange={() => toggleOverage()}
+            disabled={overageLoading || !usage}
+            ariaLabel={tOverage('title')}
+          />
         </div>
       </div>
     </div>
