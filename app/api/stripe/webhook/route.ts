@@ -49,6 +49,29 @@ export async function POST(request: Request) {
     await admin.from('workspaces').update(fields).eq('id', workspaceId)
   }
 
+  // Derive workspaces.current_period_start / end from a Stripe subscription.
+  //
+  // Populated ONLY when the sub is in a paid state (active | past_due). Any
+  // other status (trialing, canceled, incomplete, unpaid) → both columns
+  // nulled so lib/billing-period.ts falls back to the calendar month. This
+  // is what lets a trial user get the full month of quota starting the day
+  // they convert, instead of the leftover of the calendar month.
+  //
+  // Best-effort: called from the switch below with try/catch — never throws,
+  // never fails the webhook. Returns the fields dict so the caller can merge
+  // it into its updateWorkspace(...) call.
+  function periodFieldsFromSubscription(sub: Stripe.Subscription): {
+    current_period_start: string | null
+    current_period_end:   string | null
+  } {
+    const paid = sub.status === 'active' || sub.status === 'past_due'
+    if (!paid) return { current_period_start: null, current_period_end: null }
+    // Stripe timestamps are unix seconds. DATE column is UTC-only.
+    const start = new Date(sub.current_period_start * 1000).toISOString().slice(0, 10)
+    const end   = new Date(sub.current_period_end   * 1000).toISOString().slice(0, 10)
+    return { current_period_start: start, current_period_end: end }
+  }
+
   // Atomic "stamp canceled_at only if currently null". Used by branches that
   // transition INTO 'canceled'. Guarantees a webhook replay cannot restart
   // the J+30 purge clock, even if a readWorkspaceBefore() read failed and
@@ -372,6 +395,7 @@ export async function POST(request: Request) {
       break
     }
 
+    case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const sub         = event.data.object as Stripe.Subscription
       const workspaceId = sub.metadata?.workspace_id
@@ -394,11 +418,21 @@ export async function POST(request: Request) {
       // stale timestamp cannot booby-trap a future purge if the status
       // filter is ever relaxed.
       const exitingCanceled = status !== 'canceled' && before.subscription_status === 'canceled'
+      // Best-effort period fields. periodFieldsFromSubscription is pure and
+      // never throws; the try/catch guards against an unexpected shape from
+      // Stripe (e.g. future SDK changes) so we never take down the webhook.
+      let periodFields: { current_period_start: string | null; current_period_end: string | null } | null = null
+      try {
+        periodFields = periodFieldsFromSubscription(sub)
+      } catch (err) {
+        console.error('[stripe-webhook] periodFieldsFromSubscription failed (non-fatal):', err instanceof Error ? err.message : err)
+      }
       await updateWorkspace(workspaceId, {
         subscription_status:    status,
         stripe_subscription_id: sub.id,
         ...(resolved ? { plan_tier: resolved.tier, billing_interval: resolved.interval } : {}),
         ...(exitingCanceled ? { canceled_at: null } : {}),
+        ...(periodFields ?? {}),
       })
 
       // canceled_at anchors the J+30 purge cron. Stamped only when currently
@@ -447,6 +481,10 @@ export async function POST(request: Request) {
       await updateWorkspace(workspaceId, {
         subscription_status:    'canceled',
         stripe_subscription_id: null,
+        // Null the paid-period anchor so lib/billing-period.ts falls back
+        // to the calendar month for any residual reads before purge.
+        current_period_start:   null,
+        current_period_end:     null,
       })
       // canceled_at anchors the J+30 purge cron. Atomic conditional write:
       // stamped only when currently NULL, so a webhook replay of the same

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { PlanTier } from '@/lib/stripe-prices'
 import { triggerOverageChargeIfNeeded } from '@/lib/overage-charge'
+import { getUsagePeriod } from '@/lib/billing-period'
 
 type TierKey = PlanTier | 'free'
 
@@ -61,22 +62,29 @@ export async function checkTierLimit(
   const admin = createAdminClient()
 
   const { data: ws } = await admin
-    .from('workspaces').select('plan_tier, overage_enabled')
+    .from('workspaces').select('plan_tier, overage_enabled, current_period_start, current_period_end')
     .eq('id', workspaceId).single()
 
   const tier = (ws?.plan_tier ?? 'starter') as TierKey
   const caps = TIER_CAPS[tier] ?? TIER_CAPS.starter
 
-  // Monthly metric — read from usage_tracking
-  const periodStart = new Date()
-  periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
+  // Monthly metric — window anchored on the Stripe billing period (or the
+  // calendar month when the workspace is not on a paid subscription — trial
+  // fallback preserved). See lib/billing-period.ts.
+  const period = getUsagePeriod(ws)
 
+  // Upper bound `.lt(period_start, period.end)` is required in addition to
+  // `.gte(period.start, ...)`: on paid→trial or paid→canceled transitions the
+  // workspace's period columns get nulled, `getUsagePeriod` falls back to the
+  // calendar month, and rows written under the earlier paid window could then
+  // leak into the fallback window if they happen to sit above its `start`.
   const { data: rows } = await admin
     .from('usage_tracking')
     .select('value')
     .eq('workspace_id', workspaceId)
     .eq('metric', metric)
-    .gte('period_start', periodStart.toISOString().split('T')[0])
+    .gte('period_start', period.start)
+    .lt('period_start', period.end)
 
   const current = (rows ?? []).reduce((s, r) => s + r.value, 0)
 
@@ -120,13 +128,23 @@ export async function trackUsage(
   value = 1,
 ) {
   const admin = createAdminClient()
-  const periodStart = new Date()
-  periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
+
+  // Cohérence write↔read : la période écrite ici DOIT matcher celle lue par
+  // checkTierLimit / usage/current / bot-ai / overage-charge — sinon les
+  // compteurs mensuels se désynchronisent aux bornes de période. On lit
+  // donc les colonnes Stripe du workspace (fetch minimal) avant d'écrire.
+  const { data: ws } = await admin
+    .from('workspaces')
+    .select('current_period_start, current_period_end')
+    .eq('id', workspaceId)
+    .single()
+
+  const period = getUsagePeriod(ws)
 
   await admin.from('usage_tracking').insert({
     workspace_id: workspaceId,
     metric,
     value,
-    period_start: periodStart.toISOString().split('T')[0],
+    period_start: period.start,
   })
 }
