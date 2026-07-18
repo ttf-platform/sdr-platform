@@ -37,14 +37,21 @@ export async function setAdminSetting(
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const sb = getAdminSupabaseClient();
+    // Upsert on `key` (PRIMARY KEY per migration 000_baseline.sql:1345-1346)
+    // so a first-time write for a brand-new setting persists instead of
+    // silently no-op'ing (the previous .update().eq('key') matched zero rows
+    // and still returned {ok:true}).
     const { error } = await sb
       .from('admin_settings')
-      .update({
-        value,
-        updated_by: updatedBy ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('key', key);
+      .upsert(
+        {
+          key,
+          value,
+          updated_by: updatedBy ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'key' }
+      );
     if (error) return { ok: false, error: error.message };
     cache.delete(key);
     return { ok: true };
