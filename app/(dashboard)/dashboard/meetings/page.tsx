@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/ui/Spinner'
+import { Toggle } from '@/components/ui/Toggle'
 
 const supabase = createClient()
 
@@ -410,10 +411,11 @@ export default function MeetingsPage() {
                   <p className="text-sm font-semibold text-[#1a1a2e]">{tSchEnable('label')}</p>
                   <p className="text-xs text-[#8a7e6e]">{tSchEnable('description')}</p>
                 </div>
-                <button onClick={() => setSCfg({...sCfg, enabled: !sCfg.enabled})}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${sCfg.enabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${sCfg.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+                <Toggle
+                  checked={sCfg.enabled}
+                  onChange={(v) => setSCfg({...sCfg, enabled: v})}
+                  ariaLabel={tSchEnable('label')}
+                />
               </div>
 
               {/* Timezone */}
@@ -435,10 +437,11 @@ export default function MeetingsPage() {
                     return (
                       <div key={day} className="flex gap-3 items-start">
                         <div className="w-28 flex-shrink-0 flex items-center gap-2 pt-1.5">
-                          <button onClick={() => toggleDay(day)}
-                            className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
-                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                          </button>
+                          <Toggle
+                            checked={on}
+                            onChange={() => toggleDay(day)}
+                            ariaLabel={tWeekdaysShort(day)}
+                          />
                           <span className="text-sm text-[#1a1a2e]">{tWeekdaysShort(day)}</span>
                         </div>
                         <div className="flex-1">
