@@ -21,27 +21,10 @@
 // (migration 029: 'pending','active','paused','completed','failed').
 export type WarmupPhase = 'pending' | 'active' | 'paused' | 'completed' | 'failed';
 
-export interface ProvisionInboxParams {
-  workspaceId: string;
-  domain: string;        // ex: "getmirvo.com"
-  emailAddress: string;  // ex: "outreach@getmirvo.com"
-  senderName: string;    // ex: "Cyrus from Mirvo"
-}
-
 export interface DnsRecord {
   type: 'TXT' | 'CNAME';
   name: string;
   value: string;
-}
-
-export interface ProvisionInboxResult {
-  providerInboxId: string;
-  dnsRecords: {
-    spf: DnsRecord;
-    dkim: DnsRecord;
-    dmarc: DnsRecord;
-    customReturnPath?: DnsRecord;
-  };
 }
 
 export interface WarmupStatus {
@@ -256,9 +239,6 @@ export interface IEmailProvider {
    *  duplicate the getEmailProvider() selection logic elsewhere. */
   readonly providerName: 'instantly' | 'mock';
 
-  /** Create a new sending account on the provider for a workspace's domain. */
-  provisionInbox(params: ProvisionInboxParams): Promise<ProvisionInboxResult>;
-
   /** Start the background warmup loop for a provisioned inbox. */
   triggerWarmup(inboxId: string): Promise<void>;
 
@@ -339,39 +319,6 @@ export interface IEmailProvider {
 
 export class MockEmailProvider implements IEmailProvider {
   readonly providerName = 'mock' as const;
-
-  async provisionInbox(
-    params: ProvisionInboxParams
-  ): Promise<ProvisionInboxResult> {
-    const inboxId = this.makeMockId('inbox');
-
-    return {
-      providerInboxId: inboxId,
-      dnsRecords: {
-        spf: {
-          type: 'TXT',
-          name: '@',
-          value: `v=spf1 include:_spf.mail.mirvo.ai include:_spf.${params.domain} ~all`,
-        },
-        dkim: {
-          type: 'TXT',
-          name: `mirvo._domainkey.${params.domain}`,
-          // Realistic DKIM length (~1024-bit RSA in base64 = ~216 chars)
-          value: `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQ${this.randomBase64(180)}`,
-        },
-        dmarc: {
-          type: 'TXT',
-          name: `_dmarc.${params.domain}`,
-          value: `v=DMARC1; p=quarantine; rua=mailto:dmarc@${params.domain}; pct=100`,
-        },
-        customReturnPath: {
-          type: 'CNAME',
-          name: `mail.${params.domain}`,
-          value: 'return-path.mail.mirvo.ai',
-        },
-      },
-    };
-  }
 
   async triggerWarmup(_inboxId: string): Promise<void> {
     // No-op.
@@ -576,16 +523,6 @@ export class MockEmailProvider implements IEmailProvider {
       .slice(2, 10)}`;
   }
 
-  private randomBase64(length: number): string {
-    const chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return result;
-  }
-
   private hashString(s: string): number {
     let hash = 0;
     for (let i = 0; i < s.length; i++) {
@@ -616,12 +553,6 @@ export class InstantlyProvider implements IEmailProvider {
       throw new Error('[InstantlyProvider] apiKey is required');
     }
     this.apiKey = apiKey;
-  }
-
-  async provisionInbox(
-    _params: ProvisionInboxParams
-  ): Promise<ProvisionInboxResult> {
-    throw new Error('[InstantlyProvider] not yet implemented');
   }
 
   async triggerWarmup(inboxId: string): Promise<void> {
