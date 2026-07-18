@@ -47,3 +47,6 @@ scripts/.playwright-auth.json
 
 # A1 provider test scripts (throwaway, never commit)
 scripts/a1-test/
+
+# Claude Code local settings + backups (personnel, peut porter des tokens)
+.claude/settings.local.json*
