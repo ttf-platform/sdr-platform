@@ -4,10 +4,9 @@
  * Coverage:
  *   - MockEmailProvider returns valid-shaped data
  *   - getWarmupStatus is deterministic (same inboxId → same status)
- *   - DNS records have plausible structure (SPF/DKIM/DMARC formats)
  *   - Factory selects MockEmailProvider when MOCK_EMAIL_PROVIDER=true
  *   - Factory selects MockEmailProvider when INSTANTLY_API_KEY is missing
- *   - InstantlyProvider stub throws "not yet implemented"
+ *   - InstantlyProvider stub throws "not yet implemented" on sendEmail
  *   - InstantlyProvider constructor refuses empty apiKey
  */
 
@@ -20,72 +19,6 @@ import {
 
 describe('MockEmailProvider', () => {
   const provider = new MockEmailProvider();
-
-  describe('provisionInbox', () => {
-    it('returns a provider inbox id and 3 DNS records', async () => {
-      const result = await provider.provisionInbox({
-        workspaceId: 'ws_123',
-        domain: 'getsentra.com',
-        emailAddress: 'outreach@getsentra.com',
-        senderName: 'Cyrus from Sentra',
-      });
-
-      expect(result.providerInboxId).toMatch(/^mock_inbox_/);
-      expect(result.dnsRecords.spf.type).toBe('TXT');
-      expect(result.dnsRecords.dkim.type).toBe('TXT');
-      expect(result.dnsRecords.dmarc.type).toBe('TXT');
-    });
-
-    it('SPF record has the expected v=spf1 format', async () => {
-      const result = await provider.provisionInbox({
-        workspaceId: 'ws_1',
-        domain: 'example.com',
-        emailAddress: 'a@example.com',
-        senderName: 'A',
-      });
-      expect(result.dnsRecords.spf.value).toMatch(/^v=spf1\s/);
-      expect(result.dnsRecords.spf.value).toMatch(/~all$/);
-    });
-
-    it('DKIM record name includes the domain', async () => {
-      const result = await provider.provisionInbox({
-        workspaceId: 'ws_1',
-        domain: 'example.com',
-        emailAddress: 'a@example.com',
-        senderName: 'A',
-      });
-      expect(result.dnsRecords.dkim.name).toContain('example.com');
-      expect(result.dnsRecords.dkim.name).toContain('_domainkey');
-      expect(result.dnsRecords.dkim.value).toMatch(/^v=DKIM1/);
-    });
-
-    it('DMARC record name is _dmarc.<domain>', async () => {
-      const result = await provider.provisionInbox({
-        workspaceId: 'ws_1',
-        domain: 'example.com',
-        emailAddress: 'a@example.com',
-        senderName: 'A',
-      });
-      expect(result.dnsRecords.dmarc.name).toBe('_dmarc.example.com');
-      expect(result.dnsRecords.dmarc.value).toMatch(/^v=DMARC1/);
-    });
-
-    it('produces unique inbox ids on repeated calls', async () => {
-      const a = await provider.provisionInbox({
-        workspaceId: 'ws_1',
-        domain: 'example.com',
-        emailAddress: 'a@example.com',
-        senderName: 'A',
-      });
-      const b = await provider.provisionInbox({
-        workspaceId: 'ws_1',
-        domain: 'example.com',
-        emailAddress: 'a@example.com',
-        senderName: 'A',
-      });
-      expect(a.providerInboxId).not.toBe(b.providerInboxId);
-    });
-  });
 
   describe('getWarmupStatus', () => {
     it('is deterministic for the same inboxId', async () => {
@@ -166,16 +99,8 @@ describe('InstantlyProvider stub', () => {
     expect(() => new InstantlyProvider('')).toThrow(/apiKey is required/);
   });
 
-  it('throws "not yet implemented" on every method', async () => {
+  it('throws "not yet implemented" on sendEmail (orphan stub)', async () => {
     const p = new InstantlyProvider('test_key');
-    await expect(
-      p.provisionInbox({
-        workspaceId: 'ws',
-        domain: 'a.com',
-        emailAddress: 'a@a.com',
-        senderName: 'A',
-      })
-    ).rejects.toThrow(/not yet implemented/);
     // getWarmupStatus (A2a-2c-1), triggerWarmup / pauseInbox / resumeInbox
     // (A2a-2c-2a) and deleteInbox (A2a-2c-2b) are now real implementations
     // that hit Instantly live. With a fake API key the call fails at the

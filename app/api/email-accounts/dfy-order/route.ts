@@ -15,8 +15,8 @@
  *                    On order_placed=true, INSERT a row in dfy_orders for the
  *                    reconciliation cron to follow up on.
  *
- * The route never touches provisionInbox / email_accounts / the legacy sync
- * flow. The cron creates email_accounts rows on completion.
+ * The route never touches email_accounts / the legacy sync flow — the
+ * reconciliation cron creates email_accounts rows on completion.
  */
 
 import { NextResponse } from 'next/server'

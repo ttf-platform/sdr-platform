@@ -177,7 +177,7 @@
 
 ### IEmailProvider (abstract) — EXISTE
 `lib/email-provider-adapter.ts`
-Interface : `provisionInbox()`, `triggerWarmup()`, `getWarmupStatus()`, `sendEmail()`, `pauseInbox()`, `resumeInbox()`, `deleteInbox()`
+Interface : `triggerWarmup()`, `getWarmupStatus()`, `sendEmail()`, `pauseInbox()`, `resumeInbox()`, `deleteInbox()`
 Implémentations :
 - `MockEmailProvider` — réponses déterministes, 5% simulated failure
 - `InstantlyProvider` — stub complet (throw "not yet implemented" partout)
