@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/admin/', '/dashboard/', '/_next/'],
       },
     ],
-    sitemap: 'https://mirvo.ai/sitemap.xml',
-    host: 'https://mirvo.ai',
+    sitemap: 'https://www.mirvo.ai/sitemap.xml',
+    host: 'https://www.mirvo.ai',
   }
 }

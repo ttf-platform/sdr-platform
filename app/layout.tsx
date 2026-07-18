@@ -11,7 +11,7 @@ const dmSans = DM_Sans({
   preload: true,
 })
 
-const BASE_URL = 'https://mirvo.ai'
+const BASE_URL = 'https://www.mirvo.ai'
 
 const organizationJsonLd = {
   '@context': 'https://schema.org',

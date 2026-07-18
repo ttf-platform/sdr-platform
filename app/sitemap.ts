@@ -1,6 +1,6 @@
 import { MetadataRoute } from 'next'
 
-const BASE_URL = 'https://mirvo.ai'
+const BASE_URL = 'https://www.mirvo.ai'
 const locales = ['en', 'fr'] as const
 
 type Entry = {

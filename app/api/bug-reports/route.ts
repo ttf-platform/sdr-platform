@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
   }
 
   const appBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? 'https://sdr-platform-sigma.vercel.app';
+    process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai';
   await sendAdminBugReportEmail({
     bugReportId: bug.id,
     workspaceId,

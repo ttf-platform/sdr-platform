@@ -7,7 +7,7 @@ import { HelpIndex } from '@/components/help/HelpIndex'
 export const metadata: Metadata = {
   title: 'Help Center — Mirvo',
   description: 'Guides and documentation to help you get the most out of Mirvo',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: { canonical: '/help' },
 }
 

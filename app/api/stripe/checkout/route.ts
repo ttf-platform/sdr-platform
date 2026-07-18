@@ -5,7 +5,7 @@ import { stripe } from '@/lib/stripe'
 import { STRIPE_PRICES, LAUNCH50_COUPONS } from '@/lib/stripe-prices'
 import { stripeCheckoutSchema, badRequest } from '@/lib/schemas'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://mirvo.ai'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.mirvo.ai'
 
 export async function POST(request: Request) {
   if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
