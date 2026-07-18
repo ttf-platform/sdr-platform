@@ -1,0 +1,4 @@
+# Faux positifs — fixtures deterministes dans lib/__tests__/crypto.test.ts
+# VALID_KEY_A/B = motifs hex 0123.../fedc..., plaintext sk_live_abc123 factice. Aucun secret reel.
+50f1219704de8a2b72a32f50d32798e6cb69fe29:lib/__tests__/crypto.test.ts:generic-api-key:21
+50f1219704de8a2b72a32f50d32798e6cb69fe29:lib/__tests__/crypto.test.ts:generic-api-key:23
