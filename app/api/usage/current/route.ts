@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TIER_CAPS } from '@/lib/tier-limits'
 import { getTrialStatus } from '@/lib/trial-status'
+import { getUsagePeriod } from '@/lib/billing-period'
 import type { PlanTier } from '@/lib/stripe-prices'
 
 export async function GET() {
@@ -18,21 +19,21 @@ export async function GET() {
 
   const { data: ws } = await admin
     .from('workspaces')
-    .select('plan_tier, subscription_status, trial_end_date, overage_enabled, overage_charges_made')
+    .select('plan_tier, subscription_status, trial_end_date, overage_enabled, overage_charges_made, current_period_start, current_period_end')
     .eq('id', member.workspace_id).single()
 
   const tier = ((ws?.plan_tier ?? 'starter') as PlanTier)
   const caps = TIER_CAPS[tier]
 
-  const periodStart = new Date()
-  periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
+  const period = getUsagePeriod(ws)
 
   const [usageRows, prospectsCount, mailboxesCount] = await Promise.all([
     admin
       .from('usage_tracking')
       .select('metric, value')
       .eq('workspace_id', member.workspace_id)
-      .gte('period_start', periodStart.toISOString().split('T')[0]),
+      .gte('period_start', period.start)
+      .lt('period_start', period.end),
     admin
       .from('prospects')
       .select('*', { count: 'exact', head: true })
@@ -75,11 +76,9 @@ export async function GET() {
     // Emails — monthly (Sprint 8 enforcement)
     emails_sent:                usage.emails_sent,
     emails_cap:                 caps.emails_per_month,
-    // Reset date — 1st of next month (TODO Sprint 8+: replace with Stripe current_period_end)
-    reset_date:                 (() => {
-      const d = new Date(); d.setMonth(d.getMonth() + 1, 1); d.setHours(0, 0, 0, 0)
-      return d.toISOString()
-    })(),
+    // Reset date — Stripe current_period_end for paid subs, first of next
+    // calendar month for trials / no-sub (see lib/billing-period.ts).
+    reset_date:                 new Date(period.end + 'T00:00:00Z').toISOString(),
     // Inboxes
     inboxes_used:               inboxes_count,
     inboxes_cap:                caps.inboxes,

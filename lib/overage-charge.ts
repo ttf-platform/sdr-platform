@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 import { TIER_CAPS } from '@/lib/tier-limits'
 import type { PlanTier } from '@/lib/stripe-prices'
+import { getUsagePeriod } from '@/lib/billing-period'
 
 const OVERAGE_BATCH_SIZE = 20   // enrichments per chargeable batch
 const OVERAGE_BATCH_PRICE = 1000 // $10.00 in cents
@@ -13,7 +14,7 @@ export async function triggerOverageChargeIfNeeded(workspaceId: string): Promise
 
   const { data: ws } = await admin
     .from('workspaces')
-    .select('plan_tier, overage_enabled, overage_charges_made, stripe_customer_id')
+    .select('plan_tier, overage_enabled, overage_charges_made, stripe_customer_id, current_period_start, current_period_end')
     .eq('id', workspaceId).single()
 
   if (!ws?.overage_enabled || !ws.stripe_customer_id) return
@@ -21,15 +22,17 @@ export async function triggerOverageChargeIfNeeded(workspaceId: string): Promise
   const tier = (ws.plan_tier ?? 'starter') as PlanTier
   const cap = TIER_CAPS[tier].enrichments_per_month
 
-  const periodStart = new Date()
-  periodStart.setDate(1); periodStart.setHours(0, 0, 0, 0)
+  const period = getUsagePeriod(ws)
 
+  // Half-open range [period.start, period.end) — prevents stale paid-period
+  // rows from leaking into a later calendar-month fallback on cancellation.
   const { data: rows } = await admin
     .from('usage_tracking')
     .select('value')
     .eq('workspace_id', workspaceId)
     .eq('metric', 'enrichments_used')
-    .gte('period_start', periodStart.toISOString().split('T')[0])
+    .gte('period_start', period.start)
+    .lt('period_start', period.end)
 
   const enrichmentsUsed = (rows ?? []).reduce((s, r) => s + r.value, 0)
   const overage = Math.max(0, enrichmentsUsed - cap)

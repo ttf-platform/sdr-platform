@@ -38,6 +38,7 @@ import {
   NEGATIVE_SENTIMENT_PATTERNS,
 } from './bot-system-prompt';
 import { logAiCall } from './ai-cost';
+import { getUsagePeriod } from './billing-period';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -256,7 +257,7 @@ async function executeGetUserPlanAndQuotas(ctx: BotContext): Promise<unknown> {
   // Quotas (mailbox_quota, emails_quota, etc.) are NOT in DB — they come from PLAN_CAPS
   const { data: workspace, error } = await ctx.supabase
     .from('workspaces')
-    .select('id, plan_tier, subscription_status, trial_end_date')
+    .select('id, plan_tier, subscription_status, trial_end_date, current_period_start, current_period_end')
     .eq('id', ctx.workspaceId)
     .single();
 
@@ -267,16 +268,16 @@ async function executeGetUserPlanAndQuotas(ctx: BotContext): Promise<unknown> {
   const tier = (workspace.plan_tier ?? 'starter') as keyof typeof PLAN_CAPS;
   const caps = PLAN_CAPS[tier] ?? PLAN_CAPS.starter;
 
-  // emails_sent_this_month — from usage_tracking (resets 1st of month)
-  const periodStart = new Date();
-  periodStart.setDate(1);
-  periodStart.setHours(0, 0, 0, 0);
+  // emails_sent_this_month — usage window anchored on the Stripe billing
+  // period (calendar-month fallback for trials).
+  const period = getUsagePeriod(workspace);
   const { data: emailUsage } = await ctx.supabase
     .from('usage_tracking')
     .select('value')
     .eq('workspace_id', ctx.workspaceId)
     .eq('metric', 'emails_sent')
-    .gte('period_start', periodStart.toISOString().split('T')[0]);
+    .gte('period_start', period.start)
+    .lt('period_start', period.end);
   const emailsSentThisMonth = (emailUsage ?? []).reduce((a, r) => a + (r.value ?? 0), 0);
 
   // prospects_total — count from prospects table
@@ -306,7 +307,9 @@ async function executeGetUserPlanAndQuotas(ctx: BotContext): Promise<unknown> {
     mailbox_count: mailboxCount ?? 0,
     emails_quota_per_month: caps.emails_per_month,
     emails_sent_this_month: emailsSentThisMonth,
-    emails_reset_at: computeNextMonthStart(),
+    // Reset happens at the end of the current billing period. For paid subs
+    // this is the Stripe period end; for trials it is the 1st of next month.
+    emails_reset_at: new Date(period.end + 'T00:00:00Z').toISOString(),
     prospects_lifetime_cap: caps.total_prospects,
     prospects_total: prospectsTotal ?? 0,
   };
@@ -317,7 +320,7 @@ async function executeGetUserCreditsUsage(ctx: BotContext): Promise<unknown> {
   // Quota comes from PLAN_CAPS, not a workspace column.
   const { data: workspace, error: wsErr } = await ctx.supabase
     .from('workspaces')
-    .select('plan_tier')
+    .select('plan_tier, current_period_start, current_period_end')
     .eq('id', ctx.workspaceId)
     .single();
 
@@ -328,17 +331,15 @@ async function executeGetUserCreditsUsage(ctx: BotContext): Promise<unknown> {
   const tier = (workspace.plan_tier ?? 'starter') as keyof typeof PLAN_CAPS;
   const total = (PLAN_CAPS[tier] ?? PLAN_CAPS.starter).prospects_sourced_per_month;
 
-  // Current period = 1st of this month to now
-  const periodStart = new Date();
-  periodStart.setDate(1);
-  periodStart.setHours(0, 0, 0, 0);
+  const period = getUsagePeriod(workspace);
 
   const { data: usageRows, error: usageErr } = await ctx.supabase
     .from('usage_tracking')
     .select('value')
     .eq('workspace_id', ctx.workspaceId)
     .eq('metric', 'enrichments_used')
-    .gte('period_start', periodStart.toISOString().split('T')[0]);
+    .gte('period_start', period.start)
+    .lt('period_start', period.end);
 
   if (usageErr) {
     return { error: 'Could not fetch credits usage right now.' };
@@ -351,7 +352,7 @@ async function executeGetUserCreditsUsage(ctx: BotContext): Promise<unknown> {
     credits_total: total,
     credits_used: totalUsed,
     credits_remaining: remaining,
-    reset_at: computeNextMonthStart(),
+    reset_at: new Date(period.end + 'T00:00:00Z').toISOString(),
     overage_enabled: false, // TODO: fetch workspace.overage_enabled when overage for credits is wired
     overage_used_this_period: 0,
     breakdown: { enrichments_used: totalUsed },
@@ -389,13 +390,6 @@ async function executeEscalateToHuman(
     confirmation:
       "I've connected this conversation to a teammate. Someone will reply within 24 hours, and you'll get an email when we respond. Your conversation is saved.",
   };
-}
-
-function computeNextMonthStart(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1, 1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
 }
 
 // ---------------------------------------------------------------------------
