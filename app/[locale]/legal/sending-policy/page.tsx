@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 export const metadata: Metadata = {
   title: 'Sending Policy — Mirvo',
   description: 'Mirvo sending policy: your responsibilities as a data controller, email requirements, and prohibited content.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: { canonical: '/legal/sending-policy' },
 }
 

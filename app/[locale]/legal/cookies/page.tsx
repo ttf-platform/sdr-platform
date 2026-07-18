@@ -5,7 +5,7 @@ import { InlineCode } from '@/components/legal/InlineCode'
 export const metadata: Metadata = {
   title: 'Cookie Policy — Mirvo',
   description: 'How Mirvo uses cookies and how to manage them.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: { canonical: '/legal/cookies' },
 }
 

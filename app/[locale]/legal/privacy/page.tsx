@@ -6,7 +6,7 @@ import { InlineCode } from '@/components/legal/InlineCode'
 export const metadata: Metadata = {
   title: 'Privacy Policy — Mirvo',
   description: 'How Mirvo collects, uses, and protects your personal data.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: { canonical: '/legal/privacy' },
 }
 

@@ -19,7 +19,7 @@ import { LandingFooter } from '@/components/landing/LandingFooter';
 export const metadata: Metadata = {
   title: 'Mirvo: cold outreach you control',
   description: 'Mirvo finds the right people, drafts a real email for each one, and never sends anything you haven\'t approved. From $149/mo, no salary, no 6-week ramp.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: {
     canonical: '/',
     languages: { en: '/en', fr: '/fr' },
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Mirvo: cold outreach you control',
     description: 'Mirvo finds the right people, drafts a real email for each one, and never sends anything you haven\'t approved. From $149/mo, no salary, no 6-week ramp.',
-    url: 'https://mirvo.ai',
+    url: 'https://www.mirvo.ai',
     siteName: 'Mirvo',
     type: 'website',
   },
@@ -55,7 +55,7 @@ const jsonLd = {
   operatingSystem: 'Web',
   description:
     'All-in-one outbound platform for small teams. Mirvo finds the right people, drafts each email, and sends only what you approve.',
-  url: 'https://mirvo.ai',
+  url: 'https://www.mirvo.ai',
   offers: {
     '@type': 'AggregateOffer',
     priceCurrency: 'USD',

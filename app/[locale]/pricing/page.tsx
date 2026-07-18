@@ -5,7 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 export const metadata: Metadata = {
   title: 'Pricing — Mirvo',
   description: 'All plans include sourcing, writing, sending, deliverability, follow-ups, and meeting booking. Start free for 14 days — no credit card required.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: {
     canonical: '/pricing',
     languages: { en: '/en/pricing', fr: '/fr/pricing' },
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Pricing — Mirvo',
     description: 'Pick a plan. Start free. No surprises. From $149/mo — all plans include sourcing, writing, sending, and meeting booking.',
-    url: 'https://mirvo.ai/pricing',
+    url: 'https://www.mirvo.ai/pricing',
     siteName: 'Mirvo',
     type: 'website',
   },

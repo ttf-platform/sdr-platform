@@ -30,7 +30,7 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
   const bookingUrlRef  = useRef<string | null>(null)
   const workspaceIdRef = useRef<string | null>(null)
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mirvo.ai'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
 
   useEffect(() => {
     fetch('/api/workspace-profile')

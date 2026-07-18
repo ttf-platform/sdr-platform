@@ -6,7 +6,7 @@ import { InlineCode } from '@/components/legal/InlineCode'
 export const metadata: Metadata = {
   title: 'Data Processing Addendum — Mirvo',
   description: 'Mirvo Data Processing Addendum (DPA): sub-processors, GDPR compliance, SCCs, and data protection obligations.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: { canonical: '/legal/dpa' },
 }
 

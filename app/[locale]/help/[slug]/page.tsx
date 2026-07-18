@@ -24,7 +24,7 @@ export async function generateMetadata({
   return {
     title: `${article.title} — Mirvo Help`,
     description: article.description,
-    metadataBase: new URL('https://mirvo.ai'),
+    metadataBase: new URL('https://www.mirvo.ai'),
   }
 }
 

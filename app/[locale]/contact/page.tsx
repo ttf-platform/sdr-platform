@@ -7,12 +7,12 @@ import { LandingFooter } from '@/components/landing/LandingFooter'
 export const metadata: Metadata = {
   title: 'Contact — Mirvo',
   description: 'Get in touch with the Mirvo team.',
-  metadataBase: new URL('https://mirvo.ai'),
+  metadataBase: new URL('https://www.mirvo.ai'),
   alternates: { canonical: '/contact' },
   openGraph: {
     title: 'Contact — Mirvo',
     description: 'Get in touch with the Mirvo team.',
-    url: 'https://mirvo.ai/contact',
+    url: 'https://www.mirvo.ai/contact',
     siteName: 'Mirvo',
     type: 'website',
   },

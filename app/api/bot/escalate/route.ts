@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     .eq('id', conv.id);
 
   const appBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? 'https://sdr-platform-sigma.vercel.app';
+    process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai';
   const emailResult = await sendAdminEscalationEmail({
     escalationId: esc.id,
     conversationId: conv.id,

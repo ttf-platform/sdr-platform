@@ -146,7 +146,7 @@ export async function GET(request: Request) {
                 from: FROM_ADDRESS,
                 to: ownerEmail,
                 subject: `${workspaceNewMatches} new signal match${workspaceNewMatches > 1 ? 'es' : ''} detected on Mirvo`,
-                text: `Mirvo detected new signals on your campaigns overnight.\n\n${campaignLines}\n\nOpen the Approval Queue to generate personalized emails for these prospects:\nhttps://mirvo.ai/dashboard\n\n--\nMirvo background monitoring`,
+                text: `Mirvo detected new signals on your campaigns overnight.\n\n${campaignLines}\n\nOpen the Approval Queue to generate personalized emails for these prospects:\nhttps://www.mirvo.ai/dashboard\n\n--\nMirvo background monitoring`,
               })
               if (sendResult.error) {
                 const msg = `ws=${workspace.id} Resend rejected: ${sendResult.error.message ?? JSON.stringify(sendResult.error)}`

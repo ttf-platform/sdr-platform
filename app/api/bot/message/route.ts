@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
     console.log('[bot] loop done — escalated:', escalated, 'escalationId:', escalationId);
     if (escalated && escalationId) {
       const summary = (allToolCalls.find((t) => t.name === 'escalate_to_human')?.input as { summary?: string })?.summary ?? finalText.slice(0, 200);
-      const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sdr-platform-sigma.vercel.app';
+      const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai';
       await sendAdminEscalationEmail({
         escalationId, conversationId: conversation.id, workspaceId, userId: user.id,
         reason: escalationReason ?? 'other', summary, appBaseUrl,

@@ -169,7 +169,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   }
 
   const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
-  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mirvo.ai'
+  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
   const bookingPageUrl = `${appUrl}/book/${params.slug}`
 
   const icsData = {
