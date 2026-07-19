@@ -2721,6 +2721,30 @@
         "target_pain_points": "Pain points",
         "email_tone": "Email tone"
       }
+    },
+    "attachmentPicker": {
+      "trigger": "Attach",
+      "popoverAria": "Attachment picker",
+      "tabUpload": "Upload",
+      "tabLibrary": "Library",
+      "dropzoneTitle": "Drop a file or click to browse",
+      "dropzoneSubtitle": "PDF, DOCX, PNG, JPG… up to 10 MB. No .zip, .exe or macro-enabled docs.",
+      "uploading": "Uploading…",
+      "uploadFailedGeneric": "Could not upload this file.",
+      "uploadErrorSize": "This file is too large (max 10 MB).",
+      "uploadErrorMime": "This file type is not allowed.",
+      "uploadErrorExtension": "This file extension is not allowed.",
+      "uploadErrorEmpty": "This file is empty.",
+      "uploadErrorName": "This filename contains invalid characters.",
+      "libraryLoading": "Loading your files…",
+      "libraryError": "Could not load the library. Try again in a moment.",
+      "libraryEmptyTitle": "No files yet",
+      "libraryEmptyBody": "Upload a file and it will appear here for future emails.",
+      "libraryAttached": "Attached",
+      "chipUnknownFile": "File",
+      "chipDetachAria": "Remove {filename} from this email",
+      "nudgeBadge": "Heads up",
+      "nudgeBody": "A link in a first-touch email can hurt deliverability and reply rates. Attaching feels safer on a follow-up, or after they’ve replied."
     }
   }
 }

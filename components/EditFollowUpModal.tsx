@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { normalizeBody } from '@/lib/normalize-body'
+import { AttachmentPicker } from '@/components/AttachmentPicker'
 
 interface FollowupStep {
   id:                   string
@@ -136,6 +137,17 @@ export function EditFollowupModal({ step, onSave, onClose }: Props) {
               className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] focus:outline-none focus:border-[#3b6bef] resize-none disabled:opacity-60 font-mono"
             />
           </div>
+
+          {/* Attachment picker — follow-up step, jamais first-touch.
+              signature='' : la signature n'est pas composée dans le body
+              côté follow-up (rendue server-side au send). */}
+          <AttachmentPicker
+            body={body}
+            setBody={setBody}
+            signature=""
+            isFirstTouch={false}
+            disabled={saving}
+          />
 
           {/* Booking link */}
           {bookingSlug && (

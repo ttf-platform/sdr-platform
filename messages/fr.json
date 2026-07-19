@@ -2721,6 +2721,30 @@
         "target_pain_points": "Problématiques de votre cible",
         "email_tone": "Ton de l'email"
       }
+    },
+    "attachmentPicker": {
+      "trigger": "Joindre",
+      "popoverAria": "Sélecteur de pièce jointe",
+      "tabUpload": "Envoyer",
+      "tabLibrary": "Bibliothèque",
+      "dropzoneTitle": "Déposez un fichier ou cliquez pour parcourir",
+      "dropzoneSubtitle": "PDF, DOCX, PNG, JPG… jusqu’à 10 Mo. Pas de .zip, .exe ni de documents à macros.",
+      "uploading": "Envoi en cours…",
+      "uploadFailedGeneric": "Impossible d’envoyer ce fichier.",
+      "uploadErrorSize": "Ce fichier est trop lourd (10 Mo maximum).",
+      "uploadErrorMime": "Ce type de fichier n’est pas autorisé.",
+      "uploadErrorExtension": "Cette extension n’est pas autorisée.",
+      "uploadErrorEmpty": "Ce fichier est vide.",
+      "uploadErrorName": "Ce nom de fichier contient des caractères non autorisés.",
+      "libraryLoading": "Chargement de vos fichiers…",
+      "libraryError": "Impossible de charger la bibliothèque. Réessayez dans un instant.",
+      "libraryEmptyTitle": "Aucun fichier pour l’instant",
+      "libraryEmptyBody": "Envoyez un fichier, il apparaîtra ici pour vos futurs e-mails.",
+      "libraryAttached": "Attaché",
+      "chipUnknownFile": "Fichier",
+      "chipDetachAria": "Retirer {filename} de cet e-mail",
+      "nudgeBadge": "À noter",
+      "nudgeBody": "Un lien dans un e-mail de premier contact peut nuire à la délivrabilité et au taux de réponse. Mieux vaut l’envoyer sur une relance ou une fois qu’ils ont répondu."
     }
   }
 }

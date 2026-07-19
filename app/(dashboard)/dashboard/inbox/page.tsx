@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 import type { ThreadItem } from '@/app/api/inbox/messages/[id]/thread/route'
 import { Spinner } from '@/components/ui/Spinner'
+import { AttachmentPicker } from '@/components/AttachmentPicker'
 
 const supabase = createClient()
 
@@ -548,15 +549,29 @@ export default function InboxPage() {
                   </div>
                 </div>
                 {aiDraft && (
-                  <textarea
-                    value={aiDraft}
-                    onChange={e => { setAiDraft(e.target.value); if (sendError) setSendError(null) }}
-                    disabled={sending}
-                    className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef] resize-none text-[#4a3f32] leading-relaxed disabled:opacity-60"
-                    rows={4}
-                    placeholder={t('draftPlaceholder')}
-                    aria-label={t('draftAriaLabel')}
-                  />
+                  <>
+                    <textarea
+                      value={aiDraft}
+                      onChange={e => { setAiDraft(e.target.value); if (sendError) setSendError(null) }}
+                      disabled={sending}
+                      className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef] resize-none text-[#4a3f32] leading-relaxed disabled:opacity-60"
+                      rows={4}
+                      placeholder={t('draftPlaceholder')}
+                      aria-label={t('draftAriaLabel')}
+                    />
+                    {/* Attachment picker — réponse inbox = jamais first-touch
+                        (le prospect a déjà répondu), signature non composée
+                        côté client. */}
+                    <div className="mt-2">
+                      <AttachmentPicker
+                        body={aiDraft}
+                        setBody={(next) => { setAiDraft(next); if (sendError) setSendError(null) }}
+                        signature=""
+                        isFirstTouch={false}
+                        disabled={sending}
+                      />
+                    </div>
+                  </>
                 )}
                 {sendError && (
                   <p role="alert" className="mt-2 text-xs text-red-600">
