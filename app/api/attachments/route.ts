@@ -19,6 +19,7 @@ import {
   ATTACHMENTS_BUCKET,
   MAX_ATTACHMENT_SIZE_BYTES,
   generateAttachmentToken,
+  safeStorageName,
   validateFile,
 } from '@/lib/attachments'
 
@@ -66,7 +67,12 @@ export async function POST(request: Request) {
   const token       = generateAttachmentToken()
   // Le chemin storage préfixe TOUJOURS par workspace_id (contrat de la policy
   // storage.objects). Le token isole les objets d'un même workspace entre eux.
-  const storagePath = `${guard.workspaceId}/${token}/${file.name}`
+  //
+  // `safeStorageName(file.name)` = slug ASCII strict pour la clé Storage
+  // (Supabase renvoie "Invalid key" sur accents/espaces/apostrophes courants
+  // dans les captures macOS). Le VRAI nom reste dans la colonne `filename`
+  // (rendu chip + Content-Disposition via createSignedUrl download opt).
+  const storagePath = `${guard.workspaceId}/${token}/${safeStorageName(file.name)}`
   const admin       = createAdminClient()
 
   const buffer = Buffer.from(await file.arrayBuffer())
