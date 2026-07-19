@@ -2029,7 +2029,8 @@
         "aiQuality": "+{pct}% de qualité IA",
         "comingSoon": "Bientôt disponible",
         "requiredFields": "Requis : {fields}",
-        "planTier": "{tier, select, starter {Starter} pro {Pro} power {Power} other {Starter}}"
+        "planTier": "{tier, select, starter {Starter} pro {Pro} power {Power} other {Starter}}",
+        "loading": "Chargement…"
       },
       "header": {
         "breadcrumbDashboard": "Tableau de bord",
@@ -2156,6 +2157,49 @@
         "submitting": "Suppression…",
         "success": "Votre compte a été supprimé.",
         "error": "Une erreur s'est produite. Réessayez ou contactez le support."
+      },
+      "notifications": {
+        "sectionTitle": "Notifications",
+        "sectionDescription": "Choisissez comment vous voulez être notifié pour chaque type d’événement.",
+        "inApp": "In-app",
+        "email": "E-mail",
+        "inAppAria": "Notifications in-app pour {category}",
+        "emailAria": "Notifications e-mail pour {category}",
+        "saveError": "Échec de la sauvegarde",
+        "loadError": "Impossible de charger les préférences. Rechargez la page pour réessayer.",
+        "categoryDescriptions": {
+          "replies": "Quelqu’un répond à l’un de vos e-mails.",
+          "billing": "Fin d’essai, paiement échoué, problème de facture.",
+          "deliverability": "Un domaine ou une boîte a besoin d’attention.",
+          "campaign": "Une campagne se termine ou requiert une action.",
+          "team": "Quelqu’un rejoint votre workspace ou accepte une invitation.",
+          "product": "Nouvelles fonctionnalités et annonces importantes."
+        }
+      }
+    },
+    "notifications": {
+      "bellAria": "Notifications",
+      "bellAriaWithCount": "{count, plural, one {# notification non lue} other {# notifications non lues}}",
+      "title": "Notifications",
+      "markAllRead": "Tout marquer lu",
+      "centerAria": "Centre de notifications",
+      "loadMore": "Voir plus",
+      "loadingMore": "Chargement…",
+      "preferencesLink": "Préférences de notification →",
+      "empty": {
+        "title": "Rien de nouveau",
+        "body": "Les nouvelles notifications apparaîtront ici."
+      },
+      "filters": {
+        "all": "Tout"
+      },
+      "categories": {
+        "replies": "Réponses",
+        "billing": "Facturation",
+        "deliverability": "Délivrabilité",
+        "campaign": "Campagnes",
+        "team": "Équipe",
+        "product": "Produit"
       }
     }
   },

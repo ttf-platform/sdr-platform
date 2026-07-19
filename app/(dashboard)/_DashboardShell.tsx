@@ -13,6 +13,7 @@ import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
 import { PostHogIdentify } from '@/components/PostHogIdentify'
 import { WorkspaceDropdown } from '@/components/layout/WorkspaceDropdown'
 import { InboxUnreadBadge } from '@/components/layout/InboxUnreadBadge'
+import { NotificationBell } from '@/components/layout/NotificationBell'
 import { Toaster } from 'sonner'
 import { OnboardingProgressProvider, useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
@@ -171,6 +172,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               pathname={pathname}
             />
             <TrialBadge />
+            <NotificationBell />
             {/* Avatar */}
             <div ref={avatarRef} className="relative">
               <button
@@ -212,17 +214,20 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Mobile burger */}
-          <button
-            type="button"
-            className="md:hidden ml-auto p-3 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 rounded"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label={menuOpen ? tShell('closeMenu') : tShell('openMenu')}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-drawer"
-          >
-            <span aria-hidden="true">☰</span>
-          </button>
+          {/* Mobile: bell + burger */}
+          <div className="md:hidden ml-auto flex items-center gap-1">
+            <NotificationBell />
+            <button
+              type="button"
+              className="p-3 text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 rounded"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label={menuOpen ? tShell('closeMenu') : tShell('openMenu')}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-drawer"
+            >
+              <span aria-hidden="true">☰</span>
+            </button>
+          </div>
         </div>
       </nav>
 

@@ -2029,7 +2029,8 @@
         "aiQuality": "Adds {pct}% to AI quality",
         "comingSoon": "Coming soon",
         "requiredFields": "Required: {fields}",
-        "planTier": "{tier, select, starter {Starter} pro {Pro} power {Power} other {Starter}}"
+        "planTier": "{tier, select, starter {Starter} pro {Pro} power {Power} other {Starter}}",
+        "loading": "Loading…"
       },
       "header": {
         "breadcrumbDashboard": "Dashboard",
@@ -2156,6 +2157,49 @@
         "submitting": "Deleting…",
         "success": "Your account has been deleted.",
         "error": "Something went wrong. Please try again or contact support."
+      },
+      "notifications": {
+        "sectionTitle": "Notifications",
+        "sectionDescription": "Choose how you want to be notified for each type of event.",
+        "inApp": "In-app",
+        "email": "Email",
+        "inAppAria": "In-app notifications for {category}",
+        "emailAria": "Email notifications for {category}",
+        "saveError": "Could not save",
+        "loadError": "Could not load preferences. Refresh the page to try again.",
+        "categoryDescriptions": {
+          "replies": "Someone replies to one of your emails.",
+          "billing": "Trial ending, payment failed, invoice issues.",
+          "deliverability": "A sending domain or mailbox needs attention.",
+          "campaign": "A campaign finishes or requires action.",
+          "team": "Someone joins your workspace or accepts an invite.",
+          "product": "New features and important product updates."
+        }
+      }
+    },
+    "notifications": {
+      "bellAria": "Notifications",
+      "bellAriaWithCount": "{count, plural, one {# unread notification} other {# unread notifications}}",
+      "title": "Notifications",
+      "markAllRead": "Mark all read",
+      "centerAria": "Notification center",
+      "loadMore": "Show more",
+      "loadingMore": "Loading…",
+      "preferencesLink": "Notification preferences →",
+      "empty": {
+        "title": "You’re all caught up",
+        "body": "New notifications will show up here."
+      },
+      "filters": {
+        "all": "All"
+      },
+      "categories": {
+        "replies": "Replies",
+        "billing": "Billing",
+        "deliverability": "Deliverability",
+        "campaign": "Campaigns",
+        "team": "Team",
+        "product": "Product"
       }
     }
   },
