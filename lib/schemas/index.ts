@@ -25,6 +25,7 @@ export * from './auto-fill'
 export * from './workspace'
 export * from './onboarding'
 export * from './common'
+export * from './notifications'
 
 import { NextResponse } from 'next/server'
 
