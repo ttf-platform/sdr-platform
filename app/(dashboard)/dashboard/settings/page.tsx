@@ -10,6 +10,7 @@ import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 import { DeleteAccountModal } from '@/components/DeleteAccountModal'
 import { renderSignature } from '@/lib/signature'
 import { useWorkspace } from '@/lib/hooks/useWorkspace'
+import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection'
 
 const supabase = createClient()
 
@@ -629,6 +630,9 @@ export default function SettingsPage() {
           {t('sendingDomains.configureCta')}
         </Link>
       </div>
+
+      {/* NOTIFICATIONS: full width */}
+      <NotificationPreferencesSection />
 
       {/* ADVANCED SETTINGS: full width */}
       <div className={`${cardCls} mt-6`}>
