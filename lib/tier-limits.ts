@@ -177,7 +177,7 @@ export async function trackUsage(
   // sans SELECT supplémentaire.
   const { data: ws } = await admin
     .from('workspaces')
-    .select('plan_tier, current_period_start, current_period_end')
+    .select('plan_tier, overage_enabled, current_period_start, current_period_end')
     .eq('id', workspaceId)
     .single()
 
@@ -223,9 +223,23 @@ export async function trackUsage(
     for (const threshold of [0.8, 1.0] as const) {
       const trip = threshold * cap
       if (usageBefore < trip && usageAfter >= trip) {
-        const title: LocalizedText = threshold === 1.0
-          ? notifCfg.title100
-          : notifCfg.title80
+        // Polish overage : pour `enrichments_used` au seuil 1.0 quand
+        // overage_enabled=true, on remplace le "limit reached" (qui suggère
+        // un blocage) par un message qui annonce clairement la facturation
+        // du dépassement. Aligné sur checkTierLimit qui laisse passer les
+        // enrichments overage-eligible sans bloquer. Les autres métriques
+        // (emails_sent, prospects_sourced) restent hard cap, message inchangé.
+        const isEnrichOverage = threshold === 1.0
+          && metric === 'enrichments_used'
+          && ws?.overage_enabled === true
+        const title: LocalizedText = isEnrichOverage
+          ? {
+              en: 'Included enrichment credits used — extra usage now billed as overage',
+              fr: "Crédits d'enrichissement inclus épuisés — le dépassement est désormais facturé",
+            }
+          : threshold === 1.0
+            ? notifCfg.title100
+            : notifCfg.title80
         notifyWorkspaceOwner(workspaceId, {
           type:     notifCfg.type,
           category: 'billing',

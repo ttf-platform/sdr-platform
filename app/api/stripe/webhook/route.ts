@@ -636,6 +636,25 @@ export async function POST(request: Request) {
         to_mrr_usd:      mrrUsdFor(before.plan_tier, before.billing_interval),
         occurred_at:     occurredAt,
       })
+
+      // In-app notif — SEULEMENT sur une vraie facture d'abonnement, pour
+      // éviter de spammer sur les invoices ponctuelles (topup, override
+      // manuel). `wid = before.id` ; si le workspace n'est pas encore résolu
+      // côté DB (customer.created reçu avant que la ligne workspaces soit
+      // écrite), on skip silencieusement.
+      const isSubInvoicePS = inv.billing_reason === 'subscription_cycle' || inv.billing_reason === 'subscription_create'
+      const widPS          = before.id
+      if (widPS && isSubInvoicePS) {
+        notifyWorkspaceOwner(widPS, {
+          type:     'payment_succeeded',
+          category: 'billing',
+          title: {
+            en: 'Payment received',
+            fr: 'Paiement reçu',
+          },
+          link: '/dashboard/billing',
+        }).catch(() => {})
+      }
       break
     }
   }
