@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { PlanTier } from '@/lib/stripe-prices'
 import { triggerOverageChargeIfNeeded } from '@/lib/overage-charge'
 import { getUsagePeriod } from '@/lib/billing-period'
+import { notifyWorkspaceOwner, type LocalizedText } from '@/lib/notifications'
 
 type TierKey = PlanTier | 'free'
 
@@ -122,6 +123,45 @@ export async function checkTierLimit(
 // NOTE: 'prospects_sourced' requires migration to add to usage_tracking.metric CHECK constraint
 // (004_stripe_subscriptions.sql CHECK constraint currently allows only:
 //  'prospects_added','enrichments_used','emails_sent','meetings_booked')
+// Métriques qui déclenchent une notif de franchissement de seuil, avec le
+// cap correspondant dans TIER_CAPS et les titres localisés (grammaire FR
+// gérée à la main : quota = singulier masculin, crédits = pluriel masculin).
+// `meetings_booked` n'a pas de cap → skip par omission.
+const USAGE_NOTIF_MAP: Record<
+  'emails_sent' | 'enrichments_used' | 'prospects_sourced',
+  {
+    type:    string
+    capKey:  'emails_per_month' | 'enrichments_per_month' | 'prospects_sourced_per_month'
+    title80: LocalizedText
+    title100: LocalizedText
+  }
+> = {
+  emails_sent: {
+    type:   'email_quota',
+    capKey: 'emails_per_month',
+    title80:  { en: "You've used 80% of your email quota",
+                fr: "Vous avez utilisé 80 % de votre quota d'e-mails" },
+    title100: { en: 'Email quota limit reached',
+                fr: "Quota d'e-mails atteint" },
+  },
+  enrichments_used: {
+    type:   'credits_threshold',
+    capKey: 'enrichments_per_month',
+    title80:  { en: "You've used 80% of your enrichment credits",
+                fr: "Vous avez utilisé 80 % de vos crédits d'enrichissement" },
+    title100: { en: 'Enrichment credits limit reached',
+                fr: "Crédits d'enrichissement atteints" },
+  },
+  prospects_sourced: {
+    type:   'credits_threshold',
+    capKey: 'prospects_sourced_per_month',
+    title80:  { en: "You've used 80% of your prospect credits",
+                fr: 'Vous avez utilisé 80 % de vos crédits prospects' },
+    title100: { en: 'Prospect credits limit reached',
+                fr: 'Crédits prospects atteints' },
+  },
+}
+
 export async function trackUsage(
   workspaceId: string,
   metric: 'enrichments_used' | 'emails_sent' | 'meetings_booked' | 'prospects_sourced',
@@ -133,9 +173,11 @@ export async function trackUsage(
   // checkTierLimit / usage/current / bot-ai / overage-charge — sinon les
   // compteurs mensuels se désynchronisent aux bornes de période. On lit
   // donc les colonnes Stripe du workspace (fetch minimal) avant d'écrire.
+  // On ajoute plan_tier au SELECT pour dériver le cap en mémoire (TIER_CAPS)
+  // sans SELECT supplémentaire.
   const { data: ws } = await admin
     .from('workspaces')
-    .select('current_period_start, current_period_end')
+    .select('plan_tier, current_period_start, current_period_end')
     .eq('id', workspaceId)
     .single()
 
@@ -147,4 +189,61 @@ export async function trackUsage(
     value,
     period_start: period.start,
   })
+
+  // Détection franchissement de seuil — best-effort, jamais throw.
+  // meetings_booked : pas de cap, skip.
+  const notifCfg = USAGE_NOTIF_MAP[metric as keyof typeof USAGE_NOTIF_MAP]
+  if (!notifCfg) return
+
+  try {
+    const tier = (ws?.plan_tier ?? 'starter') as TierKey
+    const caps = TIER_CAPS[tier] ?? TIER_CAPS.starter
+    const cap  = caps[notifCfg.capKey]
+    if (!cap || cap <= 0) return  // pas de cap effectif (ex: free/prospects_sourced=0)
+
+    // SUM usage APRÈS INSERT — même fenêtre que checkTierLimit.
+    const { data: rows, error: sumErr } = await admin
+      .from('usage_tracking')
+      .select('value')
+      .eq('workspace_id', workspaceId)
+      .eq('metric', metric)
+      .gte('period_start', period.start)
+      .lt('period_start', period.end)
+    if (sumErr) {
+      console.error('[trackUsage:threshold] SUM query failed', { metric, error: sumErr.message })
+      return
+    }
+    const usageAfter  = (rows ?? []).reduce((s, r) => s + r.value, 0)
+    const usageBefore = usageAfter - value
+
+    // Fire une seule fois par seuil : détecte le FRANCHISSEMENT (crossing)
+    // entre before et after. Double-fire concurrent (deux trackUsage en même
+    // temps qui traversent le même seuil) est un mineur acceptable — le user
+    // reçoit 2 notifs identiques dans le pire cas, jamais 0.
+    for (const threshold of [0.8, 1.0] as const) {
+      const trip = threshold * cap
+      if (usageBefore < trip && usageAfter >= trip) {
+        const title: LocalizedText = threshold === 1.0
+          ? notifCfg.title100
+          : notifCfg.title80
+        notifyWorkspaceOwner(workspaceId, {
+          type:     notifCfg.type,
+          category: 'billing',
+          title,
+          link:     '/dashboard/billing',
+          metadata: {
+            metric,
+            currentUsage: usageAfter,
+            cap,
+            threshold,
+          },
+        }).catch(() => {})
+      }
+    }
+  } catch (err) {
+    console.error('[trackUsage:threshold] unexpected failure', {
+      workspace_id: workspaceId, metric,
+      error: err instanceof Error ? err.message : 'unknown',
+    })
+  }
 }

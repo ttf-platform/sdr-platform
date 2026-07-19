@@ -27,6 +27,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeMessageSentiment } from '@/lib/inbox-analyze'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
 import { ensureDealForProspect } from '@/lib/deals'
+import { notifyWorkspaceOwner } from '@/lib/notifications'
 import {
   extractFields,
   normalizeEvent,
@@ -490,6 +491,21 @@ async function handleReply(admin: Admin, workspaceId: string, fields: ExtractedF
   analyzeMessageSentiment(inserted.id).catch(err =>
     console.error('[webhook/instantly] sentiment analysis failed:', err)
   )
+
+  // In-app notif REPLY. Best-effort — un throw ici ne doit pas casser le
+  // webhook, `notifyWorkspaceOwner` est already no-throw mais on garde
+  // `.catch(() => {})` par ceinture-et-bretelles (l'appelant historique
+  // `analyzeMessageSentiment` fait pareil).
+  notifyWorkspaceOwner(workspaceId, {
+    type:     'reply',
+    category: 'replies',
+    title: {
+      en: `New reply${fields.leadEmail ? ' from ' + fields.leadEmail : ''}`,
+      fr: `Nouvelle réponse${fields.leadEmail ? ' de ' + fields.leadEmail : ''}`,
+    },
+    link:     '/dashboard/inbox',
+    metadata: { prospectId: repliedProspectId },
+  }).catch(() => {})
 }
 
 // ---------------------------------------------------------------------------
