@@ -107,3 +107,87 @@ export async function createNotification(
     emailWanted:   email,
   }
 }
+
+// ---------------------------------------------------------------------------
+// notifyWorkspaceOwner
+// ---------------------------------------------------------------------------
+// Locale-aware wrapper : résout l'owner du workspace + sa langue (workspace_
+// profiles.language, défaut 'en'), puis délègue à createNotification avec la
+// bonne variante FR/EN. Best-effort strict : ne throw jamais, log si owner
+// manquant. Réservé aux producteurs server-side de PR3+ (webhooks, cron,
+// trackUsage) — pas de path user direct.
+export type LocalizedText = { en: string; fr: string }
+
+export interface NotifyWorkspaceOwnerInput {
+  type:      string
+  category:  NotificationCategory
+  title:     LocalizedText
+  body?:     LocalizedText
+  link?:     string
+  metadata?: Record<string, unknown>
+}
+
+export async function notifyWorkspaceOwner(
+  workspaceId: string,
+  input:       NotifyWorkspaceOwnerInput,
+): Promise<CreateNotificationResult> {
+  const admin = createAdminClient()
+
+  // Résolution owner
+  let ownerUserId: string | null = null
+  try {
+    const { data: owner, error } = await admin
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', workspaceId)
+      .eq('role', 'owner')
+      .maybeSingle()
+    if (error) {
+      console.error('[notifications:notifyWorkspaceOwner] owner lookup failed', {
+        workspace_id: workspaceId, error: error.message,
+      })
+    } else if (owner) {
+      ownerUserId = owner.user_id as string
+    }
+  } catch (err) {
+    console.error('[notifications:notifyWorkspaceOwner] owner lookup threw', {
+      workspace_id: workspaceId,
+      error: err instanceof Error ? err.message : 'unknown',
+    })
+  }
+
+  if (!ownerUserId) {
+    console.warn('[notifications:notifyWorkspaceOwner] no owner found — skipping', {
+      workspace_id: workspaceId, type: input.type,
+    })
+    return { ok: false, inserted: false, emailWanted: false }
+  }
+
+  // Résolution locale (workspace_profiles.language) — défaut 'en'.
+  let loc: 'en' | 'fr' = 'en'
+  try {
+    const { data: prof } = await admin
+      .from('workspace_profiles')
+      .select('language')
+      .eq('workspace_id', workspaceId)
+      .maybeSingle()
+    if (prof?.language === 'fr') loc = 'fr'
+  } catch (err) {
+    console.error('[notifications:notifyWorkspaceOwner] locale lookup threw', {
+      workspace_id: workspaceId,
+      error: err instanceof Error ? err.message : 'unknown',
+    })
+    // Défaut 'en' conservé.
+  }
+
+  return createNotification({
+    workspaceId,
+    userId:   ownerUserId,
+    type:     input.type,
+    category: input.category,
+    title:    input.title[loc],
+    body:     input.body?.[loc],
+    link:     input.link,
+    metadata: input.metadata,
+  })
+}

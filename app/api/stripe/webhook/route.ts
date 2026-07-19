@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolvePlanFromPriceId } from '@/lib/stripe-plans'
 import { monthlyMrrForWorkspace } from '@/lib/pricing'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
+import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { sendCancellationEmail, sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
 import type Stripe from 'stripe'
 
@@ -584,6 +585,23 @@ export async function POST(request: Request) {
           },
           before.plan_tier ?? null,
         )
+        // In-app notif à côté du dunning — même garde (isFirstAttempt,
+        // isSubInvoice, not canceled) : évite le spam sur les retries Stripe.
+        // Best-effort ; notifyWorkspaceOwner est no-throw et on ceinture par
+        // .catch pour aligner sur le style dunning fire-and-forget.
+        notifyWorkspaceOwner(wid, {
+          type:     'payment_failed',
+          category: 'billing',
+          title: {
+            en: 'Payment failed',
+            fr: 'Paiement échoué',
+          },
+          body: {
+            en: "Your last payment didn't go through. Update your payment method.",
+            fr: "Votre dernier paiement n'a pas abouti. Mettez à jour votre moyen de paiement.",
+          },
+          link: '/dashboard/billing',
+        }).catch(() => {})
       }
       break
     }
