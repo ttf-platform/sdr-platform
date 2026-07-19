@@ -32,3 +32,38 @@ export function insertBookingUrl(body: string, url: string, sig: string): string
   }
   return stripped.trimEnd() + '\n\n' + url
 }
+
+// -----------------------------------------------------------------------------
+// File attachment link helpers
+// -----------------------------------------------------------------------------
+// Mêmes garanties que stripBookingUrl/insertBookingUrl :
+//   - URL littérale, ajoutée AVANT signature au provider
+//   - trim des blank-lines résiduels pour éviter le drift au round-trip
+//   - regexp escape sur l'URL (jamais interpolée nue)
+
+// Strips a single file link URL (plus surrounding blank lines) while preserving
+// body structure. Utilisé quand on retire un attachement d'un draft.
+export function stripFileLink(body: string, url: string): string {
+  const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return body
+    .replace(new RegExp(`\\n{0,2}${escaped}\\n{0,2}`, 'g'), '\n\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+/, '')
+    .trimEnd()
+}
+
+// Inserts a file link before the signature block if present, otherwise appends
+// at end. Idempotent : appelé sur un body qui contient déjà l'URL, la retire
+// puis la réinsère (évite les doublons au ré-attach).
+export function insertFileLink(body: string, url: string, sig: string): string {
+  const stripped = stripFileLink(body, url)
+  if (sig?.trim()) {
+    const sigTrimmed  = sig.trimEnd()
+    const trimmedBody = stripped.trimEnd()
+    if (trimmedBody.endsWith(sigTrimmed)) {
+      const before = trimmedBody.slice(0, trimmedBody.length - sigTrimmed.length).trimEnd()
+      return before + '\n\n' + url + '\n\n' + sigTrimmed
+    }
+  }
+  return stripped.trimEnd() + '\n\n' + url
+}
