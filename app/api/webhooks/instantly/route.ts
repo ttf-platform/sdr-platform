@@ -286,6 +286,41 @@ async function autoPauseAccount(
     accountId: account.id, reason,
   })
 
+  // In-app notif — l'early-return `already paused/failed` + le retour
+  // `!updated` (concurrent) au-dessus garantissent qu'on ne fire QU'à la
+  // vraie transition. Titres/bodies switch sur `reason`. Best-effort ; le
+  // .catch protège même si notifyWorkspaceOwner (déjà no-throw) muté.
+  const notifPayload = reason === 'account_error'
+    ? {
+        type:     'mailbox_disconnected',
+        category: 'deliverability' as const,
+        title: {
+          en: 'Mailbox disconnected',
+          fr: "Boîte d'envoi déconnectée",
+        },
+        body: {
+          en: 'One of your sending mailboxes was disconnected and paused. Reconnect it to resume sending.',
+          fr: "Une de vos boîtes d'envoi a été déconnectée et mise en pause. Reconnectez-la pour reprendre l'envoi.",
+        },
+      }
+    : {
+        type:     'campaign_autopaused',
+        category: 'deliverability' as const,
+        title: {
+          en: 'Sending paused — high bounce rate',
+          fr: 'Envoi mis en pause — taux de rebond élevé',
+        },
+        body: {
+          en: 'Sending from a mailbox was auto-paused after its bounce rate crossed 5%.',
+          fr: "L'envoi depuis une boîte a été suspendu automatiquement après un taux de rebond supérieur à 5 %.",
+        },
+      }
+  notifyWorkspaceOwner(workspaceId, {
+    ...notifPayload,
+    link:     '/dashboard/settings/sending-domains',
+    metadata: { emailAccountId: account.id, reason },
+  }).catch(() => {})
+
   if (account.provider_inbox_id) {
     try {
       await getEmailProvider().pauseInbox(account.provider_inbox_id)

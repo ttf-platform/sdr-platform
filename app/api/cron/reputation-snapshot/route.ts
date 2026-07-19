@@ -43,6 +43,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cronComplete } from '@/lib/cron-log'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
+import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -243,6 +244,24 @@ export async function GET(request: Request) {
             to:               warmupStatus,
             error:            syncErr.message,
           })
+        } else if (warmupStatus === 'completed') {
+          // In-app notif warmup_completed — la garde de transition externe
+          // (warmupStatus !== mb.warmup_status) garantit qu'on ne fire QU'à
+          // la première fois où le status bascule en 'completed'. Best-effort.
+          notifyWorkspaceOwner(mb.workspace_id, {
+            type:     'warmup_completed',
+            category: 'deliverability',
+            title: {
+              en: 'Warmup complete',
+              fr: 'Réchauffement terminé',
+            },
+            body: {
+              en: 'Your dedicated sending domain is fully warmed up.',
+              fr: "Votre domaine d'envoi dédié est entièrement réchauffé.",
+            },
+            link:     '/dashboard/settings/sending-domains',
+            metadata: { emailAccountId: mb.id },
+          }).catch(() => {})
         }
       }
 
@@ -318,6 +337,27 @@ export async function GET(request: Request) {
               console.error('[cron/reputation-snapshot] retry failure sync failed', {
                 email_account_id: mb.id, error: retryErr.message,
               })
+            } else if (patch.warmup_status === 'failed') {
+              // In-app notif warmup_failed — fire uniquement sur la vraie
+              // TRANSITION vers 'failed'. La garde externe (l.291) confirme
+              // déjà `mb.warmup_status === 'pending'`, donc on est sûrs de
+              // basculer 'pending' → 'failed' (jamais 'failed' → 'failed').
+              // Le patch ne set failed que si nonRetryable || exhausted.
+              // Best-effort.
+              notifyWorkspaceOwner(mb.workspace_id, {
+                type:     'warmup_failed',
+                category: 'deliverability',
+                title: {
+                  en: 'Warmup failed',
+                  fr: 'Échec du réchauffement',
+                },
+                body: {
+                  en: 'Warmup for a sending domain failed after repeated attempts. Check your setup.',
+                  fr: "Le réchauffement d'un domaine d'envoi a échoué après plusieurs tentatives. Vérifiez votre configuration.",
+                },
+                link:     '/dashboard/settings/sending-domains',
+                metadata: { emailAccountId: mb.id },
+              }).catch(() => {})
             }
           }
         } else {

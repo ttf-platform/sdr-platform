@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureDealAtMeetingBooked } from '@/lib/deals'
+import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { generateICS } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
 import { bookingCreateSchema, badRequest } from '@/lib/schemas'
@@ -154,6 +155,23 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     .select().single()
 
   if (insErr || !meeting) return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 })
+
+  // In-app notif meeting_booked — route publique, la notif est routée à
+  // l'owner du workspace via notifyWorkspaceOwner (résolution owner interne).
+  // `attendee_name` est rendu comme text-node par React côté UI, pas de
+  // dangerouslySetInnerHTML → XSS-safe même sur input non validé.
+  // Best-effort ; le meeting est déjà écrit, la notif ne doit pas casser le
+  // reste du flow booking (deal, e-mails).
+  notifyWorkspaceOwner(profile.workspace_id, {
+    type:     'meeting_booked',
+    category: 'campaign',
+    title: {
+      en: `New meeting booked${attendee_name ? ' with ' + attendee_name : ''}`,
+      fr: `Nouveau meeting réservé${attendee_name ? ' avec ' + attendee_name : ''}`,
+    },
+    link:     '/dashboard/meetings',
+    metadata: { meetingId: meeting.id },
+  }).catch(() => {})
 
   // Auto-advance deal: find prospect by attendee email + workspace
   const { data: prospect } = await admin
