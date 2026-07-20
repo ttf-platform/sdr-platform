@@ -40,6 +40,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
 import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
 import { enforceEmptyBody } from '@/lib/schemas'
+import { campaignScheduleFromPrefs } from '@/lib/sending-schedule'
+import type { SendingPrefs } from '@/lib/types/sending-prefs'
 
 const PROVIDER_TIMEOUT_MS = 10_000
 
@@ -190,9 +192,27 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   let providerCampaignId = campaign.provider_campaign_id as string | null
   let createdProviderCampaign = false
   if (!providerCampaignId) {
+    // Lecture best-effort des Sending Preferences pour gouverner le schedule
+    // Instantly. Historiquement provider.ensureCampaign tombait sur
+    // DEFAULT_SCHEDULE codé en dur (08:00-18:00 Mon-Fri Europe/Paris) — le
+    // panneau Sending Preferences persistait dans workspace_profiles.sending_prefs
+    // mais personne ne le lisait.
+    //
+    // Best-effort : si la lecture profile foire (DB down, RLS bug…),
+    // campaignScheduleFromPrefs(null, null) renvoie EXACTEMENT le
+    // DEFAULT_SCHEDULE historique — aucune régression vs comportement actuel.
+    const { data: profile } = await admin
+      .from('workspace_profiles')
+      .select('sending_prefs')
+      .eq('workspace_id', guard.workspaceId)
+      .maybeSingle()
+    const schedule = campaignScheduleFromPrefs(
+      profile?.sending_prefs as Partial<SendingPrefs> | null | undefined,
+      null,  // tz = Europe/Paris (défaut historique) — pas de champ tz dans Sending Preferences
+    )
     try {
       const ensured = await withTimeout(
-        provider.ensureCampaign({ name: campaign.name }),
+        provider.ensureCampaign({ name: campaign.name, schedule }),
         PROVIDER_TIMEOUT_MS,
       )
       providerCampaignId = ensured.providerCampaignId
