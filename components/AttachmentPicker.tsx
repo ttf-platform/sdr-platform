@@ -131,8 +131,24 @@ export function AttachmentPicker({ body, setBody, signature, isFirstTouch, disab
   }, [])
 
   useEffect(() => {
-    if (open && library === null) void loadLibrary()
-  }, [open, library, loadLibrary])
+    // Guard `!libraryError` : sur load fail, `library` reste `null` et
+    // `libraryError` bascule à true. Sans ce garde, un `open`/close cycle
+    // relancerait loadLibrary indéfiniment.
+    if (open && library === null && !libraryError) void loadLibrary()
+  }, [open, library, libraryError, loadLibrary])
+
+  // Charge la bibliothèque au montage dès que le body contient déjà des
+  // liens attachés (draft rouvert avec `${appUrl}/f/<token>` dedans) —
+  // sinon les chips reconstruites depuis le body ne pourraient pas
+  // résoudre leur `filename` et tomberaient sur `chipUnknownFile`.
+  //
+  // Guard `!libraryError` critique ici : `attachedTokens` est un useMemo
+  // dont la référence change à chaque frappe dans le body. Sur load fail,
+  // sans ce garde on relancerait loadLibrary à CHAQUE keystroke — tempête
+  // de fetch amplifiée par la fréquence de saisie.
+  useEffect(() => {
+    if (attachedTokens.size > 0 && library === null && !libraryError) void loadLibrary()
+  }, [attachedTokens, library, libraryError, loadLibrary])
 
   const attachItem = useCallback((item: AttachmentItem) => {
     setBody(insertFileLink(body, item.url, signature))
