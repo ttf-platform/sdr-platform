@@ -78,8 +78,9 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(await file.arrayBuffer())
 
   // Sanity : Buffer.from(await arrayBuffer()) charge le fichier en RAM avant
-  // upload. À 10 Mo × trafic modéré ce n'est pas un souci. Si on monte la
-  // taille max, revoir le pipeline (stream direct vers Storage via presigned).
+  // upload. À 4 Mo × trafic modéré ce n'est pas un souci. Si on relève la
+  // taille max au-dessus de ~4,5 Mo (limite plateforme Vercel), revoir le
+  // pipeline : upload client → Storage direct via signed upload URL.
   if (buffer.byteLength > MAX_ATTACHMENT_SIZE_BYTES) {
     return NextResponse.json({ error: 'File exceeds size limit' }, { status: 413 })
   }

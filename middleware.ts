@@ -93,7 +93,26 @@ export async function middleware(request: NextRequest) {
       request.headers.get('x-real-ip') ??
       '127.0.0.1'
 
-    const global = await globalRateLimit.limit(ip)
+    // Fail-OPEN sur indispo Upstash : si Redis throw (panne réseau, quota
+    // dépassé, DNS foireux…), on préfère la disponibilité de /api au
+    // rate-limit strict. Sans ce garde, un throw non-catché ici crash le
+    // middleware → 500 sur TOUT /api → app down. Le fail-open expose une
+    // fenêtre pendant laquelle un attaquant peut spammer les endpoints,
+    // mais c'est un trade-off assumé côté SRE : préserver la dispo pour
+    // les users légitimes prime sur le rate-limit temporairement absent
+    // pendant que la panne Upstash est diagnostiquée.
+    //
+    // Seul `.success` est lu sur le chemin passant ; les champs
+    // `limit/remaining/reset` ne sont utilisés que dans la branche 429,
+    // qui n'est jamais atteinte quand le fallback bypass s'active.
+    let global: Awaited<ReturnType<typeof globalRateLimit.limit>>
+    try {
+      global = await globalRateLimit.limit(ip)
+    } catch (e) {
+      console.error('[middleware] global rate-limit unavailable — failing open',
+        e instanceof Error ? e.message : e)
+      global = { success: true } as Awaited<ReturnType<typeof globalRateLimit.limit>>
+    }
     if (!global.success) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Try again in a moment.' }),
@@ -111,7 +130,14 @@ export async function middleware(request: NextRequest) {
     }
 
     if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method)) {
-      const write = await writeRateLimit.limit(ip)
+      let write: Awaited<ReturnType<typeof writeRateLimit.limit>>
+      try {
+        write = await writeRateLimit.limit(ip)
+      } catch (e) {
+        console.error('[middleware] write rate-limit unavailable — failing open',
+          e instanceof Error ? e.message : e)
+        write = { success: true } as Awaited<ReturnType<typeof writeRateLimit.limit>>
+      }
       if (!write.success) {
         return new Response(
           JSON.stringify({ error: 'Write rate limit exceeded. Try again in a moment.' }),
