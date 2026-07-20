@@ -64,6 +64,14 @@ export interface AttachmentPickerProps {
   // toujours. Si non fourni → classes par défaut (compact px-2.5 py-1.5).
   triggerClassName?: string
 
+  // Contrôle "headless" : le parent gère lui-même son propre bouton (ex.
+  // menu déroulant "📎 Attachments ▾" avec 2 items). Le picker ne rend PAS
+  // son bouton trigger, mais ouvre son popover quand `openSignal` change.
+  // À utiliser conjointement : `hideTrigger` cache le bouton, `openSignal`
+  // (nombre incrémenté par le parent) déclenche l'ouverture.
+  hideTrigger?:    boolean
+  openSignal?:     number
+
   disabled?:       boolean
 }
 
@@ -104,6 +112,7 @@ function formatBytes(n: number): string {
 export function AttachmentPicker({
   body, setBody, signature, isFirstTouch,
   onPick, triggerLabelKey, triggerClassName,
+  hideTrigger, openSignal,
   disabled,
 }: AttachmentPickerProps) {
   const t = useTranslations('components.attachmentPicker')
@@ -152,6 +161,15 @@ export function AttachmentPicker({
       document.removeEventListener('keydown', onKey)
     }
   }, [open])
+
+  // Contrôle programmable : à chaque incrément de openSignal, ouvre le popover.
+  // Utilisé par un parent qui pilote lui-même son propre bouton (ex. menu
+  // « 📎 Attachments ▾ » avec 2 items dans la toolbar campagne).
+  useEffect(() => {
+    if (openSignal === undefined) return
+    if (openSignal <= 0) return
+    setOpen(true)
+  }, [openSignal])
 
   // Charge la bibliothèque au premier open, puis à chaque upload/attach.
   const loadLibrary = useCallback(async () => {
@@ -266,6 +284,7 @@ export function AttachmentPicker({
       {/* Trombone + chips inline */}
       <div ref={wrapperRef} className="relative">
         <div className="flex flex-wrap items-center gap-2">
+          {!hideTrigger && (
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -278,6 +297,7 @@ export function AttachmentPicker({
             <Paperclip size={14} strokeWidth={1.75} aria-hidden="true" />
             <span>{t(triggerLabelKey ?? 'trigger')}</span>
           </button>
+          )}
 
           {/* Chips */}
           {Array.from(attachedTokens).map((token) => {
