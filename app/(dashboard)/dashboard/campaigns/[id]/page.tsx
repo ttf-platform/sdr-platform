@@ -15,7 +15,7 @@ import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
 import { CampaignProspectMobileCard } from './_components/CampaignProspectMobileCard'
 import { Toggle } from '@/components/ui/Toggle'
-import { Paperclip, ChevronDown } from 'lucide-react'
+import { Paperclip, ChevronDown, Info, Calendar } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { AttachmentPicker } from '@/components/AttachmentPicker'
 
@@ -268,24 +268,36 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setCampaign(prev => prev ? { ...prev, prospects_count: 0 } : prev)
   }
 
-  async function bulkApproveEmails() {
-    if (selectedEmailIds.size === 0) return
-    setBulkApprovingEmails(true)
-    // Loop the unitary approve — the only path that actually pushes to the
-    // provider (ensureCampaign/enqueueLead/activateCampaign). The former
-    // /api/prospect-emails/bulk-approve endpoint only flipped status to
-    // 'approved' with no downstream worker, so approved drafts were parked
-    // indefinitely — a dead-end bug fixed by /dashboard/approvals.
-    const ids = [...selectedEmailIds]
+  // Helper partagé bulk / send-all : boucle POST /approve avec pool BATCH=4.
+  // Motif : c'est la SEULE voie qui pousse chez le provider
+  // (ensureCampaign/enqueueLead/activateCampaign). L'ancien /bulk-approve
+  // flippait juste le statut sans worker downstream → drafts orphelins.
+  async function approveIds(ids: string[]): Promise<{ ok: number; fail: number }> {
+    if (ids.length === 0) return { ok: 0, fail: 0 }
     const BATCH = 4
     let cursor = 0
+    let ok = 0
+    let fail = 0
     await Promise.all(Array.from({ length: Math.min(BATCH, ids.length) }, async () => {
       while (true) {
         const i = cursor++
         if (i >= ids.length) return
-        try { await fetch(`/api/prospect-emails/${ids[i]}/approve`, { method: 'POST' }) } catch { /* per-item errors swallowed to keep bulk moving; refresh below reveals what succeeded */ }
+        try {
+          const r = await fetch(`/api/prospect-emails/${ids[i]}/approve`, { method: 'POST' })
+          if (r.ok) ok++
+          else fail++
+        } catch {
+          fail++
+        }
       }
     }))
+    return { ok, fail }
+  }
+
+  async function bulkApproveEmails() {
+    if (selectedEmailIds.size === 0) return
+    setBulkApprovingEmails(true)
+    await approveIds([...selectedEmailIds])
     setBulkApprovingEmails(false)
     setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
@@ -462,6 +474,107 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       document.removeEventListener('keydown', onKey)
     }
   }, [attachmentsMenuOpen])
+
+  // Send All modal — confirmation avant envoi bulk. Affiche la fenêtre
+  // d'envoi réelle (fetch /api/sending-preferences à l'ouverture, fallback
+  // gracieux si le fetch échoue).
+  const [sendAllConfirmOpen, setSendAllConfirmOpen] = useState(false)
+  const [sendAllBusy,        setSendAllBusy]        = useState(false)
+  const [sendAllWindow,      setSendAllWindow]      = useState<{ days: string; start: string; end: string } | null>(null)
+  const tDays = useTranslations('components.sendingPreferences.days')
+  const tPrefs = useTranslations('components.sendingPreferences')
+
+  useEffect(() => {
+    if (!sendAllConfirmOpen) { setSendAllWindow(null); return }
+    let cancelled = false
+    fetch('/api/sending-preferences', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (cancelled || !d?.prefs) return
+        const active = [1,2,3,4,5,6,0]
+          .filter((v) => Array.isArray(d.prefs.sendDays) && d.prefs.sendDays.includes(v))
+          .map((v) => tDays(String(v)))
+        const daysLabel = active.length === 0
+          ? tPrefs('daysNone')
+          : active.length === 7
+            ? tPrefs('daysAll')
+            : active.join(', ')
+        setSendAllWindow({
+          days:  daysLabel,
+          start: String(d.prefs.sendWindowStart ?? '08:00'),
+          end:   String(d.prefs.sendWindowEnd   ?? '18:00'),
+        })
+      })
+      .catch(() => { /* fallback : encart fenêtre masqué */ })
+    return () => { cancelled = true }
+  }, [sendAllConfirmOpen, tDays, tPrefs])
+
+  // Send All handler — collecte tous les ids draft/edited via pagination,
+  // envoie le PREMIER approve seul pour détecter les blocages workspace-level
+  // (no_sending_mailbox / provider_mock_mode), puis approveIds pour le reste.
+  async function sendAllDrafts() {
+    setSendAllBusy(true)
+    try {
+      // 1. Pagination pour collecter TOUS les ids draft+edited.
+      const target = (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)
+      const ids: string[] = []
+      let page = 1
+      while (ids.length < target && page < 50 /* garde-fou */) {
+        const url = `/api/prospect-emails?campaign_id=${id}&step_order=0&status=draft,edited&limit=100&page=${page}`
+        const res = await fetch(url, { cache: 'no-store' })
+        if (!res.ok) break
+        const data = await res.json() as { emails?: Array<{ id: string }> }
+        const chunk = (data.emails ?? []).map((e) => e.id).filter(Boolean)
+        if (chunk.length === 0) break
+        ids.push(...chunk)
+        if (chunk.length < 100) break
+        page++
+      }
+      if (ids.length === 0) {
+        toast.info(tEmails('sendAllNothingToSend'))
+        return
+      }
+
+      // 2. Probe workspace-level : premier approve seul.
+      const first = ids[0]
+      const probeRes = await fetch(`/api/prospect-emails/${first}/approve`, { method: 'POST' })
+      if (!probeRes.ok) {
+        let data: { error?: string } = {}
+        try { data = await probeRes.json() } catch { /* empty */ }
+        if (data.error === 'no_sending_mailbox') {
+          toast.error(tToasts('mailboxNotReady'), {
+            action: {
+              label: tToasts('mailboxNotReadyAction'),
+              onClick: () => router.push('/dashboard/settings/sending-domains'),
+            },
+          })
+          return
+        }
+        if (data.error === 'provider_mock_mode') {
+          toast.error(tToasts('providerMockMode'))
+          return
+        }
+        // Erreur non-bloquante workspace : on continue quand même le reste,
+        // le refresh en fin affichera l'état par mail.
+      }
+
+      // 3. Batch le reste. Le probe (first) compte comme 1 succès si ok.
+      const rest = await approveIds(ids.slice(1))
+      const totalOk = rest.ok + (probeRes.ok ? 1 : 0)
+      const totalFail = rest.fail + (probeRes.ok ? 0 : 1)
+      if (totalFail > 0 && totalOk > 0) {
+        toast.success(tEmails('sendAllPartial', { ok: totalOk, total: ids.length }))
+      } else if (totalOk === 0) {
+        toast.error(tEmails('sendAllFailed'))
+      } else {
+        toast.success(tEmails('sendAllSuccess', { count: totalOk }))
+      }
+    } finally {
+      setSendAllBusy(false)
+      setSendAllConfirmOpen(false)
+      setEmailsRefreshKey((k) => k + 1)
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/campaigns/${id}`)
@@ -1075,19 +1188,27 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   {/* Divider vertical — hidden en mobile pour éviter isolat */}
                   <span aria-hidden="true" className="hidden sm:block w-px h-[22px] bg-[#e8e3dc]" />
 
-                  {/* Schedule (SOON) */}
-                  <button disabled title={tEmails('comingSoonTooltip')}
-                    className="inline-flex items-center gap-1.5 border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed">
-                    📅 {tEmails('schedule')}
-                    <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
-                  </button>
-
-                  {/* Send All — primaire (bg-[#3b6bef]) mais disabled tant que non actif */}
-                  <button disabled title={tEmails('comingSoonTooltip')}
-                    className="inline-flex items-center gap-1.5 bg-[#3b6bef] text-white px-3 py-2 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed">
-                    {tEmails('sendAll')}
-                    <span className="text-[9px] bg-white/20 text-white px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
-                  </button>
+                  {/* Send All — bouton primaire ACTIF quand draft+edited > 0.
+                      Tooltip Info à gauche pour expliquer le timing.
+                      #3b6bef = marque (incident #204, ne pas repeindre). */}
+                  {((emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)) > 0 && (
+                    <div className="inline-flex items-center gap-1.5">
+                      <Tooltip content={tEmails('sendAllTooltip')} placement="top-end">
+                        <button
+                          type="button"
+                          aria-label={tEmails('sendAllTooltip')}
+                          className="inline-flex items-center justify-center rounded p-0.5 text-[#8a7e6e] hover:text-[#6b5e4e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
+                          <Info size={15} strokeWidth={1.75} aria-hidden="true" />
+                        </button>
+                      </Tooltip>
+                      <button
+                        type="button"
+                        onClick={() => setSendAllConfirmOpen(true)}
+                        className="inline-flex items-center gap-1.5 bg-[#3b6bef] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#2f57c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
+                        {tEmails('sendAllCount', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) })}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1300,6 +1421,50 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           >
             {/* Modal body is empty — description carries the whole message. */}
             <div />
+          </Modal>
+
+          {/* Send All — confirmation avec fenêtre d'envoi réelle */}
+          <Modal
+            isOpen={sendAllConfirmOpen}
+            onClose={() => { if (!sendAllBusy) setSendAllConfirmOpen(false) }}
+            title={tEmails('sendAllConfirmTitle', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) })}
+            size="md"
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSendAllConfirmOpen(false)}
+                  disabled={sendAllBusy}
+                  className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] disabled:opacity-40"
+                >
+                  {tEmails('sendAllConfirmCancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={sendAllDrafts}
+                  disabled={sendAllBusy}
+                  aria-busy={sendAllBusy}
+                  className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-40 hover:bg-[#2f57c9]"
+                >
+                  {sendAllBusy ? tEmails('sendAllBusy') : tEmails('sendAllConfirmCta')}
+                </button>
+              </>
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-sm text-[#1a1a2e]">
+                {tEmails('sendAllConfirmBody', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) })}
+              </p>
+              {sendAllWindow && (
+                <div className="inline-flex items-center gap-1.5 bg-[#f5f2ee] rounded-md px-3 py-2 text-sm text-[#6b5e4e]">
+                  <Calendar size={14} strokeWidth={1.75} className="text-[#8a7e6e]" aria-hidden="true" />
+                  <span>{tEmails('sendAllConfirmWindow', sendAllWindow)}</span>
+                </div>
+              )}
+              <p className="text-xs text-[#6b5e4e]">
+                {tEmails('sendAllConfirmWarn')}
+              </p>
+            </div>
           </Modal>
 
         </div>
