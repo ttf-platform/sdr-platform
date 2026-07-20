@@ -67,3 +67,24 @@ export function insertFileLink(body: string, url: string, sig: string): string {
   }
   return stripped.trimEnd() + '\n\n' + url
 }
+
+// Strips ALL tracked file links `${appUrl}/f/<token>` from body. Utilisé par
+// le batch remove-all d'une campagne : on ne connaît pas la liste des tokens
+// a priori, on scanne + strip en boucle.
+//
+// Idempotent : rejouable sur un body déjà nettoyé, aucun effet. La regex
+// token matche le format base64url borné (16-128 chars) aligné sur celui de
+// generateAttachmentToken (24 octets → 32 chars base64url) et validé côté
+// route publique `/f/[token]`.
+export function stripAllFileLinks(body: string, appUrl: string): string {
+  const escapedAppUrl = appUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const tokenRe = new RegExp(`${escapedAppUrl}/f/([A-Za-z0-9_-]{16,128})`, 'g')
+  const tokens = new Set<string>()
+  let m: RegExpExecArray | null
+  while ((m = tokenRe.exec(body)) !== null) tokens.add(m[1])
+  let result = body
+  for (const token of tokens) {
+    result = stripFileLink(result, `${appUrl}/f/${token}`)
+  }
+  return result
+}
