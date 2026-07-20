@@ -15,6 +15,9 @@ import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
 import { CampaignProspectMobileCard } from './_components/CampaignProspectMobileCard'
 import { Toggle } from '@/components/ui/Toggle'
+import { Paperclip } from 'lucide-react'
+import { Modal } from '@/components/ui/Modal'
+import { AttachmentPicker } from '@/components/AttachmentPicker'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -98,6 +101,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tSources = useTranslations('dashboard.campaigns.detail.sources')
   const tPagination = useTranslations('dashboard.campaigns.detail.pagination')
   const tToasts = useTranslations('dashboard.campaigns.detail.toasts')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
   const tCampaignStatuses = useTranslations('dashboard.campaigns.list.statuses')  // REUSE Lot 2A.4.1
   const tCommon = useTranslations('dashboard.common')
   const tIcpGate = useTranslations('dashboard.campaigns.icpGate')
@@ -387,6 +391,54 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
   }
+
+  // ─── Attachments batch (PR3a → PR3b UI) ───────────────────────────────────
+  // add-all : réutilise la sélection upload/biblio de <AttachmentPicker> via
+  // le mode `onPick`. Le picker rappelle ici avec l'attachmentId, on POST au
+  // backend puis on refresh la liste.
+  async function attachToAllDrafts(attachmentId: string) {
+    try {
+      const res = await fetch(`/api/campaigns/${id}/attachments/add-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attachmentId }),
+      })
+      if (!res.ok) {
+        toast.error(tEmails('attachmentsAddError'))
+        return
+      }
+      const { updated } = await res.json() as { updated: number }
+      toast.success(tEmails('attachmentsAddSuccess', { count: updated }))
+      setEmailsRefreshKey(k => k + 1)
+    } catch {
+      toast.error(tEmails('attachmentsAddError'))
+    }
+  }
+
+  // remove-all : ouvre une modale de confirmation ; l'action réelle est
+  // déclenchée par le Confirm de la modale (voir <Modal> plus bas).
+  const [removeAllBusy, setRemoveAllBusy] = useState(false)
+  async function removeAllAttachmentsConfirmed() {
+    setRemoveAllBusy(true)
+    try {
+      const res = await fetch(`/api/campaigns/${id}/attachments/remove-all`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        toast.error(tEmails('attachmentsRemoveError'))
+        return
+      }
+      const { updated } = await res.json() as { updated: number }
+      toast.success(tEmails('attachmentsRemoveSuccess', { count: updated }))
+      setEmailsRefreshKey(k => k + 1)
+      setShowRemoveAllConfirm(false)
+    } catch {
+      toast.error(tEmails('attachmentsRemoveError'))
+    } finally {
+      setRemoveAllBusy(false)
+    }
+  }
+  const [showRemoveAllConfirm, setShowRemoveAllConfirm] = useState(false)
 
   useEffect(() => {
     fetch(`/api/campaigns/${id}`)
@@ -920,7 +972,24 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     )
                   })}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  {/* Attachments batch controls — visibles uniquement quand
+                      la campagne a des drafts/edited (le backend ignore les
+                      autres statuts, mais on cache l'action ici pour éviter
+                      un click qui ne ferait rien). */}
+                  {((emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)) > 0 && (
+                    <>
+                      <AttachmentPicker
+                        triggerLabelKey="triggerAddAll"
+                        onPick={attachToAllDrafts}
+                      />
+                      <button
+                        onClick={() => setShowRemoveAllConfirm(true)}
+                        className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors">
+                        {tEmails('attachmentsRemoveAllCta')}
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => openGenerateDraftsModal(true)}
                     className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee]">
@@ -995,6 +1064,22 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                             </div>
                             <div className="text-xs text-[#8a7e6e] truncate mt-0.5">{bodyPreview}…</div>
                           </div>
+
+                          {/* Attachment indicator (client-side detection from body) */}
+                          {typeof email.body === 'string' && email.body.includes(`${appUrl}/f/`) && (
+                            <span
+                              title={tEmails('hasAttachment')}
+                              aria-label={tEmails('hasAttachment')}
+                              className="flex-shrink-0 inline-flex"
+                            >
+                              <Paperclip
+                                size={12}
+                                strokeWidth={1.75}
+                                className="text-[#6b5e4e]"
+                                aria-hidden="true"
+                              />
+                            </span>
+                          )}
 
                           {/* Status badge */}
                           <EmailStatusBadge status={email.status} />
@@ -1101,6 +1186,38 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               }}
             />
           )}
+
+          {/* Attachments — confirm remove-all across the campaign */}
+          <Modal
+            isOpen={showRemoveAllConfirm}
+            onClose={() => { if (!removeAllBusy) setShowRemoveAllConfirm(false) }}
+            title={tEmails('attachmentsRemoveAllConfirmTitle')}
+            description={tEmails('attachmentsRemoveAllConfirmBody')}
+            size="md"
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowRemoveAllConfirm(false)}
+                  disabled={removeAllBusy}
+                  className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] disabled:opacity-40"
+                >
+                  {tEmails('attachmentsRemoveAllCancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={removeAllAttachmentsConfirmed}
+                  disabled={removeAllBusy}
+                  className="bg-[#1a1a2e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-40 hover:bg-[#2a2a3e]"
+                >
+                  {removeAllBusy ? tEmails('attachmentsRemoveAllBusy') : tEmails('attachmentsRemoveAllConfirm')}
+                </button>
+              </>
+            }
+          >
+            {/* Modal body is empty — description carries the whole message. */}
+            <div />
+          </Modal>
 
         </div>
       )}

@@ -45,10 +45,19 @@ export interface AttachmentItem {
 }
 
 export interface AttachmentPickerProps {
-  body:            string
-  setBody:         (next: string) => void
-  signature:       string
-  isFirstTouch:    boolean
+  // Mode "édition unitaire" (défaut) : mute le body via setBody. Nécessite
+  // body + setBody + signature + isFirstTouch. Chip + nudge rendus.
+  body?:           string
+  setBody?:        (next: string) => void
+  signature?:      string
+  isFirstTouch?:   boolean
+
+  // Mode "picker only" (batch campagne-entière) : le composant ne mute rien
+  // et rappelle `onPick(attachmentId)` sur upload success OU clic biblio.
+  // Le parent gère l'appel batch. Aucun body ; chip + nudge désactivés.
+  onPick?:         (attachmentId: string) => void | Promise<void>
+  triggerLabelKey?: 'trigger' | 'triggerAddAll'  // libellé alternatif en mode batch
+
   disabled?:       boolean
 }
 
@@ -75,8 +84,15 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function AttachmentPicker({ body, setBody, signature, isFirstTouch, disabled }: AttachmentPickerProps) {
+export function AttachmentPicker({
+  body, setBody, signature, isFirstTouch,
+  onPick, triggerLabelKey,
+  disabled,
+}: AttachmentPickerProps) {
   const t = useTranslations('components.attachmentPicker')
+
+  // Mode : si onPick fourni → mode batch (picker only, pas de mutation body).
+  const isBatchMode = typeof onPick === 'function'
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
   const [open, setOpen] = useState(false)
@@ -91,7 +107,11 @@ export function AttachmentPicker({ body, setBody, signature, isFirstTouch, disab
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Chips reconstruites depuis le body à chaque render (source de vérité).
-  const attachedTokens = useMemo(() => extractAttachedTokens(body, appUrl), [body, appUrl])
+  // En mode batch, `body` est undefined → attachedTokens vide, chip absent.
+  const attachedTokens = useMemo(
+    () => isBatchMode ? new Set<string>() : extractAttachedTokens(body ?? '', appUrl),
+    [body, appUrl, isBatchMode],
+  )
   const attachedChips  = useMemo(() => {
     if (!library) return [] as AttachmentItem[]
     return library.filter((it) => attachedTokens.has(it.token))
@@ -151,17 +171,23 @@ export function AttachmentPicker({ body, setBody, signature, isFirstTouch, disab
   }, [attachedTokens, library, libraryError, loadLibrary])
 
   const attachItem = useCallback((item: AttachmentItem) => {
-    setBody(insertFileLink(body, item.url, signature))
+    if (isBatchMode) {
+      // Mode batch : on rappelle le parent qui gère l'appel /add-all.
+      void onPick!(item.id)
+      setOpen(false)
+      return
+    }
+    // Mode édition unitaire : mute le body local.
+    if (setBody) setBody(insertFileLink(body ?? '', item.url, signature ?? ''))
     setOpen(false)
-  }, [body, setBody, signature])
+  }, [isBatchMode, onPick, body, setBody, signature])
 
   const detachToken = useCallback((token: string) => {
-    // On retrouve l'URL exacte depuis le body (soit via biblio, soit
-    // reconstruite avec l'appUrl connu — les deux formes matchent la regex
-    // de stripFileLink car elle escape l'URL complète).
+    // Uniquement mode édition unitaire ; en batch, aucune chip n'est rendue.
+    if (!setBody) return
     const item = library?.find((it) => it.token === token)
     const url  = item?.url ?? `${appUrl}/f/${token}`
-    setBody(stripFileLink(body, url))
+    setBody(stripFileLink(body ?? '', url))
   }, [body, setBody, library, appUrl])
 
   const uploadFile = useCallback(async (file: File) => {
@@ -188,16 +214,22 @@ export function AttachmentPicker({ body, setBody, signature, isFirstTouch, disab
         return
       }
       const item = await res.json() as AttachmentItem
-      // Insère le lien dans le body, refresh la biblio, ferme le popover.
-      setBody(insertFileLink(body, item.url, signature))
+      // Refresh la biblio dans les deux modes.
       setLibrary((prev) => prev ? [item, ...prev] : [item])
+      if (isBatchMode) {
+        // Mode batch : upload success → callback parent (attachmentId).
+        void onPick!(item.id)
+      } else if (setBody) {
+        // Mode édition unitaire : mute le body local.
+        setBody(insertFileLink(body ?? '', item.url, signature ?? ''))
+      }
       setOpen(false)
     } catch {
       setUploadError(t('uploadFailedGeneric'))
     } finally {
       setUploading(false)
     }
-  }, [body, setBody, signature, t])
+  }, [body, setBody, signature, isBatchMode, onPick, t])
 
   const onPickFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -221,13 +253,13 @@ export function AttachmentPicker({ body, setBody, signature, isFirstTouch, disab
             type="button"
             onClick={() => setOpen((v) => !v)}
             disabled={disabled}
-            aria-label={t('trigger')}
+            aria-label={t(triggerLabelKey ?? 'trigger')}
             aria-haspopup="menu"
             aria-expanded={open}
             className="inline-flex items-center gap-1.5 border border-[#e8e3dc] rounded-lg px-2.5 py-1.5 text-xs text-[#6b5e4e] hover:bg-[#f0ece6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Paperclip size={14} strokeWidth={1.75} aria-hidden="true" />
-            <span>{t('trigger')}</span>
+            <span>{t(triggerLabelKey ?? 'trigger')}</span>
           </button>
 
           {/* Chips */}
