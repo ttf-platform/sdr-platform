@@ -111,6 +111,31 @@ export function generateAttachmentToken(): string {
 }
 
 // -----------------------------------------------------------------------------
+// Storage-safe filename
+// -----------------------------------------------------------------------------
+// Supabase Storage refuse certaines clés (accents, espaces, apostrophes,
+// caractères non ASCII) avec "Invalid key". Le VRAI filename est conservé
+// dans la colonne `filename` (rendu chip, Content-Disposition sur download),
+// mais la clé Storage doit être un slug ASCII strict.
+//
+// Transformation :
+//   - split extension (dernière '.' non initiale) ; ext lowercase + [^a-z0-9] retiré
+//   - base : NFKD strip diacritiques (é→e, à→a), [^A-Za-z0-9._-] → _, collapse
+//     underscores, trim [._-] en bord, cap 80 chars, fallback 'file' si vide.
+//
+// Non exposé aux users : c'est purement un artefact interne pour Storage.
+export function safeStorageName(filename: string): string {
+  const dot  = filename.lastIndexOf('.')
+  const ext  = dot > 0 ? filename.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+  const base = (dot > 0 ? filename.slice(0, dot) : filename)
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')   // strip accents (é→e, à→a)
+    .replace(/[^a-zA-Z0-9._-]/g, '_')                     // espaces/apostrophes/etc → _
+    .replace(/_+/g, '_').replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 80) || 'file'
+  return ext ? `${base}.${ext}` : base
+}
+
+// -----------------------------------------------------------------------------
 // Signed URL
 // -----------------------------------------------------------------------------
 // Durée volontairement courte : 60 s. Le redirect /f/<token> génère une URL

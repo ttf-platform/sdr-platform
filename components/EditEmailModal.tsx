@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { insertBookingUrl, stripBookingUrl } from '@/lib/normalize-body'
 import { renderSignature, appendSignature, stripSignature } from '@/lib/signature'
+import { AttachmentPicker } from '@/components/AttachmentPicker'
 
 interface EmailDetail {
   id:         string
@@ -250,6 +251,15 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
                   className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] focus:outline-none focus:border-[#3b6bef] resize-none disabled:opacity-60 font-mono"
                 />
               </div>
+
+              {/* Attachment picker — first-touch = step_order === 0 (initial), sinon follow-up */}
+              <AttachmentPicker
+                body={body}
+                setBody={setBody}
+                signature={includeSignature ? signatureRef.current : ''}
+                isFirstTouch={email?.step_order === 0}
+                disabled={saving || regenning}
+              />
 
               {/* Booking link toggle */}
               {bookingSlug && (
