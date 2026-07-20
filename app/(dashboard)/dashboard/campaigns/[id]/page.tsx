@@ -972,36 +972,41 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     )
                   })}
                 </div>
-                <div className="flex gap-2 items-center">
-                  {/* Attachments batch controls — visibles uniquement quand
-                      la campagne a des drafts/edited (le backend ignore les
-                      autres statuts, mais on cache l'action ici pour éviter
-                      un click qui ne ferait rien). */}
+                {/* Actions group — même taille que le toolbar Pipeline
+                    (px-3 py-2 text-sm font-medium). Deux clusters :
+                      (1) Attach batch (attach-all + remove-all)
+                      (2) autres actions (regenerate, schedule SOON, send SOON)
+                    Séparés par un divider vertical subtil (uniquement affiché
+                    quand le cluster attach est visible ET l'écran est assez
+                    large pour éviter le divider isolé après wrap). */}
+                <div className="flex items-center gap-2 flex-wrap">
                   {((emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)) > 0 && (
                     <>
                       <AttachmentPicker
                         triggerLabelKey="triggerAddAll"
                         onPick={attachToAllDrafts}
+                        triggerClassName="border border-[#e8e3dc] px-3 py-2 text-sm font-medium text-[#6b5e4e] hover:bg-[#f5f2ee]"
                       />
                       <button
                         onClick={() => setShowRemoveAllConfirm(true)}
-                        className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee] transition-colors">
+                        className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
                         {tEmails('attachmentsRemoveAllCta')}
                       </button>
+                      <span aria-hidden="true" className="hidden sm:inline-block w-px h-6 bg-[#e8e3dc]" />
                     </>
                   )}
                   <button
                     onClick={() => openGenerateDraftsModal(true)}
-                    className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm hover:bg-[#f5f2ee]">
+                    className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
                     ↺ {tEmails('regenerateAll')}
                   </button>
                   <button disabled title={tEmails('comingSoonTooltip')}
-                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-1.5">
+                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed inline-flex items-center gap-1.5">
                     📅 {tEmails('schedule')}
                     <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
                   </button>
                   <button disabled title={tEmails('comingSoonTooltip')}
-                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-1.5">
+                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed inline-flex items-center gap-1.5">
                     {tEmails('sendAll')}
                     <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
                   </button>

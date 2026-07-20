@@ -58,8 +58,25 @@ export interface AttachmentPickerProps {
   onPick?:         (attachmentId: string) => void | Promise<void>
   triggerLabelKey?: 'trigger' | 'triggerAddAll'  // libellé alternatif en mode batch
 
+  // Override optionnel de la taille/couleur du bouton trigger (utile en
+  // toolbar campagne pour aligner sur les voisins px-3 py-2 text-sm). Les
+  // classes de base (rounded-lg, focus-visible, disabled) restent appliquées
+  // toujours. Si non fourni → classes par défaut (compact px-2.5 py-1.5).
+  triggerClassName?: string
+
   disabled?:       boolean
 }
+
+// Base classes toujours appliquées au bouton trigger : focus-visible, disabled,
+// rounded, layout. Ce qui varie (padding, texte, couleur, hover) part dans
+// `triggerClassName` (ou fallback DEFAULT_TRIGGER_SIZE).
+const TRIGGER_BASE_CLASSES =
+  'inline-flex items-center gap-1.5 rounded-lg transition-colors ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed'
+
+const DEFAULT_TRIGGER_SIZE =
+  'border border-[#e8e3dc] px-2.5 py-1.5 text-xs text-[#6b5e4e] hover:bg-[#f0ece6]'
 
 /**
  * Regex scan du body pour reconstruire les chips depuis n'importe quel state
@@ -86,7 +103,7 @@ function formatBytes(n: number): string {
 
 export function AttachmentPicker({
   body, setBody, signature, isFirstTouch,
-  onPick, triggerLabelKey,
+  onPick, triggerLabelKey, triggerClassName,
   disabled,
 }: AttachmentPickerProps) {
   const t = useTranslations('components.attachmentPicker')
@@ -256,7 +273,7 @@ export function AttachmentPicker({
             aria-label={t(triggerLabelKey ?? 'trigger')}
             aria-haspopup="menu"
             aria-expanded={open}
-            className="inline-flex items-center gap-1.5 border border-[#e8e3dc] rounded-lg px-2.5 py-1.5 text-xs text-[#6b5e4e] hover:bg-[#f0ece6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`${TRIGGER_BASE_CLASSES} ${triggerClassName ?? DEFAULT_TRIGGER_SIZE}`}
           >
             <Paperclip size={14} strokeWidth={1.75} aria-hidden="true" />
             <span>{t(triggerLabelKey ?? 'trigger')}</span>
