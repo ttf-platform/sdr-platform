@@ -1,6 +1,7 @@
 /**
- * Pure helper : traduit `workspace_profiles.sending_prefs` (+ IANA timezone
- * lue depuis `workspace_profiles.booking_config.timezone`) en un
+ * Pure helper : traduit `workspace_profiles.sending_prefs` (+ un paramètre
+ * `timezone` optionnel, réservé pour une future source de tz — l'appelant
+ * actuel, la route approve, passe null → Europe/Paris) en un
  * `CampaignSchedule` consommable par `provider.ensureCampaign(...)`.
  *
  * Contrat de robustesse :
@@ -52,9 +53,9 @@ export function campaignScheduleFromPrefs(
   }
 
   // --- timezone IANA ---
-  // `booking_config.timezone` est la tz du workspace (America/Toronto par
-  // défaut, l'utilisateur peut set Europe/Paris etc.). On accepte n'importe
-  // quelle string non-vide ; le provider Instantly validera à son tour.
+  // Paramètre `timezone` optionnel, réservé pour une future source de tz.
+  // L'appelant actuel (route approve) passe null → fallback Europe/Paris.
+  // On accepte n'importe quelle string non-vide ; le provider la validera.
   // Fallback aligné sur DEFAULT_SCHEDULE historique.
   const tz = (typeof timezone === 'string' && timezone.trim().length > 0)
     ? timezone.trim()
