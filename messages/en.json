@@ -1662,8 +1662,11 @@
         "cancelled": "Cancelled"
       },
       "calendar": {
-        "soonTitle": "Calendar view — coming soon",
-        "soonSubtitle": "Switch to List view to see your meetings."
+        "today": "Today",
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "meetingsCount": "{count, plural, one {# meeting} other {# meetings}}",
+        "emptyDay": "No meetings on this day"
       },
       "list": {
         "emptyTitleUpcoming": "No upcoming meetings",

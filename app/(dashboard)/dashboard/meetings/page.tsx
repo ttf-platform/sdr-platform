@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/ui/Spinner'
 import { Toggle } from '@/components/ui/Toggle'
@@ -61,8 +61,18 @@ function fmtDatetime(iso: string, tz?: string): string {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
+// Helper : renvoie "YYYY-MM-DD" pour un ISO donné, calculé DANS la TZ
+// workspace (pas la TZ navigateur). Utilisé pour bucketiser les meetings
+// par jour d'affichage sur la vue Calendrier — un meeting à 23h30 EST doit
+// tomber sur son jour EST, pas le lendemain UTC.
+function dayKey(iso: string, tz?: string): string {
+  const opts: Intl.DateTimeFormatOptions = tz ? { timeZone: tz } : {}
+  return new Intl.DateTimeFormat('en-CA', opts).format(new Date(iso))
+}
+
 export default function MeetingsPage() {
   const t = useTranslations('dashboard.meetings')
+  const locale = useLocale()
   const tHeader = useTranslations('dashboard.meetings.header')
   const tBanner = useTranslations('dashboard.meetings.banner')
   const tView = useTranslations('dashboard.meetings.view')
@@ -89,6 +99,18 @@ export default function MeetingsPage() {
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState<'upcoming'|'all'|'cancelled'>('upcoming')
   const [view, setView]         = useState<'list'|'calendar'>('list')
+
+  // Vue Calendrier : curseur mois (year/month) et jour sélectionné pour
+  // l'agenda du bas. selectedDay est un "YYYY-MM-DD" bucketisé en TZ
+  // navigateur au montage — sera re-cliqué en TZ workspace dès qu'on
+  // interagit avec la grille.
+  const [calCursor, setCalCursor] = useState(() => {
+    const n = new Date()
+    return { y: n.getFullYear(), m: n.getMonth() }
+  })
+  const [selectedDay, setSelectedDay] = useState<string>(() =>
+    new Intl.DateTimeFormat('en-CA').format(new Date()),
+  )
   const [user, setUser]         = useState<any>(null)
   const [bookingSlug, setBookingSlug] = useState('')
   const [copied, setCopied]     = useState(false)
@@ -120,10 +142,13 @@ export default function MeetingsPage() {
   // ── Data loading ──────────────────────────────────────────────────────────
   const loadMeetings = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/meetings?status=${tab}`).then(r => r.json()).catch(() => ({ meetings: [] }))
+    // En vue Calendrier on ignore le filtre onglet : la grille du mois montre
+    // TOUS les meetings, statuts confondus (couleurs par STATUS_COLORS).
+    const effStatus = view === 'calendar' ? 'all' : tab
+    const res = await fetch(`/api/meetings?status=${effStatus}`).then(r => r.json()).catch(() => ({ meetings: [] }))
     setMeetings(res.meetings ?? [])
     setLoading(false)
-  }, [tab])
+  }, [tab, view])
 
   useEffect(() => { loadMeetings() }, [loadMeetings])
 
@@ -219,6 +244,48 @@ export default function MeetingsPage() {
 
   const bookingLink = `${appUrl}/book/${bookingSlug || user?.email?.split('@')[0] || ''}`
 
+  // ── Meeting card (shared: liste + agenda du calendrier) ───────────────────
+  // Composant local — closure sur t/tList/tStatuses/sCfg/updateStatus/deleteMeeting.
+  // Utilisé À DEUX endroits : la vue Liste + l'agenda du jour sélectionné dans
+  // la vue Calendrier. Pas de duplication.
+  function MeetingCard({ m }: { m: Meeting }) {
+    const statusLabel = (MEETING_STATUS_KEYS as readonly string[]).includes(m.status)
+      ? tStatuses(m.status)
+      : m.status
+    return (
+      <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="font-semibold text-[#1a1a2e] text-sm">{m.title}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{statusLabel}</span>
+            </div>
+            <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at, sCfg.timezone)} · {t('durationMinutes', { count: m.duration_min })}</p>
+            {(m.attendee_name || m.attendee_email) && (
+              <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
+            )}
+            {m.notes && (
+              <div className="mt-2 pt-2 border-t border-[#f0ece6]">
+                <p className="text-xs font-semibold text-[#8a7e6e] mb-0.5">{tList('card.prospectNotesLabel')}</p>
+                <p className="text-xs text-[#6b5e4e] whitespace-pre-line">{m.notes}</p>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a href={`/api/meetings/${m.id}/ics`} className="text-xs border border-[#e8e3dc] px-2 py-1 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee]">📅</a>
+            <select value={m.status} onChange={e => updateStatus(m.id, e.target.value)}
+              className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1 text-[#1a1a2e] bg-white focus:outline-none">
+              {(MEETING_STATUS_KEYS as readonly MeetingStatusKey[]).map(key => (
+                <option key={key} value={key}>{tStatuses(key)}</option>
+              ))}
+            </select>
+            <button onClick={() => deleteMeeting(m.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto">
@@ -257,24 +324,218 @@ export default function MeetingsPage() {
           <button onClick={() => setView('list')} className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (view==='list' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📋 {tView('list')}</button>
           <button onClick={() => setView('calendar')} className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (view==='calendar' ? 'bg-white shadow-sm text-[#1a1a2e]' : 'text-[#8a7e6e]')}>📅 {tView('calendar')}</button>
         </div>
-        <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl">
-          {(['upcoming','all','cancelled'] as const).map(tabKey => (
-            <button key={tabKey} onClick={() => setTab(tabKey)}
-              className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (tab===tabKey ? 'bg-white shadow-sm text-[#3b6bef] font-semibold' : 'text-[#8a7e6e]')}>
-              {tTabs(tabKey)}
-            </button>
-          ))}
-        </div>
+        {/* Onglets de filtre : uniquement en vue Liste. En vue Calendrier,
+            la grille montre TOUS les statuts (couleurs distinctes) ; le filtre
+            n'aurait aucun effet visible. */}
+        {view === 'list' && (
+          <div className="flex gap-1 p-1 bg-[#f0ece6] rounded-xl">
+            {(['upcoming','all','cancelled'] as const).map(tabKey => (
+              <button key={tabKey} onClick={() => setTab(tabKey)}
+                className={"px-3 py-1.5 rounded-lg text-sm font-medium " + (tab===tabKey ? 'bg-white shadow-sm text-[#3b6bef] font-semibold' : 'text-[#8a7e6e]')}>
+                {tTabs(tabKey)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Calendar placeholder */}
-      {view === 'calendar' && (
-        <div className="bg-white border border-[#e8e3dc] rounded-xl p-12 text-center mb-5">
-          <div className="text-3xl mb-2">📅</div>
-          <p className="font-medium text-[#1a1a2e]">{tCalendar('soonTitle')}</p>
-          <p className="text-sm text-[#8a7e6e] mt-1">{tCalendar('soonSubtitle')}</p>
-        </div>
-      )}
+      {/* ── Calendar view ─────────────────────────────────────────────────
+          Grille mois + agenda du jour sélectionné. Toute la logique de
+          layout est main : aucune lib date ajoutée. Le bucketing par jour
+          se fait dans la TZ workspace (sCfg.timezone) via dayKey() —
+          un meeting à 23h30 EST reste sur son jour EST, pas le lendemain
+          UTC (bug classique quand on utilise .getDate() sur un objet Date
+          construit depuis un ISO UTC). */}
+      {view === 'calendar' && (() => {
+        const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' })
+          .format(new Date(calCursor.y, calCursor.m, 1))
+        const todayKey = dayKey(new Date().toISOString(), sCfg.timezone)
+
+        // Construction de la grille : 6 lignes × 7 colonnes = 42 cellules.
+        // Lundi en tête (getDay() renvoie 0=Dim → on décale : (0+6)%7=6 pour Dim,
+        // (1+6)%7=0 pour Lun). Cellules débordent proprement sur mois précédent
+        // / suivant pour garder des semaines complètes.
+        const firstOfMonth = new Date(calCursor.y, calCursor.m, 1)
+        const leadingBlanks = (firstOfMonth.getDay() + 6) % 7
+        const gridStart = new Date(calCursor.y, calCursor.m, 1 - leadingBlanks)
+        const cells: Array<{ date: Date; inMonth: boolean; key: string }> = []
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
+          const y = d.getFullYear()
+          const m = String(d.getMonth() + 1).padStart(2, '0')
+          const day = String(d.getDate()).padStart(2, '0')
+          cells.push({ date: d, inMonth: d.getMonth() === calCursor.m, key: `${y}-${m}-${day}` })
+        }
+
+        // Bucketise les meetings par jour (TZ workspace) — map { 'YYYY-MM-DD': Meeting[] }.
+        const byDay = new Map<string, Meeting[]>()
+        for (const mtg of meetings) {
+          const k = dayKey(mtg.meeting_at, sCfg.timezone)
+          const arr = byDay.get(k) ?? []
+          arr.push(mtg)
+          byDay.set(k, arr)
+        }
+        // Tri par heure sur chaque jour (utile pour agenda + ordre des chips).
+        for (const arr of byDay.values()) {
+          arr.sort((a, b) => a.meeting_at.localeCompare(b.meeting_at))
+        }
+
+        const weekdayKeys = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+        const selectedMeetings = byDay.get(selectedDay) ?? []
+
+        function goPrev() {
+          setCalCursor(c => c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 })
+        }
+        function goNext() {
+          setCalCursor(c => c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 })
+        }
+        function goToday() {
+          const now = new Date()
+          setCalCursor({ y: now.getFullYear(), m: now.getMonth() })
+          setSelectedDay(dayKey(now.toISOString(), sCfg.timezone))
+        }
+        function selectCell(cell: { date: Date; inMonth: boolean; key: string }) {
+          setSelectedDay(cell.key)
+          if (!cell.inMonth) setCalCursor({ y: cell.date.getFullYear(), m: cell.date.getMonth() })
+        }
+
+        // Format le header depuis les parts Y-M-D (le key `selectedDay` est
+        // déjà bucketisé en TZ workspace) : on construit un Date en local
+        // NOON pour éviter tout drift TZ-navigateur, puis on formate sans
+        // timeZone — l'affichage weekday/day/month reflète le calendrier
+        // de la clé, pas la conversion TZ locale de minuit UTC.
+        const [selY, selM, selD] = selectedDay.split('-').map(Number)
+        const selectedDate = new Date(selY, (selM || 1) - 1, selD || 1, 12, 0, 0)
+        const selectedHeader = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' })
+          .format(selectedDate)
+
+        return (
+          <>
+            <div className="bg-white border border-[#e8e3dc] rounded-xl p-4 mb-5">
+              {/* Nav bar */}
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-[#1a1a2e] capitalize">{monthLabel}</p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={goToday}
+                    aria-pressed={selectedDay === todayKey && calCursor.y === new Date().getFullYear() && calCursor.m === new Date().getMonth()}
+                    className="text-xs px-2.5 py-1.5 rounded-lg border border-[#e8e3dc] text-[#6b5e4e] hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1">
+                    {tCalendar('today')}
+                  </button>
+                  <button onClick={goPrev} aria-label={tCalendar('prevMonth')}
+                    className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1">
+                    <span aria-hidden="true" className="text-base leading-none">‹</span>
+                  </button>
+                  <button onClick={goNext} aria-label={tCalendar('nextMonth')}
+                    className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1">
+                    <span aria-hidden="true" className="text-base leading-none">›</span>
+                  </button>
+                </div>
+              </div>
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {weekdayKeys.map(k => (
+                  <div key={k} className="text-[10px] font-semibold uppercase tracking-wide text-[#8a7e6e] text-center py-1">
+                    {tWeekdaysShort(k)}
+                  </div>
+                ))}
+              </div>
+              {/* Grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {cells.map((cell, idx) => {
+                  const items = byDay.get(cell.key) ?? []
+                  const isToday    = cell.key === todayKey
+                  const isSelected = cell.key === selectedDay
+                  const dayNum = cell.date.getDate()
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => selectCell(cell)}
+                      aria-pressed={isSelected}
+                      aria-current={isToday ? 'date' : undefined}
+                      className={
+                        'min-h-[78px] rounded-lg p-1 flex flex-col items-stretch text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1 ' +
+                        (cell.inMonth ? 'bg-white ' : 'bg-[#faf7f2] text-[#c9c0b4] ') +
+                        (isSelected
+                          ? 'ring-2 ring-[#3b6bef] '
+                          : 'border border-[#f0ece6] hover:bg-[#f7f4f0] ')
+                      }
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className={
+                          'inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold ' +
+                          (isToday
+                            ? 'rounded-full bg-[#3b6bef] text-white'
+                            : cell.inMonth ? 'text-[#1a1a2e]' : 'text-[#c9c0b4]')
+                        }>{dayNum}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        {items.slice(0, 2).map(mtg => {
+                          const timeStr = new Intl.DateTimeFormat(locale, {
+                            hour: '2-digit', minute: '2-digit', timeZone: sCfg.timezone,
+                          }).format(new Date(mtg.meeting_at))
+                          const cancelled = mtg.status === 'cancelled'
+                          return (
+                            <span
+                              key={mtg.id}
+                              // `block` requis pour que `truncate` fonctionne
+                              // sur un span (sinon inline → wrap au lieu de
+                              // ellipsis, casse la hauteur `min-h-[78px]` de
+                              // la cellule sur mobile 375). Bg tinté via
+                              // STATUS_COLORS suffit à identifier le statut ;
+                              // pas de border (`border-current/20` était un
+                              // invalide Tailwind qui tombait au default).
+                              className={
+                                'block text-[10px] px-1 py-0.5 rounded truncate leading-tight ' +
+                                (STATUS_COLORS[mtg.status] ?? 'bg-white text-[#1a1a2e]') + ' ' +
+                                (cancelled ? 'line-through opacity-70' : '')
+                              }
+                              title={`${timeStr} · ${mtg.title}`}
+                            >
+                              {timeStr} {mtg.title}
+                            </span>
+                          )
+                        })}
+                        {items.length > 2 && (
+                          <span className="text-[10px] text-[#8a7e6e] px-1">
+                            +{items.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Agenda du jour sélectionné */}
+            <div className="mb-5">
+              <div className="flex items-baseline gap-2 mb-2">
+                <p className="text-sm font-semibold text-[#1a1a2e] capitalize">{selectedHeader}</p>
+                {selectedMeetings.length > 0 && (
+                  <span className="text-xs text-[#8a7e6e]">
+                    {tCalendar('meetingsCount', { count: selectedMeetings.length })}
+                  </span>
+                )}
+              </div>
+              {loading ? (
+                <div className="bg-white border border-[#e8e3dc] rounded-xl p-8 flex justify-center">
+                  <Spinner />
+                </div>
+              ) : selectedMeetings.length === 0 ? (
+                <div className="bg-white border border-[#e8e3dc] rounded-xl p-10 text-center">
+                  <div className="text-3xl mb-2 opacity-70">📅</div>
+                  <p className="text-sm text-[#8a7e6e]">{tCalendar('emptyDay')}</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {selectedMeetings.map(m => <MeetingCard key={m.id} m={m} />)}
+                </div>
+              )}
+            </div>
+          </>
+        )
+      })()}
 
       {/* Meeting list */}
       {view === 'list' && (
@@ -293,43 +554,7 @@ export default function MeetingsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {meetings.map(m => {
-              const statusLabel = (MEETING_STATUS_KEYS as readonly string[]).includes(m.status)
-                ? tStatuses(m.status)
-                : m.status
-              return (
-              <div key={m.id} className="bg-white border border-[#e8e3dc] rounded-xl p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-semibold text-[#1a1a2e] text-sm">{m.title}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{statusLabel}</span>
-                    </div>
-                    <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at, sCfg.timezone)} · {t('durationMinutes', { count: m.duration_min })}</p>
-                    {(m.attendee_name || m.attendee_email) && (
-                      <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
-                    )}
-                    {m.notes && (
-                      <div className="mt-2 pt-2 border-t border-[#f0ece6]">
-                        <p className="text-xs font-semibold text-[#8a7e6e] mb-0.5">{tList('card.prospectNotesLabel')}</p>
-                        <p className="text-xs text-[#6b5e4e] whitespace-pre-line">{m.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <a href={`/api/meetings/${m.id}/ics`} className="text-xs border border-[#e8e3dc] px-2 py-1 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee]">📅</a>
-                    <select value={m.status} onChange={e => updateStatus(m.id, e.target.value)}
-                      className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1 text-[#1a1a2e] bg-white focus:outline-none">
-                      {(MEETING_STATUS_KEYS as readonly MeetingStatusKey[]).map(key => (
-                        <option key={key} value={key}>{tStatuses(key)}</option>
-                      ))}
-                    </select>
-                    <button onClick={() => deleteMeeting(m.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
-                  </div>
-                </div>
-              </div>
-              )
-            })}
+            {meetings.map(m => <MeetingCard key={m.id} m={m} />)}
           </div>
         )
       )}
