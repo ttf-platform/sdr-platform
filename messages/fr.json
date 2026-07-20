@@ -1662,8 +1662,11 @@
         "cancelled": "Annulés"
       },
       "calendar": {
-        "soonTitle": "Vue calendrier — bientôt disponible",
-        "soonSubtitle": "Passez en vue Liste pour voir vos rendez-vous."
+        "today": "Aujourd'hui",
+        "prevMonth": "Mois précédent",
+        "nextMonth": "Mois suivant",
+        "meetingsCount": "{count, plural, one {# rendez-vous} other {# rendez-vous}}",
+        "emptyDay": "Aucun rendez-vous ce jour-là"
       },
       "list": {
         "emptyTitleUpcoming": "Aucun rendez-vous à venir",
