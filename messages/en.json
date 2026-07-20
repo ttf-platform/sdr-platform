@@ -1436,7 +1436,18 @@
           "bulkApproving": "Approving…",
           "bulkReject": "Reject all",
           "bulkRejecting": "Rejecting…",
-          "actionFailed": "Action failed — please try again."
+          "actionFailed": "Action failed — please try again.",
+          "hasAttachment": "Has attachment",
+          "attachmentsRemoveAllCta": "Remove attachments",
+          "attachmentsAddSuccess": "{count, plural, one {Attached to # draft} other {Attached to # drafts}}",
+          "attachmentsAddError": "Could not attach to the drafts. Please try again.",
+          "attachmentsRemoveSuccess": "{count, plural, one {Removed from # draft} other {Removed from # drafts}}",
+          "attachmentsRemoveError": "Could not remove attachments. Please try again.",
+          "attachmentsRemoveAllConfirmTitle": "Remove all attachments?",
+          "attachmentsRemoveAllConfirmBody": "This will strip every tracked file link from every draft and edited email in this campaign. Sent emails are not affected.",
+          "attachmentsRemoveAllCancel": "Cancel",
+          "attachmentsRemoveAllConfirm": "Remove from all drafts",
+          "attachmentsRemoveAllBusy": "Removing…"
         },
         "emailStatuses": {
           "draft": "Draft",
@@ -2744,7 +2755,8 @@
       "chipUnknownFile": "File",
       "chipDetachAria": "Remove {filename} from this email",
       "nudgeBadge": "Heads up",
-      "nudgeBody": "A link in a first-touch email can hurt deliverability and reply rates. Attaching feels safer on a follow-up, or after they’ve replied."
+      "nudgeBody": "A link in a first-touch email can hurt deliverability and reply rates. Attaching feels safer on a follow-up, or after they’ve replied.",
+      "triggerAddAll": "Attach to all drafts"
     }
   }
 }

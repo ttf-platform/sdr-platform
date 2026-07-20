@@ -1436,7 +1436,18 @@
           "bulkApproving": "Validation…",
           "bulkReject": "Tout rejeter",
           "bulkRejecting": "Rejet…",
-          "actionFailed": "L'action a échoué, réessayez."
+          "actionFailed": "L'action a échoué, réessayez.",
+          "hasAttachment": "Pièce jointe",
+          "attachmentsRemoveAllCta": "Retirer les pièces jointes",
+          "attachmentsAddSuccess": "{count, plural, one {Ajouté à # brouillon} other {Ajouté à # brouillons}}",
+          "attachmentsAddError": "Impossible de joindre aux brouillons. Réessayez.",
+          "attachmentsRemoveSuccess": "{count, plural, one {Retiré de # brouillon} other {Retiré de # brouillons}}",
+          "attachmentsRemoveError": "Impossible de retirer les pièces jointes. Réessayez.",
+          "attachmentsRemoveAllConfirmTitle": "Retirer toutes les pièces jointes ?",
+          "attachmentsRemoveAllConfirmBody": "Cette action retire tous les liens de fichier trackés des e-mails en brouillon et édités de cette campagne. Les e-mails envoyés ne sont pas concernés.",
+          "attachmentsRemoveAllCancel": "Annuler",
+          "attachmentsRemoveAllConfirm": "Retirer de tous les brouillons",
+          "attachmentsRemoveAllBusy": "Retrait en cours…"
         },
         "emailStatuses": {
           "draft": "Brouillon",
@@ -2744,7 +2755,8 @@
       "chipUnknownFile": "Fichier",
       "chipDetachAria": "Retirer {filename} de cet e-mail",
       "nudgeBadge": "À noter",
-      "nudgeBody": "Un lien dans un e-mail de premier contact peut nuire à la délivrabilité et au taux de réponse. Mieux vaut l’envoyer sur une relance ou une fois qu’ils ont répondu."
+      "nudgeBody": "Un lien dans un e-mail de premier contact peut nuire à la délivrabilité et au taux de réponse. Mieux vaut l’envoyer sur une relance ou une fois qu’ils ont répondu.",
+      "triggerAddAll": "Joindre à tous les brouillons"
     }
   }
 }
