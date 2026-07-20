@@ -7,11 +7,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const ATTACHMENTS_BUCKET = 'email-attachments'
 
-// Cap taille : 10 Mo. Aligné avec la limite Instantly (single attachment
-// <10 MB) et la limite Gmail/Outlook côté client. Au-delà, l'attachement
-// devient un lien tracké au lieu d'être joint — c'est justement la raison
-// d'être de cette feature.
-export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024
+// Cap taille : 4 Mo. Contrainte plateforme : Vercel Serverless plafonne le
+// corps de requête à ~4,5 Mo ; au-delà, la plateforme rejette (413) AVANT
+// d'atteindre notre code (impossible d'afficher un message utile). On garde
+// 4 Mo pour laisser une marge à l'overhead multipart (boundary, headers,
+// encodage). Un vrai 10 Mo exigerait un upload client → Storage direct via
+// signed upload URL — hors scope pour cette itération.
+export const MAX_ATTACHMENT_SIZE_BYTES = 4 * 1024 * 1024
 
 // Allowlist stricte. On refuse tout ce qui exécute (exe, dll, jar), les
 // archives (zip, rar, 7z, tar, gz — souvent des vecteurs de macros
