@@ -1447,7 +1447,10 @@
           "attachmentsRemoveAllConfirmBody": "Cette action retire tous les liens de fichier trackés des e-mails en brouillon et édités de cette campagne. Les e-mails envoyés ne sont pas concernés.",
           "attachmentsRemoveAllCancel": "Annuler",
           "attachmentsRemoveAllConfirm": "Retirer de tous les brouillons",
-          "attachmentsRemoveAllBusy": "Retrait en cours…"
+          "attachmentsRemoveAllBusy": "Retrait en cours…",
+          "attachmentsMenuLabel": "Pièces jointes",
+          "attachmentsMenuAdd": "Joindre à tous les brouillons",
+          "attachmentsMenuRemove": "Retirer toutes les pièces jointes"
         },
         "emailStatuses": {
           "draft": "Brouillon",

@@ -1447,7 +1447,10 @@
           "attachmentsRemoveAllConfirmBody": "This will strip every tracked file link from every draft and edited email in this campaign. Sent emails are not affected.",
           "attachmentsRemoveAllCancel": "Cancel",
           "attachmentsRemoveAllConfirm": "Remove from all drafts",
-          "attachmentsRemoveAllBusy": "Removing…"
+          "attachmentsRemoveAllBusy": "Removing…",
+          "attachmentsMenuLabel": "Attachments",
+          "attachmentsMenuAdd": "Attach to all drafts",
+          "attachmentsMenuRemove": "Remove all attachments"
         },
         "emailStatuses": {
           "draft": "Draft",

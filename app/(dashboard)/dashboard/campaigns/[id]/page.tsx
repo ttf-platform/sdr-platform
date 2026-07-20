@@ -15,7 +15,7 @@ import { EditEmailModal } from '@/components/EditEmailModal'
 import { EditFollowupModal } from '@/components/EditFollowUpModal'
 import { CampaignProspectMobileCard } from './_components/CampaignProspectMobileCard'
 import { Toggle } from '@/components/ui/Toggle'
-import { Paperclip } from 'lucide-react'
+import { Paperclip, ChevronDown } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { AttachmentPicker } from '@/components/AttachmentPicker'
 
@@ -439,6 +439,29 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   }
   const [showRemoveAllConfirm, setShowRemoveAllConfirm] = useState(false)
+
+  // Attachments dropdown menu (toolbar Emails) — un seul contrôle "📎
+  // Attachments ▾" ouvre un menu à 2 items (Attach to all / Remove all).
+  // Le picker AttachmentPicker est monté headless (hideTrigger) et déclenché
+  // par un signal incrémenté à chaque clic sur "Attach to all drafts".
+  const [attachmentsMenuOpen, setAttachmentsMenuOpen] = useState(false)
+  const [pickerOpenSignal,    setPickerOpenSignal]    = useState(0)
+  const attachmentsMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!attachmentsMenuOpen) return
+    const onMouseDown = (e: MouseEvent) => {
+      if (attachmentsMenuRef.current && !attachmentsMenuRef.current.contains(e.target as Node)) {
+        setAttachmentsMenuOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAttachmentsMenuOpen(false) }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [attachmentsMenuOpen])
 
   useEffect(() => {
     fetch(`/api/campaigns/${id}`)
@@ -955,60 +978,115 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           {/* Populated */}
           {emailsTotal > 0 && (
             <>
+              {/* Toolbar Emails (PR3d) : UNE SEULE rangée sous les onglets.
+                  À gauche : filtres en segmented control compact.
+                  À droite (ml-auto via justify-between) : actions à hauteur
+                  unifiée (py-2 text-sm). "📎 Attachments ▾" est un dropdown
+                  unifié qui contient 2 items (Attach to all / Remove all).
+                  Toutes les actions wrap proprement en mobile via flex-wrap. */}
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* Filtres — segmented control */}
+                <div className="inline-flex items-center bg-[#f0ece6] rounded-lg p-[3px]">
                   {(['all', 'draft', 'edited', 'approved', 'rejected'] as const).map(f => {
                     const count = f === 'all' ? emailsTotal : (emailsByStatus[f] ?? 0)
                     const label = f === 'all' ? tEmails('filters.all') : tEmailStatuses(f)
+                    const active = emailsFilter === f
                     return (
-                      <button key={f} onClick={() => { setEmailsFilter(f); setEmailsPage(1) }}
-                        className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
-                          emailsFilter === f
-                            ? 'bg-[#1a1a2e] text-white'
-                            : 'bg-[#f0ece6] text-[#6b5e4e] hover:bg-[#e8e3dc]'
-                        }`}>
-                        {tEmails('filterCount', { label, count })}
+                      <button
+                        key={f}
+                        onClick={() => { setEmailsFilter(f); setEmailsPage(1) }}
+                        aria-pressed={active}
+                        className={
+                          'text-[13px] px-3 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 ' +
+                          (active
+                            ? 'bg-white text-[#1a1a2e] font-semibold shadow-sm'
+                            : 'text-[#6b5e4e] hover:bg-white/50 font-medium')
+                        }>
+                        {label} <span className="text-[#8a7e6e] font-normal">{count}</span>
                       </button>
                     )
                   })}
                 </div>
-                {/* Actions group — même taille que le toolbar Pipeline
-                    (px-3 py-2 text-sm font-medium). Deux clusters :
-                      (1) Attach batch (attach-all + remove-all)
-                      (2) autres actions (regenerate, schedule SOON, send SOON)
-                    Séparés par un divider vertical subtil (uniquement affiché
-                    quand le cluster attach est visible ET l'écran est assez
-                    large pour éviter le divider isolé après wrap). */}
+
+                {/* Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* Attachments — dropdown unifié (2 items) + AttachmentPicker
+                      headless. Visible uniquement si (draft + edited) > 0. */}
                   {((emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)) > 0 && (
-                    <>
-                      <AttachmentPicker
-                        triggerLabelKey="triggerAddAll"
-                        onPick={attachToAllDrafts}
-                        triggerClassName="border border-[#e8e3dc] px-3 py-2 text-sm font-medium text-[#6b5e4e] hover:bg-[#f5f2ee]"
-                      />
+                    <div ref={attachmentsMenuRef} className="relative">
                       <button
-                        onClick={() => setShowRemoveAllConfirm(true)}
-                        className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
-                        {tEmails('attachmentsRemoveAllCta')}
+                        type="button"
+                        onClick={() => setAttachmentsMenuOpen(o => !o)}
+                        aria-haspopup="menu"
+                        aria-expanded={attachmentsMenuOpen}
+                        className="inline-flex items-center gap-1.5 border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
+                        <Paperclip size={14} strokeWidth={1.75} aria-hidden="true" />
+                        <span>{tEmails('attachmentsMenuLabel')}</span>
+                        <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
                       </button>
-                      <span aria-hidden="true" className="hidden sm:inline-block w-px h-6 bg-[#e8e3dc]" />
-                    </>
+
+                      {attachmentsMenuOpen && (
+                        <div
+                          role="menu"
+                          aria-label={tEmails('attachmentsMenuLabel')}
+                          className="absolute right-0 top-11 w-64 max-w-[calc(100vw-1.5rem)] bg-white border border-[#e8e3dc] rounded-xl shadow-lg z-50 overflow-hidden">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            autoFocus
+                            onClick={() => {
+                              setAttachmentsMenuOpen(false)
+                              setPickerOpenSignal(n => n + 1)
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a2e] hover:bg-[#f7f4f0] focus-visible:outline-none focus-visible:bg-[#f7f4f0] transition-colors">
+                            {tEmails('attachmentsMenuAdd')}
+                          </button>
+                          <div className="border-t border-[#f0ece6]" />
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setAttachmentsMenuOpen(false)
+                              setShowRemoveAllConfirm(true)
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:bg-red-50 transition-colors">
+                            {tEmails('attachmentsMenuRemove')}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Picker headless : ouvre son propre popover à droite
+                          quand pickerOpenSignal change. onPick → POST add-all. */}
+                      <AttachmentPicker
+                        hideTrigger
+                        openSignal={pickerOpenSignal}
+                        onPick={attachToAllDrafts}
+                      />
+                    </div>
                   )}
+
+                  {/* Regenerate — ghost secondaire */}
                   <button
                     onClick={() => openGenerateDraftsModal(true)}
-                    className="border border-[#e8e3dc] text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
+                    className="inline-flex items-center gap-1.5 text-[#6b5e4e] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
                     ↺ {tEmails('regenerateAll')}
                   </button>
+
+                  {/* Divider vertical — hidden en mobile pour éviter isolat */}
+                  <span aria-hidden="true" className="hidden sm:block w-px h-[22px] bg-[#e8e3dc]" />
+
+                  {/* Schedule (SOON) */}
                   <button disabled title={tEmails('comingSoonTooltip')}
-                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed inline-flex items-center gap-1.5">
+                    className="inline-flex items-center gap-1.5 border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed">
                     📅 {tEmails('schedule')}
                     <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
                   </button>
+
+                  {/* Send All — primaire (bg-[#3b6bef]) mais disabled tant que non actif */}
                   <button disabled title={tEmails('comingSoonTooltip')}
-                    className="border border-[#e8e3dc] text-[#b0a898] px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed inline-flex items-center gap-1.5">
+                    className="inline-flex items-center gap-1.5 bg-[#3b6bef] text-white px-3 py-2 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed">
                     {tEmails('sendAll')}
-                    <span className="text-[9px] bg-[#e8e3dc] text-[#8a7e6e] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
+                    <span className="text-[9px] bg-white/20 text-white px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">{tEmails('soonBadge')}</span>
                   </button>
                 </div>
               </div>
