@@ -22,7 +22,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cronComplete } from '@/lib/cron-log'
 import { runHealthChecks, type CheckResult } from '@/lib/health-checks'
-import { sendAdminHealthAlertEmail } from '@/lib/email'
+import { buildAdminHealthAlertEmail } from '@/lib/email'
+import { dispatchAdminAlert } from '@/lib/admin-alerts'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -112,20 +113,30 @@ export async function GET(request: Request) {
       .join('\n')
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
-    const result = await sendAdminHealthAlertEmail({
-      status:     overall === 'down' ? 'down' : 'degraded',
-      summary,
-      appBaseUrl,
+    const dispatchStatus: 'down' | 'degraded' = overall === 'down' ? 'down' : 'degraded'
+    const dispatchResult = await dispatchAdminAlert({
+      event: 'health_alert',
+      title: dispatchStatus === 'down' ? 'Health alert — DOWN' : 'Health alert — DEGRADED',
+      body:  summary,
+      link:  '/api/admin/health-detail',
+      metadata: { status: dispatchStatus, failing_check_names: failing.map(([name]) => name) },
+      email: buildAdminHealthAlertEmail({ status: dispatchStatus, summary, appBaseUrl }),
     })
 
+    // `alert_sent` now signals "dispatch fired via at least one channel", so
+    // the daily idempotency guard above catches manual retriggers even when
+    // the admin has email turned off (in-app-only mode). Renaming the field
+    // would break the guard's ability to read historical rows — keep the
+    // key, widen the meaning.
+    const alertDispatched = dispatchResult.email_sent || dispatchResult.in_app_inserted > 0
     return cronComplete({
       cron_name: CRON_NAME,
       http_status_code: 200,
       payload: {
         overall,
         checks_failed_count:   failing.length,
-        alert_sent:            result.ok,
-        alert_skipped_reason:  result.ok ? null : (result.error ?? 'send_failed'),
+        alert_sent:            alertDispatched,
+        alert_skipped_reason:  alertDispatched ? null : 'dispatch_all_channels_off_or_failed',
         // Names only — no error messages here (those went to the admin's inbox,
         // and are recoverable from the health-detail route).
         failing_check_names:   failing.map(([name]) => name),

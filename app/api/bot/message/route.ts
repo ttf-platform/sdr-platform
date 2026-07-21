@@ -15,8 +15,9 @@ import {
   type ToolName,
 } from '@/lib/bot-ai';
 import { BOT_SYSTEM_PROMPT } from '@/lib/bot-system-prompt';
-import { sendAdminEscalationEmail } from '@/lib/email';
+import { buildAdminEscalationEmail } from '@/lib/email';
 import { getAdminSetting } from '@/lib/admin-settings';
+import { dispatchAdminAlert } from '@/lib/admin-alerts';
 import { rateLimitByUser } from '@/lib/rate-limit';
 import { logAiCall } from '@/lib/ai-cost';
 
@@ -157,10 +158,22 @@ export async function POST(req: NextRequest) {
     console.log('[bot] loop done — escalated:', escalated, 'escalationId:', escalationId);
     if (escalated && escalationId) {
       const summary = (allToolCalls.find((t) => t.name === 'escalate_to_human')?.input as { summary?: string })?.summary ?? finalText.slice(0, 200);
+      const reason  = escalationReason ?? 'other';
       const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai';
-      await sendAdminEscalationEmail({
-        escalationId, conversationId: conversation.id, workspaceId, userId: user.id,
-        reason: escalationReason ?? 'other', summary, appBaseUrl,
+      await dispatchAdminAlert({
+        event: 'support_escalation',
+        title: `Support escalation — ${reason}`,
+        body:  summary,
+        link:  `/admin/support?escalation=${escalationId}`,
+        metadata: { escalationId, conversationId: conversation.id, workspaceId, userId: user.id, reason },
+        email: buildAdminEscalationEmail({
+          escalationId,
+          workspaceId,
+          userId: user.id,
+          reason,
+          summary,
+          appBaseUrl,
+        }),
       });
     }
 

@@ -18,6 +18,22 @@ export const adminSettingsUpdateSchema = z.object({
   maintenance_mode:                   z.boolean().optional(),
   widget_help_enabled:                z.boolean().optional(),
   bot_max_messages_per_hour_per_user: z.number().int().min(0).max(1000).optional(),
+  // Admin alerts per event × channel (email / in-app). Missing events fall
+  // back to registry defaults (lib/admin-alerts.ts). Enum kept in sync with
+  // ADMIN_ALERT_EVENTS — adding a new event requires bumping both.
+  admin_alert_prefs: z.record(
+    z.enum([
+      'new_signup',
+      'new_subscription',
+      'payment_succeeded',
+      'payment_failed',
+      'subscription_cancelled',
+      'bug_report',
+      'support_escalation',
+      'health_alert',
+    ]),
+    z.object({ email: z.boolean(), in_app: z.boolean() }).strict(),
+  ).optional(),
 }).strict()
 
 export const adminEscalationUpdateSchema = z.object({

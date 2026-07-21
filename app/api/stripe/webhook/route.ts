@@ -6,6 +6,7 @@ import { monthlyMrrForWorkspace } from '@/lib/pricing'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
 import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { sendCancellationEmail, sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
+import { dispatchAdminAlert } from '@/lib/admin-alerts'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -393,6 +394,18 @@ export async function POST(request: Request) {
       // Checkout is used to create a sub, not to renew), so no extra status
       // gating is needed here. lifecycle_emails UNIQUE handles Stripe retries.
       await maybeSendUpgradeEmail(workspaceId, toPlan)
+
+      // Admin alert — new_subscription. Fire-and-forget (never throws).
+      // Primary tap for paid conversions (Checkout is the deliberate signup
+      // path). The subscription.updated wasNotActive→active branch below is
+      // the secondary tap for trial-end auto-converts that bypass Checkout.
+      await dispatchAdminAlert({
+        event: 'new_subscription',
+        title: `New subscription: ${toPlan ?? 'unknown'} ${toInterval ?? ''}`.trim(),
+        body:  `Workspace ${workspaceId} activated a paid plan.`,
+        link:  `/admin/workspaces/${workspaceId}`,
+        metadata: { workspaceId, plan_tier: toPlan, billing_interval: toInterval },
+      })
       break
     }
 
@@ -468,6 +481,16 @@ export async function POST(request: Request) {
       const wasNotActive = before.subscription_status !== 'active'
       if (wasNotActive && status === 'active') {
         await maybeSendUpgradeEmail(workspaceId, toPlan)
+        // Admin alert — mirrors the upgrade-email guard so we don't double-fire
+        // when this event follows a checkout.session.completed (which already
+        // dispatched new_subscription above).
+        await dispatchAdminAlert({
+          event: 'new_subscription',
+          title: `New subscription: ${toPlan ?? 'unknown'} ${toInterval ?? ''}`.trim(),
+          body:  `Workspace ${workspaceId} activated a paid plan.`,
+          link:  `/admin/workspaces/${workspaceId}`,
+          metadata: { workspaceId, plan_tier: toPlan, billing_interval: toInterval },
+        })
       }
       break
     }
@@ -519,6 +542,19 @@ export async function POST(request: Request) {
           before.plan_tier ?? null,
           before.subscription_status ?? null,
         )
+      }
+
+      // Admin alert — subscription_cancelled. Skip trial expirations (they
+      // fire subscription.deleted too when the trial ends without a payment
+      // method, which is not an active cancellation worth alerting on).
+      if (workspaceId && before.subscription_status !== 'trialing') {
+        await dispatchAdminAlert({
+          event: 'subscription_cancelled',
+          title: `Subscription cancelled: ${before.plan_tier ?? 'unknown'}`,
+          body:  `Workspace ${workspaceId} cancelled (was ${before.subscription_status ?? 'unknown'}).`,
+          link:  `/admin/workspaces/${workspaceId}`,
+          metadata: { workspaceId, subscriptionId: sub.id, from_plan: before.plan_tier, from_status: before.subscription_status },
+        })
       }
       break
     }
@@ -602,6 +638,17 @@ export async function POST(request: Request) {
           },
           link: '/dashboard/billing',
         }).catch(() => {})
+
+        // Admin alert — payment_failed. Same guards as the dunning email
+        // (first attempt, real sub invoice, workspace not already canceled)
+        // so admins get exactly one alert per failed billing cycle.
+        await dispatchAdminAlert({
+          event: 'payment_failed',
+          title: `Payment failed: ${before.plan_tier ?? 'unknown'}`,
+          body:  `Workspace ${wid} — invoice ${inv.id} did not clear.`,
+          link:  `/admin/workspaces/${wid}`,
+          metadata: { workspaceId: wid, invoiceId: inv.id, plan_tier: before.plan_tier, amount_due: inv.amount_due, currency: inv.currency },
+        })
       }
       break
     }
@@ -654,6 +701,16 @@ export async function POST(request: Request) {
           },
           link: '/dashboard/billing',
         }).catch(() => {})
+
+        // Admin alert — payment_succeeded. Same guards as the user notif so
+        // one-off invoices (topups, manual overrides) do not spam admins.
+        await dispatchAdminAlert({
+          event: 'payment_succeeded',
+          title: `Payment received: ${before.plan_tier ?? 'unknown'}`,
+          body:  `Workspace ${widPS} paid invoice ${inv.id}.`,
+          link:  `/admin/workspaces/${widPS}`,
+          metadata: { workspaceId: widPS, invoiceId: inv.id, plan_tier: before.plan_tier, amount_paid: inv.amount_paid, currency: inv.currency },
+        })
       }
       break
     }

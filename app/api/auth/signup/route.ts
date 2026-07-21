@@ -5,6 +5,7 @@ import { signupSchema } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
 import { verifyTurnstile } from '@/lib/turnstile'
 import { getAdminSetting } from '@/lib/admin-settings'
+import { dispatchAdminAlert } from '@/lib/admin-alerts'
 
 export async function POST(request: NextRequest) {
   const rl = await rateLimitByIp(request, { limit: 5, window: '10 m', prefix: 'auth-signup' })
@@ -202,6 +203,16 @@ export async function POST(request: NextRequest) {
   if (profileError) {
     console.error('[signup] workspace_profiles insert failed (non-fatal, profile can be created later):', profileError.message)
   }
+
+  // Admin alert (best-effort — never blocks signup response). Routed through
+  // the registry so admins can opt in/out per channel from /admin/settings.
+  await dispatchAdminAlert({
+    event: 'new_signup',
+    title: `New signup: ${companyName}`,
+    body:  `${name} (${email}) started a ${tier} trial.`,
+    link:  '/admin/users',
+    metadata: { workspaceId: workspace.id, userId: signupData.user.id, plan_tier: tier },
+  })
 
   return respond({ success: true })
 }

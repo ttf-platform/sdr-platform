@@ -19,8 +19,9 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sendAdminEscalationEmail } from '@/lib/email';
+import { buildAdminEscalationEmail } from '@/lib/email';
 import { botEscalateSchema, badRequest } from '@/lib/schemas';
+import { dispatchAdminAlert } from '@/lib/admin-alerts';
 
 export const runtime = 'nodejs';
 
@@ -75,16 +76,22 @@ export async function POST(req: NextRequest) {
 
   const appBaseUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai';
-  const emailResult = await sendAdminEscalationEmail({
-    escalationId: esc.id,
-    conversationId: conv.id,
-    workspaceId: conv.workspace_id,
-    userId: user.id,
-    reason,
-    summary,
-    appBaseUrl,
+  const dispatchResult = await dispatchAdminAlert({
+    event: 'support_escalation',
+    title: `Support escalation — ${reason}`,
+    body:  summary,
+    link:  `/admin/support?escalation=${esc.id}`,
+    metadata: { escalationId: esc.id, conversationId: conv.id, workspaceId: conv.workspace_id, userId: user.id, reason },
+    email: buildAdminEscalationEmail({
+      escalationId: esc.id,
+      workspaceId:  conv.workspace_id,
+      userId:       user.id,
+      reason,
+      summary,
+      appBaseUrl,
+    }),
   });
-  if (emailResult.ok) {
+  if (dispatchResult.email_sent) {
     await supabase
       .from('escalations')
       .update({ admin_notified_at: new Date().toISOString() })

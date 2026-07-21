@@ -2233,7 +2233,8 @@
         "deliverability": "Deliverability",
         "campaign": "Campaigns",
         "team": "Team",
-        "product": "Product"
+        "product": "Product",
+        "admin": "Admin"
       }
     }
   },

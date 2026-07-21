@@ -1,11 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Toggle } from '@/components/ui/Toggle';
+import {
+  ADMIN_ALERT_EVENTS,
+  DEFAULT_ADMIN_ALERT_PREFS,
+  type AdminAlertEvent,
+  type AlertChannelPrefs,
+} from '@/lib/admin-alerts-registry';
 
 type SettingValue = { value: unknown; description: string | null; updated_at: string };
 type Settings = Record<string, SettingValue>;
+
+// Human-readable labels for each alert event. Kept alongside the client
+// component so the copy is reviewable in the diff (not tucked into the
+// registry, which sticks to defaults + typing).
+const EVENT_META: Record<AdminAlertEvent, { label: string; description: string; alreadyLive?: boolean }> = {
+  new_signup:              { label: 'New signup',             description: "A new user creates an account." },
+  new_subscription:        { label: 'New subscription',       description: 'A workspace starts a paid plan.' },
+  payment_succeeded:       { label: 'Payment succeeded',      description: 'A Stripe invoice was paid.' },
+  payment_failed:          { label: 'Payment failed',         description: 'A Stripe invoice failed.' },
+  subscription_cancelled:  { label: 'Subscription cancelled', description: 'A workspace cancelled its plan.' },
+  bug_report:              { label: 'Bug report',             description: 'A user submitted a bug report.', alreadyLive: true },
+  support_escalation:      { label: 'Support escalation',     description: 'The support bot escalated a conversation.', alreadyLive: true },
+  health_alert:            { label: 'Health alert',           description: 'A cron health check flagged an incident.',   alreadyLive: true },
+};
 
 export function PlatformSettingsClient({ initialSettings }: { initialSettings: Record<string, unknown> }) {
   const settings = initialSettings as Settings;
@@ -21,6 +41,9 @@ export function PlatformSettingsClient({ initialSettings }: { initialSettings: R
         <EmailNotificationsCard
           initialEmail={(settings.admin_notification_email?.value as string | null) ?? ''}
           description={settings.admin_notification_email?.description ?? ''}
+        />
+        <AdminAlertsCard
+          initial={mergeAlertPrefs(settings.admin_alert_prefs?.value)}
         />
         <FeatureFlagsCard
           initial={{
@@ -75,6 +98,119 @@ function EmailNotificationsCard({ initialEmail, description }: { initialEmail: s
       </div>
       {status.kind === 'error' && <p className="mt-2 text-xs text-red-700">{status.msg}</p>}
       <p className="mt-2 text-[11px] text-[#9a9a9a]">Used for support escalations and high/critical bug reports.</p>
+    </Card>
+  );
+}
+
+function mergeAlertPrefs(raw: unknown): Record<AdminAlertEvent, AlertChannelPrefs> {
+  const out: Record<AdminAlertEvent, AlertChannelPrefs> = { ...DEFAULT_ADMIN_ALERT_PREFS };
+  if (raw && typeof raw === 'object') {
+    const store = raw as Record<string, Partial<AlertChannelPrefs>>;
+    for (const { key } of ADMIN_ALERT_EVENTS) {
+      const entry = store[key];
+      if (entry && typeof entry === 'object') {
+        out[key] = {
+          email:  typeof entry.email  === 'boolean' ? entry.email  : DEFAULT_ADMIN_ALERT_PREFS[key].email,
+          in_app: typeof entry.in_app === 'boolean' ? entry.in_app : DEFAULT_ADMIN_ALERT_PREFS[key].in_app,
+        };
+      }
+    }
+  }
+  return out;
+}
+
+function prefsEqual(a: Record<AdminAlertEvent, AlertChannelPrefs>, b: Record<AdminAlertEvent, AlertChannelPrefs>): boolean {
+  for (const { key } of ADMIN_ALERT_EVENTS) {
+    if (a[key].email !== b[key].email || a[key].in_app !== b[key].in_app) return false;
+  }
+  return true;
+}
+
+function AdminAlertsCard({ initial }: { initial: Record<AdminAlertEvent, AlertChannelPrefs> }) {
+  const [prefs, setPrefs] = useState(initial);
+  const [baseline, setBaseline] = useState(initial);
+  const [status, setStatus] = useState<{ kind: 'idle' | 'saving' | 'saved' | 'error'; msg?: string }>({ kind: 'idle' });
+  const dirty = useMemo(() => !prefsEqual(prefs, baseline), [prefs, baseline]);
+
+  function setChannel(event: AdminAlertEvent, channel: keyof AlertChannelPrefs, value: boolean) {
+    setPrefs((p) => ({ ...p, [event]: { ...p[event], [channel]: value } }));
+  }
+
+  async function save() {
+    setStatus({ kind: 'saving' });
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_alert_prefs: prefs }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? 'save_failed');
+      setBaseline(prefs);
+      setStatus({ kind: 'saved' });
+      setTimeout(() => setStatus({ kind: 'idle' }), 2000);
+    } catch (err) {
+      setStatus({ kind: 'error', msg: err instanceof Error ? err.message : 'unknown' });
+    }
+  }
+
+  return (
+    <Card
+      title="Admin alerts"
+      subtitle="Choose which events notify admins, and how. In-app alerts appear in the bell menu."
+    >
+      <div className="overflow-hidden rounded-md border border-[#f0ebe4]">
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-6 gap-y-0 border-b border-[#f0ebe4] bg-[#fafaf9] px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-[#6a6a7a]">
+          <div>Event</div>
+          <div className="w-16 text-center">Email</div>
+          <div className="w-16 text-center">In-app</div>
+        </div>
+        <ul className="divide-y divide-[#f0ebe4]">
+          {ADMIN_ALERT_EVENTS.map(({ key }) => {
+            const meta = EVENT_META[key];
+            const row = prefs[key];
+            return (
+              <li key={key} className="grid grid-cols-[1fr_auto_auto] items-center gap-x-6 bg-white px-3 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[#1a1a1a]">{meta.label}</span>
+                    {meta.alreadyLive && (
+                      // Neutral gray-on-neutral tag (was #3b6bef on #eef2ff — 3.8:1,
+                      // fails WCAG AA for the 10px text size). Contrast now ~11:1.
+                      <span className="rounded-sm bg-[#f0ebe4] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#4a4a5a]">
+                        Already live
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-xs text-[#4a4a5a]">{meta.description}</div>
+                </div>
+                <div className="flex w-16 justify-center">
+                  <Toggle
+                    checked={row.email}
+                    onChange={(v) => setChannel(key, 'email', v)}
+                    ariaLabel={`${meta.label}: email`}
+                  />
+                </div>
+                <div className="flex w-16 justify-center">
+                  <Toggle
+                    checked={row.in_app}
+                    onChange={(v) => setChannel(key, 'in_app', v)}
+                    ariaLabel={`${meta.label}: in-app`}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <p className="mt-2 text-[11px] text-[#9a9a9a]">
+        Email uses the address above (falls back to <code>ADMIN_NOTIFICATION_EMAIL</code>).
+        In-app alerts are delivered to every admin listed in <code>SENTRA_ADMIN_EMAILS</code>.
+      </p>
+      <div className="mt-4 flex items-center justify-end gap-2">
+        {status.kind === 'error' && <span className="text-xs text-red-700">{status.msg}</span>}
+        <SaveButton status={status} onClick={save} disabled={!dirty} />
+      </div>
     </Card>
   );
 }
