@@ -118,7 +118,6 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tToasts = useTranslations('dashboard.campaigns.detail.toasts')
   // ICP card i18n handles
   const tIcp        = useTranslations('dashboard.campaigns.detail.overview.icp')
-  const tCommonUi   = useTranslations('dashboard.common')
   const tNewCamp    = useTranslations('components.campaignModals.newCampaign')
   const tTones      = useTranslations('dashboard.prospects.list.tones')
   const tLanguages  = useTranslations('components.campaignModals.languages')
@@ -1034,11 +1033,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <button type="button" onClick={() => setIcpEditMode(false)} disabled={icpSaving}
                     className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1 disabled:opacity-40">
-                    {tCommonUi('cancel')}
+                    {tCommon('cancel')}
                   </button>
                   <button type="button" onClick={saveIcpEdit} disabled={icpSaving}
-                    className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#2f57c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 disabled:opacity-40 transition-colors">
-                    {icpSaving ? tCommonUi('saving') : tCommonUi('save')}
+                    className="bg-[#1a1a2e] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#2a2a3e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 disabled:opacity-40 transition-colors">
+                    {icpSaving ? tCommon('saving') : tCommon('save')}
                   </button>
                 </div>
               </div>

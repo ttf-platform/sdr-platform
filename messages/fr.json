@@ -1382,7 +1382,7 @@
             "editingTitle": "Modifier le client idéal",
             "subtitle": "Ajustez le ciblage de cette campagne. Modifiable tant qu'aucun email n'a été généré.",
             "lockedBadge": "Verrouillé",
-            "lockedNote": "L'ICP est verrouillé car des emails ont déjà été générés pour cette campagne. Vous pouvez le consulter mais plus le modifier — cela créerait une incohérence avec les emails déjà rédigés. Pour cibler une autre audience, créez une nouvelle campagne."
+            "lockedNote": "L'ICP est verrouillé car des emails ont déjà été générés pour cette campagne. Vous pouvez le consulter mais plus le modifier : cela créerait une incohérence avec les emails déjà rédigés. Pour cibler une autre audience, créez une nouvelle campagne."
           }
         },
         "prospects": {
