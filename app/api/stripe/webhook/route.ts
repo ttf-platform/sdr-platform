@@ -117,6 +117,22 @@ export async function POST(request: Request) {
       }
       if (!reservation?.id) return
 
+      // Admin alert (new_subscription) is co-located with the lifecycle_emails
+      // reservation on purpose : this branch runs at most ONCE per workspace
+      // (UNIQUE(workspace_id, kind='first_upgrade')), which piggy-backs the
+      // exact dedup guarantee we want for admin alerts. Both entry points
+      // (checkout.session.completed AND subscription.updated wasNotActive→
+      // active) call maybeSendUpgradeEmail, so admins get exactly one alert
+      // per real conversion — Stripe retries and the checkout+subscription
+      // double-fire on the same workspace are absorbed here.
+      await dispatchAdminAlert({
+        event: 'new_subscription',
+        title: `New subscription: ${planTier ?? 'unknown'}`,
+        body:  `Workspace ${workspaceId} activated a paid plan.`,
+        link:  `/admin/workspaces/${workspaceId}`,
+        metadata: { workspaceId, plan_tier: planTier },
+      })
+
       // 2. Resolve recipient context. All lookups are best-effort.
       const { data: member } = await admin
         .from('workspace_members')
@@ -389,23 +405,13 @@ export async function POST(request: Request) {
         occurred_at:     occurredAt,
       })
 
-      // Lifecycle email — first upgrade. Fire-and-forget. checkout.session
-      // .completed is by construction a "first upgrade" event (Stripe
-      // Checkout is used to create a sub, not to renew), so no extra status
-      // gating is needed here. lifecycle_emails UNIQUE handles Stripe retries.
+      // Lifecycle email + admin alert — first upgrade. Fire-and-forget.
+      // checkout.session.completed is by construction a "first upgrade" event
+      // (Stripe Checkout is used to create a sub, not to renew), so no extra
+      // status gating is needed here. maybeSendUpgradeEmail also emits the
+      // new_subscription admin alert exactly once per workspace via the
+      // lifecycle_emails UNIQUE constraint.
       await maybeSendUpgradeEmail(workspaceId, toPlan)
-
-      // Admin alert — new_subscription. Fire-and-forget (never throws).
-      // Primary tap for paid conversions (Checkout is the deliberate signup
-      // path). The subscription.updated wasNotActive→active branch below is
-      // the secondary tap for trial-end auto-converts that bypass Checkout.
-      await dispatchAdminAlert({
-        event: 'new_subscription',
-        title: `New subscription: ${toPlan ?? 'unknown'} ${toInterval ?? ''}`.trim(),
-        body:  `Workspace ${workspaceId} activated a paid plan.`,
-        link:  `/admin/workspaces/${workspaceId}`,
-        metadata: { workspaceId, plan_tier: toPlan, billing_interval: toInterval },
-      })
       break
     }
 
@@ -480,17 +486,10 @@ export async function POST(request: Request) {
       // against a later re-entry into 'active' (post past_due recovery).
       const wasNotActive = before.subscription_status !== 'active'
       if (wasNotActive && status === 'active') {
+        // maybeSendUpgradeEmail fires the new_subscription admin alert too;
+        // lifecycle_emails UNIQUE dedups against the checkout.session.completed
+        // branch above so admins get exactly one alert per workspace.
         await maybeSendUpgradeEmail(workspaceId, toPlan)
-        // Admin alert — mirrors the upgrade-email guard so we don't double-fire
-        // when this event follows a checkout.session.completed (which already
-        // dispatched new_subscription above).
-        await dispatchAdminAlert({
-          event: 'new_subscription',
-          title: `New subscription: ${toPlan ?? 'unknown'} ${toInterval ?? ''}`.trim(),
-          body:  `Workspace ${workspaceId} activated a paid plan.`,
-          link:  `/admin/workspaces/${workspaceId}`,
-          metadata: { workspaceId, plan_tier: toPlan, billing_interval: toInterval },
-        })
       }
       break
     }

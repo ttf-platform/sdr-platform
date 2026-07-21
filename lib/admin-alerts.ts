@@ -34,9 +34,9 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getAdminSetting } from '@/lib/admin-settings'
+import { getAdminSetting, getAdminNotificationEmail } from '@/lib/admin-settings'
 import { getAdminEmails } from '@/lib/admin-auth'
-import { sendAdminAlertEmail } from '@/lib/email'
+import { sendAdminAlertEmail, sendPreBakedAdminEmail } from '@/lib/email'
 import {
   ADMIN_ALERT_EVENTS,
   DEFAULT_ADMIN_ALERT_PREFS,
@@ -88,6 +88,9 @@ interface AdminRecipient {
 let _recipientsCache: { value: AdminRecipient[]; expiresAt: number } | null = null
 const RECIPIENTS_TTL_MS = 5 * 60 * 1000  // 5 min — admin set rarely changes
 
+const PER_PAGE  = 200
+const MAX_PAGES = 50  // 10k users garde-fou
+
 async function resolveAdminRecipients(): Promise<AdminRecipient[]> {
   if (_recipientsCache && _recipientsCache.expiresAt > Date.now()) {
     return _recipientsCache.value
@@ -99,30 +102,38 @@ async function resolveAdminRecipients(): Promise<AdminRecipient[]> {
   }
   const admin = createAdminClient()
   const recipients: AdminRecipient[] = []
+  // Paginate listUsers(). Break early when all wanted admin emails are
+  // resolved OR when the current page is short (last page). MAX_PAGES caps
+  // the scan at 10k users so a mis-set admin list can't loop forever.
+  const wanted = new Set(emails)
+  let page = 1
   try {
-    // Note : listUsers() paginates by default (50/page). Admin set is
-    // tiny (typically 1-3 emails) so a single page suffices for the
-    // realistic threat model. If we ever ship > 50 admins we'll need
-    // per-email lookup instead.
-    const { data, error } = await admin.auth.admin.listUsers({ perPage: 200 })
-    if (error) {
-      console.warn('[admin-alerts] listUsers failed', error.message)
-      return []
-    }
-    const emailSet = new Set(emails)
-    const wantedUsers = (data?.users ?? []).filter(u =>
-      typeof u.email === 'string' && emailSet.has(u.email.toLowerCase()),
-    )
-    for (const u of wantedUsers) {
-      const { data: member } = await admin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', u.id)
-        .limit(1)
-        .maybeSingle()
-      if (member?.workspace_id && u.email) {
-        recipients.push({ userId: u.id, workspaceId: member.workspace_id as string, email: u.email })
+    while (wanted.size > 0 && page <= MAX_PAGES) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PER_PAGE })
+      if (error) {
+        console.warn('[admin-alerts] listUsers page failed', { page, error: error.message })
+        break
       }
+      const users = data?.users ?? []
+      for (const u of users) {
+        const emailLower = typeof u.email === 'string' ? u.email.toLowerCase() : null
+        if (!emailLower || !wanted.has(emailLower)) continue
+        const { data: member } = await admin
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', u.id)
+          .limit(1)
+          .maybeSingle()
+        if (member?.workspace_id && u.email) {
+          recipients.push({ userId: u.id, workspaceId: member.workspace_id as string, email: u.email })
+        }
+        wanted.delete(emailLower)
+      }
+      if (users.length < PER_PAGE) break   // dernière page
+      page++
+    }
+    if (page > MAX_PAGES && wanted.size > 0) {
+      console.warn('[admin-alerts] listUsers cap hit, unresolved admins', [...wanted])
     }
   } catch (err) {
     console.warn('[admin-alerts] resolveAdminRecipients threw', err instanceof Error ? err.message : err)
@@ -224,9 +235,12 @@ export async function dispatchAdminAlert(
         const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
         if (input.email) {
           // Rich template preserved verbatim (callers pass subject + html
-          // pre-baked from the existing sendAdminXxxEmail helpers).
-          await sendPreBakedAdminEmail(input.email.subject, input.email.html)
-          result.email_sent = true
+          // pre-baked from the existing sendAdminXxxEmail helpers). No
+          // recipient configured (empty DB + env) → skip silently, mirrors
+          // sendAdminAlertEmail's admin_email_not_configured fail-soft.
+          const to = await getAdminNotificationEmail()
+          if (to) await sendPreBakedAdminEmail(to, input.email.subject, input.email.html)
+          result.email_sent = !!to
         } else {
           const r = await sendAdminAlertEmail({
             subject:   input.title,
@@ -252,21 +266,4 @@ export async function dispatchAdminAlert(
     result.ok = false
     return result
   }
-}
-
-// ─── Internal : pre-baked email pass-through ─────────────────────────────────
-// Wraps the resend call so that a Resend outage is caught (not thrown).
-async function sendPreBakedAdminEmail(subject: string, html: string): Promise<void> {
-  // Lazy import to avoid a hard runtime cycle with lib/email → lib/admin-settings.
-  const [{ getAdminNotificationEmail }, emailMod] = await Promise.all([
-    import('@/lib/admin-settings'),
-    import('@/lib/email'),
-  ])
-  const to = await getAdminNotificationEmail()
-  if (!to) return
-  // sendGenericAdminEmail lives inside lib/email.ts as a bare-bones sender
-  // used only by the dispatcher for pre-baked payloads.
-  const send = (emailMod as { sendPreBakedAdminEmail?: (to: string, subject: string, html: string) => Promise<void> })
-    .sendPreBakedAdminEmail
-  if (typeof send === 'function') await send(to, subject, html)
 }
