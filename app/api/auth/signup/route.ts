@@ -33,6 +33,15 @@ export async function POST(request: NextRequest) {
 
   const { email, password, name, companyName, plan_tier, captchaToken, acquisition } = parsed.data
 
+  // Resolve the workspace's initial UI locale : (1) explicit signup field
+  // captured from the landing page's useLocale(); (2) fallback to the
+  // NEXT_LOCALE cookie next-intl sets when the visitor lands on /fr/*;
+  // (3) hard fallback 'en'. Persisted below into workspace_profiles.language
+  // AND the mirvo_dashboard_locale cookie, so a FR visitor gets a FR
+  // dashboard immediately after signup without any manual toggle.
+  const resolvedLocale: 'en' | 'fr' =
+    parsed.data.locale ?? (request.cookies.get('NEXT_LOCALE')?.value === 'fr' ? 'fr' : 'en')
+
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
                 || request.headers.get('x-real-ip')
                 || undefined
@@ -67,11 +76,11 @@ export async function POST(request: NextRequest) {
   function respond(body: object, status = 200) {
     const res = NextResponse.json(body, { status })
     Object.values(cookieJar).forEach(({ name, value, options }) => res.cookies.set(name, value, options))
-    // Fresh workspaces get workspace_profiles.language default 'en' (baseline
-    // L1278). Pin the dashboard locale cookie to 'en' so the first dashboard
-    // render post-signup does not fall back to the client default synchronously
-    // and then need a reload. Non-httpOnly: client reads at mount.
-    res.cookies.set('mirvo_dashboard_locale', 'en', {
+    // Pin mirvo_dashboard_locale to the resolved landing locale so the first
+    // dashboard render post-signup renders in the visitor's language
+    // immediately, without a mid-session flip once the shell reads
+    // workspace_profiles.language. Non-httpOnly : client reads at mount.
+    res.cookies.set('mirvo_dashboard_locale', resolvedLocale, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -199,6 +208,7 @@ export async function POST(request: NextRequest) {
     tone:                'professional',
     onboarding_completed: false,
     booking_slug:        bookingSlug,
+    language:            resolvedLocale,
   })
   if (profileError) {
     console.error('[signup] workspace_profiles insert failed (non-fatal, profile can be created later):', profileError.message)

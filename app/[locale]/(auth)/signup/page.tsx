@@ -1,7 +1,7 @@
 'use client'
 import { useState, Suspense, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { track } from '@/lib/track'
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -39,6 +39,10 @@ const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', po
 
 function SignupForm() {
   const t = useTranslations('signup')
+  const localeRaw = useLocale()
+  // Landing locale — pinned into the signup POST so the fresh workspace's
+  // language + first dashboard cookie match what the visitor was reading.
+  const signupLocale: 'en' | 'fr' = localeRaw === 'fr' ? 'fr' : 'en'
   const searchParams = useSearchParams()
   const planParam = searchParams.get('plan') ?? 'power'
   const plan = ['starter','pro','power'].includes(planParam) ? planParam : 'power'
@@ -88,6 +92,7 @@ function SignupForm() {
         companyName: data.companyName,
         plan_tier: plan,
         captchaToken,
+        locale: signupLocale,
         ...(acquisition ? { acquisition } : {}),
       })
     }).then(r => r.json())

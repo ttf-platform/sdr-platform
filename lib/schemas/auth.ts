@@ -23,6 +23,11 @@ export const signupSchema = z.object({
   plan_tier:     z.enum(['starter', 'pro', 'power']).optional(),
   captchaToken:  z.string().min(1, 'captcha_required'),
   acquisition:   acquisitionSchema.optional(),
+  // First-touch UI locale captured on the landing page (from useLocale()).
+  // Falls back to the NEXT_LOCALE cookie server-side when absent, then to
+  // 'en'. Persisted to workspace_profiles.language + mirvo_dashboard_locale
+  // cookie so a FR visitor lands on a FR dashboard post-signup.
+  locale:        z.enum(['en', 'fr']).optional(),
 })
 
 export const loginSchema = z.object({
