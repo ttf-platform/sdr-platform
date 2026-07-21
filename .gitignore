@@ -50,3 +50,5 @@ scripts/a1-test/
 
 # Claude Code local settings + backups (personnel, peut porter des tokens)
 .claude/settings.local.json*
+.test-out/
+.claude/scheduled_tasks.lock
