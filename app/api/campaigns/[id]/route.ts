@@ -125,6 +125,51 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (include_booking_link_initial !== undefined) updates.include_booking_link_initial = include_booking_link_initial
 
   const admin = createAdminClient()
+
+  // ICP guard : ces champs alimentent lib/draft-generation.ts. Une fois que
+  // le premier lot de drafts a été généré, changer l'ICP créerait une
+  // incohérence entre le ciblage affiché et les emails déjà rédigés.
+  // Verrou serveur (défense-en-profondeur ; l'UI cache le bouton Éditer,
+  // mais un PATCH direct doit être refusé). On ne bloque QUE les champs ICP.
+  // Les autres colonnes (name/angle/value_prop/cta/status/booking toggles…)
+  // restent modifiables.
+  const ICP_FIELDS = [
+    'target_industry','target_titles','target_regions',
+    'company_sizes','company_revenue','tone','language',
+  ] as const
+  const touchesIcp = ICP_FIELDS.some(k => k in updates)
+  if (touchesIcp) {
+    // Vérifie l'existence du step_order=0 de cette campagne (workspace-scopé
+    // via la campagne lookup ci-dessous) puis count des prospect_emails.
+    // Aucun input user ne pilote la query — l'IDOR est fermé par le double
+    // .eq('workspace_id', guard.workspaceId).
+    const { data: campaignRow } = await admin
+      .from('campaigns')
+      .select('id')
+      .eq('id', params.id)
+      .eq('workspace_id', guard.workspaceId)
+      .maybeSingle()
+    if (!campaignRow) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+
+    const { data: step } = await admin
+      .from('campaign_steps')
+      .select('id')
+      .eq('campaign_id', params.id)
+      .eq('step_order', 0)
+      .maybeSingle()
+
+    if (step) {
+      const { count: draftsCount } = await admin
+        .from('prospect_emails')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', guard.workspaceId)
+        .eq('campaign_step_id', step.id)
+      if ((draftsCount ?? 0) > 0) {
+        return NextResponse.json({ error: 'icp_locked' }, { status: 409 })
+      }
+    }
+  }
+
   const { data: campaign, error } = await admin
     .from('campaigns')
     .update(updates)
