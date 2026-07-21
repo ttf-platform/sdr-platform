@@ -130,10 +130,9 @@ export const EMAIL_TEMPLATE_META: ReadonlyArray<EmailTemplateMeta> = [
     trigger:        'Nightly digest when signals matched new prospects',
     placeholders:   ['greeting', 'matchCount', 'matchList', 'baseUrl'],
     defaultCtaPath: '/dashboard',
-    // Will flip to true in PR1b when the digest send function ships with
-    // the standard chrome ; kept false here so the future PR carries the
-    // renderer switch without touching the registry.
-    hasChrome:      false,
+    // Flipped in PR1b : auto-scan-signals now sends via renderTemplate,
+    // which unconditionally wraps in wrapEmail chrome (Mirvo footer + link).
+    hasChrome:      true,
   },
 ]
 

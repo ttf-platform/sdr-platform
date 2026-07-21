@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cronComplete } from '@/lib/cron-log'
 import { sendOnboardingEmail, type OnboardingDayOffset } from '@/lib/email'
+import { getEmailLocale } from '@/lib/email-templates'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -135,12 +136,14 @@ export async function GET(request: Request) {
           continue
         }
 
+        const locale = await getEmailLocale(ws.id)
         const result = await sendOnboardingEmail({
           to: user.email,
           firstName: user.firstName,
           workspaceName: ws.name ?? 'your workspace',
           dayOffset: offset,
           appBaseUrl,
+          locale,
         })
 
         if (result.ok) {
