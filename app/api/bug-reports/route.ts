@@ -24,10 +24,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAnthropicClient } from '@/lib/anthropic';
-import { sendAdminBugReportEmail } from '@/lib/email';
+import { buildAdminBugReportEmail } from '@/lib/email';
 import type Anthropic from '@anthropic-ai/sdk';
 import { bugReportSchema, badRequest } from '@/lib/schemas';
 import { logAiCall } from '@/lib/ai-cost';
+import { dispatchAdminAlert } from '@/lib/admin-alerts';
 
 export const runtime = 'nodejs';
 
@@ -87,14 +88,22 @@ export async function POST(req: NextRequest) {
 
   const appBaseUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai';
-  await sendAdminBugReportEmail({
-    bugReportId: bug.id,
-    workspaceId,
-    userId: user.id,
-    title,
-    description,
-    priority,
-    appBaseUrl,
+
+  // Rich email preserved only for high/critical (matches the previous
+  // sendAdminBugReportEmail behavior). In-app + generic email routing for
+  // low/medium is still governed by admin_alert_prefs — admins can opt in
+  // to receive a lightweight alert for every bug if they want to.
+  const emailPayload = (priority === 'high' || priority === 'critical')
+    ? buildAdminBugReportEmail({ bugReportId: bug.id, title, description, priority, appBaseUrl })
+    : undefined;
+
+  await dispatchAdminAlert({
+    event: 'bug_report',
+    title: `${priority.toUpperCase()} bug: ${title}`,
+    body:  description.slice(0, 500),
+    link:  `/admin/support?bug=${bug.id}`,
+    metadata: { bugReportId: bug.id, workspaceId, userId: user.id, priority },
+    email:    emailPayload,
   });
 
   return NextResponse.json({ bug_report_id: bug.id, priority });

@@ -155,6 +155,91 @@ export async function sendAdminHealthAlertEmail(params: {
   }
 }
 
+// ─── Pre-baked builders (for dispatchAdminAlert routing) ─────────────────────
+// These return `{ subject, html }` for the same rich admin templates used by
+// the send* helpers above. Callers hand the result to dispatchAdminAlert via
+// its `email` param so the template is preserved verbatim and routing (email
+// on/off) is controlled by the admin_alert_prefs registry.
+
+export function buildAdminEscalationEmail(params: {
+  escalationId:   string;
+  workspaceId:    string;
+  userId:         string;
+  reason:         string;
+  summary:        string;
+  appBaseUrl:     string;
+}): { subject: string; html: string } {
+  const adminLink = `${params.appBaseUrl}/admin/support?escalation=${params.escalationId}`;
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">New escalation</h2>
+  <p style="color: #4a4a5a; margin: 0 0 24px 0;">A user just requested human support.</p>
+  <table style="width: 100%; border-collapse: collapse; background: #f5f2ee; border-radius: 8px; padding: 16px;">
+    <tr><td style="padding: 8px 16px; color: #4a4a5a; width: 120px;">Reason</td><td style="padding: 8px 16px; color: #1a1a1a; font-weight: 600;">${escapeHtml(params.reason)}</td></tr>
+    <tr><td style="padding: 8px 16px; color: #4a4a5a;">Workspace</td><td style="padding: 8px 16px; color: #1a1a1a; font-family: monospace; font-size: 12px;">${escapeHtml(params.workspaceId)}</td></tr>
+    <tr><td style="padding: 8px 16px; color: #4a4a5a;">User</td><td style="padding: 8px 16px; color: #1a1a1a; font-family: monospace; font-size: 12px;">${escapeHtml(params.userId)}</td></tr>
+  </table>
+  <h3 style="color: #1a1a1a; margin: 24px 0 8px 0;">Summary</h3>
+  <p style="color: #1a1a1a; line-height: 1.6; margin: 0 0 24px 0;">${escapeHtml(params.summary)}</p>
+  <a href="${adminLink}" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open in Support Center →</a>
+  <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Mirvo · Sent because you're the configured admin notification email.</p>
+</div>
+`.trim();
+  return {
+    subject: `[Mirvo Support] New escalation — ${params.reason}`,
+    html,
+  };
+}
+
+export function buildAdminBugReportEmail(params: {
+  bugReportId: string;
+  title:       string;
+  description: string;
+  priority:    'low' | 'medium' | 'high' | 'critical';
+  appBaseUrl:  string;
+}): { subject: string; html: string } {
+  const adminLink     = `${params.appBaseUrl}/admin/support?bug=${params.bugReportId}`;
+  const priorityColor = params.priority === 'critical' ? '#dc2626' : '#d97706';
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h2 style="color: ${priorityColor}; margin: 0 0 8px 0;">${params.priority.toUpperCase()} bug reported</h2>
+  <h3 style="color: #1a1a1a; margin: 16px 0 8px 0;">${escapeHtml(params.title)}</h3>
+  <p style="color: #1a1a1a; line-height: 1.6;">${escapeHtml(params.description).slice(0, 800)}</p>
+  <a href="${adminLink}" style="display: inline-block; background: ${priorityColor}; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 16px;">Open in Support Center →</a>
+</div>
+`.trim();
+  return {
+    subject: `[Mirvo Support] ${params.priority.toUpperCase()} bug — ${params.title}`,
+    html,
+  };
+}
+
+export function buildAdminHealthAlertEmail(params: {
+  status:     'degraded' | 'down';
+  summary:    string;
+  appBaseUrl: string;
+}): { subject: string; html: string } {
+  const isDown      = params.status === 'down';
+  const bannerColor = isDown ? '#dc2626' : '#d97706';
+  const bannerLabel = isDown ? 'CRITICAL — one or more checks are DOWN' : 'DEGRADED — one or more checks are misconfigured';
+  const adminLink   = `${params.appBaseUrl}/api/admin/health-detail`;
+  const summaryHtml = escapeHtml(params.summary).replace(/\n/g, '<br />');
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h2 style="color: ${bannerColor}; margin: 0 0 8px 0;">${bannerLabel}</h2>
+  <p style="color: #4a4a5a; margin: 0 0 24px 0;">The daily health-alert cron detected a misconfiguration or outage. This is likely a missing env var in the current Vercel deployment. Fix it in Vercel dashboard → Settings → Environment Variables, then redeploy.</p>
+  <h3 style="color: #1a1a1a; margin: 24px 0 8px 0;">Failing checks</h3>
+  <div style="background: #f5f2ee; border-radius: 8px; padding: 16px; color: #1a1a1a; font-family: monospace; font-size: 13px; line-height: 1.6;">${summaryHtml}</div>
+  <a href="${adminLink}" style="display: inline-block; background: ${bannerColor}; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 24px;">Open health detail →</a>
+  <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Mirvo · This is a one-per-day summary; if the misconfig persists you'll get one more tomorrow.</p>
+</div>
+`.trim();
+  return {
+    subject: `[Mirvo Health] ${bannerLabel}`,
+    html,
+  };
+}
+
 export type OnboardingDayOffset = 0 | 2 | 4 | 7;
 
 export async function sendOnboardingEmail(params: {
@@ -382,6 +467,76 @@ export async function sendCancellationEmail(params: {
     const msg = err instanceof Error ? err.message : 'unknown';
     console.error('[email] sendCancellationEmail failed:', msg);
     return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Generic admin alert email — sober template used by dispatchAdminAlert()
+ * when callers do NOT pass a pre-baked `{subject,html}`. Reserved for
+ * events without a dedicated rich template (new_signup, new_subscription,
+ * payment_*, subscription_cancelled). Reads the admin recipient via
+ * getAdminNotificationEmail() with the same 'admin_email_not_configured'
+ * fail-soft as the other sendAdmin*Email helpers.
+ */
+export async function sendAdminAlertEmail(params: {
+  subject:     string
+  bodyText:    string | null
+  link:        string | null
+  appBaseUrl:  string
+}): Promise<{ ok: boolean; error?: string }> {
+  const adminEmail = await getAdminNotificationEmail();
+  if (!adminEmail) {
+    console.warn('[email] no admin_notification_email configured (DB or env), skipping admin alert email');
+    return { ok: false, error: 'admin_email_not_configured' };
+  }
+
+  const linkHref = params.link
+    ? (params.link.startsWith('http') ? params.link : `${params.appBaseUrl}${params.link}`)
+    : null;
+  const bodyHtml = params.bodyText
+    ? `<p style="color: #4a4a5a; line-height: 1.6; margin: 0 0 24px 0;">${escapeHtml(params.bodyText)}</p>`
+    : '';
+  const ctaHtml = linkHref
+    ? `<a href="${linkHref}" style="display: inline-block; background: #3b6bef; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600;">Open in admin →</a>`
+    : '';
+
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h2 style="color: #1a1a1a; margin: 0 0 8px 0;">${escapeHtml(params.subject)}</h2>
+  ${bodyHtml}
+  ${ctaHtml}
+  <p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0;">Mirvo &middot; Sent because you're the configured admin notification email. Configure per-event alerts in /admin/settings.</p>
+</div>
+`.trim();
+
+  try {
+    const resend = getResendClient();
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: adminEmail,
+      subject: `[Mirvo] ${params.subject}`,
+      html,
+    });
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[email] sendAdminAlertEmail failed:', msg);
+    return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Internal helper for dispatchAdminAlert : sends a pre-baked HTML payload
+ * verbatim to the admin recipient. Used to preserve rich existing
+ * templates (escalation / bug report / health) when routing them through
+ * the dispatcher. Not for general use — go through dispatchAdminAlert.
+ */
+export async function sendPreBakedAdminEmail(to: string, subject: string, html: string): Promise<void> {
+  try {
+    const resend = getResendClient();
+    await resend.emails.send({ from: FROM_ADDRESS, to, subject, html });
+  } catch (err) {
+    console.error('[email] sendPreBakedAdminEmail failed:', err instanceof Error ? err.message : err);
   }
 }
 

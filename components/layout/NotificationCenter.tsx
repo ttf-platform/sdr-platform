@@ -24,14 +24,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check } from 'lucide-react'
+import { Check, Shield } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { NOTIFICATION_CATEGORIES, type NotificationCategory } from '@/lib/notifications'
 
+// `admin` is intentionally NOT part of NOTIFICATION_CATEGORIES (it would leak
+// into NotificationPreferencesSection) but the notifications table stores it
+// verbatim when dispatchAdminAlert writes rows for admin recipients. Widen
+// the row type to accept it, and fall through to a graceful default for any
+// unknown category — future events can ship without needing the client to
+// know about them.
 type Notification = {
   id:         string
   type:       string
-  category:   NotificationCategory
+  category:   NotificationCategory | 'admin' | string
   title:      string
   body:       string | null
   link:       string | null
@@ -43,16 +49,29 @@ type Notification = {
 
 type ListResponse = { items: Notification[]; nextCursor: string | null }
 
+type BadgeVariant = 'blueprint' | 'green' | 'amber' | 'red' | 'gray' | 'purple'
+
 const PAGE_SIZE = 20
 
-const CATEGORY_BADGE_VARIANT: Record<NotificationCategory, 'blueprint' | 'green' | 'amber' | 'red' | 'gray' | 'purple'> = {
+const CATEGORY_BADGE_VARIANT: Record<NotificationCategory | 'admin', BadgeVariant> = {
   replies:        'blueprint',
   billing:        'amber',
   deliverability: 'red',
   campaign:       'green',
   team:           'purple',
   product:        'gray',
+  admin:          'red',
 }
+
+function badgeVariantFor(category: string): BadgeVariant {
+  return (CATEGORY_BADGE_VARIANT as Record<string, BadgeVariant | undefined>)[category] ?? 'gray'
+}
+
+// Kept in sync with messages/*.json (dashboard.notifications.categories.*).
+// Missing keys throw at runtime with next-intl, so we route through this
+// helper — unknown categories fall back to the raw key (visible in UI, easy
+// to spot in review; better than a crashed dropdown).
+const KNOWN_LABEL_KEYS = new Set<string>([...NOTIFICATION_CATEGORIES, 'admin'])
 
 function useRelativeTime(iso: string, locale: string): string {
   return useMemo(() => {
@@ -83,6 +102,9 @@ function NotificationRow({
 }) {
   const tCat = useTranslations('dashboard.notifications.categories')
   const rel = useRelativeTime(n.created_at, locale)
+  const labelKey = KNOWN_LABEL_KEYS.has(n.category) ? n.category : null
+  const label    = labelKey ? tCat(labelKey) : n.category
+  const isAdmin  = n.category === 'admin'
 
   const inner = (
     <div className={
@@ -92,8 +114,9 @@ function NotificationRow({
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-0.5">
-            <StatusBadge variant={CATEGORY_BADGE_VARIANT[n.category]}>
-              {tCat(n.category)}
+            <StatusBadge variant={badgeVariantFor(n.category)}>
+              {isAdmin && <Shield size={10} strokeWidth={2} aria-hidden="true" className="mr-1 inline-block align-[-1px]" />}
+              {label}
             </StatusBadge>
             {!n.is_read && (
               <span
