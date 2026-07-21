@@ -185,7 +185,7 @@ export function templateToText(
  * the two checks together mean an admin cannot craft ANY ctaPath value
  * that produces an off-domain href.
  */
-function isOnDomainPath(path: string): boolean {
+export function isOnDomainPath(path: string): boolean {
   if (typeof path !== 'string' || path.length === 0) return false
   if (!path.startsWith('/')) return false
   if (path.startsWith('//')) return false
