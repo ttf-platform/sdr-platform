@@ -1375,6 +1375,14 @@
             "proofTooltip": "A real, verifiable result the AI can reference as proof in every email of this campaign. Use a concrete metric or a named client: \"Acme: 12 → 47 meetings/month in 90 days\" or \"Cogent: -38% acquisition cost\". The AI will quote it verbatim and will NOT invent numbers. Leave empty if you have no real result to share — the AI will never fabricate one.",
             "charsHelper": "{count}/{limit} · The AI will quote this verbatim. Leave empty if you have no real result yet.",
             "aboutFieldAria": "About {label}"
+          },
+          "icp": {
+            "title": "Ideal customer (ICP)",
+            "edit": "Edit",
+            "editingTitle": "Edit ideal customer",
+            "subtitle": "Adjust this campaign's targeting. Editable until the first emails are generated.",
+            "lockedBadge": "Locked",
+            "lockedNote": "The ICP is locked because emails have already been generated for this campaign. You can view it but no longer edit it — changing it would create inconsistencies with the emails already written. To target a different audience, create a new campaign."
           }
         },
         "prospects": {

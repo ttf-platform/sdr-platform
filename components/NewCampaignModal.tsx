@@ -9,25 +9,14 @@ import { Tooltip } from '@/components/Tooltip'
 
 const PROOF_MAX = 500
 
-const SIZE_OPTIONS = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
-const REV_OPTIONS  = ['<$1M', '$1M-$5M', '$5M-$10M', '$10M-$50M', '$50M-$200M', '$200M+']
-
-// Values only. Tone labels resolved at render via useTranslations → tTones(k).
-// Dynamic keys under dashboard.prospects.list.tones.* — reused across the app
-// (Master ICP form + this modal) to guarantee identical FR/EN copy.
-const TONES = ['professional', 'casual', 'direct', 'friendly', 'witty'] as const
-type ToneKey = typeof TONES[number]
-const TONE_ALIASES: Record<string, string> = { technical: 'direct', warm: 'friendly' }
-function normalizeTone(raw?: string | null): ToneKey {
-  const t = (raw || '').toLowerCase()
-  if ((TONES as readonly string[]).includes(t)) return t as ToneKey
-  return (TONE_ALIASES[t] ?? 'professional') as ToneKey
-}
-
-// Canonical EN values persisted in DB and consumed by lib/ai-voice.ts —
-// labels resolved via useTranslations → tLanguages(v).
-const LANGUAGES = ['English', 'French'] as const
-type LanguageValue = typeof LANGUAGES[number]
+// ICP option lists + tone/language normalization : partagés avec la carte
+// ICP éditable au niveau campagne (app/(dashboard)/dashboard/campaigns/[id]/page.tsx).
+import {
+  SIZE_OPTIONS, REV_OPTIONS,
+  TONES, normalizeTone,
+  LANGUAGES,
+} from '@/lib/icp-options'
+import type { ToneKey, LanguageValue } from '@/lib/icp-options'
 
 interface Props {
   preset: CampaignTemplate | null

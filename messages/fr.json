@@ -1375,6 +1375,14 @@
             "proofTooltip": "Un résultat réel et vérifiable que l'IA peut citer comme preuve dans chaque e-mail de cette campagne. Utilisez une métrique concrète ou un client nommé : « Acme : 12 → 47 rendez-vous/mois en 90 jours » ou « Cogent : -38 % de coût d'acquisition ». L'IA le citera mot pour mot et n'inventera JAMAIS de chiffres. Laissez vide si vous n'avez pas de résultat réel à partager, l'IA n'en fabriquera jamais.",
             "charsHelper": "{count}/{limit} · L'IA citera ceci mot pour mot. Laissez vide si vous n'avez pas encore de résultat réel.",
             "aboutFieldAria": "À propos de {label}"
+          },
+          "icp": {
+            "title": "Client idéal (ICP)",
+            "edit": "Éditer",
+            "editingTitle": "Modifier le client idéal",
+            "subtitle": "Ajustez le ciblage de cette campagne. Modifiable tant qu'aucun email n'a été généré.",
+            "lockedBadge": "Verrouillé",
+            "lockedNote": "L'ICP est verrouillé car des emails ont déjà été générés pour cette campagne. Vous pouvez le consulter mais plus le modifier — cela créerait une incohérence avec les emails déjà rédigés. Pour cibler une autre audience, créez une nouvelle campagne."
           }
         },
         "prospects": {

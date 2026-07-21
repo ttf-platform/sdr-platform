@@ -16,6 +16,12 @@ import { EditFollowupModal } from '@/components/EditFollowUpModal'
 import { CampaignProspectMobileCard } from './_components/CampaignProspectMobileCard'
 import { Toggle } from '@/components/ui/Toggle'
 import { Paperclip, ChevronDown, Info, Calendar } from 'lucide-react'
+import {
+  SIZE_OPTIONS, REV_OPTIONS,
+  TONES, normalizeTone,
+  LANGUAGES,
+} from '@/lib/icp-options'
+import type { ToneKey, LanguageValue } from '@/lib/icp-options'
 import { Modal } from '@/components/ui/Modal'
 import { AttachmentPicker } from '@/components/AttachmentPicker'
 
@@ -27,6 +33,15 @@ interface Campaign {
   id: string; name: string; status: string; target_persona: string | null
   angle: string | null; value_prop: string | null; cta: string | null
   proof_points: string | null
+  // ICP fields (déjà renvoyés par GET /api/campaigns/[id] via select *, typés ici
+  // pour la carte ICP éditable côté Overview).
+  target_industry: string | null
+  target_titles:   string | null
+  target_regions:  string | null
+  company_sizes:   string[] | null
+  company_revenue: string[] | null
+  tone:            string | null
+  language:        string | null
   prospects_count: number; sent_count: number; opened_count: number
   replied_count: number; meeting_count: number
   smart_stop_on_reply: boolean; smart_stop_on_bounce: boolean
@@ -101,6 +116,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tSources = useTranslations('dashboard.campaigns.detail.sources')
   const tPagination = useTranslations('dashboard.campaigns.detail.pagination')
   const tToasts = useTranslations('dashboard.campaigns.detail.toasts')
+  // ICP card i18n handles
+  const tIcp        = useTranslations('dashboard.campaigns.detail.overview.icp')
+  const tCommonUi   = useTranslations('dashboard.common')
+  const tNewCamp    = useTranslations('components.campaignModals.newCampaign')
+  const tTones      = useTranslations('dashboard.prospects.list.tones')
+  const tLanguages  = useTranslations('components.campaignModals.languages')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
   const tCampaignStatuses = useTranslations('dashboard.campaigns.list.statuses')  // REUSE Lot 2A.4.1
   const tCommon = useTranslations('dashboard.common')
@@ -184,6 +205,27 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [editEmailId,    setEditEmailId]    = useState<string | null>(null)
   const [editingStep,    setEditingStep]    = useState<Step | null>(null)
 
+  // ── ICP card state ────────────────────────────────────────────────────────
+  // Verrou : dès qu'au moins un draft du step 0 est généré, l'ICP devient
+  // read-only. Le serveur renvoie 409 { error: 'icp_locked' } sur PATCH ICP —
+  // l'UI cache le bouton Éditer côté client mais ce n'est qu'un raccourci UX.
+  interface IcpFormValues {
+    target_industry: string
+    target_titles:   string
+    target_regions:  string
+    company_sizes:   string[]
+    company_revenue: string[]
+    tone:            ToneKey
+    language:        LanguageValue
+  }
+  const [icpEditMode, setIcpEditMode] = useState(false)
+  const [icpSaving,   setIcpSaving]   = useState(false)
+  const [icpForm,     setIcpForm]     = useState<IcpFormValues>({
+    target_industry: '', target_titles: '', target_regions: '',
+    company_sizes: [], company_revenue: [],
+    tone: 'professional', language: 'English',
+  })
+
   // Eager counts at mount
   useEffect(() => {
     fetch(`/api/prospects?campaign_id=${id}&limit=1`)
@@ -266,6 +308,69 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setRemovingAll(false)
     setShowRemoveAll(false)
     setCampaign(prev => prev ? { ...prev, prospects_count: 0 } : prev)
+  }
+
+  // ── ICP card handlers ────────────────────────────────────────────────────
+  function openIcpEdit() {
+    if (!campaign) return
+    setIcpForm({
+      target_industry: campaign.target_industry ?? '',
+      target_titles:   campaign.target_titles   ?? '',
+      target_regions:  campaign.target_regions  ?? '',
+      company_sizes:   campaign.company_sizes   ?? [],
+      company_revenue: campaign.company_revenue ?? [],
+      tone:            normalizeTone(campaign.tone),
+      language:        (LANGUAGES as readonly string[]).includes(campaign.language ?? '')
+        ? (campaign.language as LanguageValue)
+        : 'English',
+    })
+    setIcpEditMode(true)
+  }
+  function togglePill(field: 'company_sizes' | 'company_revenue', value: string) {
+    setIcpForm(f => {
+      const arr = f[field]
+      return { ...f, [field]: arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value] }
+    })
+  }
+  async function saveIcpEdit() {
+    setIcpSaving(true)
+    try {
+      const body = {
+        target_industry: icpForm.target_industry.trim() || null,
+        target_titles:   icpForm.target_titles.trim()   || null,
+        target_regions:  icpForm.target_regions.trim()  || null,
+        company_sizes:   icpForm.company_sizes.length   ? icpForm.company_sizes   : null,
+        company_revenue: icpForm.company_revenue.length ? icpForm.company_revenue : null,
+        tone:            icpForm.tone,
+        language:        icpForm.language,
+      }
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.status === 409) {
+        // Un draft a été généré entre la lecture UI et le PATCH — l'ICP a
+        // été verrouillé server-side. On refetch l'état canonique et on
+        // ferme l'édition.
+        toast.error(tToasts('actionFailed'))
+        const fresh = await fetch(`/api/campaigns/${id}`).then(r => r.json()).catch(() => null)
+        if (fresh?.campaign) setCampaign(fresh.campaign)
+        setIcpEditMode(false)
+        return
+      }
+      if (!res.ok) {
+        toast.error(tToasts('actionFailed'))
+        return
+      }
+      const { campaign: updated } = await res.json() as { campaign: Campaign }
+      setCampaign(prev => prev ? { ...prev, ...updated } : updated)
+      setIcpEditMode(false)
+    } catch {
+      toast.error(tToasts('actionFailed'))
+    } finally {
+      setIcpSaving(false)
+    }
   }
 
   // Helper partagé bulk / send-all : boucle POST /approve avec pool BATCH=4.
@@ -774,6 +879,171 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </div>
+
+          {/* ── ICP card ─────────────────────────────────────────────────
+              Éditable jusqu'à la 1re génération de drafts (step 0). Le
+              serveur renvoie 409 { error: 'icp_locked' } sur PATCH d'un
+              champ ICP quand des drafts existent — l'UI cache le bouton
+              Éditer mais reste un raccourci UX (le garde serveur est la
+              source de vérité). */}
+          {(() => {
+            const icpLocked = emailsTotal > 0
+            if (!icpEditMode) {
+              return (
+                <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">{tIcp('title')}</div>
+                    {icpLocked ? (
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 font-medium">
+                        <span aria-hidden="true">🔒</span> {tIcp('lockedBadge')}
+                      </span>
+                    ) : (
+                      <button onClick={openIcpEdit}
+                        className="text-xs text-[#3b6bef] font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1 rounded">
+                        {tIcp('edit')}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-3 text-sm">
+                    {[
+                      { key: 'targetIndustryLabel', value: campaign.target_industry },
+                      { key: 'targetTitlesLabel',   value: campaign.target_titles   },
+                      { key: 'targetRegionsLabel',  value: campaign.target_regions  },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <div className="text-xs font-semibold text-[#6b5e4e] mb-0.5">{tNewCamp(f.key)}</div>
+                        <div className="text-sm text-[#1a1a2e]">{f.value || <span className="text-[#8a7e6e]">—</span>}</div>
+                      </div>
+                    ))}
+                    <div>
+                      <div className="text-xs font-semibold text-[#6b5e4e] mb-0.5">{tNewCamp('companySizeLabel')}</div>
+                      {campaign.company_sizes && campaign.company_sizes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {campaign.company_sizes.map(s => (
+                            <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-[#eef1fd] text-[#3b6bef] border border-[#dde6fd] font-medium">{s}</span>
+                          ))}
+                        </div>
+                      ) : <span className="text-sm text-[#8a7e6e]">—</span>}
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-[#6b5e4e] mb-0.5">{tNewCamp('companyRevenueLabel')}</div>
+                      {campaign.company_revenue && campaign.company_revenue.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {campaign.company_revenue.map(s => (
+                            <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-[#eef1fd] text-[#3b6bef] border border-[#dde6fd] font-medium">{s}</span>
+                          ))}
+                        </div>
+                      ) : <span className="text-sm text-[#8a7e6e]">—</span>}
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-[#6b5e4e] mb-0.5">{tNewCamp('toneLabel')}</div>
+                      <div className="text-sm text-[#1a1a2e]">
+                        {campaign.tone ? tTones(normalizeTone(campaign.tone)) : <span className="text-[#8a7e6e]">—</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-[#6b5e4e] mb-0.5">{tNewCamp('languageLabel')}</div>
+                      <div className="text-sm text-[#1a1a2e]">
+                        {campaign.language && (LANGUAGES as readonly string[]).includes(campaign.language)
+                          ? tLanguages(campaign.language as LanguageValue)
+                          : <span className="text-[#8a7e6e]">—</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {icpLocked && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                      {tIcp('lockedNote')}
+                    </p>
+                  )}
+                </div>
+              )
+            }
+            // Edit mode
+            const inputCls = 'w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] focus:outline-none focus:border-[#3b6bef] focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1'
+            const labelCls = 'text-xs font-semibold text-[#6b5e4e] mb-1 block'
+            return (
+              <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
+                <div className="mb-1 text-xs font-bold text-[#8a7e6e] uppercase tracking-wider">{tIcp('editingTitle')}</div>
+                <p className="text-xs text-[#8a7e6e] mb-4">{tIcp('subtitle')}</p>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className={labelCls} htmlFor="icp-industry">{tNewCamp('targetIndustryLabel')}</label>
+                    <input id="icp-industry" value={icpForm.target_industry} onChange={e => setIcpForm(f => ({ ...f, target_industry: e.target.value }))}
+                      placeholder={tNewCamp('targetIndustryPlaceholder')} className={inputCls} disabled={icpSaving} />
+                  </div>
+                  <div>
+                    <label className={labelCls} htmlFor="icp-titles">{tNewCamp('targetTitlesLabel')}</label>
+                    <input id="icp-titles" value={icpForm.target_titles} onChange={e => setIcpForm(f => ({ ...f, target_titles: e.target.value }))}
+                      placeholder={tNewCamp('targetTitlesPlaceholder')} className={inputCls} disabled={icpSaving} />
+                  </div>
+                  <div>
+                    <label className={labelCls} htmlFor="icp-regions">{tNewCamp('targetRegionsLabel')}</label>
+                    <input id="icp-regions" value={icpForm.target_regions} onChange={e => setIcpForm(f => ({ ...f, target_regions: e.target.value }))}
+                      placeholder={tNewCamp('targetRegionsPlaceholder')} className={inputCls} disabled={icpSaving} />
+                  </div>
+                  <div>
+                    <div className={labelCls}>{tNewCamp('companySizeLabel')}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SIZE_OPTIONS.map(opt => {
+                        const on = icpForm.company_sizes.includes(opt)
+                        return (
+                          <button key={opt} type="button" onClick={() => togglePill('company_sizes', opt)} disabled={icpSaving}
+                            aria-pressed={on}
+                            className={'text-xs px-2.5 py-1 rounded-full border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1 ' +
+                              (on ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'bg-white text-[#6b5e4e] border-[#e8e3dc] hover:bg-[#f5f2ee]')}>
+                            {opt}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={labelCls}>{tNewCamp('companyRevenueLabel')}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {REV_OPTIONS.map(opt => {
+                        const on = icpForm.company_revenue.includes(opt)
+                        return (
+                          <button key={opt} type="button" onClick={() => togglePill('company_revenue', opt)} disabled={icpSaving}
+                            aria-pressed={on}
+                            className={'text-xs px-2.5 py-1 rounded-full border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1 ' +
+                              (on ? 'bg-[#3b6bef] text-white border-[#3b6bef]' : 'bg-white text-[#6b5e4e] border-[#e8e3dc] hover:bg-[#f5f2ee]')}>
+                            {opt}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls} htmlFor="icp-tone">{tNewCamp('toneLabel')}</label>
+                      <select id="icp-tone" value={icpForm.tone} onChange={e => setIcpForm(f => ({ ...f, tone: e.target.value as ToneKey }))} className={inputCls} disabled={icpSaving}>
+                        {TONES.map(k => <option key={k} value={k}>{tTones(k)}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="icp-language">{tNewCamp('languageLabel')}</label>
+                      <select id="icp-language" value={icpForm.language} onChange={e => setIcpForm(f => ({ ...f, language: e.target.value as LanguageValue }))} className={inputCls} disabled={icpSaving}>
+                        {LANGUAGES.map(v => <option key={v} value={v}>{tLanguages(v)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => setIcpEditMode(false)} disabled={icpSaving}
+                    className="text-sm border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-1 disabled:opacity-40">
+                    {tCommonUi('cancel')}
+                  </button>
+                  <button type="button" onClick={saveIcpEdit} disabled={icpSaving}
+                    className="bg-[#3b6bef] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#2f57c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 disabled:opacity-40 transition-colors">
+                    {icpSaving ? tCommonUi('saving') : tCommonUi('save')}
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
 
           {!editMode ? (
             <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
