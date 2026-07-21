@@ -2087,6 +2087,14 @@
         "yourTitlePlaceholder": "ex. Fondateur, CEO, Responsable commercial",
         "yourTitleHint": "Juste votre fonction. Votre entreprise est ajoutée automatiquement dans la signature."
       },
+      "language": {
+        "sectionTitle": "Langue de l'interface",
+        "hint": "S'applique à votre tableau de bord et aux emails que Mirvo vous envoie.",
+        "english": "English",
+        "francais": "Français",
+        "updated": "Langue mise à jour",
+        "errorGeneric": "Impossible de mettre à jour la langue. Veuillez réessayer."
+      },
       "plan": {
         "sectionTitle": "FORMULE",
         "trialSuffix": "{status, select, trialing { (Essai gratuit)} other {}}",

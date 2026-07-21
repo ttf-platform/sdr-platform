@@ -11,6 +11,7 @@ import { DeleteAccountModal } from '@/components/DeleteAccountModal'
 import { renderSignature } from '@/lib/signature'
 import { useWorkspace } from '@/lib/hooks/useWorkspace'
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection'
+import { LanguageSection } from '@/components/settings/LanguageSection'
 
 const supabase = createClient()
 
@@ -378,8 +379,8 @@ export default function SettingsPage() {
 
       {profileLoaded && <>
 
-      {/* Row 1: Account + Plan */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 items-stretch">
+      {/* Row 1: Account + Language + Plan */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
 
         {/* ACCOUNT */}
         <div className={cardCls}>
@@ -427,6 +428,9 @@ export default function SettingsPage() {
             dirty={isDirtyAccount()}
           />
         </div>
+
+        {/* LANGUAGE */}
+        <LanguageSection />
 
         {/* PLAN */}
         <div className={cardCls}>

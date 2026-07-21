@@ -2087,6 +2087,14 @@
         "yourTitlePlaceholder": "e.g. Founder, CEO, Head of Sales",
         "yourTitleHint": "Just your role. Your company is added automatically in the signature."
       },
+      "language": {
+        "sectionTitle": "Interface language",
+        "hint": "Applies to your dashboard and the emails Mirvo sends you.",
+        "english": "English",
+        "francais": "Français",
+        "updated": "Language updated",
+        "errorGeneric": "Could not update language. Please try again."
+      },
       "plan": {
         "sectionTitle": "PLAN",
         "trialSuffix": "{status, select, trialing { (Free Trial)} other {}}",
