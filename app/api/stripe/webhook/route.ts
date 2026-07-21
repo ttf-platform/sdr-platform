@@ -6,6 +6,7 @@ import { monthlyMrrForWorkspace } from '@/lib/pricing'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
 import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { sendCancellationEmail, sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
+import { getEmailLocale } from '@/lib/email-templates'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
 import type Stripe from 'stripe'
 
@@ -165,12 +166,14 @@ export async function POST(request: Request) {
       //    lifecycle_emails row in place (no retry next webhook hit),
       //    intentional: avoiding doublons matters more than guaranteed
       //    delivery for this notification.
+      const locale = await getEmailLocale(workspaceId)
       const result = await sendUpgradeEmail({
         to: email,
         firstName,
         workspaceName,
         planTier,
         appBaseUrl,
+        locale,
       })
 
       if (result.ok && result.messageId) {
@@ -245,6 +248,7 @@ export async function POST(request: Request) {
       const amountLabel = invoice.amount_due ? `${sym}${(invoice.amount_due / 100).toFixed(2)}` : null
 
       // 3. Send.
+      const locale = await getEmailLocale(workspaceId)
       const result = await sendDunningEmail({
         to:               email,
         firstName,
@@ -253,6 +257,7 @@ export async function POST(request: Request) {
         amountLabel,
         appBaseUrl,
         hostedInvoiceUrl: invoice.hosted_invoice_url,
+        locale,
       })
       if (result.ok && result.messageId) {
         await admin
@@ -323,12 +328,14 @@ export async function POST(request: Request) {
 
       const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
 
+      const locale = await getEmailLocale(workspaceId)
       const result = await sendCancellationEmail({
         to: email,
         firstName,
         workspaceName,
         planTier,
         appBaseUrl,
+        locale,
       })
       if (result.ok && result.messageId) {
         await admin

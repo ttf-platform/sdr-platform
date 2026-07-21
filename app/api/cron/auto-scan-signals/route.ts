@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cronComplete } from '@/lib/cron-log'
 import { scanSignalOnCampaign } from '@/lib/signal-scanner'
-import { getResendClient } from '@/lib/email'
+import { getResendClient, FROM_ADDRESS } from '@/lib/email'
+import { getEmailTemplate, getEmailLocale } from '@/lib/email-templates'
+import { renderTemplate } from '@/lib/email-render'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-const FROM_ADDRESS = 'Mirvo <onboarding@resend.dev>'
 const AUTO_SCAN_PROSPECT_CAP = 10
 const CRON_NAME = 'auto-scan-signals'
 
@@ -132,21 +133,44 @@ export async function GET(request: Request) {
             .maybeSingle()
 
           if (ownerMember?.user_id) {
-            // Get email from Supabase auth
+            // Get email + first name from Supabase auth
             const { data: userResp } = await admin.auth.admin.getUserById(ownerMember.user_id)
             const ownerEmail = userResp?.user?.email
+            const firstName  = (userResp?.user?.user_metadata?.first_name as string | null) ?? null
 
             if (ownerEmail) {
-              const campaignLines = [...matchesByCampaign.values()]
-                .map(c => `- ${c.name}: ${c.count} new match${c.count > 1 ? 'es' : ''}`)
+              const locale = await getEmailLocale(workspace.id)
+              const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
+              // Localized digest lines : `- <name>: <n> new match(es)` (EN) /
+              // `- <name> : <n> nouveau(x) match(es)` (FR). RAW — renderer
+              // escapes on output ; no pre-escape here.
+              const matchList = [...matchesByCampaign.values()]
+                .map(c => {
+                  const n = c.count
+                  if (locale === 'fr') {
+                    return `- ${c.name} : ${n} nouveau${n > 1 ? 'x' : ''} match${n > 1 ? 'es' : ''}`
+                  }
+                  return `- ${c.name}: ${n} new match${n > 1 ? 'es' : ''}`
+                })
                 .join('\n')
+              const greeting = locale === 'fr'
+                ? (firstName ? `Bonjour ${firstName},` : 'Bonjour,')
+                : (firstName ? `Hi ${firstName},`      : 'Hi,')
+
+              const fields = await getEmailTemplate('signal_digest', locale)
+              const { subject, html, text } = renderTemplate(
+                fields,
+                { greeting, matchList, matchCount: String(workspaceNewMatches), baseUrl },
+                locale,
+              )
 
               const resend = getResendClient()
               const sendResult = await resend.emails.send({
                 from: FROM_ADDRESS,
                 to: ownerEmail,
-                subject: `${workspaceNewMatches} new signal match${workspaceNewMatches > 1 ? 'es' : ''} detected on Mirvo`,
-                text: `Mirvo detected new signals on your campaigns overnight.\n\n${campaignLines}\n\nOpen the Approval Queue to generate personalized emails for these prospects:\nhttps://www.mirvo.ai/dashboard\n\n--\nMirvo background monitoring`,
+                subject,
+                html,
+                text,
               })
               if (sendResult.error) {
                 const msg = `ws=${workspace.id} Resend rejected: ${sendResult.error.message ?? JSON.stringify(sendResult.error)}`
