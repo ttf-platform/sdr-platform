@@ -65,17 +65,24 @@ type EscalationRow = {
 
 function EscalationContent({ id, onMutate, onClose }: { id: string; onMutate: () => void; onClose: () => void }) {
   const [data, setData] = useState<EscalationRow | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [conversationData, setConversationData] = useState<{ messages: Array<{ role: string; content: string; tool_calls: unknown; created_at: string }> } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/admin/escalations?status=all').then((r) => r.json())
-      .then((d: { escalations?: EscalationRow[] }) => {
+    setData(null);
+    setNotFound(false);
+    fetch(`/api/admin/escalations/${id}`)
+      .then(async (r) => {
         if (cancelled) return;
-        const found = (d.escalations ?? []).find((e) => e.id === id);
-        if (found) setData(found);
-      }).catch(() => {});
+        if (!r.ok) { setNotFound(true); return; }
+        const d = await r.json() as { escalation?: EscalationRow };
+        if (cancelled) return;
+        if (d?.escalation) setData(d.escalation);
+        else setNotFound(true);
+      })
+      .catch(() => { if (!cancelled) setNotFound(true); });
     return () => { cancelled = true; };
   }, [id]);
 
@@ -98,7 +105,8 @@ function EscalationContent({ id, onMutate, onClose }: { id: string; onMutate: ()
     } finally { setBusy(false); }
   }
 
-  if (!data) return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
+  if (notFound) return <div className="p-6 text-sm text-[#9a9a9a]">Not found</div>;
+  if (!data)    return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
 
   return (
     <div className="p-5">
@@ -173,16 +181,23 @@ type BugRow = {
 
 function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
   const [data, setData] = useState<BugRow | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/admin/bug-reports?status=all').then((r) => r.json())
-      .then((d: { bugReports?: BugRow[] }) => {
+    setData(null);
+    setNotFound(false);
+    fetch(`/api/admin/bug-reports/${id}`)
+      .then(async (r) => {
         if (cancelled) return;
-        const found = (d.bugReports ?? []).find((b) => b.id === id);
-        if (found) setData(found);
-      }).catch(() => {});
+        if (!r.ok) { setNotFound(true); return; }
+        const d = await r.json() as { bugReport?: BugRow };
+        if (cancelled) return;
+        if (d?.bugReport) setData(d.bugReport);
+        else setNotFound(true);
+      })
+      .catch(() => { if (!cancelled) setNotFound(true); });
     return () => { cancelled = true; };
   }, [id]);
 
@@ -194,7 +209,8 @@ function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
     } finally { setBusy(false); }
   }
 
-  if (!data) return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
+  if (notFound) return <div className="p-6 text-sm text-[#9a9a9a]">Not found</div>;
+  if (!data)    return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
 
   return (
     <div className="p-5">
@@ -230,16 +246,23 @@ type FeedbackRow = {
 
 function FeedbackContent({ id, onMutate }: { id: string; onMutate: () => void }) {
   const [data, setData] = useState<FeedbackRow | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/admin/feedback?category=all').then((r) => r.json())
-      .then((d: { feedback?: FeedbackRow[] }) => {
+    setData(null);
+    setNotFound(false);
+    fetch(`/api/admin/feedback/${id}`)
+      .then(async (r) => {
         if (cancelled) return;
-        const found = (d.feedback ?? []).find((f) => f.id === id);
-        if (found) setData(found);
-      }).catch(() => {});
+        if (!r.ok) { setNotFound(true); return; }
+        const d = await r.json() as { feedback?: FeedbackRow };
+        if (cancelled) return;
+        if (d?.feedback) setData(d.feedback);
+        else setNotFound(true);
+      })
+      .catch(() => { if (!cancelled) setNotFound(true); });
     return () => { cancelled = true; };
   }, [id]);
 
@@ -251,7 +274,8 @@ function FeedbackContent({ id, onMutate }: { id: string; onMutate: () => void })
     } finally { setBusy(false); }
   }
 
-  if (!data) return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
+  if (notFound) return <div className="p-6 text-sm text-[#9a9a9a]">Not found</div>;
+  if (!data)    return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
 
   return (
     <div className="p-5">
