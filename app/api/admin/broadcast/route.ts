@@ -36,22 +36,54 @@ export async function POST(request: Request) {
   // every page and reports `truncated` honestly.
   const { users: allUsers, truncated: usersTruncated } = await fetchAllAuthUsers(admin)
   const emails = allUsers.filter(u => members?.some(m => m.user_id === u.id)).map(u => u.email).filter(Boolean) || []
-  await admin.from('broadcast_messages').insert({ subject, body, target, recipient_count: emails.length, sent_at: new Date().toISOString() })
+
+  // Resolve the admin BEFORE any send. Used both as broadcast_messages.sent_by
+  // (audit column that was silently NULL pre-fix) and as admin_actions_log
+  // admin_id. Defensive 401 if the session vanished between requireSentraAdmin
+  // and this read.
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Pre-fix : broadcast_messages was inserted BEFORE the send loop with
+  // recipient_count = emails.length and sent_at = now, then the loop ran
+  // WITHOUT try/catch. A single Resend failure aborted the loop, dropped
+  // every remaining email, skipped logAdminAction entirely, and left the
+  // DB row asserting we'd sent to everyone. Now : send FIRST with per-email
+  // try/catch (count sent + failed), then persist truthful counts, then
+  // always audit.
   const htmlBody = body.split(String.fromCharCode(10)).join('<br>')
+  let sent = 0
+  let failed = 0
   for (const email of emails) {
-    await resend.emails.send({ from: 'Mirvo <hello@mirvo.ai>', to: email as string, subject, html: htmlBody })
+    try {
+      await resend.emails.send({ from: 'Mirvo <hello@mirvo.ai>', to: email as string, subject, html: htmlBody })
+      sent++
+    } catch (err) {
+      failed++
+      console.error('[api/admin/broadcast] send failed', { email, error: err instanceof Error ? err.message : 'unknown' })
+    }
   }
 
-  const { data: { user } } = await (await createClient()).auth.getUser()
-  await logAdminAction({
-    admin_id:    user!.id,
-    action_type: 'broadcast_sent',
-    // truncated=true means fetchAllAuthUsers hit maxPages or an error :
-    // some target owners may have been missed. Persist so the audit log
-    // trail carries the caveat, and echo in the response so the client
-    // can surface it.
-    metadata:    { target, subject, recipient_count: emails.length, truncated: usersTruncated },
+  await admin.from('broadcast_messages').insert({
+    subject,
+    body,
+    target,
+    recipient_count: sent,      // real number that landed, not the intended count
+    sent_by:         user.id,
+    sent_at:         new Date().toISOString(),
   })
 
-  return NextResponse.json({ success: true, sent: emails.length, truncated: usersTruncated })
+  await logAdminAction({
+    admin_id:    user.id,
+    action_type: 'broadcast_sent',
+    // Full picture in the audit trail : how many we *tried* to reach
+    // (`targeted`), how many actually landed (`sent`), how many Resend
+    // rejected (`failed`), and whether the listUsers pagination hit the
+    // cap (`truncated`). Missing schema column for per-message failure
+    // status → we live in the audit log for now (dedicated column = future
+    // improvement, out of scope).
+    metadata: { target, subject, targeted: emails.length, sent, failed, truncated: usersTruncated },
+  })
+
+  return NextResponse.json({ success: true, sent, failed, truncated: usersTruncated })
 }

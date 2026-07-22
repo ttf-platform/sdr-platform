@@ -199,33 +199,40 @@ export async function dispatchAdminAlert(
 
     if (!eventPrefs.in_app && !eventPrefs.email) return result
 
-    const recipients = await resolveAdminRecipients()
-    if (recipients.length === 0) return result
-
     // ── In-app notifications ──────────────────────────────────────────────
+    // Recipient resolution is scoped to the in-app branch : it drives the
+    // `notifications.user_id` fanout. Email uses a completely different
+    // routing (getAdminNotificationEmail → admin_settings row / env
+    // fallback), so an empty SENTRA_ADMIN_EMAILS list must NOT short-circuit
+    // the email send. Pre-fix this file returned early on `recipients.length
+    // === 0`, dropping escalation / bug_report / health_alert emails even
+    // though those events are configured to email a distinct alias.
     if (eventPrefs.in_app) {
-      const admin = createAdminClient()
-      try {
-        const rows = recipients.map(r => ({
-          workspace_id: r.workspaceId,
-          user_id:      r.userId,
-          type:         input.event,
-          category:     'admin',
-          title:        input.title,
-          body:         input.body ?? null,
-          link:         input.link ?? null,
-          metadata:     input.metadata ?? {},
-        }))
-        const { data, error } = await admin.from('notifications').insert(rows).select('id')
-        if (error) {
-          console.error('[admin-alerts] in_app insert failed', { event: input.event, error: error.message })
-        } else {
-          result.in_app_inserted = data?.length ?? 0
+      const recipients = await resolveAdminRecipients()
+      if (recipients.length > 0) {
+        const admin = createAdminClient()
+        try {
+          const rows = recipients.map(r => ({
+            workspace_id: r.workspaceId,
+            user_id:      r.userId,
+            type:         input.event,
+            category:     'admin',
+            title:        input.title,
+            body:         input.body ?? null,
+            link:         input.link ?? null,
+            metadata:     input.metadata ?? {},
+          }))
+          const { data, error } = await admin.from('notifications').insert(rows).select('id')
+          if (error) {
+            console.error('[admin-alerts] in_app insert failed', { event: input.event, error: error.message })
+          } else {
+            result.in_app_inserted = data?.length ?? 0
+          }
+        } catch (err) {
+          console.error('[admin-alerts] in_app insert threw', {
+            event: input.event, error: err instanceof Error ? err.message : 'unknown',
+          })
         }
-      } catch (err) {
-        console.error('[admin-alerts] in_app insert threw', {
-          event: input.event, error: err instanceof Error ? err.message : 'unknown',
-        })
       }
     }
 

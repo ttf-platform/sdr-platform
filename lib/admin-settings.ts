@@ -60,6 +60,47 @@ export async function setAdminSetting(
   }
 }
 
+/**
+ * Batch upsert of multiple admin settings in a single DB round-trip.
+ *
+ * Pre-fix, the settings PATCH route called `setAdminSetting` once per key.
+ * If key #2 failed after key #1 had already persisted, we returned 500
+ * `partial_failure` AND skipped `logAdminAction` — the admin_settings row
+ * was mutated with no audit trail. This helper hands Supabase one upsert
+ * covering N rows so either the whole batch lands or nothing does.
+ *
+ * On success, invalidates the cache for every provided key so subsequent
+ * `getAdminSetting` reads see the fresh value. On error, no partial state
+ * (Supabase upsert is a single statement) so the caller can safely
+ * return 500 without needing rollback logic.
+ */
+export async function setAdminSettings(
+  entries:    Array<{ key: string; value: unknown }>,
+  updatedBy?: string,
+): Promise<{ ok: boolean; error?: string; updated: number }> {
+  if (entries.length === 0) return { ok: true, updated: 0 };
+  try {
+    const sb = getAdminSupabaseClient();
+    const nowIso = new Date().toISOString();
+    const rows = entries.map(({ key, value }) => ({
+      key,
+      value,
+      updated_by: updatedBy ?? null,
+      updated_at: nowIso,
+    }));
+    const { error } = await sb
+      .from('admin_settings')
+      .upsert(rows, { onConflict: 'key' });
+    if (error) return { ok: false, error: error.message, updated: 0 };
+    // Invalidate every touched key so the next getAdminSetting doesn't
+    // serve a stale 60s cache entry.
+    for (const { key } of entries) cache.delete(key);
+    return { ok: true, updated: entries.length };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'unknown', updated: 0 };
+  }
+}
+
 export async function getAllAdminSettings(): Promise<Record<string, unknown>> {
   try {
     const sb = getAdminSupabaseClient();

@@ -22,7 +22,33 @@ export async function POST(request: Request) {
   const { users: allUsers } = await fetchAllAuthUsers(admin)
   const targetUser = allUsers.find(u => u.email === email)
   if (!targetUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
-  const { data: member } = await admin.from('workspace_members').select('workspace_id').eq('user_id', targetUser.id).single()
+  // Pre-fix : `.single()` threw ("multiple rows returned") for any user
+  // who owned / belonged to more than one workspace, surfacing as a false
+  // 404 "Workspace not found". Prefer the OLDEST owner membership
+  // deterministically ; if the user isn't owner anywhere (e.g. invited
+  // member on someone else's workspace), fall back to the oldest membership
+  // of any role so a legitimate credit grant still resolves a target.
+  // A dedicated workspace picker for multi-workspace owners is a future
+  // improvement (out of scope here).
+  const { data: ownerMember } = await admin
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', targetUser.id)
+    .eq('role', 'owner')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  let member = ownerMember
+  if (!member) {
+    const { data: anyMember } = await admin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', targetUser.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    member = anyMember
+  }
   if (!member) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
 
   // Resolve the authenticated admin once. Used both as credit_history.granted_by
