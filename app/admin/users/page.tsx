@@ -1,5 +1,6 @@
 import { requireSentraAdmin } from '@/lib/admin-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { fetchAllAuthUsers } from '@/lib/admin-users';
 import { UsersAdminClient } from './_components/UsersAdminClient';
 import type { AtRiskRow, RiskSeverity } from './_components/AtRiskTab';
 
@@ -118,8 +119,12 @@ async function fetchAtRiskRows(): Promise<AtRiskRow[]> {
   const ownerIds = Array.from(new Set(ownerByWorkspace.values()));
   const emailById: Record<string, string> = {};
   if (ownerIds.length > 0) {
-    const { data: users } = await admin.auth.admin.listUsers({ perPage: 200 });
-    for (const u of users?.users ?? []) {
+    // fetchAllAuthUsers paginates until every page is walked (up to 20 000
+    // users). Pre-fix, `listUsers({ perPage: 200 })` capped at page 1 —
+    // any at-risk workspace whose owner sat past user #200 rendered with
+    // owner_email = null.
+    const { users } = await fetchAllAuthUsers(admin);
+    for (const u of users) {
       if (ownerIds.includes(u.id) && u.email) emailById[u.id] = u.email;
     }
   }

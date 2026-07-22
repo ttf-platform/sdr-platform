@@ -30,10 +30,14 @@ export async function GET(
     .order('created_at', { ascending: true });
   if (mErr) return NextResponse.json({ error: 'fetch_messages_failed' }, { status: 500 });
 
+  // Single user lookup : `getUserById` is O(1) via the admin API. Pre-fix
+  // used `listUsers({ perPage: 200 })` + linear find, which both (a)
+  // dropped the email when the user's rank exceeded page 1 and (b) fetched
+  // 200 rows for one match. The dedicated endpoint is the right tool.
   let userEmail: string | null = null;
-  const { data: users } = await sb.auth.admin.listUsers({ perPage: 200 });
-  if (users?.users) {
-    userEmail = users.users.find((u) => u.id === conversation.user_id)?.email ?? null;
+  if (conversation.user_id) {
+    const { data: userResp } = await sb.auth.admin.getUserById(conversation.user_id as string);
+    userEmail = userResp?.user?.email ?? null;
   }
 
   const { data: escalations } = await sb

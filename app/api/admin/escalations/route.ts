@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
+import { fetchAllAuthUsers } from '@/lib/admin-users';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,12 +43,12 @@ export async function GET(req: NextRequest) {
   const userIds = Array.from(new Set((listResult.data ?? []).map((e) => e.user_id)));
   let emailMap: Record<string, string> = {};
   if (userIds.length > 0) {
-    const { data: users } = await sb.auth.admin.listUsers({ perPage: 200 });
-    if (users?.users) {
-      emailMap = Object.fromEntries(
-        users.users.filter((u) => userIds.includes(u.id)).map((u) => [u.id, u.email ?? ''])
-      );
-    }
+    // Full pagination — pre-fix, the 200-cap left escalations with a
+    // null user_email whenever the escalating user's rank exceeded page 1.
+    const { users } = await fetchAllAuthUsers(sb);
+    emailMap = Object.fromEntries(
+      users.filter((u) => userIds.includes(u.id)).map((u) => [u.id, u.email ?? ''])
+    );
   }
 
   const escalations = (listResult.data ?? []).map((e) => ({ ...e, user_email: emailMap[e.user_id] ?? null }));

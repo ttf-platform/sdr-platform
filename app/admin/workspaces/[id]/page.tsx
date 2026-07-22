@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { fetchAllAuthUsers } from '@/lib/admin-users';
 import { TIER_CAPS } from '@/lib/tier-limits';
 import { WorkspaceDetailClient, type WorkspaceDetailData } from './_components/WorkspaceDetailClient';
 
@@ -103,13 +104,15 @@ export default async function WorkspaceDeepDivePage(
       .limit(RECENT_LIMIT),
   ]);
 
-  // ── Resolve member emails via single listUsers ──────────────────────────
+  // ── Resolve member emails via full pagination ───────────────────────────
+  // fetchAllAuthUsers walks every page (up to 20 000 users) so a workspace
+  // whose members sit past user #200 renders their real emails, not blanks.
   const members = (membersRes.data ?? []) as Array<{ user_id: string; role: string }>;
   const memberIds = members.map((m) => m.user_id);
   const emailById: Record<string, string> = {};
   if (memberIds.length > 0) {
-    const { data: users } = await admin.auth.admin.listUsers({ perPage: 200 });
-    for (const u of users?.users ?? []) {
+    const { users } = await fetchAllAuthUsers(admin);
+    for (const u of users) {
       if (memberIds.includes(u.id) && u.email) emailById[u.id] = u.email;
     }
   }

@@ -1,7 +1,9 @@
 'use client'
 
 /**
- * Admin editor for the 8 platform email templates.
+ * Admin editor for the platform email templates. The count is
+ * dynamic (derived from EMAIL_TEMPLATE_META.length) so the copy never
+ * drifts when a new template is added to the registry.
  *
  * Layout : 2-column desktop (list ~300px + editor). Mobile stacks vertically
  * — the list becomes an accordion of collapsed group headers with the
@@ -290,7 +292,7 @@ export function EmailSequencesClient() {
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 md:py-8">
       <div className="mb-4">
         <h1 className="text-2xl font-semibold text-[#1a1a1a]">Séquences email</h1>
-        <p className="mt-1 text-sm text-[#6b5e4e]">Éditez les 8 emails automatiques envoyés par la plateforme, en EN et FR.</p>
+        <p className="mt-1 text-sm text-[#6b5e4e]">Éditez les {EMAIL_TEMPLATE_META.length} emails automatiques envoyés par la plateforme, en EN et FR.</p>
       </div>
 
       {/* Info banner */}
