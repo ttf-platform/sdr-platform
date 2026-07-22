@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shouldSendOnboarding } from '../../app/api/cron/onboarding-emails/route'
+import { shouldSendOnboarding } from '../onboarding-gating'
 
 // Convenience : merge sane defaults with the assertion-specific overrides.
 // Defaults represent the "would send" happy path for the given offset :
