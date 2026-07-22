@@ -64,7 +64,7 @@ describe('renderEmailMarkdown', () => {
   })
 })
 
-describe('renderTemplate — 8 keys × 2 locales', () => {
+describe('renderTemplate — every registry key × 2 locales', () => {
   const VARS_BY_KEY: Record<string, Record<string, string>> = {
     onboarding_d0: { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    baseUrl: 'https://app.mirvo.ai' },
     onboarding_d2: { greeting: 'Hi Alex,',                                  baseUrl: 'https://app.mirvo.ai' },
@@ -72,6 +72,12 @@ describe('renderTemplate — 8 keys × 2 locales', () => {
     onboarding_d7: { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    baseUrl: 'https://app.mirvo.ai' },
     upgrade:       { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    planLabel: 'Pro',            baseUrl: 'https://app.mirvo.ai' },
     dunning:       { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    planPhrase: ' Pro',           amountPhrase: ' of $49.00',
+                     invoiceLine: 'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/invoice-x).',
+                     baseUrl: 'https://app.mirvo.ai' },
+    dunning_j3:    { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    planPhrase: ' Pro',           amountPhrase: ' of $49.00',
+                     invoiceLine: 'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/invoice-x).',
+                     baseUrl: 'https://app.mirvo.ai' },
+    dunning_j7:    { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    planPhrase: ' Pro',           amountPhrase: ' of $49.00',
                      invoiceLine: 'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/invoice-x).',
                      baseUrl: 'https://app.mirvo.ai' },
     cancellation:  { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    planPhrase: ' Pro',           baseUrl: 'https://app.mirvo.ai' },
@@ -185,5 +191,91 @@ describe('renderTemplate — placeholder interpolation is XSS-safe', () => {
     expect(out.html).not.toMatch(/<img\b/)
     expect(out.html).toContain('&lt;script&gt;')
     expect(out.html).toContain('&lt;img')
+  })
+})
+
+// PR4a — new dunning escalation stages + J0 phrase edit ----------------------
+
+describe('PR4a — dunning_j3 / dunning_j7 render', () => {
+  const VARS = {
+    greeting:      'Hi Alex,',
+    workspaceName: 'Acme Co',
+    planPhrase:    ' Pro',
+    amountPhrase:  ' of $49.00',
+    invoiceLine:   'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/inv_x).',
+    baseUrl:       'https://app.mirvo.ai',
+  }
+
+  for (const key of ['dunning_j3', 'dunning_j7'] as const) {
+    for (const locale of ['en', 'fr'] as const) {
+      it(`renders ${key} / ${locale} with heading + button + signature`, () => {
+        const fields = EMAIL_TEMPLATE_DEFAULTS[key][locale]
+        const out    = renderTemplate(fields, VARS, locale)
+
+        expect(out.subject).toBeTruthy()
+        expect(out.html).toBeTruthy()
+        // Heading is present in the html (escaped form).
+        expect(fields.heading).toBeTruthy()
+        expect(out.html).toContain(escapeHtml(fields.heading!))
+        // CTA button styled in brand blue.
+        expect(fields.ctaLabel).toBeTruthy()
+        expect(out.html).toContain(escapeHtml(fields.ctaLabel!))
+        expect(out.html).toContain('background: #3b6bef')
+        // Href points to the on-domain billing path (via renderTemplate's
+        // isOnDomainPath + safeExternalHref pipeline).
+        expect(out.html).toContain('href="https://app.mirvo.ai/dashboard/billing"')
+        // Fixed signature per locale.
+        expect(out.html).toContain(locale === 'fr' ? "— L'équipe Mirvo" : '— The Mirvo team')
+      })
+    }
+  }
+
+  it('dunning_j7 EN mentions the final-cancellation copy', () => {
+    // Guards the load-bearing intent of the J7 template : this is the LAST
+    // notice, not a generic reminder. If someone edits the template into a
+    // gentler nudge the test catches the regression.
+    const out = renderTemplate(EMAIL_TEMPLATE_DEFAULTS.dunning_j7.en, VARS, 'en')
+    expect(out.html).toContain('canceled')
+    expect(out.html).toContain('30 days')
+  })
+
+  it('dunning_j7 FR mentions the final-cancellation copy', () => {
+    const out = renderTemplate(EMAIL_TEMPLATE_DEFAULTS.dunning_j7.fr, VARS, 'fr')
+    // "résilié" appears escaped as "r&eacute;silié" only if there was an
+    // entity ; escapeHtml leaves accented Unicode alone, so the literal
+    // form survives.
+    expect(out.html).toContain('résilié')
+    expect(out.html).toContain('30 jours')
+  })
+})
+
+describe('PR4a — dunning (J0) phrase edit', () => {
+  const VARS = {
+    greeting:      'Hi Alex,',
+    workspaceName: 'Acme Co',
+    planPhrase:    ' Pro',
+    amountPhrase:  ' of $49.00',
+    invoiceLine:   '',
+    baseUrl:       'https://app.mirvo.ai',
+  }
+
+  it('EN — no longer mentions "subscription may pause"', () => {
+    const en = EMAIL_TEMPLATE_DEFAULTS.dunning.en
+    expect(en.bodyMd).not.toContain('subscription may pause')
+    expect(en.bodyMd).toContain('subscription could eventually be canceled')
+    const out = renderTemplate(en, VARS, 'en')
+    expect(out.html).not.toContain('subscription may pause')
+    expect(out.html).toContain('subscription could eventually be canceled')
+  })
+
+  it('FR — no longer mentions "peut se mettre en pause"', () => {
+    const fr = EMAIL_TEMPLATE_DEFAULTS.dunning.fr
+    expect(fr.bodyMd).not.toContain('peut se mettre en pause')
+    expect(fr.bodyMd).toContain('pourrait finir par être résilié')
+    const out = renderTemplate(fr, VARS, 'fr')
+    expect(out.html).not.toContain('peut se mettre en pause')
+    // The new phrase is escaped by renderer ; check both raw + escaped just
+    // in case escapeHtml touches any character in "être".
+    expect(out.html).toContain('pourrait finir par')
   })
 })

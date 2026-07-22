@@ -356,6 +356,14 @@ export async function sendUpgradeEmail(params: {
   });
 }
 
+/**
+ * Dunning family : J0 (first failure), J3 (3d past due), J7 (7d past due,
+ * final notice). `stageKey` picks the template ; `vars` are identical
+ * across stages, so callers only need to swap the key when escalating.
+ * Defaults to 'dunning' (J0) so existing call-sites keep their behavior.
+ */
+export type DunningStageKey = 'dunning' | 'dunning_j3' | 'dunning_j7';
+
 export async function sendDunningEmail(params: {
   to:               string;
   firstName:        string | null;
@@ -365,11 +373,13 @@ export async function sendDunningEmail(params: {
   appBaseUrl:       string;
   hostedInvoiceUrl: string | null;
   locale:           EmailTemplateLocale;
+  stageKey?:        DunningStageKey;
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const { to, firstName, workspaceName, planTier, amountLabel, appBaseUrl, hostedInvoiceUrl, locale } = params;
+  const { to, firstName, workspaceName, planTier, amountLabel, appBaseUrl, hostedInvoiceUrl, locale, stageKey } = params;
+  const key = stageKey ?? 'dunning';
   return sendTemplate({
     to,
-    key:    'dunning',
+    key,
     locale,
     vars: {
       greeting:      greetingFor(firstName, locale),
@@ -379,7 +389,7 @@ export async function sendDunningEmail(params: {
       invoiceLine:   invoiceLineFor(hostedInvoiceUrl, locale),
       baseUrl:       appBaseUrl,
     },
-    logTag: 'sendDunningEmail',
+    logTag: `sendDunningEmail ${key}`,
   });
 }
 

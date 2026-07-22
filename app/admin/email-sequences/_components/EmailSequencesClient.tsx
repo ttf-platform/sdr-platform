@@ -71,7 +71,9 @@ const KEY_LABEL: Record<EmailTemplateKey, string> = {
   onboarding_d4:          'Délivrabilité (J4)',
   onboarding_d7:          'Bilan semaine 1 (J7)',
   upgrade:                'Upgrade confirmé',
-  dunning:                'Paiement échoué',
+  dunning:                'Paiement échoué (J0)',
+  dunning_j3:             'Paiement échoué — J+3',
+  dunning_j7:             'Paiement échoué — J+7 (dernier rappel)',
   cancellation:           'Résiliation confirmée',
   signal_digest:          'Digest quotidien de signaux',
 }
