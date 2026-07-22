@@ -29,6 +29,8 @@ export type EmailTemplateKey =
   | 'onboarding_d7'
   | 'upgrade'
   | 'dunning'
+  | 'dunning_j3'
+  | 'dunning_j7'
   | 'cancellation'
   | 'signal_digest'
 
@@ -112,6 +114,22 @@ export const EMAIL_TEMPLATE_META: ReadonlyArray<EmailTemplateMeta> = [
     key:            'dunning',
     category:       'billing',
     trigger:        'First invoice payment failure (per invoice)',
+    placeholders:   ['greeting', 'workspaceName', 'planPhrase', 'amountPhrase', 'invoiceLine', 'baseUrl'],
+    defaultCtaPath: '/dashboard/billing',
+    hasChrome:      true,
+  },
+  {
+    key:            'dunning_j3',
+    category:       'billing',
+    trigger:        'Dunning escalation — 3 days past due (cron)',
+    placeholders:   ['greeting', 'workspaceName', 'planPhrase', 'amountPhrase', 'invoiceLine', 'baseUrl'],
+    defaultCtaPath: '/dashboard/billing',
+    hasChrome:      true,
+  },
+  {
+    key:            'dunning_j7',
+    category:       'billing',
+    trigger:        'Dunning escalation — 7 days past due, final notice (cron)',
     placeholders:   ['greeting', 'workspaceName', 'planPhrase', 'amountPhrase', 'invoiceLine', 'baseUrl'],
     defaultCtaPath: '/dashboard/billing',
     hasChrome:      true,
@@ -253,7 +271,7 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, Record<EmailTempl
       subject:   "Your Mirvo payment didn't go through — quick fix inside",
       preheader: 'Your card was likely just declined or expired. Updating it takes about 30 seconds and your campaigns keep running.',
       heading:   'A quick heads-up about your payment',
-      bodyMd:    "{{greeting}}\n\nWe tried to process a payment{{amountPhrase}} for your Mirvo{{planPhrase}} subscription on {{workspaceName}}, and it didn't go through. This is almost always something small — an expired card, a new card number, or a temporary hold from the bank.\n\nUpdating your payment details takes about 30 seconds, and we'll retry automatically once it's sorted.\n\n{{invoiceLine}}\n\nYour account stays active while you sort this out — there's no rush, and nothing is lost. If your card keeps declining over the next couple of weeks, your subscription may pause, but you can reactivate anytime.\n\nQuestions, or think this is a mistake? Just reply — we read every message.",
+      bodyMd:    "{{greeting}}\n\nWe tried to process a payment{{amountPhrase}} for your Mirvo{{planPhrase}} subscription on {{workspaceName}}, and it didn't go through. This is almost always something small — an expired card, a new card number, or a temporary hold from the bank.\n\nUpdating your payment details takes about 30 seconds, and we'll retry automatically once it's sorted.\n\n{{invoiceLine}}\n\nYour account stays active while you sort this out — there's no rush, and nothing is lost. If the payment keeps failing over the next couple of weeks, your subscription could eventually be canceled, but you can update your card any time and pick right back up.\n\nQuestions, or think this is a mistake? Just reply — we read every message.",
       ctaLabel:  'Update payment method',
       ctaPath:   '/dashboard/billing',
     },
@@ -261,7 +279,49 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, Record<EmailTempl
       subject:   "Votre paiement Mirvo n'est pas passé — solution rapide à l'intérieur",
       preheader: 'Votre carte a probablement été refusée ou a expiré. La mettre à jour prend environ 30 secondes et vos campagnes continuent.',
       heading:   'Un petit point sur votre paiement',
-      bodyMd:    "{{greeting}}\n\nNous avons tenté de traiter un paiement{{amountPhrase}} pour votre abonnement Mirvo{{planPhrase}} sur {{workspaceName}}, et il n'est pas passé. C'est presque toujours quelque chose de mineur : une carte expirée, un nouveau numéro, ou un blocage temporaire de la banque.\n\nMettre à jour vos informations de paiement prend environ 30 secondes, et nous réessaierons automatiquement une fois que ce sera réglé.\n\n{{invoiceLine}}\n\nVotre compte reste actif le temps de régler cela, rien ne presse et rien n'est perdu. Si votre carte continue d'être refusée dans les deux prochaines semaines, votre abonnement peut se mettre en pause, mais vous pourrez le réactiver à tout moment.\n\nUne question, ou vous pensez qu'il s'agit d'une erreur ? Répondez simplement, nous lisons chaque message.",
+      bodyMd:    "{{greeting}}\n\nNous avons tenté de traiter un paiement{{amountPhrase}} pour votre abonnement Mirvo{{planPhrase}} sur {{workspaceName}}, et il n'est pas passé. C'est presque toujours quelque chose de mineur : une carte expirée, un nouveau numéro, ou un blocage temporaire de la banque.\n\nMettre à jour vos informations de paiement prend environ 30 secondes, et nous réessaierons automatiquement une fois que ce sera réglé.\n\n{{invoiceLine}}\n\nVotre compte reste actif le temps de régler cela, rien ne presse et rien n'est perdu. Si le paiement continue d'échouer dans les deux prochaines semaines, votre abonnement pourrait finir par être résilié, mais vous pouvez mettre à jour votre carte à tout moment et reprendre là où vous en étiez.\n\nUne question, ou vous pensez qu'il s'agit d'une erreur ? Répondez simplement, nous lisons chaque message.",
+      ctaLabel:  'Mettre à jour le moyen de paiement',
+      ctaPath:   '/dashboard/billing',
+    },
+  },
+
+  // ─── dunning_j3 (3 days past due) ─────────────────────────────────────────
+  // Same placeholder set as `dunning` (J0) — invoiceLine is caller-computed
+  // per invoice ; empty when no hostedInvoiceUrl is available.
+  dunning_j3: {
+    en: {
+      subject:   "Still can't process your Mirvo payment — let's fix it",
+      preheader: 'Your subscription is still past due. A 30-second card update keeps everything running.',
+      heading:   'Your payment is still pending',
+      bodyMd:    "{{greeting}}\n\nWe still haven't been able to process your payment{{amountPhrase}} for Mirvo{{planPhrase}} on {{workspaceName}}. Your account is still active, but it won't stay that way indefinitely.\n\nUpdating your card takes about 30 seconds and we'll retry right away.\n\n{{invoiceLine}}\n\nIf you've already updated it, ignore this — the next retry will clear it.\n\nQuestions? Just reply, we read every message.",
+      ctaLabel:  'Update payment method',
+      ctaPath:   '/dashboard/billing',
+    },
+    fr: {
+      subject:   'Toujours impossible de traiter votre paiement Mirvo — réglons ça',
+      preheader: 'Votre abonnement est encore en souffrance. Une mise à jour de carte en 30 secondes garde tout en marche.',
+      heading:   'Votre paiement est toujours en attente',
+      bodyMd:    "{{greeting}}\n\nNous n'avons toujours pas réussi à traiter votre paiement{{amountPhrase}} pour Mirvo{{planPhrase}} sur {{workspaceName}}. Votre compte est encore actif, mais cela ne durera pas indéfiniment.\n\nMettre à jour votre carte prend environ 30 secondes et nous réessaierons aussitôt.\n\n{{invoiceLine}}\n\nSi vous l'avez déjà mise à jour, ignorez ce message — le prochain essai régularisera tout.\n\nUne question ? Répondez simplement, nous lisons chaque message.",
+      ctaLabel:  'Mettre à jour le moyen de paiement',
+      ctaPath:   '/dashboard/billing',
+    },
+  },
+
+  // ─── dunning_j7 (7 days past due — final notice before cancellation) ──────
+  dunning_j7: {
+    en: {
+      subject:   'Action needed: your Mirvo subscription is about to be canceled',
+      preheader: 'Last reminder before your subscription is canceled. Update your card to keep your campaigns running.',
+      heading:   'Last reminder before your subscription is canceled',
+      bodyMd:    "{{greeting}}\n\nWe've tried several times to process your payment{{amountPhrase}} for Mirvo{{planPhrase}} on {{workspaceName}}, without success. If it isn't resolved shortly, your subscription will be canceled and your campaigns will stop.\n\nYou wouldn't lose everything right away: after cancellation your workspace and data are kept for 30 days, so you can reactivate and pick up exactly where you left off. After that, they're permanently deleted.\n\n{{invoiceLine}}\n\nUpdating your card takes about 30 seconds and keeps everything running. Need a hand or think this is a mistake? Just reply — a real person will help.",
+      ctaLabel:  'Update payment method',
+      ctaPath:   '/dashboard/billing',
+    },
+    fr: {
+      subject:   'Action requise : votre abonnement Mirvo va être résilié',
+      preheader: 'Dernier rappel avant la résiliation de votre abonnement. Mettez à jour votre carte pour garder vos campagnes actives.',
+      heading:   'Dernier rappel avant la résiliation de votre abonnement',
+      bodyMd:    "{{greeting}}\n\nNous avons tenté plusieurs fois de traiter votre paiement{{amountPhrase}} pour Mirvo{{planPhrase}} sur {{workspaceName}}, sans succès. Si ce n'est pas réglé rapidement, votre abonnement sera résilié et vos campagnes s'arrêteront.\n\nVous ne perdriez pas tout immédiatement : après la résiliation, votre espace et vos données sont conservés 30 jours, le temps de vous réabonner et de reprendre exactement là où vous en étiez. Passé ce délai, ils sont définitivement supprimés.\n\n{{invoiceLine}}\n\nMettre à jour votre carte prend environ 30 secondes et garde tout en marche. Besoin d'aide ou vous pensez qu'il s'agit d'une erreur ? Répondez, une vraie personne vous aidera.",
       ctaLabel:  'Mettre à jour le moyen de paiement',
       ctaPath:   '/dashboard/billing',
     },
