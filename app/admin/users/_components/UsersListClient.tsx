@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Users, X } from 'lucide-react';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { Modal } from '@/components/ui/Modal';
+import { billingLabel } from '@/lib/admin-metrics';
 
 type UserRow = {
   id: string;
@@ -14,6 +15,8 @@ type UserRow = {
   workspace_id: string | null;
   role: string | null;
   plan_tier: string | null;
+  subscription_status: string | null;
+  billing_interval: string | null;
   trial_end_date: string | null;
 };
 
@@ -158,7 +161,7 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
                       <div className="text-sm font-medium text-[#1a1a1a]">{u.email}</div>
                       <div className="font-mono text-[10px] text-[#9a9a9a]">{u.id.slice(0, 12)}…</div>
                     </Td>
-                    <Td><PlanPill tier={u.plan_tier} trialEnd={u.trial_end_date} /></Td>
+                    <Td><PlanPill status={u.subscription_status} tier={u.plan_tier} /></Td>
                     <Td>{u.suspended ? <Pill color="red">Suspended</Pill> : <Pill color="green">Active</Pill>}</Td>
                     <Td><span className="text-xs text-[#4a4a5a]">{u.last_sign_in_at ? formatRelative(u.last_sign_in_at) : 'never'}</span></Td>
                     <Td><span className="text-xs text-[#4a4a5a]">{formatRelative(u.created_at)}</span></Td>
@@ -250,11 +253,26 @@ function Td({ children }: { children: React.ReactNode }) {
   return <td className="px-4 py-3">{children}</td>;
 }
 
-function PlanPill({ tier, trialEnd }: { tier: string | null; trialEnd: string | null }) {
-  const inTrial = trialEnd ? new Date(trialEnd).getTime() > Date.now() : false;
-  if (inTrial) return <Pill color="amber">Trial</Pill>;
-  if (!tier || tier === 'trial') return <Pill color="gray">—</Pill>;
-  return <Pill color="blue">{tier}</Pill>;
+// Status pill (billingLabel) + plan tier rendered side-by-side. Previously
+// this pill showed the plan tier in blue whenever `plan_tier != 'trial'`,
+// which mislabeled canceled + expired rows as active paying customers.
+// The truth predicate now lives in lib/admin-metrics.ts::billingLabel so
+// every admin surface renders the same colors.
+function PlanPill({ status, tier }: { status: string | null; tier: string | null }) {
+  const { label, tone } = billingLabel({
+    plan_tier:           tier,
+    subscription_status: status,
+    billing_interval:    null,
+  });
+  const trimmedTier = tier && tier.toLowerCase() !== 'trial' ? tier : null;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Pill color={tone}>{label}</Pill>
+      {trimmedTier && (
+        <span className="text-[11px] font-medium text-[#4a4a5a]">{trimmedTier}</span>
+      )}
+    </span>
+  );
 }
 
 function Pill({ color, children }: { color: 'red' | 'green' | 'amber' | 'blue' | 'gray'; children: React.ReactNode }) {

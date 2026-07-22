@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireSentraAdminResponse as requireSentraAdmin } from '@/lib/admin-auth'
 import { logAdminAction } from '@/lib/admin'
+import { isActivePaid } from '@/lib/admin-metrics'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { adminBroadcastSchema, badRequest } from '@/lib/schemas'
@@ -17,10 +18,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues)
   const { subject, body, target } = parsed.data
   const admin = createAdminClient()
-  const { data: workspaces } = await admin.from('workspaces').select('id, plan')
+  // Legacy `workspaces.plan` was replaced by `plan_tier` + `subscription_status`.
+  // 'trial' ≡ subscription_status === 'trialing' ; 'paid' ≡ isActivePaid
+  // (== 'active'), consistent with /admin/revenue's definition. A canceled
+  // workspace with plan_tier='pro' is NOT a broadcast target for 'paid'.
+  const { data: workspaces } = await admin.from('workspaces').select('id, plan_tier, subscription_status')
   const filtered = workspaces?.filter(w => {
-    if (target === 'trial') return w.plan === 'trial'
-    if (target === 'paid') return w.plan !== 'trial'
+    if (target === 'trial') return w.subscription_status === 'trialing'
+    if (target === 'paid') return isActivePaid(w)
     return true
   }) || []
   const { data: members } = await admin.from('workspace_members').select('user_id').in('workspace_id', filtered.map(w => w.id)).eq('role', 'owner')

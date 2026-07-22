@@ -44,7 +44,12 @@ export async function GET(req: NextRequest) {
 
   const userIds = slice.map((u) => u.id);
   let memberships: Record<string, { workspace_id: string; role: string }[]> = {};
-  let workspaceMap: Record<string, { plan_tier: string | null; trial_end_date: string | null }> = {};
+  let workspaceMap: Record<string, {
+    plan_tier:           string | null;
+    subscription_status: string | null;
+    billing_interval:    string | null;
+    trial_end_date:      string | null;
+  }> = {};
   if (userIds.length > 0) {
     const { data: members } = await sb
       .from('workspace_members')
@@ -58,12 +63,21 @@ export async function GET(req: NextRequest) {
       wsIds.add(m.workspace_id);
     }
     if (wsIds.size > 0) {
+      // Extend the select with subscription_status + billing_interval so
+      // the client can render the correct status pill (canceled / expired /
+      // active) — a workspace with plan_tier='pro' but subscription_status
+      // ='canceled' should NOT display as a paying "Pro" customer.
       const { data: ws } = await sb
         .from('workspaces')
-        .select('id, plan_tier, trial_end_date')
+        .select('id, plan_tier, subscription_status, billing_interval, trial_end_date')
         .in('id', Array.from(wsIds));
       for (const w of ws ?? []) {
-        workspaceMap[w.id] = { plan_tier: w.plan_tier ?? null, trial_end_date: w.trial_end_date ?? null };
+        workspaceMap[w.id] = {
+          plan_tier:           w.plan_tier ?? null,
+          subscription_status: w.subscription_status ?? null,
+          billing_interval:    w.billing_interval ?? null,
+          trial_end_date:      w.trial_end_date ?? null,
+        };
       }
     }
   }
@@ -81,8 +95,10 @@ export async function GET(req: NextRequest) {
       suspended: !!banned,
       workspace_id: primary?.workspace_id ?? null,
       role: primary?.role ?? null,
-      plan_tier: ws?.plan_tier ?? null,
-      trial_end_date: ws?.trial_end_date ?? null,
+      plan_tier:           ws?.plan_tier ?? null,
+      subscription_status: ws?.subscription_status ?? null,
+      billing_interval:    ws?.billing_interval ?? null,
+      trial_end_date:      ws?.trial_end_date ?? null,
     };
   });
 

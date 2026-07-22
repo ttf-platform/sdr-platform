@@ -1,4 +1,5 @@
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
+import { ADMIN_BILLING_COLUMNS, aggregateBilling, type BillingRow } from '@/lib/admin-metrics';
 import { OverviewClient } from './_components/OverviewClient';
 
 export const dynamic = 'force-dynamic';
@@ -72,32 +73,20 @@ async function safeCountUsers(sb: ReturnType<typeof getAdminSupabaseClient>): Pr
   }
 }
 
-// Pricing baseline — must stay in sync with billing config
-const MRR_BY_TIER: Record<string, number> = {
-  starter: 149, pro: 299, power: 399,
-  team_starter: 599, team_growth: 899, team_scale: 1399, corporate: 1800,
-};
-
 async function safeWorkspaceStats(sb: ReturnType<typeof getAdminSupabaseClient>): Promise<{
   total: number | null; trial: number | null; paid: number | null; mrr: number | null;
 }> {
   try {
-    // Schema: workspaces(plan_tier, trial_end_date) — confirmed in migration 004
-    const { data, error } = await sb.from('workspaces').select('id, plan_tier, trial_end_date');
+    // Schema: workspaces(plan_tier, subscription_status, billing_interval,
+    // trial_end_date). Selection + aggregation delegate to lib/admin-metrics
+    // so this page's "paid" / "MRR" match /admin/revenue verbatim (they used
+    // to diverge : Overview counted plan_tier != 'trial', Revenue counted
+    // subscription_status === 'active', so a canceled Power workspace still
+    // showed up as "1 paid, 399$ MRR" on Overview).
+    const { data, error } = await sb.from('workspaces').select(ADMIN_BILLING_COLUMNS);
     if (error || !data) return { total: null, trial: null, paid: null, mrr: null };
-    const now = Date.now();
-    let trial = 0, paid = 0, mrr = 0;
-    for (const ws of data) {
-      const trialEnd = (ws as { trial_end_date?: string | null }).trial_end_date ?? null;
-      const inTrial = trialEnd ? new Date(trialEnd).getTime() > now : false;
-      if (inTrial) {
-        trial++;
-      } else if (ws.plan_tier && ws.plan_tier !== 'trial') {
-        paid++;
-        mrr += MRR_BY_TIER[ws.plan_tier] ?? 0;
-      }
-    }
-    return { total: data.length, trial, paid, mrr };
+    const agg = aggregateBilling(data as BillingRow[]);
+    return { total: agg.total, trial: agg.trialing, paid: agg.paidCount, mrr: agg.mrrTotal };
   } catch {
     return { total: null, trial: null, paid: null, mrr: null };
   }

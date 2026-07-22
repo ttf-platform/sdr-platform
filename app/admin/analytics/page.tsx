@@ -1,4 +1,5 @@
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
+import { isActivePaid } from '@/lib/admin-metrics';
 import { AnalyticsClient } from './_components/AnalyticsClient';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   }
 
   const [{ data: workspaces }, { data: campaigns }, { data: members }] = await Promise.all([
-    sb.from('workspaces').select('id, plan_tier, trial_end_date, created_at'),
+    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, created_at'),
     sb.from('campaigns').select('workspace_id, created_at'),
     sb.from('workspace_members').select('user_id, workspace_id'),
   ]);
@@ -84,7 +85,10 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   for (const ws of workspacesArr) {
     if (!ws.trial_end_date || new Date(ws.trial_end_date).getTime() >= now) continue;
     trialEnded++;
-    if (ws.plan_tier && ws.plan_tier !== 'trial') trialEndedAndPaid++;
+    // "Paid" ≡ subscription_status === 'active' (matches /admin/revenue).
+    // Prior version counted plan_tier != 'trial' which included canceled +
+    // expired rows, inflating the conversion rate.
+    if (isActivePaid(ws)) trialEndedAndPaid++;
   }
   const trialToPaidRate = trialEnded > 0 ? (trialEndedAndPaid / trialEnded) * 100 : null;
 
@@ -105,7 +109,7 @@ async function loadAnalytics(): Promise<AnalyticsData> {
     (userToWorkspaces.get(u.id) ?? []).some((wsId) => activatedWorkspaceIds.has(wsId))
   ).length;
   const paidWorkspaceIds = new Set(
-    workspacesArr.filter((ws) => ws.plan_tier && ws.plan_tier !== 'trial').map((ws) => ws.id)
+    workspacesArr.filter((ws) => isActivePaid(ws)).map((ws) => ws.id)
   );
   const paidUserCount = allUsers.filter((u) =>
     (userToWorkspaces.get(u.id) ?? []).some((wsId) => paidWorkspaceIds.has(wsId))
