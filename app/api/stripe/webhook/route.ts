@@ -88,6 +88,38 @@ export async function POST(request: Request) {
       .is('canceled_at', null)
   }
 
+  // Best-effort resolve of every open dunning_states row for a workspace.
+  // Called when the subscription recovers (payment_succeeded / wasNotActive
+  // → active) or terminates (subscription.deleted). The escalation cron
+  // has its own defensive re-check on workspaces.subscription_status, but
+  // resolving here keeps the working set small and gives operators a
+  // trustworthy "unresolved dunning" gauge.
+  async function resolveOpenDunningStatesForWorkspace(workspaceId: string): Promise<void> {
+    try {
+      await admin
+        .from('dunning_states')
+        .update({ resolved_at: new Date().toISOString() })
+        .eq('workspace_id', workspaceId)
+        .is('resolved_at', null)
+    } catch (err) {
+      console.error('[stripe-webhook] resolveOpenDunningStatesForWorkspace failed', err)
+    }
+  }
+
+  // Best-effort resolve for a single invoice — payment_succeeded fires
+  // per-invoice, so the workspace-wide sweep would be overkill.
+  async function resolveDunningStateForInvoice(invoiceId: string): Promise<void> {
+    try {
+      await admin
+        .from('dunning_states')
+        .update({ resolved_at: new Date().toISOString() })
+        .eq('invoice_id', invoiceId)
+        .is('resolved_at', null)
+    } catch (err) {
+      console.error('[stripe-webhook] resolveDunningStateForInvoice failed', err)
+    }
+  }
+
   // Helper: send the "first upgrade" lifecycle email, idempotent and
   // strictly fire-and-forget. The webhook MUST stay 200 to Stripe, so
   // every failure (lookup, insert, Resend) is swallowed via try/catch
@@ -497,6 +529,10 @@ export async function POST(request: Request) {
         // lifecycle_emails UNIQUE dedups against the checkout.session.completed
         // branch above so admins get exactly one alert per workspace.
         await maybeSendUpgradeEmail(workspaceId, toPlan)
+        // Recovery : any lingering open dunning row for this workspace is
+        // now stale (subscription reactivated via subscription.updated, not
+        // via a payment_succeeded on a specific invoice). Sweep them.
+        await resolveOpenDunningStatesForWorkspace(workspaceId)
       }
       break
     }
@@ -520,6 +556,11 @@ export async function POST(request: Request) {
       // stamped only when currently NULL, so a webhook replay of the same
       // cancellation never restarts the clock.
       await stampCanceledAtIfMissing(workspaceId)
+
+      // The cancellation email takes over the messaging from here — retire
+      // any open dunning escalation so J+7 doesn't fire on a workspace that
+      // just received a "your subscription is canceled" email.
+      await resolveOpenDunningStatesForWorkspace(workspaceId)
 
       await logSubscriptionEvent(admin, {
         workspace_id:    workspaceId,
@@ -627,6 +668,32 @@ export async function POST(request: Request) {
           },
           before.plan_tier ?? null,
         )
+
+        // Seed the dunning escalation state (stage 0 = J0 sent). ON CONFLICT
+        // DO NOTHING via ignoreDuplicates on invoice_id : a webhook retry
+        // (same invoice, first attempt already recorded) must not reset the
+        // started_at clock — the escalation cron reads started_at to decide
+        // J+3 / J+7 timing. Best-effort : never fail the webhook.
+        try {
+          await admin
+            .from('dunning_states')
+            .upsert(
+              {
+                invoice_id:         inv.id,
+                workspace_id:       wid,
+                plan_tier:          before.plan_tier ?? null,
+                amount_due:         inv.amount_due ?? null,
+                currency:           inv.currency ?? null,
+                hosted_invoice_url: inv.hosted_invoice_url ?? null,
+                started_at:         new Date().toISOString(),
+                stage:              0,
+              },
+              { onConflict: 'invoice_id', ignoreDuplicates: true },
+            )
+        } catch (err) {
+          console.error('[stripe-webhook] dunning_states upsert failed', err)
+        }
+
         // In-app notif à côté du dunning — même garde (isFirstAttempt,
         // isSubInvoice, not canceled) : évite le spam sur les retries Stripe.
         // Best-effort ; notifyWorkspaceOwner est no-throw et on ceinture par
@@ -673,6 +740,12 @@ export async function POST(request: Request) {
           .update({ subscription_status: 'active', canceled_at: null })
           .eq('stripe_customer_id', customerId)
       }
+
+      // Resolve the dunning escalation state for this specific invoice — a
+      // successful payment on invoice X ends the J0→J+3→J+7 cadence for X
+      // even if other unrelated invoices are still open. The cron treats
+      // resolved_at IS NOT NULL as "off the escalation queue".
+      if (inv.id) await resolveDunningStateForInvoice(inv.id)
 
       // payment_succeeded doesn't change plan/interval — carry forward from_*.
       await logSubscriptionEvent(admin, {
