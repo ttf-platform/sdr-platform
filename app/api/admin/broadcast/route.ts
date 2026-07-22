@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireSentraAdminResponse as requireSentraAdmin } from '@/lib/admin-auth'
 import { logAdminAction } from '@/lib/admin'
 import { isActivePaid } from '@/lib/admin-metrics'
+import { fetchAllAuthUsers } from '@/lib/admin-users'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { adminBroadcastSchema, badRequest } from '@/lib/schemas'
@@ -29,8 +30,12 @@ export async function POST(request: Request) {
     return true
   }) || []
   const { data: members } = await admin.from('workspace_members').select('user_id').in('workspace_id', filtered.map(w => w.id)).eq('role', 'owner')
-  const { data: users } = await admin.auth.admin.listUsers()
-  const emails = users?.users?.filter(u => members?.some(m => m.user_id === u.id)).map(u => u.email).filter(Boolean) || []
+  // Pre-fix : `listUsers()` (default 50/page) silently cut the fanout at
+  // the first page — a broadcast to 300 workspaces reached ~50 owners and
+  // recorded recipient_count = 50 with no error. fetchAllAuthUsers walks
+  // every page and reports `truncated` honestly.
+  const { users: allUsers, truncated: usersTruncated } = await fetchAllAuthUsers(admin)
+  const emails = allUsers.filter(u => members?.some(m => m.user_id === u.id)).map(u => u.email).filter(Boolean) || []
   await admin.from('broadcast_messages').insert({ subject, body, target, recipient_count: emails.length, sent_at: new Date().toISOString() })
   const htmlBody = body.split(String.fromCharCode(10)).join('<br>')
   for (const email of emails) {
@@ -41,8 +46,12 @@ export async function POST(request: Request) {
   await logAdminAction({
     admin_id:    user!.id,
     action_type: 'broadcast_sent',
-    metadata:    { target, subject, recipient_count: emails.length },
+    // truncated=true means fetchAllAuthUsers hit maxPages or an error :
+    // some target owners may have been missed. Persist so the audit log
+    // trail carries the caveat, and echo in the response so the client
+    // can surface it.
+    metadata:    { target, subject, recipient_count: emails.length, truncated: usersTruncated },
   })
 
-  return NextResponse.json({ success: true, sent: emails.length })
+  return NextResponse.json({ success: true, sent: emails.length, truncated: usersTruncated })
 }

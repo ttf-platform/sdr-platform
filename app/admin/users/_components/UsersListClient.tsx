@@ -20,7 +20,7 @@ type UserRow = {
   trial_end_date: string | null;
 };
 
-type Pagination = { page: number; pageSize: number; total: number; totalPages: number };
+type Pagination = { page: number; pageSize: number; total: number; totalPages: number; truncated?: boolean };
 
 type Notification = { type: 'success' | 'error'; message: string };
 
@@ -108,6 +108,11 @@ export function UsersListClient({ currentAdminId }: { currentAdminId: string }) 
           <h1 className="text-2xl font-semibold text-[#1a1a1a]">Users</h1>
           <p className="mt-1 text-sm text-[#4a4a5a]">
             {pagination ? `${pagination.total.toLocaleString()} total` : 'Loading…'}
+            {pagination?.truncated && (
+              <span className="ml-2 text-amber-700">
+                (list truncated at {pagination.total.toLocaleString()} — pagination cap hit)
+              </span>
+            )}
           </p>
         </div>
         <input
