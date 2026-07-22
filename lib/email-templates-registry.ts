@@ -32,6 +32,7 @@ export type EmailTemplateKey =
   | 'dunning_j3'
   | 'dunning_j7'
   | 'cancellation'
+  | 'winback'
   | 'signal_digest'
 
 export type EmailTemplateLocale = 'en' | 'fr'
@@ -139,6 +140,14 @@ export const EMAIL_TEMPLATE_META: ReadonlyArray<EmailTemplateMeta> = [
     category:       'billing',
     trigger:        'Subscription cancellation confirmed (excluding trial expiry)',
     placeholders:   ['greeting', 'workspaceName', 'planPhrase', 'baseUrl'],
+    defaultCtaPath: '/dashboard/billing',
+    hasChrome:      true,
+  },
+  {
+    key:            'winback',
+    category:       'billing',
+    trigger:        'Win-back — ~23 days after cancellation, before the 30-day purge (cron)',
+    placeholders:   ['greeting', 'workspaceName', 'baseUrl'],
     defaultCtaPath: '/dashboard/billing',
     hasChrome:      true,
   },
@@ -343,6 +352,30 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, Record<EmailTempl
       heading:   'Votre abonnement est résilié',
       bodyMd:    "{{greeting}}\n\nNous avons résilié votre abonnement Mirvo{{planPhrase}} pour {{workspaceName}}. Plus aucun prélèvement — et merci pour le temps passé avec nous.\n\n**Votre espace reste disponible 30 jours.** Vos prospects, vos campagnes et tout ce que vous avez construit sont conservés pendant les 30 prochains jours. Réabonnez-vous dans ce délai et vous reprenez exactement là où vous vous étiez arrêté, sans rien perdre.\n\nPassé 30 jours, vos données sont définitivement supprimées et ne peuvent être récupérées. Donc s'il y a la moindre chance que vous reveniez, vous réabonner avant garde tout votre travail intact.\n\nUne petite faveur : si vous avez une minute, qu'est-ce qui vous a fait résilier ? Répondez simplement — une vraie personne lit chaque message, et votre réponse nous aide à construire quelque chose de meilleur.",
       ctaLabel:  'Se réabonner',
+      ctaPath:   '/dashboard/billing',
+    },
+  },
+
+  // ─── winback (~23 days after cancellation, before the 30-day purge) ───────
+  // Sent once per workspace via lifecycle_emails UNIQUE(workspace_id, 'winback').
+  // No planPhrase / amount vars : by this point the plan tier from before the
+  // cancellation isn't load-bearing to the message ; the ask is "reactivate to
+  // keep your data", not "renew your specific plan".
+  winback: {
+    en: {
+      subject:   'Your Mirvo workspace is about to be deleted — one click keeps it',
+      preheader: 'Your prospects and campaigns are kept for a few more days. Reactivate to keep everything.',
+      heading:   'Your workspace is still here — for now',
+      bodyMd:    "{{greeting}}\n\nA little while ago you canceled Mirvo for {{workspaceName}}. We kept everything — your prospects, campaigns, and settings — in case you came back.\n\nThat 30-day window is almost up: in about a week, {{workspaceName}} and all its data will be permanently deleted.\n\nIf there's any chance you'll use Mirvo again, reactivating now keeps everything exactly as you left it. If not, no hard feelings — you don't need to do anything.\n\nOne quick question if you have a second: what made Mirvo not the right fit? Just reply — a real person reads every message, and it genuinely helps us.",
+      ctaLabel:  'Reactivate Mirvo',
+      ctaPath:   '/dashboard/billing',
+    },
+    fr: {
+      subject:   'Votre espace Mirvo va être supprimé — un clic pour le garder',
+      preheader: 'Vos prospects et campagnes sont conservés encore quelques jours. Réactivez pour tout garder.',
+      heading:   "Votre espace est encore là — pour l'instant",
+      bodyMd:    "{{greeting}}\n\nIl y a quelque temps, vous avez résilié Mirvo pour {{workspaceName}}. Nous avons tout conservé — vos prospects, vos campagnes et vos réglages — au cas où vous reviendriez.\n\nCe délai de 30 jours touche à sa fin : dans une semaine environ, {{workspaceName}} et toutes ses données seront définitivement supprimés.\n\nS'il y a la moindre chance que vous réutilisiez Mirvo, réactiver maintenant garde tout exactement comme vous l'aviez laissé. Sinon, aucun souci — vous n'avez rien à faire.\n\nUne petite question si vous avez une seconde : qu'est-ce qui a fait que Mirvo n'était pas le bon choix ? Répondez simplement — une vraie personne lit chaque message, et ça nous aide vraiment.",
+      ctaLabel:  'Réactiver Mirvo',
       ctaPath:   '/dashboard/billing',
     },
   },

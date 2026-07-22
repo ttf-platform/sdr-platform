@@ -75,6 +75,7 @@ const KEY_LABEL: Record<EmailTemplateKey, string> = {
   dunning_j3:             'Paiement échoué — J+3',
   dunning_j7:             'Paiement échoué — J+7 (dernier rappel)',
   cancellation:           'Résiliation confirmée',
+  winback:                'Win-back (relance résiliation)',
   signal_digest:          'Digest quotidien de signaux',
 }
 

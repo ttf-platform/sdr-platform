@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/dunning-escalation",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/winback",
+      "schedule": "0 9 * * *"
     }
   ]
 }

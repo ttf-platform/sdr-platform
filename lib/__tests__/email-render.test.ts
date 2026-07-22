@@ -81,6 +81,7 @@ describe('renderTemplate — every registry key × 2 locales', () => {
                      invoiceLine: 'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/invoice-x).',
                      baseUrl: 'https://app.mirvo.ai' },
     cancellation:  { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    planPhrase: ' Pro',           baseUrl: 'https://app.mirvo.ai' },
+    winback:       { greeting: 'Hi Alex,',    workspaceName: 'Acme Co',    baseUrl: 'https://app.mirvo.ai' },
     signal_digest: { greeting: 'Hi Alex,',    matchCount: '3',
                      matchList: '- Acme Co (hiring SDRs)\n- Beta Inc (raised Series A)\n- Gamma Ltd (new tool stack)',
                      baseUrl: 'https://app.mirvo.ai' },
