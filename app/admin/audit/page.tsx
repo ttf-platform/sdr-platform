@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { fetchAllAuthUsers } from '@/lib/admin-users';
 import { AuditTabsClient, type AuditData } from './_components/AuditTabsClient';
 import type { AdminActionRow } from './_components/AdminActionsTab';
 import type { ExportRow } from './_components/ExportsTab';
@@ -123,8 +124,10 @@ export default async function AuditLogPage() {
 
   const emailById: Record<string, string> = {};
   if (idsToResolve.size > 0) {
-    const { data: users } = await admin.auth.admin.listUsers({ perPage: 200 });
-    for (const u of users?.users ?? []) {
+    // fetchAllAuthUsers paginates completely — pre-fix the 200-row cap
+    // dropped admin_actions rows whose admin sat past page 1.
+    const { users } = await fetchAllAuthUsers(admin);
+    for (const u of users) {
       if (idsToResolve.has(u.id) && u.email) emailById[u.id] = u.email;
     }
   }

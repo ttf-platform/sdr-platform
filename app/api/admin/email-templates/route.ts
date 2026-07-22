@@ -1,7 +1,8 @@
 /**
  * /api/admin/email-templates
  *
- * Admin editor CRUD for the 8 platform email templates. All handlers are
+ * Admin editor CRUD for the platform email templates (the exact count
+ * lives in EMAIL_TEMPLATE_META — don't hard-code it). All handlers are
  * guarded by requireSentraAdmin(). Reads/writes go through createAdminClient
  * (email_templates has RLS deny-all — service_role only).
  *

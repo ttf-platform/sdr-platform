@@ -26,12 +26,35 @@ type KPIs = {
   feedback: number;
 };
 
-export function SupportCenterClient({ kpis }: { kpis: KPIs }) {
+export function SupportCenterClient({
+  kpis,
+  notificationsConfigured,
+  adminCount,
+}: {
+  kpis:                    KPIs;
+  notificationsConfigured: boolean;
+  adminCount:              number;
+}) {
   const [tab, setTab] = useState<Tab>('escalations');
   const [selected, setSelected] = useState<SelectedItem | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const triggerRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Truth table for the notification-config badge :
+  //   - email set (DB or env) → neutral / positive : "Notifs: email set · N admin(s)"
+  //   - email set but 0 admins → amber warn : "Notifs: email set · no admins"
+  //   - no email at all       → amber warn : "Notifs: not configured"
+  // The amber path reuses the palette used by other admin warnings
+  // (audit / revenue banner) — no new token.
+  const badgeOk       = notificationsConfigured;
+  const badgeClass    = badgeOk
+    ? 'flex items-center gap-2 rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs text-[#4a4a5a]'
+    : 'flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800';
+  const badgeIconCls  = badgeOk ? 'text-[#6b5e4e]' : 'text-amber-700';
+  const badgeText     = badgeOk
+    ? `Notifs: email set · ${adminCount} admin${adminCount === 1 ? '' : 's'}`
+    : 'Notifs: not configured';
 
   return (
     <div className="mx-auto max-w-7xl p-8">
@@ -40,9 +63,9 @@ export function SupportCenterClient({ kpis }: { kpis: KPIs }) {
           <h1 className="text-2xl font-semibold text-[#1a1a1a]">Support Center</h1>
           <p className="mt-1 text-sm text-[#4a4a5a]">Chatbot conversations, escalations, bug reports, and user feedback</p>
         </div>
-        <div className="flex items-center gap-2 rounded-md border border-[#e8e3dc] bg-white px-3 py-1.5 text-xs text-[#4a4a5a]">
-          <Bell size={14} aria-hidden="true" className="text-[#6b5e4e]" />
-          <span>Notifs: <span className="font-mono text-[#1a1a1a]">env-configured</span></span>
+        <div className={badgeClass} title={badgeOk ? 'ADMIN_NOTIFICATION_EMAIL / admin_settings + SENTRA_ADMIN_EMAILS' : 'Set ADMIN_NOTIFICATION_EMAIL and/or SENTRA_ADMIN_EMAILS so alerts land somewhere'}>
+          <Bell size={14} aria-hidden="true" className={badgeIconCls} />
+          <span>{badgeText}</span>
         </div>
       </div>
 
