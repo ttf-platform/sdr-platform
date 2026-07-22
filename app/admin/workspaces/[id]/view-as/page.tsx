@@ -46,6 +46,12 @@ type EmailRow = {
 const PROSPECTS_LIMIT       = 50;
 const PROSPECT_EMAILS_LIMIT = 50;
 const DEALS_LIMIT           = 50;
+// Upper bound on steps fetched per view-as render. campaign_steps has no
+// workspace_id column, so we scope by `.in('campaign_id', …)`; the cap keeps
+// a workspace with an unusual number of campaigns × steps from paging blind.
+// 500 covers ~50 campaigns × 10 steps or ~100 campaigns × 5 steps, well
+// beyond any real workspace.
+const STEPS_LIMIT           = 500;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // READ-ONLY VIEW-AS — Sprint 5 cockpit admin
@@ -98,11 +104,16 @@ export default async function ViewAsPage(
     metadata:    { view_scope: 'prospects,campaigns,deals,prospect_emails' },
   });
 
-  // ── Parallel reads — explicit workspace_id filter on EVERY query ────────
+  // ── Phase 1 — parallel reads scoped by workspace_id on EVERY query ──────
+  // campaign_steps is fetched separately in Phase 2 : the table has no
+  // workspace_id column, so pre-fix a global `.order('campaign_id')` was
+  // fired and filtered in JS — cross-tenant fetch, silently truncated by
+  // PostgREST as soon as the total exceeded ~1000 rows, and a workspace's
+  // steps could go missing without any signal. We now derive campaignIds
+  // from the campaigns result and issue a scoped `.in('campaign_id', …)`.
   const [
     prospectsRes,
     campaignsRes,
-    stepsRes,
     dealsRes,
     emailsRes,
   ] = await Promise.all([
@@ -130,14 +141,6 @@ export default async function ViewAsPage(
       .order('created_at', { ascending: false })
       .returns<CampaignRowBase[]>(),
 
-    // Steps include subject + body (the user's templates — PII content).
-    admin
-      .from('campaign_steps')
-      .select('id, campaign_id, step_order, step_type, delay_days, subject, body, include_booking_link')
-      .order('campaign_id', { ascending: true })
-      .order('step_order',  { ascending: true })
-      .returns<CampaignStepRow[]>(),
-
     admin
       .from('deals')
       .select('id, prospect_id, campaign_id, source, stage, amount, currency, closed_reason, stage_changed_at, closed_at, created_at')
@@ -158,17 +161,27 @@ export default async function ViewAsPage(
       .returns<EmailRow[]>(),
   ]);
 
-  // Steps need to be filtered by workspace_id transitively (the steps table
-  // has no workspace_id column). Filter client-side by the campaign IDs we
-  // already scoped.
   const prospectsRaw  = prospectsRes.data  ?? [];
   const campaignsRaw  = campaignsRes.data  ?? [];
-  const stepsRaw      = stepsRes.data      ?? [];
   const dealsRaw      = dealsRes.data      ?? [];
   const emailsRaw     = emailsRes.data     ?? [];
 
   const campaignIds = new Set<string>(campaignsRaw.map((c) => c.id));
-  const stepsScoped = stepsRaw.filter((s) => campaignIds.has(s.campaign_id));
+
+  // ── Phase 2 — steps scoped to THIS workspace's campaigns ────────────────
+  // Steps include subject + body (the user's templates — PII content).
+  let stepsScoped: CampaignStepRow[] = [];
+  if (campaignIds.size > 0) {
+    const stepsRes = await admin
+      .from('campaign_steps')
+      .select('id, campaign_id, step_order, step_type, delay_days, subject, body, include_booking_link')
+      .in('campaign_id', Array.from(campaignIds))
+      .order('campaign_id', { ascending: true })
+      .order('step_order',  { ascending: true })
+      .limit(STEPS_LIMIT)
+      .returns<CampaignStepRow[]>();
+    stepsScoped = stepsRes.data ?? [];
+  }
 
   // ── Compose the prospect lookup for emails / deals ──────────────────────
   const prospectById = new Map<string, { email: string; first_name: string | null; last_name: string | null; company: string | null }>();

@@ -15,6 +15,10 @@ export type CronHealthRow = {
   latest_duration_ms:     number | null;
   latest_error_message:   string | null;
   stale:                  boolean;
+  // Non-null when the per-cron DB read itself failed. Rendered as a distinct
+  // gray "query error" badge — NOT synthesized into a false "stale" signal,
+  // to keep an actual DB glitch from being read as "the cron is down".
+  query_error:            string | null;
 };
 
 export type OperationsData = {
@@ -76,6 +80,9 @@ export type OperationsData = {
     created_at:                     string;
   }>;
   limits: { dfyRecent: number; webhookFeed: number; webhookEvents: number; pausedMailboxes: number; stuckWarmup: number };
+  // Human-readable section names whose fetch failed. Rendered as a top-of-page
+  // banner so a silent 0 / empty table is never mistaken for a fact.
+  loadErrors: string[];
 };
 
 const WEBHOOK_EVENT_VARIANT: Record<
@@ -195,6 +202,18 @@ export function OperationsClient({ data }: { data: OperationsData }) {
         <p className="mt-1 text-sm text-[#4a4a5a]">Platform tech health: cron jobs, DFY pipeline, webhook activity, and auto-paused mailboxes.</p>
       </div>
 
+      {data.loadErrors.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4" role="alert">
+          <h2 className="mb-1 text-sm font-semibold text-red-800">
+            {data.loadErrors.length} section{data.loadErrors.length > 1 ? 's' : ''} failed to load
+          </h2>
+          <p className="text-xs text-red-900">
+            Numbers below for these sections may be zero or empty as a symptom of the fetch failure, not as a fact:{' '}
+            <span className="font-mono">{data.loadErrors.join(', ')}</span>. Refresh in a moment or check the database health.
+          </p>
+        </div>
+      )}
+
       {/* ──────────────────────────────────────────────────────────────── */}
       <section aria-labelledby="cron-health-heading">
         <div className="mb-3 flex items-baseline justify-between">
@@ -202,7 +221,7 @@ export function OperationsClient({ data }: { data: OperationsData }) {
           <p className="text-xs text-[#9a9a9a]">{data.cronHealth.length} scheduled jobs</p>
         </div>
 
-        {data.cronHealth.every((c) => c.latest_started_at === null) ? (
+        {data.cronHealth.every((c) => c.latest_started_at === null && c.query_error === null) ? (
           <EmptyState message="No cron runs recorded yet — jobs will appear here after their next scheduled run." />
         ) : (
           <div className="overflow-hidden rounded-lg border border-[#e8e3dc] bg-white">
@@ -219,22 +238,32 @@ export function OperationsClient({ data }: { data: OperationsData }) {
               </thead>
               <tbody>
                 {data.cronHealth.map((c) => {
-                  const isFailed = c.latest_status === 'failed';
-                  const isStale = c.stale;
-                  const isNeverRan = c.latest_started_at === null;
+                  const hasQueryError = c.query_error !== null;
+                  const isFailed      = !hasQueryError && c.latest_status === 'failed';
+                  const isStale       = !hasQueryError && c.stale;
+                  const isNeverRan    = !hasQueryError && c.latest_started_at === null;
                   const rowCls =
-                    isFailed ? 'bg-red-50' :
-                    isStale  ? 'bg-amber-50' :
+                    hasQueryError ? '' :
+                    isFailed      ? 'bg-red-50' :
+                    isStale       ? 'bg-amber-50' :
                     '';
                   return (
                     <tr key={c.name} className={`border-b border-[#f0ebe4] last:border-b-0 ${rowCls}`}>
                       <td className="px-4 py-3 font-medium text-[#1a1a1a]">{c.name}</td>
                       <td className="px-4 py-3 text-xs text-[#4a4a5a]">{c.schedule_label}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-[#4a4a5a]" title={c.latest_started_at ?? ''}>
-                        {isNeverRan ? <span className="text-[#9a9a9a]">never</span> : formatRelative(c.latest_started_at)}
+                        {hasQueryError ? (
+                          <span className="text-[#9a9a9a]">unknown</span>
+                        ) : isNeverRan ? (
+                          <span className="text-[#9a9a9a]">never</span>
+                        ) : (
+                          formatRelative(c.latest_started_at)
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        {isNeverRan ? (
+                        {hasQueryError ? (
+                          <StatusBadge variant="gray">query error</StatusBadge>
+                        ) : isNeverRan ? (
                           <StatusBadge variant="gray">no data</StatusBadge>
                         ) : isFailed ? (
                           <StatusBadge variant="red">failed</StatusBadge>
@@ -248,7 +277,9 @@ export function OperationsClient({ data }: { data: OperationsData }) {
                         {c.latest_duration_ms != null ? `${c.latest_duration_ms} ms` : '—'}
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        {isFailed && c.latest_error_message ? (
+                        {hasQueryError ? (
+                          <span className="text-red-700" title={c.query_error ?? ''}>{c.query_error}</span>
+                        ) : isFailed && c.latest_error_message ? (
                           <span className="text-red-700">{c.latest_error_message}</span>
                         ) : isStale ? (
                           <span className="text-amber-800">expected within {c.expected_max_gap_hours}h</span>
