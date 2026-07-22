@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth';
-import { getAllAdminSettings, setAdminSetting } from '@/lib/admin-settings';
+import { getAllAdminSettings, setAdminSettings } from '@/lib/admin-settings';
 import { adminSettingsUpdateSchema, badRequest } from '@/lib/schemas';
 import { logAdminAction } from '@/lib/admin';
 
@@ -41,14 +41,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'nothing_to_update' }, { status: 400 });
   }
 
-  const failed: Array<{ key: string; error: string }> = [];
-  for (const u of updates) {
-    const r = await setAdminSetting(u.key, u.value, admin.id);
-    if (!r.ok) failed.push({ key: u.key, error: r.error ?? 'unknown' });
-  }
-
-  if (failed.length > 0) {
-    return NextResponse.json({ error: 'partial_failure', failed }, { status: 500 });
+  // Pre-fix : per-key loop meant a mid-batch failure left the earlier
+  // keys persisted AND skipped logAdminAction. Now every key rides on a
+  // single Supabase upsert : all-or-nothing at the DB, so on error we can
+  // safely 500 with no partial state to reason about, and on success the
+  // audit log always fires.
+  const r = await setAdminSettings(updates, admin.id);
+  if (!r.ok) {
+    return NextResponse.json({ error: 'update_failed', detail: r.error }, { status: 500 });
   }
 
   await logAdminAction({
@@ -57,6 +57,6 @@ export async function PATCH(req: NextRequest) {
     metadata:    { keys_changed: updates.map((u) => u.key) },
   });
 
-  return NextResponse.json({ ok: true, updated: updates.length });
+  return NextResponse.json({ ok: true, updated: r.updated });
 }
 
