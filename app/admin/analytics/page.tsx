@@ -1,5 +1,6 @@
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
 import { isActivePaid } from '@/lib/admin-metrics';
+import { fetchAllAuthUsers } from '@/lib/admin-users';
 import { AnalyticsClient } from './_components/AnalyticsClient';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,11 @@ type AnalyticsData = {
   };
   funnel: { signups: number; activatedTrials: number; paid: number };
   cohorts: Array<{ month: string; signups: number; retainedLast7Days: number; retentionPct: number }>;
+  // When true, at least one of the underlying queries (users list, workspaces,
+  // campaigns, members) failed OR the users list was truncated by the maxPages
+  // cap. The affected KPIs surface as null and the UI shows a "partial data"
+  // banner rather than silently rendering wrong numbers.
+  dataIncomplete: boolean;
 };
 
 export default async function AnalyticsPage() {
@@ -22,26 +28,37 @@ export default async function AnalyticsPage() {
 
 async function loadAnalytics(): Promise<AnalyticsData> {
   const sb = getAdminSupabaseClient();
+  let dataIncomplete = false;
 
+  // Pre-fix : the 5×200 loop silently capped at 1 000 users, inflating
+  // small denominators and hiding older cohorts. Full pagination via the
+  // shared helper (up to 20 000 users) ; `truncated` flips the banner if
+  // we ever grow past the cap.
+  const { users: authUsers, truncated: usersTruncated } = await fetchAllAuthUsers(sb);
+  if (usersTruncated) dataIncomplete = true;
   const allUsers: Array<{ id: string; created_at: string; last_sign_in_at: string | null }> = [];
-  for (let p = 1; p <= 5; p++) {
-    const { data, error } = await sb.auth.admin.listUsers({ page: p, perPage: 200 });
-    if (error || !data?.users) break;
-    for (const u of data.users) {
-      if (!u.created_at) continue;
-      allUsers.push({ id: u.id, created_at: u.created_at, last_sign_in_at: u.last_sign_in_at ?? null });
-    }
-    if (data.users.length < 200) break;
+  for (const u of authUsers) {
+    if (!u.created_at) continue;
+    allUsers.push({ id: u.id, created_at: u.created_at, last_sign_in_at: u.last_sign_in_at ?? null });
   }
 
-  const [{ data: workspaces }, { data: campaigns }, { data: members }] = await Promise.all([
+  // Read the `.error` on each Promise.all call. Previously errors were
+  // silently coerced to `[]` via `?? []`, so a failing workspaces query
+  // rendered a zeroed funnel + null trialToPaid rate with no visible
+  // signal. Now each failure flips `dataIncomplete` and the affected
+  // downstream metric surfaces the banner.
+  const [wsResult, campaignsResult, membersResult] = await Promise.all([
     sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, created_at'),
     sb.from('campaigns').select('workspace_id, created_at'),
     sb.from('workspace_members').select('user_id, workspace_id'),
   ]);
+  if (wsResult.error)        { console.warn('[analytics] workspaces query failed', wsResult.error.message);        dataIncomplete = true; }
+  if (campaignsResult.error) { console.warn('[analytics] campaigns query failed',  campaignsResult.error.message); dataIncomplete = true; }
+  if (membersResult.error)   { console.warn('[analytics] members query failed',    membersResult.error.message);   dataIncomplete = true; }
 
-  const workspacesArr = workspaces ?? [];
-  const campaignsArr = campaigns ?? [];
+  const workspacesArr = wsResult.data ?? [];
+  const campaignsArr  = campaignsResult.data ?? [];
+  const members       = membersResult.data ?? [];
 
   const firstCampaignByWorkspace = new Map<string, string>();
   for (const c of campaignsArr) {
@@ -52,7 +69,7 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   }
 
   const userToWorkspaces = new Map<string, string[]>();
-  for (const m of members ?? []) {
+  for (const m of members) {
     const arr = userToWorkspaces.get(m.user_id) ?? [];
     arr.push(m.workspace_id);
     userToWorkspaces.set(m.user_id, arr);
@@ -144,5 +161,6 @@ async function loadAnalytics(): Promise<AnalyticsData> {
     kpis: { signupsLast30Days, activationRate, trialToPaidRate, churnRate30d },
     funnel: { signups: allUsers.length, activatedTrials: activatedUserCount, paid: paidUserCount },
     cohorts,
+    dataIncomplete,
   };
 }

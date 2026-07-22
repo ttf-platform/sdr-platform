@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireSentraAdminResponse as requireSentraAdmin } from '@/lib/admin-auth'
 import { logAdminAction } from '@/lib/admin'
+import { fetchAllAuthUsers } from '@/lib/admin-users'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { adminCreditsGrantSchema, badRequest } from '@/lib/schemas'
@@ -15,8 +16,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues)
   const { email, amount, reason } = parsed.data
   const admin = createAdminClient()
-  const { data: users } = await admin.auth.admin.listUsers()
-  const targetUser = users?.users?.find(u => u.email === email)
+  // Pre-fix : `listUsers()` (default 50/page) returned "User not found"
+  // for any user past page 1. fetchAllAuthUsers walks every page so the
+  // grant works regardless of the target user's rank.
+  const { users: allUsers } = await fetchAllAuthUsers(admin)
+  const targetUser = allUsers.find(u => u.email === email)
   if (!targetUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   const { data: member } = await admin.from('workspace_members').select('workspace_id').eq('user_id', targetUser.id).single()
   if (!member) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })

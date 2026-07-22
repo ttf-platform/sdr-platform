@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
+import { fetchAllAuthUsers } from '@/lib/admin-users';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,22 +19,22 @@ export async function GET(req: NextRequest) {
 
   const sb = getAdminSupabaseClient();
 
+  // Pre-fix : the 10×200 loop capped at 2 000 users, silently. Full
+  // pagination via the shared helper (20 000-user cap) + `truncated` flag
+  // propagated to the client so the list can display a "truncated at N"
+  // note if the cap ever bites.
+  const { users: authUsers, truncated } = await fetchAllAuthUsers(sb);
   const allUsers: Array<{ id: string; email: string | null; created_at: string; last_sign_in_at: string | null; banned_until: string | null }> = [];
-  for (let p = 1; p <= 10; p++) {
-    const { data, error } = await sb.auth.admin.listUsers({ page: p, perPage: 200 });
-    if (error || !data?.users) break;
-    for (const u of data.users) {
-      if (!u.email) continue;
-      if (search && !u.email.toLowerCase().includes(search)) continue;
-      allUsers.push({
-        id: u.id,
-        email: u.email,
-        created_at: u.created_at ?? '',
-        last_sign_in_at: u.last_sign_in_at ?? null,
-        banned_until: (u as unknown as { banned_until?: string | null }).banned_until ?? null,
-      });
-    }
-    if (data.users.length < 200) break;
+  for (const u of authUsers) {
+    if (!u.email) continue;
+    if (search && !u.email.toLowerCase().includes(search)) continue;
+    allUsers.push({
+      id: u.id,
+      email: u.email,
+      created_at: u.created_at ?? '',
+      last_sign_in_at: u.last_sign_in_at ?? null,
+      banned_until: (u as unknown as { banned_until?: string | null }).banned_until ?? null,
+    });
   }
 
   allUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -104,6 +105,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     users,
-    pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) },
+    pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), truncated },
   });
 }

@@ -13,6 +13,7 @@ type AnalyticsData = {
   };
   funnel: { signups: number; activatedTrials: number; paid: number };
   cohorts: Array<{ month: string; signups: number; retainedLast7Days: number; retentionPct: number }>;
+  dataIncomplete: boolean;
 };
 
 export function AnalyticsClient({ data }: { data: AnalyticsData }) {
@@ -22,6 +23,18 @@ export function AnalyticsClient({ data }: { data: AnalyticsData }) {
         <h1 className="text-2xl font-semibold text-[#1a1a1a]">Analytics</h1>
         <p className="mt-1 text-sm text-[#4a4a5a]">Acquisition & activation metrics.</p>
       </div>
+
+      {data.dataIncomplete && (
+        // Same amber banner style as /admin/revenue's "Gross MRR" caveat
+        // (RevenueClient.tsx:114) — no new component, no new token.
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+          <p className="font-medium">Partial data.</p>
+          <p className="mt-1">
+            One or more underlying queries failed or the users list hit the
+            pagination cap. Numbers below are a lower bound — refresh to retry.
+          </p>
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard label="Signups (30d)" value={formatNumber(data.kpis.signupsLast30Days)} icon={TrendingUp} />
