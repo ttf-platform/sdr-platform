@@ -11,6 +11,48 @@ export const maxDuration = 60
 const DAY_OFFSETS: OnboardingDayOffset[] = [0, 2, 4, 7]
 const CRON_NAME = 'onboarding-emails'
 
+/**
+ * Pure decision function : should this (workspace, offset) combination be
+ * sent right now ? Extracted so unit tests can exercise the branching
+ * without a Supabase double.
+ *
+ * Order matters — the first matching skip reason short-circuits :
+ *   1. `already_sent`               — idempotency (existing behavior)
+ *   2. `subscribed`                 — day 2/4/7 skipped for active subscribers (existing)
+ *   3. `out_of_window`              — target day ± 1 tolerance (existing)
+ *   4. `signal_already_set` (d2)    — user already configured a signal → the d2 nudge is redundant
+ *   5. `campaign_already_launched` (d7) — user already launched a campaign → the d7 nudge is redundant
+ *
+ * Best-practice "just-in-time" onboarding : never nudge an action the user
+ * has already done. d0 (welcome) is never gated by activity ; d4
+ * (deliverability education) is content, not a task, so it also stays
+ * ungated.
+ */
+export type OnboardingSkipReason =
+  | 'already_sent'
+  | 'subscribed'
+  | 'out_of_window'
+  | 'signal_already_set'
+  | 'campaign_already_launched'
+
+export function shouldSendOnboarding(p: {
+  offset:              OnboardingDayOffset
+  alreadySent:         boolean
+  subscriptionActive:  boolean
+  daysSinceSignup:     number
+  hasActiveSignal:     boolean
+  hasLaunchedCampaign: boolean
+}): { send: boolean; skipReason?: OnboardingSkipReason } {
+  if (p.alreadySent) return { send: false, skipReason: 'already_sent' }
+  if (p.offset > 0 && p.subscriptionActive) return { send: false, skipReason: 'subscribed' }
+  if (p.daysSinceSignup < p.offset || p.daysSinceSignup > p.offset + 1) {
+    return { send: false, skipReason: 'out_of_window' }
+  }
+  if (p.offset === 2 && p.hasActiveSignal)     return { send: false, skipReason: 'signal_already_set' }
+  if (p.offset === 7 && p.hasLaunchedCampaign) return { send: false, skipReason: 'campaign_already_launched' }
+  return { send: true }
+}
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret) {
@@ -103,6 +145,32 @@ export async function GET(request: Request) {
       (sentRows ?? []).map((r: { workspace_id: string; day_offset: number }) => `${r.workspace_id}:${r.day_offset}`)
     )
 
+    // 4. Behavioural skip inputs — one bulk SELECT each (no N+1).
+    //    - active signals : signals.is_active = true
+    //    - launched campaigns : campaigns.status IN (approved, active, sent)
+    //    Errors here are non-fatal for the cron run : if the query fails,
+    //    fall back to an empty set (== treat everyone as "no activity") so
+    //    the existing d0/d4 sends still fire. The dedicated behavioural
+    //    gates are best-effort ; we prefer over-sending d2/d7 to a subset
+    //    of users over silently killing the whole cron for the day.
+    const { data: sigRows, error: sigErr } = await supa
+      .from('signals')
+      .select('workspace_id')
+      .eq('is_active', true)
+    if (sigErr) console.warn('[cron/onboarding-emails] signals fetch failed (non-fatal)', sigErr.message)
+    const activeSignalWs = new Set<string>(
+      (sigRows ?? []).map((r: { workspace_id: string }) => r.workspace_id),
+    )
+
+    const { data: campRows, error: campErr } = await supa
+      .from('campaigns')
+      .select('workspace_id')
+      .in('status', ['approved', 'active', 'sent'])
+    if (campErr) console.warn('[cron/onboarding-emails] campaigns fetch failed (non-fatal)', campErr.message)
+    const launchedCampaignWs = new Set<string>(
+      (campRows ?? []).map((r: { workspace_id: string }) => r.workspace_id),
+    )
+
     const now = Date.now()
 
     for (const ws of workspaces) {
@@ -118,21 +186,27 @@ export async function GET(request: Request) {
       for (const offset of DAY_OFFSETS) {
         const key = `${ws.id}:${offset}`
 
-        // Skip if already sent
-        if (sentSet.has(key)) {
+        const decision = shouldSendOnboarding({
+          offset,
+          alreadySent:         sentSet.has(key),
+          subscriptionActive:  ws.subscription_status === 'active',
+          daysSinceSignup,
+          hasActiveSignal:     activeSignalWs.has(ws.id),
+          hasLaunchedCampaign: launchedCampaignWs.has(ws.id),
+        })
+        if (!decision.send) {
           summary.skipped++
-          continue
-        }
-
-        // Day 2/4/7 skipped for active subscribers (already converted)
-        if (offset > 0 && ws.subscription_status === 'active') {
-          summary.skipped++
-          continue
-        }
-
-        // Tolerance: send if today is the target day or 1 day late
-        if (daysSinceSignup < offset || daysSinceSignup > offset + 1) {
-          summary.skipped++
+          // Log skip reasons so the two new behavioural gates
+          // (signal_already_set, campaign_already_launched) are visible
+          // in the cron output — otherwise we can't tell "no one qualified
+          // today" from "everyone was already active".
+          console.log(JSON.stringify({
+            cron: 'onboarding-emails',
+            workspace_id: ws.id,
+            day_offset: offset,
+            status: 'skipped',
+            reason: decision.skipReason,
+          }))
           continue
         }
 
