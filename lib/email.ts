@@ -417,6 +417,34 @@ export async function sendCancellationEmail(params: {
 }
 
 /**
+ * Win-back email — sent ONCE per canceled workspace ~23 days after cancellation,
+ * roughly one week before the J+30 purge (see app/api/cron/winback/route.ts).
+ * At-most-once semantics enforced by lifecycle_emails UNIQUE(workspace_id, 'winback').
+ * No planPhrase / amount vars : by this stage the previous plan tier isn't the
+ * load-bearing point ; the ask is "reactivate to keep your data".
+ */
+export async function sendWinbackEmail(params: {
+  to:            string;
+  firstName:     string | null;
+  workspaceName: string;
+  appBaseUrl:    string;
+  locale:        EmailTemplateLocale;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const { to, firstName, workspaceName, appBaseUrl, locale } = params;
+  return sendTemplate({
+    to,
+    key:    'winback',
+    locale,
+    vars: {
+      greeting:      greetingFor(firstName, locale),
+      workspaceName,
+      baseUrl:       appBaseUrl,
+    },
+    logTag: 'sendWinbackEmail',
+  });
+}
+
+/**
  * Generic admin alert email — sober template used by dispatchAdminAlert()
  * when callers do NOT pass a pre-baked `{subject,html}`. Reserved for
  * events without a dedicated rich template (new_signup, new_subscription,
