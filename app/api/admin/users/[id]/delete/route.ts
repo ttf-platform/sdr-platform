@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { requireSentraAdminResponse, requireSentraAdmin, AdminAuthError } from '@/lib/admin-auth'
+import { requireSentraAdminResponse, requireSentraAdmin, AdminAuthError, isAdminEmail } from '@/lib/admin-auth'
 import { getAdminSupabaseClient } from '@/lib/supabase-admin'
 import { logAdminAction } from '@/lib/admin'
+import { stripe } from '@/lib/stripe'
+import { ownedWorkspacesWithSub } from '@/lib/admin-billing'
 
 export const runtime = 'nodejs'
 
@@ -44,6 +46,21 @@ export async function POST(
   }
   const user = userData.user
 
+  // §3.30 — Self / other-admin guards. Placed BEFORE every mutation
+  // (idempotency insert, Stripe cancel, ban) so a mis-clicked target never
+  // reaches a partially-applied state.
+  //   - self : an admin nuking their own account via this route would kill
+  //     their own session mid-request and leave the platform without an
+  //     owner. Use /api/account/delete instead.
+  //   - other admin : never through the UI. Removing an admin is a Vercel
+  //     env-var edit + a manual cleanup, not a click in the users tab.
+  if (targetUserId === admin.id) {
+    return NextResponse.json({ error: 'cannot_target_self' }, { status: 403 })
+  }
+  if (isAdminEmail(user.email)) {
+    return NextResponse.json({ error: 'cannot_target_admin' }, { status: 403 })
+  }
+
   // 2. Snapshot user data
   const snapshot = {
     id: user.id,
@@ -72,6 +89,44 @@ export async function POST(
       deleted_users_row_id: existing.id,
       scheduled_hard_delete_at: existing.scheduled_hard_delete_at,
     }, { status: 409 })
+  }
+
+  // §2.15a — Best-effort Stripe cancel across every workspace the target
+  // owns with an active subscription. Runs BEFORE the ban so a mid-flight
+  // failure leaves the account still logged-in-able (a suspended user with
+  // orphan billing would be worse than a not-yet-suspended user with
+  // stopped billing).
+  //
+  // Contract : the admin's intent is to delete the account no matter what.
+  // A Stripe failure (or a stripe=null env) is logged, collected, and
+  // returned to the caller ; it never blocks the ban / soft-delete.
+  const stripeCancelFailures: string[] = []
+  const ownedWorkspaces = await ownedWorkspacesWithSub(sb, targetUserId)
+  const nowIso = new Date().toISOString()
+  for (const ws of ownedWorkspaces) {
+    if (ws.subscription_status !== 'active' || !ws.stripe_subscription_id) continue
+    if (!stripe) {
+      console.error('[admin/delete] stripe cancel failed', { wsId: ws.id, error: 'stripe_not_configured' })
+      stripeCancelFailures.push(ws.id)
+      continue
+    }
+    try {
+      await stripe.subscriptions.cancel(ws.stripe_subscription_id)
+      await sb
+        .from('workspaces')
+        .update({
+          subscription_status:    'canceled',
+          canceled_at:            nowIso,
+          stripe_subscription_id: null,
+        })
+        .eq('id', ws.id)
+    } catch (err) {
+      console.error('[admin/delete] stripe cancel failed', {
+        wsId:  ws.id,
+        error: err instanceof Error ? err.message : 'unknown',
+      })
+      stripeCancelFailures.push(ws.id)
+    }
   }
 
   // 3. Insert into deleted_users with 30-day grace
@@ -106,12 +161,18 @@ export async function POST(
     action_type: 'user.soft_delete',
     target_type: 'user',
     target_id: user.id,
-    metadata: { email: user.email, scheduled_hard_delete_at: scheduledHardDeleteAt.toISOString(), reason },
+    metadata: {
+      email: user.email,
+      scheduled_hard_delete_at: scheduledHardDeleteAt.toISOString(),
+      reason,
+      stripe_cancel_failures: stripeCancelFailures,
+    },
   })
 
   return NextResponse.json({
     ok: true,
     user_id: user.id,
     scheduled_hard_delete_at: scheduledHardDeleteAt.toISOString(),
+    stripe_cancel_failures: stripeCancelFailures,
   })
 }
