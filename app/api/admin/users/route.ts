@@ -85,7 +85,17 @@ export async function GET(req: NextRequest) {
 
   const users = slice.map((u) => {
     const ms = memberships[u.id] ?? [];
-    const primary = ms[0];
+    // Deterministic "primary" pick for multi-workspace users. Pre-fix used
+    // `ms[0]`, which reflected whatever order Postgres returned rows in —
+    // the plan / role shown in the admin list could flip across renders.
+    // Prefer an `owner` membership ; tiebreak by workspace_id.localeCompare
+    // so the pick is stable without adding a schema dependency (no need to
+    // fetch workspace_members.created_at or workspaces.created_at just to
+    // sort the list here). `undefined` when ms.length === 0, unchanged.
+    const primary = [...ms].sort((a, b) =>
+      (b.role === 'owner' ? 1 : 0) - (a.role === 'owner' ? 1 : 0)
+      || a.workspace_id.localeCompare(b.workspace_id)
+    )[0];
     const ws = primary ? workspaceMap[primary.workspace_id] : undefined;
     const banned = u.banned_until && new Date(u.banned_until).getTime() > Date.now();
     return {

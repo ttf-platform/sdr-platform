@@ -72,12 +72,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'grant_failed', detail: grantErr.message }, { status: 500 })
   }
 
-  await admin.from('credit_history').insert({
+  // Audit-side insert. The grant already succeeded via the RPC above and
+  // admin_actions_log will run below, so a credit_history insert failure
+  // must NOT fail the request (that would be user-visible for a mutation
+  // that actually landed). Surface to logs with enough context to reconcile.
+  const { error: histErr } = await admin.from('credit_history').insert({
     workspace_id: member.workspace_id,
     granted_by:   user.id,
     amount,
     reason,
   })
+  if (histErr) {
+    console.error('[api/admin/credits] credit_history insert failed', {
+      workspace_id: member.workspace_id,
+      amount,
+      error: histErr.message,
+    })
+  }
 
   await logAdminAction({
     admin_id:    user.id,
