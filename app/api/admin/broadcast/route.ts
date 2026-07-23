@@ -9,9 +9,12 @@ import { adminBroadcastSchema, badRequest } from '@/lib/schemas'
 import { getResendClient } from '@/lib/email'
 
 export async function POST(request: Request) {
-  const resend = getResendClient()
+  // Guard FIRST. `getResendClient()` throws at init when RESEND_API_KEY is
+  // missing ; running it before the auth check would let an unauthenticated
+  // caller surface that init error and probe for platform state.
   const guard = await requireSentraAdmin()
   if (guard) return guard
+  const resend = getResendClient()
 
   let rawBody: unknown
   try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
@@ -64,7 +67,11 @@ export async function POST(request: Request) {
     }
   }
 
-  await admin.from('broadcast_messages').insert({
+  // Audit-side insert. If it fails we DON'T fail the request — the send has
+  // already happened, refunding the emails is not a thing, and the primary
+  // audit trail is admin_actions_log (written below). Just surface the loss
+  // to the server logs with enough context to reconcile manually.
+  const { error: logErr } = await admin.from('broadcast_messages').insert({
     subject,
     body,
     target,
@@ -72,6 +79,14 @@ export async function POST(request: Request) {
     sent_by:         user.id,
     sent_at:         new Date().toISOString(),
   })
+  if (logErr) {
+    console.error('[api/admin/broadcast] broadcast_messages insert failed', {
+      target,
+      sent,
+      failed,
+      error: logErr.message,
+    })
+  }
 
   await logAdminAction({
     admin_id:    user.id,
