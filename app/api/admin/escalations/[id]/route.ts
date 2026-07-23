@@ -30,7 +30,7 @@ export async function GET(
   const sb = getAdminSupabaseClient();
   const { data: row, error } = await sb
     .from('escalations')
-    .select('id, conversation_id, workspace_id, user_id, reason, summary, status, admin_notified_at, created_at')
+    .select('id, conversation_id, workspace_id, user_id, reason, summary, status, admin_notified_at, admin_response, admin_response_at, created_at')
     .eq('id', id)
     .maybeSingle();
 

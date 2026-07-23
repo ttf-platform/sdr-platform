@@ -61,26 +61,37 @@ function Header({ type, onClose }: { type: SelectedItem['type']; onClose: () => 
 type EscalationRow = {
   id: string; conversation_id: string; user_email: string | null;
   workspace_id: string; reason: string; summary: string; status: string; created_at: string;
+  admin_response: string | null; admin_response_at: string | null;
 };
+
+const NOTES_MAX = 5000;
 
 function EscalationContent({ id, onMutate, onClose }: { id: string; onMutate: () => void; onClose: () => void }) {
   const [data, setData] = useState<EscalationRow | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [conversationData, setConversationData] = useState<{ messages: Array<{ role: string; content: string; tool_calls: unknown; created_at: string }> } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Local edit state for the admin_response block — synced from `data` when
+  // it loads / changes id, then diverges as the admin types until Save.
+  const [response, setResponse] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
     setNotFound(false);
+    setResponse('');
+    setSaveError(null);
     fetch(`/api/admin/escalations/${id}`)
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) { setNotFound(true); return; }
         const d = await r.json() as { escalation?: EscalationRow };
         if (cancelled) return;
-        if (d?.escalation) setData(d.escalation);
-        else setNotFound(true);
+        if (d?.escalation) {
+          setData(d.escalation);
+          setResponse(d.escalation.admin_response ?? '');
+        } else setNotFound(true);
       })
       .catch(() => { if (!cancelled) setNotFound(true); });
     return () => { cancelled = true; };
@@ -105,6 +116,29 @@ function EscalationContent({ id, onMutate, onClose }: { id: string; onMutate: ()
     } finally { setBusy(false); }
   }
 
+  async function saveResponse() {
+    if (!data) return;
+    setBusy(true);
+    setSaveError(null);
+    try {
+      const r = await fetch(`/api/admin/escalations/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_response: response }),
+      });
+      if (!r.ok) {
+        setSaveError('Save failed. Try again.');
+        return;
+      }
+      // The PATCH stamps admin_response_at server-side ; mirror it locally so
+      // the "Responded {date}" line updates without a full refetch. onMutate
+      // refreshes the LIST behind the drawer ; we keep the drawer open per brief.
+      setData({ ...data, admin_response: response, admin_response_at: new Date().toISOString() });
+      onMutate();
+    } catch {
+      setSaveError('Network error. Try again.');
+    } finally { setBusy(false); }
+  }
+
   if (notFound) return <div className="p-6 text-sm text-[#9a9a9a]">Not found</div>;
   if (!data)    return <div className="p-6 text-sm text-[#9a9a9a]">Loading…</div>;
 
@@ -115,6 +149,35 @@ function EscalationContent({ id, onMutate, onClose }: { id: string; onMutate: ()
       <Section label="User">{data.user_email ?? data.workspace_id}</Section>
       <Section label="Created">{new Date(data.created_at).toLocaleString()}</Section>
       <Section label="Summary"><p className="text-sm leading-relaxed text-[#1a1a1a]">{data.summary}</p></Section>
+
+      {/* Admin response — stored on the row, NOT emailed. Same styling as
+          the other Section blocks + textarea + Save button (uses ActionBtn
+          for token parity with the status buttons above). */}
+      <div className="mb-6">
+        <div className="mb-1 flex items-baseline justify-between gap-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a]">Admin response</div>
+          <div className="text-[11px] text-[#9a9a9a]">Saved to the record — not emailed to the user</div>
+        </div>
+        <textarea
+          value={response}
+          onChange={(e) => setResponse(e.target.value)}
+          rows={5}
+          placeholder="Internal notes on how this escalation was handled…"
+          aria-label="Admin response"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder:text-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
+        />
+        {saveError && <div role="alert" className="mt-1 text-xs text-red-600">{saveError}</div>}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <span className="text-[11px] text-[#9a9a9a]">
+            {data.admin_response_at ? `Responded ${new Date(data.admin_response_at).toLocaleString()}` : ''}
+          </span>
+          <div className="flex items-center gap-3">
+            <CharCounter length={response.length} max={NOTES_MAX} />
+            <ActionBtn busy={busy} onClick={saveResponse}>Save response</ActionBtn>
+          </div>
+        </div>
+      </div>
+
       <div className="mb-6 flex gap-2">
         {data.status !== 'resolved' && (
           <>
@@ -177,25 +240,36 @@ function ConversationContent({ id }: { id: string }) {
 type BugRow = {
   id: string; user_email: string | null; title: string; description: string;
   priority: string; status: string; browser: string | null; page_url: string | null; created_at: string;
+  admin_notes: string | null;
 };
 
 function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
   const [data, setData] = useState<BugRow | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Local edit state for the priority + notes block. Priority is a
+  // controlled <select> ; notes a textarea. Both saved together by the
+  // single Save button — atomic PATCH keeps DB and audit log clean.
+  const [priority, setPriority] = useState('medium');
+  const [notes, setNotes] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
     setNotFound(false);
+    setSaveError(null);
     fetch(`/api/admin/bug-reports/${id}`)
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) { setNotFound(true); return; }
         const d = await r.json() as { bugReport?: BugRow };
         if (cancelled) return;
-        if (d?.bugReport) setData(d.bugReport);
-        else setNotFound(true);
+        if (d?.bugReport) {
+          setData(d.bugReport);
+          setPriority(d.bugReport.priority);
+          setNotes(d.bugReport.admin_notes ?? '');
+        } else setNotFound(true);
       })
       .catch(() => { if (!cancelled) setNotFound(true); });
     return () => { cancelled = true; };
@@ -206,6 +280,26 @@ function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
     try {
       await fetch(`/api/admin/bug-reports/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(update) });
       onMutate();
+    } finally { setBusy(false); }
+  }
+
+  async function saveDetails() {
+    if (!data) return;
+    setBusy(true);
+    setSaveError(null);
+    try {
+      const r = await fetch(`/api/admin/bug-reports/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority, admin_notes: notes }),
+      });
+      if (!r.ok) {
+        setSaveError('Save failed. Try again.');
+        return;
+      }
+      setData({ ...data, priority, admin_notes: notes });
+      onMutate();
+    } catch {
+      setSaveError('Network error. Try again.');
     } finally { setBusy(false); }
   }
 
@@ -230,6 +324,39 @@ function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
       })()}
       {data.browser && <Section label="Browser"><span className="text-xs text-[#4a4a5a]">{data.browser}</span></Section>}
       <Section label="Description"><p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1a1a1a]">{data.description}</p></Section>
+
+      {/* Priority + internal notes editor. Priority displayed at the top
+          (pill) is source-of-truth from the DB ; the select below is the
+          local edit state and updates the display pill after Save. */}
+      <div className="mb-6">
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a]">Priority</div>
+        <select
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          aria-label="Priority"
+          className="mb-4 w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a]">Internal notes</div>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={5}
+          placeholder="Repro steps, root cause, workarounds…"
+          aria-label="Internal notes"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder:text-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
+        />
+        {saveError && <div role="alert" className="mt-1 text-xs text-red-600">{saveError}</div>}
+        <div className="mt-2 flex items-center justify-end gap-3">
+          <CharCounter length={notes.length} max={NOTES_MAX} />
+          <ActionBtn busy={busy} onClick={saveDetails}>Save details</ActionBtn>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {data.status === 'new' && <ActionBtn busy={busy} onClick={() => patch({ status: 'acknowledged' })}>Acknowledge</ActionBtn>}
         {(data.status === 'new' || data.status === 'acknowledged') && <ActionBtn busy={busy} onClick={() => patch({ status: 'in_progress' })}>In progress</ActionBtn>}
@@ -242,25 +369,31 @@ function BugContent({ id, onMutate }: { id: string; onMutate: () => void }) {
 type FeedbackRow = {
   id: string; user_email: string | null; category: string; content: string;
   would_pay: boolean | null; status: string; created_at: string;
+  admin_notes: string | null;
 };
 
 function FeedbackContent({ id, onMutate }: { id: string; onMutate: () => void }) {
   const [data, setData] = useState<FeedbackRow | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
     setNotFound(false);
+    setSaveError(null);
     fetch(`/api/admin/feedback/${id}`)
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) { setNotFound(true); return; }
         const d = await r.json() as { feedback?: FeedbackRow };
         if (cancelled) return;
-        if (d?.feedback) setData(d.feedback);
-        else setNotFound(true);
+        if (d?.feedback) {
+          setData(d.feedback);
+          setNotes(d.feedback.admin_notes ?? '');
+        } else setNotFound(true);
       })
       .catch(() => { if (!cancelled) setNotFound(true); });
     return () => { cancelled = true; };
@@ -271,6 +404,26 @@ function FeedbackContent({ id, onMutate }: { id: string; onMutate: () => void })
     try {
       await fetch(`/api/admin/feedback/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
       onMutate();
+    } finally { setBusy(false); }
+  }
+
+  async function saveNotes() {
+    if (!data) return;
+    setBusy(true);
+    setSaveError(null);
+    try {
+      const r = await fetch(`/api/admin/feedback/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_notes: notes }),
+      });
+      if (!r.ok) {
+        setSaveError('Save failed. Try again.');
+        return;
+      }
+      setData({ ...data, admin_notes: notes });
+      onMutate();
+    } catch {
+      setSaveError('Network error. Try again.');
     } finally { setBusy(false); }
   }
 
@@ -285,6 +438,24 @@ function FeedbackContent({ id, onMutate }: { id: string; onMutate: () => void })
       <Section label="Created">{new Date(data.created_at).toLocaleString()}</Section>
       {data.would_pay !== null && <Section label="Would pay">{data.would_pay ? 'Yes' : 'No'}</Section>}
       <Section label="Content"><p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1a1a1a]">{data.content}</p></Section>
+
+      <div className="mb-6">
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a]">Internal notes</div>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={5}
+          placeholder="Product context, follow-up plan, decision rationale…"
+          aria-label="Internal notes"
+          className="w-full rounded-md border border-[#e8e3dc] bg-white px-3 py-2 text-sm text-[#1a1a1a] placeholder:text-[#9a9a9a] focus:border-[#3b6bef] focus:outline-none focus:ring-1 focus:ring-[#3b6bef]"
+        />
+        {saveError && <div role="alert" className="mt-1 text-xs text-red-600">{saveError}</div>}
+        <div className="mt-2 flex items-center justify-end gap-3">
+          <CharCounter length={notes.length} max={NOTES_MAX} />
+          <ActionBtn busy={busy} onClick={saveNotes}>Save notes</ActionBtn>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {data.status === 'new' && <ActionBtn busy={busy} onClick={() => patch('acknowledged')}>Acknowledge</ActionBtn>}
         {data.status !== 'planned' && data.status !== 'shipped' && <ActionBtn busy={busy} onClick={() => patch('planned')}>Mark planned</ActionBtn>}
@@ -324,6 +495,15 @@ function PriorityPill({ priority }: { priority: string }) {
   };
   const cls = colors[priority] ?? colors.medium;
   return <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{priority}</span>;
+}
+
+// Informative — no hard block on length ; the underlying Zod schema caps at
+// NOTES_MAX=5000. Palette per sentra-design-system : neutral gray under 80 %,
+// orange at 80 %, red at 100 %+.
+function CharCounter({ length, max }: { length: number; max: number }) {
+  const pct = max === 0 ? 0 : length / max;
+  const cls = pct >= 1 ? 'text-red-600' : pct >= 0.8 ? 'text-orange-600' : 'text-[#9a9a9a]';
+  return <span className={`text-[11px] tabular-nums ${cls}`}>{length} / {max}</span>;
 }
 
 function ActionBtn({ busy, onClick, variant = 'default', children }: { busy: boolean; onClick: () => void; variant?: 'default' | 'success' | 'danger'; children: React.ReactNode }) {
