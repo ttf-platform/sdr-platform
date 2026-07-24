@@ -2287,7 +2287,20 @@
       "subtextLimited": "Les campagnes sont bloquées tant que vous n'atteignez pas 30 %. Complétez votre profil pour que l'IA de Mirvo écrive des e-mails fidèles à votre marque.",
       "editProfile": "Modifier le profil →",
       "editProfileAriaLabel": "Modifier le profil",
-      "dismissAriaLabel": "Fermer"
+      "dismissAriaLabel": "Fermer",
+      "criteria": {
+        "user_industry": "Votre secteur",
+        "user_company_size": "Votre taille d'entreprise",
+        "product_description": "Description du produit",
+        "value_proposition": "Proposition de valeur",
+        "icp_description": "Description de l'ICP",
+        "icp_industries": "Secteur cible",
+        "target_titles": "Postes ciblés",
+        "target_regions": "Régions ciblées",
+        "icp_company_sizes": "Taille d'entreprise cible",
+        "pain_points": "Problématiques",
+        "tone": "Ton des emails"
+      }
     },
     "creditUsageIndicator": {
       "labelTotalProspects": "Contacts recherchés par l'IA",
