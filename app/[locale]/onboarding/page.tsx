@@ -1,14 +1,20 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { AutoFillFromUrlButton } from '@/components/AutoFillFromUrlButton'
 import type { ExtractedFields } from '@/components/AutoFillPreviewModal'
 
-const steps = ['Workspace', 'Company', 'ICP']
-const tones = ['professional', 'friendly', 'direct', 'casual']
+const steps = ['workspace', 'company', 'icp'] as const
+// Canonical 5-tone set. `witty` added in this PR to align with the
+// registry used everywhere else in the product (components/onboarding/*
+// already ships all five). The default `tone: 'professional'` on line
+// below stays.
+const tones = ['professional', 'casual', 'direct', 'friendly', 'witty'] as const
 
 export default function OnboardingPage() {
+  const t = useTranslations('onboarding.setup')
   const supabase = createClient()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -77,47 +83,47 @@ export default function OnboardingPage() {
               </div>
             ))}
           </div>
-          <p className="text-sm text-[#8a7e6e]">{steps[step]}</p>
+          <p className="text-sm text-[#8a7e6e]">{t('steps.' + steps[step])}</p>
         </div>
         <div className="bg-white rounded-xl border border-[#e8e3dc] p-6">
           {step === 0 && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-lg font-bold text-[#1a1a2e]">Name your workspace</h2>
-              <p className="text-sm text-[#8a7e6e]">Usually your company name.</p>
-              <input type="text" value={data.workspaceName} onChange={e => setData({...data, workspaceName: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Acme Corp" />
-              <button onClick={() => setStep(1)} disabled={!data.workspaceName} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
+              <h2 className="text-lg font-bold text-[#1a1a2e]">{t('workspace.title')}</h2>
+              <p className="text-sm text-[#8a7e6e]">{t('workspace.hint')}</p>
+              <input type="text" value={data.workspaceName} onChange={e => setData({...data, workspaceName: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('workspace.placeholder')} />
+              <button onClick={() => setStep(1)} disabled={!data.workspaceName} className="w-full bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('common.continue')}</button>
             </div>
           )}
           {step === 1 && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-lg font-bold text-[#1a1a2e]">What do you sell?</h2>
-              <input type="text" value={data.companyName} onChange={e => setData({...data, companyName: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="Company name" />
+              <h2 className="text-lg font-bold text-[#1a1a2e]">{t('company.title')}</h2>
+              <input type="text" value={data.companyName} onChange={e => setData({...data, companyName: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('company.namePlaceholder')} />
               <div>
                 <div className="flex items-start gap-2">
-                  <input type="text" value={data.companyWebsite} onChange={e => setData({...data, companyWebsite: e.target.value})} className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder="yourcompany.com (optional)" />
+                  <input type="text" value={data.companyWebsite} onChange={e => setData({...data, companyWebsite: e.target.value})} className="flex-1 border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" placeholder={t('company.websitePlaceholder')} />
                   <AutoFillFromUrlButton websiteValue={data.companyWebsite} onApply={handleAutoFillApply} />
                 </div>
-                <p className="text-xs text-[#b0a898] mt-1">We&apos;ll analyze your site to pre-fill the fields below.</p>
+                <p className="text-xs text-[#b0a898] mt-1">{t('company.autofillHint')}</p>
               </div>
-              <textarea value={data.product} onChange={e => setData({...data, product: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="We help SaaS companies automate outbound sales..." />
+              <textarea value={data.product} onChange={e => setData({...data, product: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder={t('company.productPlaceholder')} />
               <div className="flex gap-2">
-                <button onClick={() => setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-                <button onClick={() => setStep(2)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">Continue →</button>
+                <button onClick={() => setStep(0)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('common.back')}</button>
+                <button onClick={() => setStep(2)} disabled={!data.product} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{t('common.continue')}</button>
               </div>
             </div>
           )}
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-lg font-bold text-[#1a1a2e]">Who do you target?</h2>
-              <textarea value={data.icp} onChange={e => setData({...data, icp: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder="VP Sales at B2B SaaS, 50-500 employees, Series A to C..." />
+              <h2 className="text-lg font-bold text-[#1a1a2e]">{t('icp.title')}</h2>
+              <textarea value={data.icp} onChange={e => setData({...data, icp: e.target.value})} className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] resize-none" rows={3} placeholder={t('icp.placeholder')} />
               <div className="grid grid-cols-2 gap-2">
-                {tones.map(t => (
-                  <button key={t} onClick={() => setData({...data, tone: t})} className={"px-3 py-2 rounded-lg text-sm border transition-colors capitalize " + (data.tone === t ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{t}</button>
+                {tones.map(tone => (
+                  <button key={tone} onClick={() => setData({...data, tone})} className={"px-3 py-2 rounded-lg text-sm border transition-colors " + (data.tone === tone ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'border-[#e8e3dc] text-[#6b5e4e]')}>{t('tones.' + tone)}</button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">← Back</button>
-                <button onClick={handleFinish} disabled={!data.icp || loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? 'Setting up...' : 'Launch Mirvo →'}</button>
+                <button onClick={() => setStep(1)} className="flex-1 border border-[#e8e3dc] text-[#6b5e4e] rounded-lg py-2.5 text-sm">{t('common.back')}</button>
+                <button onClick={handleFinish} disabled={!data.icp || loading} className="flex-1 bg-[#1a1a2e] text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-40">{loading ? t('common.launching') : t('common.launch')}</button>
               </div>
             </div>
           )}

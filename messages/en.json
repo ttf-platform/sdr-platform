@@ -2790,5 +2790,43 @@
       "nudgeBody": "A link in a first-touch email can hurt deliverability and reply rates. Attaching feels safer on a follow-up, or after they’ve replied.",
       "triggerAddAll": "Attach to all drafts"
     }
+  },
+  "onboarding": {
+    "setup": {
+      "steps": {
+        "workspace": "Workspace",
+        "company": "Company",
+        "icp": "ICP"
+      },
+      "workspace": {
+        "title": "Name your workspace",
+        "hint": "Usually your company name.",
+        "placeholder": "Acme Corp"
+      },
+      "company": {
+        "title": "What do you sell?",
+        "namePlaceholder": "Company name",
+        "websitePlaceholder": "yourcompany.com (optional)",
+        "autofillHint": "We'll analyze your site to pre-fill the fields below.",
+        "productPlaceholder": "We help SaaS companies automate outbound sales..."
+      },
+      "icp": {
+        "title": "Who do you target?",
+        "placeholder": "VP Sales at B2B SaaS, 50-500 employees, Series A to C..."
+      },
+      "common": {
+        "continue": "Continue →",
+        "back": "← Back",
+        "launching": "Setting up...",
+        "launch": "Launch Mirvo →"
+      },
+      "tones": {
+        "professional": "Professional",
+        "casual": "Casual",
+        "direct": "Direct",
+        "friendly": "Friendly",
+        "witty": "Witty"
+      }
+    }
   }
 }
