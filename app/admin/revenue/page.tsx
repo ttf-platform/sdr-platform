@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { monthlyMrrForWorkspace, PLAN_PRICES, type PlanTier } from '@/lib/pricing';
+import { isRealRevenue } from '@/lib/admin-metrics';
 import { RevenueClient, type RevenueData } from './_components/RevenueClient';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ type WorkspaceBillingRow = {
   billing_interval:       string | null;
   trial_end_date:         string | null;
   stripe_customer_id:     string | null;
+  stripe_subscription_id: string | null;
   overage_charges_made:   number | null;
   is_free_granted:        boolean | null;
 };
@@ -44,7 +46,7 @@ export default async function RevenuePage() {
   // l'agrégat par status, et de tous les workspaces actifs pour le MRR.
   const { data: workspaces, error: wsErr } = await admin
     .from('workspaces')
-    .select('id, name, plan_tier, subscription_status, billing_interval, trial_end_date, stripe_customer_id, overage_charges_made, is_free_granted')
+    .select('id, name, plan_tier, subscription_status, billing_interval, trial_end_date, stripe_customer_id, stripe_subscription_id, overage_charges_made, is_free_granted')
     .returns<WorkspaceBillingRow[]>();
 
   if (wsErr) {
@@ -77,7 +79,12 @@ export default async function RevenuePage() {
   }>();
 
   for (const w of allWorkspaces) {
-    if (w.subscription_status !== 'active') continue;
+    // Real revenue only : excludes comped (is_free_granted=true) admin
+    // grants and test / seeded workspaces (stripe_subscription_id=null).
+    // Pre-fix prod snapshot : 2 `active` workspaces without a Stripe sub
+    // showed a fake $698 MRR ; the plan-mix breakdown, unknown_plan and
+    // interval_assumed banners all fired on those same phantom rows.
+    if (!isRealRevenue(w)) continue;
     const computation = monthlyMrrForWorkspace(w.plan_tier, w.billing_interval);
     if (!computation) {
       unknownPlanActiveCount++;

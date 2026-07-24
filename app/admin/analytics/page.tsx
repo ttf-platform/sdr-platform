@@ -1,5 +1,5 @@
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
-import { isActivePaid, subscriptionChurnRate30d } from '@/lib/admin-metrics';
+import { isRealRevenue, subscriptionChurnRate30d } from '@/lib/admin-metrics';
 import { fetchAllAuthUsers } from '@/lib/admin-users';
 import { AnalyticsClient } from './_components/AnalyticsClient';
 
@@ -48,7 +48,7 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   // signal. Now each failure flips `dataIncomplete` and the affected
   // downstream metric surfaces the banner.
   const [wsResult, campaignsResult, membersResult] = await Promise.all([
-    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, canceled_at, created_at'),
+    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, canceled_at, stripe_subscription_id, is_free_granted, created_at'),
     sb.from('campaigns').select('workspace_id, created_at'),
     sb.from('workspace_members').select('user_id, workspace_id'),
   ]);
@@ -102,10 +102,11 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   for (const ws of workspacesArr) {
     if (!ws.trial_end_date || new Date(ws.trial_end_date).getTime() >= now) continue;
     trialEnded++;
-    // "Paid" ≡ subscription_status === 'active' (matches /admin/revenue).
-    // Prior version counted plan_tier != 'trial' which included canceled +
-    // expired rows, inflating the conversion rate.
-    if (isActivePaid(ws)) trialEndedAndPaid++;
+    // "Paid conversion" ≡ isRealRevenue : active AND stripe_subscription_id
+    // set AND !is_free_granted. Comped grants and no-Stripe test workspaces
+    // that flip to `active` post-trial are NOT a paid conversion — the
+    // funnel needs to answer "how many trials became real revenue".
+    if (isRealRevenue(ws)) trialEndedAndPaid++;
   }
   const trialToPaidRate = trialEnded > 0 ? (trialEndedAndPaid / trialEnded) * 100 : null;
 
@@ -124,8 +125,11 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   const activatedUserCount = allUsers.filter((u) =>
     (userToWorkspaces.get(u.id) ?? []).some((wsId) => activatedWorkspaceIds.has(wsId))
   ).length;
+  // Funnel "paid" = real revenue only. Otherwise the funnel would inflate
+  // its final count with comped and test-account rows and diverge from the
+  // MRR shown on /admin/revenue and the paid card on /admin/overview.
   const paidWorkspaceIds = new Set(
-    workspacesArr.filter((ws) => isActivePaid(ws)).map((ws) => ws.id)
+    workspacesArr.filter((ws) => isRealRevenue(ws)).map((ws) => ws.id)
   );
   const paidUserCount = allUsers.filter((u) =>
     (userToWorkspaces.get(u.id) ?? []).some((wsId) => paidWorkspaceIds.has(wsId))

@@ -2,29 +2,40 @@
  * lib/admin-metrics.ts — single source of truth for admin billing metrics.
  *
  * BEFORE this file existed, "paid / active / MRR" was recomputed at least
- * six different ways across the admin surface, each with a different
- * predicate :
+ * six different ways across the admin surface. Consolidation landed the
+ * `subscription_status === 'active'` rule for "paid" everywhere.
  *
- *   - /admin/overview           → `plan_tier != 'trial'`  + a local MRR_BY_TIER map
- *   - /admin/analytics          → `plan_tier != 'trial'`  (paid + funnel)
- *   - /api/admin/users          → no billing status at all
- *   - /admin/users PlanPill     → `plan_tier != 'trial'`  ("blue pill = paid")
- *   - /api/admin/stats          → `workspaces.plan` (legacy column) as MRR proxy
- *   - /api/admin/broadcast      → `workspaces.plan` (legacy column) for target
+ * BUT `active` alone still overcounts revenue : a comped admin workspace
+ * (`is_free_granted = true`) and a test / seeded workspace (Screenshots
+ * bot, no `stripe_subscription_id`) both sit in `active` yet generate
+ * zero real revenue. Prod snapshot before this PR : 2 workspaces `active`,
+ * both without a Stripe subscription — MRR displayed at $698 was
+ * entirely fictional.
  *
- * Only /admin/revenue used `subscription_status === 'active'` correctly, so the
- * Overview showed 1 paid / 399$ MRR while Revenue showed 2 paid / 698$ MRR on
- * the same DB. This helper mirrors /admin/revenue's semantics verbatim :
+ * Two distinct concepts are now separated :
  *
- *   - "paid"   ≡ `subscription_status === 'active'`
- *   - MRR      = sum of `monthlyMrrForWorkspace(plan_tier, billing_interval)`
- *                over ACTIVE rows only (excludes past_due, trialing, etc.)
- *   - Prices   from lib/pricing.ts → PLAN_PRICES (nothing redefined here).
+ *   - `isActivePaid(ws)`  ≡ `subscription_status === 'active'`
+ *     → "the workspace has ACCESS right now". Used by broadcast targeting,
+ *       /api/admin/stats, PlanPill on /admin/users — comms and access
+ *       affordances, not revenue.
  *
- * Callers that need to display a per-row badge should use `billingLabel()`.
- * The plan tier is intentionally rendered separately (see PlanPill in
- * app/admin/users/_components/UsersListClient.tsx) — a canceled/expired
- * workspace still has a plan_tier value in the DB but should NOT be shown
+ *   - `isRealRevenue(ws)` ≡ active AND `stripe_subscription_id` set AND
+ *                            `is_free_granted !== true`
+ *     → "the workspace is paying real Stripe money right now". Used by
+ *       aggregate MRR, /admin/revenue, /admin/analytics funnel + trial→paid.
+ *
+ * `aggregateBilling` uses BOTH : the per-status counters (active, trialing,
+ * pastDue, canceled, expired) reflect ACCESS. `mrrTotal`, `paidCount`,
+ * `unknownPlanActiveCount`, `intervalAssumedCount` reflect REAL REVENUE.
+ * A dedicated `compedActiveCount` surfaces the gap (active but comped)
+ * so /admin/overview can be transparent about the delta.
+ *
+ * Prices come from lib/pricing.ts → PLAN_PRICES (nothing redefined here).
+ *
+ * Per-row admin badges should use `billingLabel()` — the plan tier is
+ * intentionally rendered separately (see PlanPill in
+ * app/admin/users/_components/UsersListClient.tsx) : a canceled / expired
+ * workspace still has a plan_tier value in the DB but must NOT be shown
  * with the "paid" pill.
  */
 
@@ -37,26 +48,57 @@ import { monthlyMrrForWorkspace } from '@/lib/pricing'
  * Order matches lib/admin-metrics.ts::BillingRow.
  */
 export const ADMIN_BILLING_COLUMNS =
-  'id, plan_tier, subscription_status, billing_interval, trial_end_date' as const
+  'id, plan_tier, subscription_status, billing_interval, trial_end_date, stripe_subscription_id, is_free_granted' as const
 
 export interface BillingRow {
-  plan_tier:           string | null
-  subscription_status: string | null
+  plan_tier:               string | null
+  subscription_status:     string | null
   // Optional because two admin call-sites (broadcast + stats) only need the
   // status predicate `isActivePaid` and never compute MRR. Full aggregation
-  // via `aggregateBilling` / `workspaceMrr` still expects the column to be
-  // selected — a missing value there is treated as null (== assume monthly).
-  billing_interval?:   string | null
-  trial_end_date?:     string | null
+  // via `aggregateBilling` / `workspaceMrr` / `isRealRevenue` still expects
+  // every column below to be selected — an undefined `stripe_subscription_id`
+  // or `is_free_granted` on a row passed into `isRealRevenue` will cause
+  // it to return false (defensive : "not confirmed paying" beats "assumed
+  // paying").
+  billing_interval?:       string | null
+  trial_end_date?:         string | null
+  stripe_subscription_id?: string | null
+  is_free_granted?:        boolean | null
 }
 
 /**
- * Truth predicate for "this workspace is a paying customer right now".
+ * Truth predicate for "this workspace has ACCESS right now".
  * Deliberately excludes past_due : the workspace still owes money and the
  * MRR is unrecoverable until they settle up, matching Stripe's convention.
+ *
+ * NOTE : `isActivePaid` is NOT a revenue predicate. Comped admins and test
+ * / seeded workspaces sit here too. For real revenue use `isRealRevenue`.
  */
 export function isActivePaid(ws: BillingRow): boolean {
   return ws.subscription_status === 'active'
+}
+
+/**
+ * Truth predicate for "this workspace is currently generating REAL revenue".
+ * Requires all three :
+ *   - `subscription_status === 'active'`   (has access)
+ *   - `stripe_subscription_id` is set      (there's an actual Stripe sub
+ *     invoicing them ; a test / seeded workspace won't have one)
+ *   - `is_free_granted !== true`           (not a comped account — admin,
+ *     partner, etc. get free grants that flip this column true)
+ *
+ * Used by MRR aggregation, /admin/revenue, /admin/analytics funnel and
+ * trial → paid. Do NOT use for access / broadcast decisions — those still
+ * want `isActivePaid` (a comped active workspace should still receive a
+ * "paid" broadcast because they behave like a paying customer from a
+ * product standpoint).
+ */
+export function isRealRevenue(ws: BillingRow): boolean {
+  return (
+    ws.subscription_status === 'active' &&
+    !!ws.stripe_subscription_id        &&
+    ws.is_free_granted !== true
+  )
 }
 
 /**
@@ -70,23 +112,33 @@ export function workspaceMrr(ws: BillingRow): ReturnType<typeof monthlyMrrForWor
 
 export interface BillingAggregate {
   total:                    number
+  /** Access buckets — every workspace in a known subscription_status is counted here. */
   active:                   number
   trialing:                 number
   pastDue:                  number
   canceled:                 number
   expired:                  number
-  /** Alias of `active` — kept as a distinct field so call-sites read as "paidCount", not "active". */
+  /** Real-revenue count (isRealRevenue) — active AND Stripe sub set AND NOT comped. */
   paidCount:                number
+  /** Active rows that are comped (is_free_granted === true). Surfaces the
+   *  active↔paid gap for transparent admin reporting ; SHOULD equal
+   *  `active - paidCount - (active rows with no stripe_sub)`. */
+  compedActiveCount:        number
   mrrTotal:                 number
-  /** Active rows whose plan_tier is not in PLAN_PRICES (excluded from mrrTotal). */
+  /** Real-revenue rows whose plan_tier is not in PLAN_PRICES (excluded from mrrTotal). */
   unknownPlanActiveCount:   number
-  /** Active rows whose billing_interval was null/unknown → treated as monthly. */
+  /** Real-revenue rows whose billing_interval was null/unknown → treated as monthly. */
   intervalAssumedCount:     number
 }
 
 /**
- * Full aggregate over an array of workspace rows. Mirrors /admin/revenue's
- * loop exactly, including the "MRR excludes past_due" rule.
+ * Full aggregate over an array of workspace rows. Access counters
+ * (`active`, `trialing`, `pastDue`, `canceled`, `expired`) reflect
+ * `subscription_status` — used for status breakdowns, badges, and
+ * "how many workspaces have access". Revenue counters (`paidCount`,
+ * `mrrTotal`, `unknownPlanActiveCount`, `intervalAssumedCount`) reflect
+ * `isRealRevenue` — comped and no-Stripe workspaces are excluded so the
+ * numbers match "what Stripe will actually invoice this month".
  */
 export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
   const agg: BillingAggregate = {
@@ -97,6 +149,7 @@ export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
     canceled:               0,
     expired:                0,
     paidCount:              0,
+    compedActiveCount:      0,
     mrrTotal:               0,
     unknownPlanActiveCount: 0,
     intervalAssumedCount:   0,
@@ -112,7 +165,16 @@ export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
       // any other value (null / unknown) contributes to `total` but no bucket
     }
 
-    if (ws.subscription_status !== 'active') continue
+    // Comped-active gap surface. Independent of `isRealRevenue` — an active
+    // comped workspace also increments `active` above ; this counter
+    // exposes the "how much of `active` is not actually paying" delta.
+    if (ws.subscription_status === 'active' && ws.is_free_granted === true) {
+      agg.compedActiveCount++
+    }
+
+    if (!isRealRevenue(ws)) continue
+
+    agg.paidCount++
 
     const m = workspaceMrr(ws)
     if (!m) {
@@ -123,7 +185,6 @@ export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
     if (m.interval_assumed_monthly) agg.intervalAssumedCount++
   }
 
-  agg.paidCount = agg.active
   return agg
 }
 
