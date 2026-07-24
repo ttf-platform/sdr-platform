@@ -3,6 +3,7 @@ import {
   aggregateBilling,
   billingLabel,
   isActivePaid,
+  subscriptionChurnRate30d,
   workspaceMrr,
   type BillingRow,
 } from '../admin-metrics'
@@ -122,6 +123,89 @@ describe('aggregateBilling — mirrors /admin/revenue rules', () => {
     expect(agg.total).toBe(1)
     expect(agg.active).toBe(0)
     expect(agg.mrrTotal).toBe(0)
+  })
+})
+
+describe('subscriptionChurnRate30d — real cancellation, not login dormancy', () => {
+  const NOW = Date.parse('2026-07-24T00:00:00Z')
+  const DAY = 86_400_000
+
+  it('spec fixture : 1 active + 1 canceled <30d + 1 canceled >30d + 1 expired → 50 %', () => {
+    // base = active(1) + churned(1)  = 2
+    // churned = 1 (the recent cancel)
+    // rate    = 1 / 2 = 50 %
+    // The old cancel and the expired row are BOTH ignored on purpose : the
+    // old cancel is outside the 30-day window, and `expired` is a never-
+    // converted trial (already covered by Trial → Paid, not real churn).
+    const rate = subscriptionChurnRate30d(
+      [
+        { subscription_status: 'active',   canceled_at: null                                                   },
+        { subscription_status: 'canceled', canceled_at: new Date(NOW - 10 * DAY).toISOString()                 },
+        { subscription_status: 'canceled', canceled_at: new Date(NOW - 60 * DAY).toISOString()                 },
+        { subscription_status: 'expired',  canceled_at: null                                                   },
+      ],
+      NOW,
+    )
+    expect(rate).toBe(50)
+  })
+
+  it('empty input → null (renders "—" in the KPI card)', () => {
+    expect(subscriptionChurnRate30d([], NOW)).toBeNull()
+  })
+
+  it('only stale cancels + no active → null (no paying base to churn from)', () => {
+    // The window filter drops the sole cancel, leaving base = 0 → null.
+    const rate = subscriptionChurnRate30d(
+      [{ subscription_status: 'canceled', canceled_at: new Date(NOW - 100 * DAY).toISOString() }],
+      NOW,
+    )
+    expect(rate).toBeNull()
+  })
+
+  it('canceled without canceled_at is IGNORED (defensive against stale/pre-stamp rows)', () => {
+    // A pre-webhook-fix workspace or a manual DB flip could land in this
+    // state ; count neither in churned nor in base to avoid inflating the
+    // rate on unstamped rows. The webhook stamps canceled_at on both
+    // customer.subscription.updated (→ canceled) and .deleted via
+    // stampCanceledAtIfMissing, so new rows are safe.
+    const rate = subscriptionChurnRate30d(
+      [
+        { subscription_status: 'active',   canceled_at: null },
+        { subscription_status: 'canceled', canceled_at: null },
+      ],
+      NOW,
+    )
+    // base = 1 (the active), churned = 0 → 0 %.
+    expect(rate).toBe(0)
+  })
+
+  it('trialing / past_due / null status don\'t affect the ratio', () => {
+    // Only `active` and `canceled` (with a valid recent canceled_at) move
+    // the needle. Guard against a future subscription_status enum drift
+    // silently mutating the metric.
+    const rate = subscriptionChurnRate30d(
+      [
+        { subscription_status: 'active',   canceled_at: null },
+        { subscription_status: 'canceled', canceled_at: new Date(NOW - 5 * DAY).toISOString() },
+        { subscription_status: 'trialing', canceled_at: null },
+        { subscription_status: 'past_due', canceled_at: null },
+        { subscription_status: null,       canceled_at: null },
+      ],
+      NOW,
+    )
+    // base = 1 + 1, churned = 1 → 50 %.
+    expect(rate).toBe(50)
+  })
+
+  it('unparseable canceled_at is IGNORED', () => {
+    const rate = subscriptionChurnRate30d(
+      [
+        { subscription_status: 'active',   canceled_at: null            },
+        { subscription_status: 'canceled', canceled_at: 'not-a-date-🥴' },
+      ],
+      NOW,
+    )
+    expect(rate).toBe(0)
   })
 })
 

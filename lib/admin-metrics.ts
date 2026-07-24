@@ -128,6 +128,46 @@ export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
 }
 
 /**
+ * 30-day subscription churn rate, as a percentage.
+ *
+ * churned      = rows with subscription_status === 'canceled' AND canceled_at
+ *                set AND (nowMs - canceled_at) < 30 days.
+ * activePaying = rows with subscription_status === 'active'.
+ * base         = activePaying + churned  (paying customers at the start of the
+ *                window, approximated by "still paying now" + "canceled within
+ *                the window").
+ *
+ * Returns `null` when the base is 0 so the card renders "—" rather than a
+ * misleading NaN or "0 %" (small-account signal, not real churn).
+ *
+ * `expired` is DELIBERATELY EXCLUDED : an expired trial that never converted
+ * is not a paying customer who left — trial-to-paid conversion is already
+ * covered by the Trial → Paid KPI. Counting expired here would double-book
+ * the same signal and inflate churn artificially early in the funnel.
+ */
+export function subscriptionChurnRate30d(
+  rows:  Array<{ subscription_status: string | null; canceled_at: string | null }>,
+  nowMs: number,
+): number | null {
+  const WINDOW_MS = 30 * 86_400_000
+  let churned      = 0
+  let activePaying = 0
+  for (const r of rows) {
+    if (r.subscription_status === 'active') {
+      activePaying++
+      continue
+    }
+    if (r.subscription_status !== 'canceled' || !r.canceled_at) continue
+    const canceledMs = Date.parse(r.canceled_at)
+    if (Number.isNaN(canceledMs)) continue
+    if (nowMs - canceledMs < WINDOW_MS) churned++
+  }
+  const base = activePaying + churned
+  if (base === 0) return null
+  return (churned / base) * 100
+}
+
+/**
  * Human-readable status label + tone for a single workspace. Used by
  * per-row admin badges (users list, workspace detail). The plan tier is
  * displayed alongside — this helper covers status only.
