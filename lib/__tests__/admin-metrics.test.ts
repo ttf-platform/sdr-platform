@@ -3,19 +3,26 @@ import {
   aggregateBilling,
   billingLabel,
   isActivePaid,
+  isRealRevenue,
   subscriptionChurnRate30d,
   workspaceMrr,
   type BillingRow,
 } from '../admin-metrics'
 import { PLAN_PRICES, ANNUAL_DISCOUNT } from '../pricing'
 
-// Concise row constructor for readability.
+// Concise row constructor for readability. Defaults model a TYPICAL PAYING
+// workspace : `stripe_subscription_id` set, `is_free_granted` false. That
+// way existing tests that only care about status buckets don't have to
+// spell those out every time. Tests that specifically exercise the
+// isRealRevenue exclusions (comped / no-Stripe) override them explicitly.
 function row(overrides: Partial<BillingRow>): BillingRow {
   return {
-    plan_tier:           null,
-    subscription_status: null,
-    billing_interval:    null,
-    trial_end_date:      null,
+    plan_tier:              null,
+    subscription_status:    null,
+    billing_interval:       null,
+    trial_end_date:         null,
+    stripe_subscription_id: 'sub_test',
+    is_free_granted:        false,
     ...overrides,
   }
 }
@@ -31,6 +38,43 @@ describe('isActivePaid', () => {
     // A workspace with plan_tier='pro' but canceled is NOT paid — this was
     // the pre-unification bug (plan_tier != 'trial' counted them as paid).
     expect(isActivePaid(row({ plan_tier: 'pro', subscription_status: 'canceled' }))).toBe(false)
+  })
+})
+
+describe('isRealRevenue — access ≠ revenue', () => {
+  it('true only when active AND stripe_subscription_id set AND !is_free_granted', () => {
+    // Happy path.
+    expect(isRealRevenue(row({ subscription_status: 'active' }))).toBe(true)
+
+    // Stripe sub missing → no invoice will fire → not real revenue.
+    expect(isRealRevenue(row({ subscription_status: 'active', stripe_subscription_id: null    }))).toBe(false)
+    expect(isRealRevenue(row({ subscription_status: 'active', stripe_subscription_id: undefined }))).toBe(false)
+
+    // Comped account (admin, partner, DFY seed) → not real revenue.
+    expect(isRealRevenue(row({ subscription_status: 'active', is_free_granted: true }))).toBe(false)
+
+    // Non-active statuses never count regardless of the other fields.
+    for (const status of ['trialing', 'past_due', 'canceled', 'expired', null] as const) {
+      expect(isRealRevenue(row({ subscription_status: status }))).toBe(false)
+    }
+
+    // Regression guard : an active workspace that has NEITHER a Stripe sub
+    // NOR a comped flag (edge case : orphan row from a partial delete) is
+    // still not real revenue. The predicate demands the Stripe sub
+    // explicitly ; a missing flag never grants revenue by default.
+    expect(isRealRevenue(row({
+      subscription_status:    'active',
+      stripe_subscription_id: null,
+      is_free_granted:        false,
+    }))).toBe(false)
+  })
+
+  it('is_free_granted null / undefined is treated as "not comped"', () => {
+    // A row where the flag has never been set (DB default null) must not
+    // be excluded from revenue on that basis alone — the exclusion fires
+    // only on explicit `true`.
+    expect(isRealRevenue(row({ subscription_status: 'active', is_free_granted: null      }))).toBe(true)
+    expect(isRealRevenue(row({ subscription_status: 'active', is_free_granted: undefined }))).toBe(true)
   })
 })
 
@@ -82,7 +126,12 @@ describe('aggregateBilling — mirrors /admin/revenue rules', () => {
     expect(agg.pastDue).toBe(1)
     expect(agg.canceled).toBe(1)
     expect(agg.expired).toBe(1)
-    expect(agg.paidCount).toBe(agg.active)
+    // Default row() helper marks every row as real revenue (stripe_sub set,
+    // not comped), so all 5 active rows here also count as paidCount. This
+    // is a coincidence of the fixture — paidCount and active are now
+    // INDEPENDENT (see the "phantom MRR" test below for the divergence).
+    expect(agg.paidCount).toBe(5)
+    expect(agg.compedActiveCount).toBe(0)
 
     // MRR : only the 4 active rows with a known plan_tier contribute.
     // starter 149 + power 399 + pro yearly 239.2 + starter (null interval) 149 = 936.2.
@@ -114,8 +163,33 @@ describe('aggregateBilling — mirrors /admin/revenue rules', () => {
     const agg = aggregateBilling([])
     expect(agg).toEqual({
       total: 0, active: 0, trialing: 0, pastDue: 0, canceled: 0, expired: 0,
-      paidCount: 0, mrrTotal: 0, unknownPlanActiveCount: 0, intervalAssumedCount: 0,
+      paidCount: 0, compedActiveCount: 0, mrrTotal: 0, unknownPlanActiveCount: 0, intervalAssumedCount: 0,
     })
+  })
+
+  it('phantom MRR fixture : comped + no-Stripe active rows are excluded from paidCount + mrrTotal', () => {
+    // Mirrors the prod-observed pre-fix state : 2 workspaces sat in
+    // `active` (an admin comp + a screenshot bot) with no real Stripe sub,
+    // and the third (a "real" paying Power monthly) was the only actual
+    // revenue. Old aggregateBilling reported paidCount=3 + mrrTotal=$798.
+    // Now : active=3 (access), paidCount=1, mrrTotal=$399, compedActiveCount=1.
+    const rows: BillingRow[] = [
+      // Real paying customer.
+      row({ subscription_status: 'active', plan_tier: 'power', billing_interval: 'monthly', stripe_subscription_id: 'sub_live_paying', is_free_granted: false }),
+      // Comped admin grant (has a Stripe sub in Stripe test data but flagged free).
+      row({ subscription_status: 'active', plan_tier: 'power', billing_interval: 'monthly', stripe_subscription_id: 'sub_comp',        is_free_granted: true  }),
+      // Seeded / screenshot bot workspace — no Stripe sub at all.
+      row({ subscription_status: 'active', plan_tier: 'power', billing_interval: 'monthly', stripe_subscription_id: null,              is_free_granted: false }),
+    ]
+
+    const agg = aggregateBilling(rows)
+
+    expect(agg.active).toBe(3)                   // access unchanged
+    expect(agg.paidCount).toBe(1)                // real revenue only
+    expect(agg.compedActiveCount).toBe(1)        // gap surfaced
+    expect(agg.mrrTotal).toBeCloseTo(PLAN_PRICES.power, 10)
+    expect(agg.unknownPlanActiveCount).toBe(0)   // no plan-mix noise from phantoms
+    expect(agg.intervalAssumedCount).toBe(0)     // no interval-assumed noise either
   })
 
   it('rows with unrecognised status still increment total (defensive)', () => {
