@@ -5,19 +5,47 @@ import { LimitsClient, type LimitsData } from './_components/LimitsClient';
 
 export const dynamic = 'force-dynamic';
 
-const TOP_AI_SPEND_LIMIT       = 5;
-const TOP_AI_SOURCES_LIMIT     = 5;
-const MAILBOX_LIMIT            = 200;
-const COST_EVENTS_FETCH_LIMIT  = 5000;
-const USAGE_ROWS_FETCH_LIMIT   = 5000;
-const SCAN_EVENTS_FETCH_LIMIT  = 5000;
+const TOP_AI_SPEND_LIMIT   = 5;
+const TOP_AI_SOURCES_LIMIT = 5;
+// Mailbox cap raised from 200 (alphabetical truncation) to 500 (worst-
+// bounce-rate first via the RPC). Any eventual truncation now drops
+// HEALTHY mailboxes rather than problem ones.
+const MAILBOX_LIMIT        = 500;
 
-function modelBucket(model: string | null | undefined): 'sonnet' | 'haiku' | 'other' {
-  if (!model) return 'other';
-  if (model.toLowerCase().includes('sonnet')) return 'sonnet';
-  if (model.toLowerCase().includes('haiku'))  return 'haiku';
-  return 'other';
-}
+// Shapes of the RPC returns. Migration 080 defines the four functions ;
+// these types must stay in sync with the SQL. Numeric columns from
+// PostgREST arrive as strings for `RETURNS TABLE` and as JSON numbers
+// inside a `RETURNS jsonb` payload — we coerce with Number() at the
+// boundary before mixing them with the tier-cap thresholds (also numeric).
+type AiCostOverviewRpc = {
+  last_24h: number;
+  last_7d:  number;
+  last_30d: number;
+  top_spenders: Array<{ workspace_id: string; total_cost_usd: number }>;
+  by_source:    Array<{ source: string;       total_cost_usd: number }>;
+  by_model:     { sonnet: number; haiku: number; other: number };
+};
+
+type ScanUsageRow  = { workspace_id: string; prospect_used: number | string };
+type UsageRow      = { workspace_id: string; metric: string; used: number | string };
+type MailboxRpcRow = {
+  id:                  string;
+  workspace_id:        string;
+  email_address:       string;
+  warmup_status:       string;
+  paused_by_user:      boolean;
+  auto_paused_at:      string | null;
+  auto_pause_reason:   string | null;
+  sent_count_24h:      number;
+  bounce_count_24h:    number;
+  counts_window_start: string | null;
+  setup_status:        string;
+  dns_spf_verified:    boolean;
+  dns_dkim_verified:   boolean;
+  dns_dmarc_verified:  boolean;
+  // `numeric` from PG → arrives as string over PostgREST.
+  bounce_rate:         number | string | null;
+};
 
 function isScanTier(tier: string | null | undefined): tier is Tier {
   return !!tier && tier in MONTHLY_CAPS;
@@ -25,6 +53,13 @@ function isScanTier(tier: string | null | undefined): tier is Tier {
 
 function isTierCapKey(tier: string | null | undefined): tier is keyof typeof TIER_CAPS {
   return !!tier && tier in TIER_CAPS;
+}
+
+// Safe numeric coercion — PG numeric can arrive as string via PostgREST.
+function num(v: number | string | null | undefined): number {
+  if (v == null) return 0;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export default async function LimitsPage() {
@@ -42,84 +77,96 @@ export default async function LimitsPage() {
   const monthStartDate = monthStartIso.split('T')[0];
 
   // ── AI cost (all sources, unified ledger) ──────────────────────────────
-  //    Single source of truth: ai_call_log. signal_scan_events still
-  //    receives the same data via dual-write, but reading both would
-  //    double-count signal scan spend. Fetch last 30d once, aggregate in JS.
-  const { data: aiRows } = await admin
-    .from('ai_call_log')
-    .select('workspace_id, source, model, estimated_cost_usd, created_at')
-    .gte('created_at', day30Iso)
-    .limit(COST_EVENTS_FETCH_LIMIT);
+  //    Pre-fix : .limit(5000) on ai_call_log → totals 24h/7d/30d, top
+  //    spenders, by_source, by_model all under-counted past 5 000
+  //    events / 30 days. Migration 080 aggregates server-side.
+  //    p_top is the MAX of the two client-side limits so both slices
+  //    can be trimmed independently below if they ever diverge.
+  const aiTop = Math.max(TOP_AI_SPEND_LIMIT, TOP_AI_SOURCES_LIMIT);
+  const { data: aiRaw } = await admin.rpc('admin_ai_cost_overview', {
+    p_d1:  day1Iso,
+    p_d7:  day7Iso,
+    p_d30: day30Iso,
+    p_top: aiTop,
+  });
+  const ai = (aiRaw ?? {
+    last_24h: 0, last_7d: 0, last_30d: 0,
+    top_spenders: [], by_source: [], by_model: { sonnet: 0, haiku: 0, other: 0 },
+  }) as AiCostOverviewRpc;
 
-  let total24h = 0;
-  let total7d  = 0;
-  let total30d = 0;
-  const costByWorkspace = new Map<string, number>();
-  const costBySource    = new Map<string, number>();
-  const costByModel     = { sonnet: 0, haiku: 0, other: 0 };
+  const aiCost = {
+    last_24h: num(ai.last_24h),
+    last_7d:  num(ai.last_7d),
+    last_30d: num(ai.last_30d),
+  };
 
-  for (const r of aiRows ?? []) {
-    const cost      = Number(r.estimated_cost_usd ?? 0);
-    const createdAt = r.created_at as string | null;
-    if (!cost || !createdAt) continue;
-
-    total30d += cost;
-    if (createdAt >= day7Iso) total7d  += cost;
-    if (createdAt >= day1Iso) total24h += cost;
-
-    // Top workspaces: exclude null workspace_id (e.g. inbox_sentiment)
-    const wsId = r.workspace_id as string | null;
-    if (wsId) costByWorkspace.set(wsId, (costByWorkspace.get(wsId) ?? 0) + cost);
-
-    const src = (r.source as string | null) ?? 'unknown';
-    costBySource.set(src, (costBySource.get(src) ?? 0) + cost);
-
-    costByModel[modelBucket(r.model as string | null)] += cost;
-  }
-
-  const aiCost = { last_24h: total24h, last_7d: total7d, last_30d: total30d };
-
-  const topSpenders = Array.from(costByWorkspace.entries())
-    .sort((a, b) => b[1] - a[1])
+  const topSpenders = (ai.top_spenders ?? [])
     .slice(0, TOP_AI_SPEND_LIMIT)
-    .map(([workspace_id, total_cost_usd]) => ({ workspace_id, total_cost_usd }));
+    .map((s) => ({ workspace_id: s.workspace_id, total_cost_usd: num(s.total_cost_usd) }));
 
-  const bySource = Array.from(costBySource.entries())
-    .sort((a, b) => b[1] - a[1])
+  const bySource = (ai.by_source ?? [])
     .slice(0, TOP_AI_SOURCES_LIMIT)
-    .map(([source, total_cost_usd]) => ({ source, total_cost_usd }));
+    .map((s) => ({ source: s.source, total_cost_usd: num(s.total_cost_usd) }));
 
-  const byModel = costByModel;
+  const byModel = {
+    sonnet: num(ai.by_model?.sonnet),
+    haiku:  num(ai.by_model?.haiku),
+    other:  num(ai.by_model?.other),
+  };
 
   // ── Monthly scan cap saturation ─────────────────────────────────────────
-  //    Sum prospect_count per workspace this month, then compare to MONTHLY_CAPS
-  //    indexed by the workspace's plan_tier.
-  const { data: scanRowsThisMonth } = await admin
-    .from('signal_scan_events')
-    .select('workspace_id, prospect_count')
-    .eq('status', 'executed')
-    .gte('created_at', monthStartIso)
-    .limit(SCAN_EVENTS_FETCH_LIMIT);
+  //    Pre-fix : .limit(5000) on signal_scan_events. Now : per-workspace
+  //    sums are computed server-side by admin_scan_usage_this_month.
+  const { data: scanRowsRaw } = await admin.rpc('admin_scan_usage_this_month', {
+    p_month_start: monthStartIso,
+  });
+  const scanRows = (scanRowsRaw ?? []) as ScanUsageRow[];
 
   const scanUsedByWorkspace = new Map<string, number>();
-  for (const r of scanRowsThisMonth ?? []) {
-    const wsId = r.workspace_id as string;
-    scanUsedByWorkspace.set(wsId, (scanUsedByWorkspace.get(wsId) ?? 0) + Number(r.prospect_count ?? 0));
+  for (const r of scanRows) {
+    scanUsedByWorkspace.set(r.workspace_id, num(r.prospect_used));
   }
 
-  const allWorkspaceIds = Array.from(new Set([
+  // ── Usage vs quota (monthly metrics from usage_tracking) ────────────────
+  //    Pre-fix : .limit(5000) on usage_tracking. Now server-aggregated per
+  //    (workspace_id, metric).
+  const { data: usageRowsRaw } = await admin.rpc('admin_usage_tracking_this_month', {
+    p_month_start: monthStartDate,
+  });
+  const usageRows = (usageRowsRaw ?? []) as UsageRow[];
+
+  // workspace_id → { metric → used }
+  const usageByWs = new Map<string, Record<string, number>>();
+  for (const r of usageRows) {
+    const entry = usageByWs.get(r.workspace_id) ?? {};
+    entry[r.metric] = (entry[r.metric] ?? 0) + num(r.used);
+    usageByWs.set(r.workspace_id, entry);
+  }
+
+  // ── Resolve workspace names + plan tiers in ONE query ───────────────────
+  //    Union of every workspace_id we need to label / threshold : scan,
+  //    top-spenders, usage.
+  const allWorkspaceIds = Array.from(new Set<string>([
     ...scanUsedByWorkspace.keys(),
-    ...costByWorkspace.keys(),
+    ...topSpenders.map((s) => s.workspace_id),
+    ...usageByWs.keys(),
   ]));
-  const { data: wsRows } = allWorkspaceIds.length > 0
-    ? await admin.from('workspaces').select('id, plan_tier, name').in('id', allWorkspaceIds)
-    : { data: [] as Array<{ id: string; plan_tier: string | null; name: string | null }> };
 
   const wsById = new Map<string, { plan_tier: string | null; name: string | null }>();
-  for (const w of wsRows ?? []) {
-    wsById.set(w.id as string, { plan_tier: w.plan_tier ?? null, name: w.name ?? null });
+  if (allWorkspaceIds.length > 0) {
+    const { data: wsRows } = await admin
+      .from('workspaces')
+      .select('id, plan_tier, name')
+      .in('id', allWorkspaceIds);
+    for (const w of wsRows ?? []) {
+      wsById.set(w.id as string, {
+        plan_tier: (w.plan_tier as string | null) ?? null,
+        name:      (w.name      as string | null) ?? null,
+      });
+    }
   }
 
+  // ── Scan cap rows (≥80% of tier cap) ────────────────────────────────────
   const scanCapRows: LimitsData['scanCap'] = [];
   for (const [workspace_id, used] of scanUsedByWorkspace.entries()) {
     const ws = wsById.get(workspace_id);
@@ -132,32 +179,7 @@ export default async function LimitsPage() {
   }
   scanCapRows.sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0));
 
-  // ── Usage vs quota (monthly metrics from usage_tracking) ────────────────
-  const { data: usageRows } = await admin
-    .from('usage_tracking')
-    .select('workspace_id, metric, value, period_start')
-    .gte('period_start', monthStartDate)
-    .limit(USAGE_ROWS_FETCH_LIMIT);
-
-  // workspace_id → { metric → used }
-  const usageByWs = new Map<string, Record<string, number>>();
-  for (const r of usageRows ?? []) {
-    const wsId = r.workspace_id as string;
-    const metric = r.metric as string;
-    const val = Number(r.value ?? 0);
-    const entry = usageByWs.get(wsId) ?? {};
-    entry[metric] = (entry[metric] ?? 0) + val;
-    usageByWs.set(wsId, entry);
-  }
-
-  const usageWsIds = Array.from(usageByWs.keys()).filter((id) => !wsById.has(id));
-  if (usageWsIds.length > 0) {
-    const { data: more } = await admin.from('workspaces').select('id, plan_tier, name').in('id', usageWsIds);
-    for (const w of more ?? []) {
-      wsById.set(w.id as string, { plan_tier: w.plan_tier ?? null, name: w.name ?? null });
-    }
-  }
-
+  // ── Usage quota rows (>50% on at least one capped metric) ───────────────
   const usageRowsForDisplay: LimitsData['usageQuota'] = [];
   for (const [workspace_id, byMetric] of usageByWs.entries()) {
     const ws = wsById.get(workspace_id);
@@ -182,7 +204,6 @@ export default async function LimitsPage() {
       },
     };
 
-    // Keep this workspace if at least one capped metric is > 50%.
     const triggers: Array<keyof typeof metrics> = ['enrichments_used', 'emails_sent', 'prospects_sourced'];
     const anyOver50 = triggers.some((m) => {
       const cap = metrics[m].cap;
@@ -208,42 +229,34 @@ export default async function LimitsPage() {
   });
 
   // ── Deliverability per mailbox ──────────────────────────────────────────
-  //    Stored DB values only (no provider fan-out). reputation_score
-  //    deliberately excluded (mostly NULL — Sprint 2b).
-  const { data: mailboxesRaw } = await admin
-    .from('email_accounts')
-    .select('id, workspace_id, email_address, warmup_status, paused_by_user, auto_paused_at, auto_pause_reason, sent_count_24h, bounce_count_24h, counts_window_start, setup_status, dns_spf_verified, dns_dkim_verified, dns_dmarc_verified')
-    .order('email_address', { ascending: true })
-    .limit(MAILBOX_LIMIT);
+  //    Pre-fix : .order('email_address').limit(200) then JS sort by
+  //    bounce_rate → truncation dropped mailboxes alphabetically BEFORE
+  //    the worst-bounce sort ran. Correctness bug fixed by
+  //    admin_mailbox_deliverability : SQL sorts by bounce_rate DESC
+  //    NULLS LAST first, so any eventual truncation drops HEALTHY
+  //    mailboxes only. Cap raised 200 → 500.
+  const { data: mailboxRowsRaw } = await admin.rpc('admin_mailbox_deliverability', {
+    p_limit: MAILBOX_LIMIT,
+  });
+  const mailboxRows = (mailboxRowsRaw ?? []) as MailboxRpcRow[];
 
-  const mailboxes: LimitsData['mailboxes'] = (mailboxesRaw ?? []).map((m) => {
-    const sent  = Number(m.sent_count_24h  ?? 0);
-    const bounced = Number(m.bounce_count_24h ?? 0);
-    const bounceRate = sent > 0 ? bounced / sent : null;
-    return {
-      id:                 m.id as string,
-      workspace_id:       m.workspace_id as string,
-      email_address:      m.email_address as string,
-      warmup_status:      m.warmup_status as string,
-      paused_by_user:     Boolean(m.paused_by_user),
-      auto_paused_at:     m.auto_paused_at as string | null,
-      auto_pause_reason:  m.auto_pause_reason as string | null,
-      sent_count_24h:     sent,
-      bounce_count_24h:   bounced,
-      bounce_rate:        bounceRate,
-      counts_window_start: m.counts_window_start as string | null,
-      setup_status:       m.setup_status as string,
-      dns_spf_verified:   Boolean(m.dns_spf_verified),
-      dns_dkim_verified:  Boolean(m.dns_dkim_verified),
-      dns_dmarc_verified: Boolean(m.dns_dmarc_verified),
-    };
-  });
-  mailboxes.sort((a, b) => {
-    // Sort by bounce_rate DESC (problems first); nulls sink to bottom.
-    const ar = a.bounce_rate ?? -1;
-    const br = b.bounce_rate ?? -1;
-    return br - ar;
-  });
+  const mailboxes: LimitsData['mailboxes'] = mailboxRows.map((m) => ({
+    id:                  m.id,
+    workspace_id:        m.workspace_id,
+    email_address:       m.email_address,
+    warmup_status:       m.warmup_status,
+    paused_by_user:      Boolean(m.paused_by_user),
+    auto_paused_at:      m.auto_paused_at,
+    auto_pause_reason:   m.auto_pause_reason,
+    sent_count_24h:      Number(m.sent_count_24h   ?? 0),
+    bounce_count_24h:    Number(m.bounce_count_24h ?? 0),
+    bounce_rate:         m.bounce_rate == null ? null : num(m.bounce_rate),
+    counts_window_start: m.counts_window_start,
+    setup_status:        m.setup_status,
+    dns_spf_verified:    Boolean(m.dns_spf_verified),
+    dns_dkim_verified:   Boolean(m.dns_dkim_verified),
+    dns_dmarc_verified:  Boolean(m.dns_dmarc_verified),
+  }));
 
   const data: LimitsData = {
     aiCost,
