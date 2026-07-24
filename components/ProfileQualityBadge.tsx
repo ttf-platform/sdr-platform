@@ -102,7 +102,7 @@ export default function ProfileQualityBadge({
               href={c.href}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-[#e8e3dc] text-[#3b6bef] hover:bg-[#3b6bef] hover:text-white hover:border-[#3b6bef] transition-colors"
             >
-              {c.label}
+              {t('criteria.' + c.key)}
               <span className="opacity-60">+{c.points}</span>
             </a>
           ))}

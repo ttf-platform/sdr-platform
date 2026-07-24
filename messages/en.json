@@ -2287,7 +2287,20 @@
       "subtextLimited": "Campaigns are locked until you reach 30%. Complete your profile so Mirvo AI can write on-brand emails.",
       "editProfile": "Edit profile →",
       "editProfileAriaLabel": "Edit profile",
-      "dismissAriaLabel": "Dismiss"
+      "dismissAriaLabel": "Dismiss",
+      "criteria": {
+        "user_industry": "Your industry",
+        "user_company_size": "Your company size",
+        "product_description": "Product description",
+        "value_proposition": "Value proposition",
+        "icp_description": "ICP description",
+        "icp_industries": "Target industry",
+        "target_titles": "Target titles",
+        "target_regions": "Target regions",
+        "icp_company_sizes": "Target company size",
+        "pain_points": "Pain points",
+        "tone": "Email tone"
+      }
     },
     "creditUsageIndicator": {
       "labelTotalProspects": "AI-researched contacts",
