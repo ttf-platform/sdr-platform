@@ -1,5 +1,5 @@
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
-import { isActivePaid } from '@/lib/admin-metrics';
+import { isActivePaid, subscriptionChurnRate30d } from '@/lib/admin-metrics';
 import { fetchAllAuthUsers } from '@/lib/admin-users';
 import { AnalyticsClient } from './_components/AnalyticsClient';
 
@@ -48,7 +48,7 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   // signal. Now each failure flips `dataIncomplete` and the affected
   // downstream metric surfaces the banner.
   const [wsResult, campaignsResult, membersResult] = await Promise.all([
-    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, created_at'),
+    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, canceled_at, created_at'),
     sb.from('campaigns').select('workspace_id, created_at'),
     sb.from('workspace_members').select('user_id, workspace_id'),
   ]);
@@ -109,16 +109,15 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   }
   const trialToPaidRate = trialEnded > 0 ? (trialEndedAndPaid / trialEnded) * 100 : null;
 
-  let activeOldUsers = 0;
-  let dormantOldUsers = 0;
-  for (const u of allUsers) {
-    if (now - new Date(u.created_at).getTime() < THIRTY_DAYS) continue;
-    const lastSeen = u.last_sign_in_at ? new Date(u.last_sign_in_at).getTime() : 0;
-    if (now - lastSeen < THIRTY_DAYS) activeOldUsers++;
-    else dormantOldUsers++;
-  }
-  const totalOldUsers = activeOldUsers + dormantOldUsers;
-  const churnRate30d = totalOldUsers > 0 ? (dormantOldUsers / totalOldUsers) * 100 : null;
+  // Churn — real subscription cancellation rate over the last 30 days.
+  // The previous implementation counted LOGIN DORMANCY (users signed up
+  // >30d ago who hadn't signed in for 30d), which conflated inactive but
+  // still-paying users with actual churned customers and completely
+  // ignored trial-only signups. Now delegates to subscriptionChurnRate30d
+  // which reads workspaces.canceled_at (stamped by the Stripe webhook on
+  // both customer.subscription.updated → 'canceled' and
+  // customer.subscription.deleted, via stampCanceledAtIfMissing).
+  const churnRate30d = subscriptionChurnRate30d(workspacesArr, now);
 
   // Funnel
   const activatedWorkspaceIds = new Set(firstCampaignByWorkspace.keys());

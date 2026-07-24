@@ -40,8 +40,8 @@ export function AnalyticsClient({ data }: { data: AnalyticsData }) {
         <KpiCard label="Signups (30d)" value={formatNumber(data.kpis.signupsLast30Days)} icon={TrendingUp} />
         <KpiCard label="Activation rate" value={formatPct(data.kpis.activationRate)} icon={Zap} hint="≥1 campaign within 7d" />
         <KpiCard label="Trial → Paid" value={formatPct(data.kpis.trialToPaidRate)} icon={DollarSign} hint="of expired trials" />
-        <KpiCard label="Churn (30d)" value={formatPct(data.kpis.churnRate30d)} icon={TrendingDown} hint="dormant >30d"
-          tone={data.kpis.churnRate30d != null && data.kpis.churnRate30d > 50 ? 'warning' : 'neutral'} />
+        <KpiCard label="Churn (30d)" value={formatPct(data.kpis.churnRate30d)} icon={TrendingDown} hint="canceled, last 30d"
+          tone={data.kpis.churnRate30d != null && data.kpis.churnRate30d > 10 ? 'warning' : 'neutral'} />
       </div>
 
       <section className="mb-6 rounded-lg border border-[#e8e3dc] bg-white p-5">
