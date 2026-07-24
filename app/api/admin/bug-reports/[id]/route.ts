@@ -27,7 +27,7 @@ export async function GET(
   const sb = getAdminSupabaseClient();
   const { data: row, error } = await sb
     .from('bug_reports')
-    .select('id, workspace_id, user_id, title, description, priority, status, browser, page_url, created_at, updated_at')
+    .select('id, workspace_id, user_id, title, description, priority, status, browser, page_url, admin_notes, created_at, updated_at')
     .eq('id', id)
     .maybeSingle();
 
