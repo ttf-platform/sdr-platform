@@ -28,7 +28,14 @@ CREATE TABLE IF NOT EXISTS public.plans (
   tier                         text PRIMARY KEY
                                  CHECK (tier IN ('free', 'starter', 'pro', 'power')),
   monthly_price_usd            integer,           -- NULL for free
-  annual_discount              numeric(4,3),      -- 0.200 ; NULL for free
+  annual_discount              real,              -- 0.200 ; NULL for free.
+                                                  -- real (float4) instead of numeric(4,3) so
+                                                  -- PostgREST serialises it as a JSON number
+                                                  -- rather than a string : the loader's mergeRow
+                                                  -- would otherwise silently ignore admin edits
+                                                  -- (a numeric arriving as "0.150" fails a naive
+                                                  -- typeof v === 'number' check). Loader also
+                                                  -- coerces numeric-strings defensively.
   stripe_price_id              text,              -- NULL in PR1, populated in PR2
   total_prospects              integer NOT NULL,
   prospects_sourced_per_month  integer NOT NULL,

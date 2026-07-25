@@ -113,17 +113,28 @@ function mergeRow(tier: Tier, row: Record<string, unknown> | undefined): PlanCon
   const seed = PLANS_SEED[tier]
   if (!row) return seed
 
+  // PostgREST serialises Postgres `numeric` as a JSON *string* (e.g. "0.200")
+  // while `real` / `integer` come through as JSON numbers. The current
+  // schema uses `real` for annual_discount and `integer` for the caps, but
+  // any future `numeric` column added by the /admin/plans editor (PR2)
+  // would otherwise be silently dropped by a naive typeof check. Coerce
+  // defensively — 0 stays 0 (Number('0') === 0, Number.isFinite(0) === true).
+  const toNum = (v: unknown): number | null => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null
+    if (typeof v === 'string') { const n = Number(v); return Number.isFinite(n) ? n : null }
+    return null
+  }
+
   const num = (k: keyof PlanConfig): number => {
-    const v = row[k as string]
-    return typeof v === 'number' ? v : (seed[k] as number)
+    const n = toNum(row[k as string])
+    return n ?? (seed[k] as number)
   }
   // For nullable numerics : DB null is a legitimate value (free tier).
   // Only fall back to seed when the column is undefined (row missing it).
   const nullableNum = (k: keyof PlanConfig): number | null => {
     if (!(k in row)) return seed[k] as number | null
-    const v = row[k as string]
-    if (v === null) return null
-    return typeof v === 'number' ? v : (seed[k] as number | null)
+    if (row[k as string] === null) return null
+    return toNum(row[k as string]) ?? (seed[k] as number | null)
   }
   const str = (k: keyof PlanConfig): string | null => {
     if (!(k in row)) return seed[k] as string | null

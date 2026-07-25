@@ -141,6 +141,39 @@ describe('loadPlansConfig — partial merge on top of seed', () => {
     expect(cfg.free.total_prospects).toBe(PLANS_SEED.free.total_prospects)
   })
 
+  it('annual_discount from the DB is applied — number AND numeric-string are both coerced', async () => {
+    // PostgREST returns Postgres `numeric` as a JSON string ; `real` as a
+    // JSON number. Migration 082 uses `real`, but the loader must accept
+    // both shapes so a future PR2 admin edit that lands as either type is
+    // never silently dropped.
+
+    // Number path (matches the current `real` schema).
+    selectMock.mockResolvedValueOnce({
+      data: [{ tier: 'pro', annual_discount: 0.15 }],
+      error: null,
+    })
+    let cfg = await loadPlansConfig()
+    expect(cfg.pro.annual_discount).toBe(0.15)
+
+    // String path (defensive : any future numeric column arriving as "0.15").
+    invalidatePlansConfigCache()
+    selectMock.mockResolvedValueOnce({
+      data: [{ tier: 'starter', annual_discount: '0.15' }],
+      error: null,
+    })
+    cfg = await loadPlansConfig()
+    expect(cfg.starter.annual_discount).toBe(0.15)
+  })
+
+  it('non-nullable numeric prices arriving as string are coerced (defensive)', async () => {
+    selectMock.mockResolvedValueOnce({
+      data: [{ tier: 'pro', monthly_price_usd: '250' }],
+      error: null,
+    })
+    const cfg = await loadPlansConfig()
+    expect(cfg.pro.monthly_price_usd).toBe(250)
+  })
+
   it('unknown tier in the DB is silently ignored', async () => {
     selectMock.mockResolvedValueOnce({
       data: [{ tier: 'legacy_gold', monthly_price_usd: 999 }],
