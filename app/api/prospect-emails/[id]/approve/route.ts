@@ -42,6 +42,7 @@ import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
 import { enforceEmptyBody } from '@/lib/schemas'
 import { campaignScheduleFromPrefs } from '@/lib/sending-schedule'
 import type { SendingPrefs } from '@/lib/types/sending-prefs'
+import { checkTierLimit, trackUsage } from '@/lib/tier-limits'
 
 const PROVIDER_TIMEOUT_MS = 10_000
 
@@ -133,7 +134,22 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: 'no_sending_mailbox' }, { status: 422 })
   }
 
-  // Gate B — provider_mock_mode. If the app fell back to the mock provider
+  // Gate B — email quota cap (PR3 plans-config enforcement). Hard cap on
+  // emails_per_month, read from `plans` via loadPlansConfig() → capsFor().
+  // Refuse BEFORE the flip to 'sending' so a rejected quota check never
+  // leaves a row stuck mid-transition. Send-All is a loop of approve
+  // calls, so each email is gated independently ; once the cap is hit,
+  // subsequent calls return 429 and the client stops the batch.
+  // Message is vendor-invisible (plan tier name + cap only, no provider).
+  const quota = await checkTierLimit(guard.workspaceId, 'emails_sent', 1)
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: 'email_cap_reached', message: quota.reason },
+      { status: 429 },
+    )
+  }
+
+  // Gate C — provider_mock_mode. If the app fell back to the mock provider
   // (MOCK_EMAIL_PROVIDER=true OR INSTANTLY_API_KEY missing), the three
   // campaign-based calls below all succeed silently and prospect_emails
   // flips to 'sending' but nothing goes out. Refuse loudly. Same gate as
@@ -287,6 +303,20 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .eq('id', pe.id)
     .select(CLIENT_COLUMNS)
     .single()
+
+  // Meter the send against the monthly emails cap. Best-effort at the call
+  // site : the lead is already queued at the provider, so a tracking
+  // failure must NEVER poison the approve response. trackUsage also fires
+  // the 80 %/100 % threshold notifications internally. NOT called on the
+  // markFailed path — an enqueue failure shouldn't burn quota.
+  try {
+    await trackUsage(guard.workspaceId, 'emails_sent', 1)
+  } catch (err) {
+    console.error('[approve] trackUsage failed (non-blocking)', {
+      workspace_id: guard.workspaceId,
+      probe_error:  err instanceof Error ? err.message : 'unknown',
+    })
+  }
 
   // Best-effort warmup capacity signal. Never fails the approve — the send
   // has already been queued at the provider. UI displays this once per
