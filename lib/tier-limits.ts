@@ -44,7 +44,7 @@ export function capsFor(cfg: Record<Tier, PlanConfig>, tier: TierKey): TierCaps 
   return toCaps(cfg[tier] ?? PLANS_SEED[tier] ?? PLANS_SEED.starter)
 }
 
-type UsageMetric = 'enrichments_used' | 'prospects_sourced'
+type UsageMetric = 'enrichments_used' | 'prospects_sourced' | 'emails_sent'
 
 // Total contacts lifetime cap — counts from contacts table.
 // Race condition under concurrent imports is an acceptable limitation.
@@ -122,6 +122,25 @@ export async function checkTierLimit(
       return {
         allowed: false,
         reason: `Monthly sourced-prospects cap reached (${cap} on ${tier} plan). Upgrade to source more.`,
+        currentUsage: current,
+        cap,
+      }
+    }
+    return { allowed: true, currentUsage: current, cap }
+  }
+
+  if (metric === 'emails_sent') {
+    // HARD cap, no overage. Approve/Send-All returns 429 per email once the
+    // cap is hit ; upgrading the plan (or waiting for the next billing
+    // period) is the only path forward. Cap is read from `plans.emails_per_month`
+    // via loadPlansConfig() → capsFor() so /admin/plans edits take effect
+    // within one 60 s cache window (and immediately after
+    // invalidatePlansConfigCache on the PUT).
+    const cap = caps.emails_per_month
+    if (current + amount > cap) {
+      return {
+        allowed: false,
+        reason: `Monthly email cap reached (${cap} on ${tier} plan). Upgrade to send more.`,
         currentUsage: current,
         cap,
       }
