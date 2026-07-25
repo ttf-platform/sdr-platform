@@ -1,41 +1,65 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 const supabase = createClient()
 
+type Period = '7d' | '30d' | '90d'
+const PERIOD_DAYS: Record<Period, number> = { '7d': 7, '30d': 30, '90d': 90 }
+
+type Totals = { sent: number; opened: number; replied: number; bounced: number }
+type ByCampaign = { campaign_id: string; name: string; sent: number; opened: number; replied: number; bounced: number }
+type ByDay = { day: string; sent: number }
+type AnalyticsRpc = { totals: Totals; by_campaign: ByCampaign[]; by_day: ByDay[] }
+
+const EMPTY: AnalyticsRpc = {
+  totals:      { sent: 0, opened: 0, replied: 0, bounced: 0 },
+  by_campaign: [],
+  by_day:      [],
+}
+
+function pct(num: number, denom: number): string {
+  return denom > 0 ? ((num / denom) * 100).toFixed(1) : '0.0'
+}
+
 export default function AnalyticsPage() {
-  const t = useTranslations('dashboard.analytics')
   const tHeader = useTranslations('dashboard.analytics.header')
   const tPeriod = useTranslations('dashboard.analytics.header.period')
   const tKpis = useTranslations('dashboard.analytics.kpis')
   const tBreakdown = useTranslations('dashboard.analytics.breakdown')
   const tBreakdownCols = useTranslations('dashboard.analytics.breakdown.columns')
   const tActivity = useTranslations('dashboard.analytics.activity')
+  const locale = useLocale()
 
-  const [stats, setStats] = useState({ sent: 0, open_rate: '0.0', reply_rate: '0.0', replies: 0, bounce_rate: '0.0' })
-  const [campaigns, setCampaigns] = useState<any[]>([])
-  const [period, setPeriod] = useState('30d')
+  const [data,   setData]   = useState<AnalyticsRpc>(EMPTY)
+  const [period, setPeriod] = useState<Period>('30d')
 
   useEffect(() => {
+    let cancelled = false
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
-      const { data: member } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', session.user.id).single()
-      if (!member) return
-      const { data } = await supabase.from('campaigns').select('*').eq('workspace_id', member.workspace_id)
-      setCampaigns(data || [])
-      const sent = data?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0
-      const opens = data?.reduce((a, c) => a + (c.open_count || 0), 0) || 0
-      const replies = data?.reduce((a, c) => a + (c.reply_count || 0), 0) || 0
-      const bounces = data?.reduce((a, c) => a + (c.bounce_count || 0), 0) || 0
-      setStats({ sent, open_rate: sent > 0 ? ((opens/sent)*100).toFixed(1) : '0.0', reply_rate: sent > 0 ? ((replies/sent)*100).toFixed(1) : '0.0', replies, bounce_rate: sent > 0 ? ((bounces/sent)*100).toFixed(1) : '0.0' })
+      if (!session || cancelled) return
+      const p_since = new Date(Date.now() - PERIOD_DAYS[period] * 86_400_000).toISOString()
+      const { data: raw } = await supabase.rpc('workspace_email_analytics', { p_since })
+      if (cancelled) return
+      setData((raw as AnalyticsRpc | null) ?? EMPTY)
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true }
   }, [period])
 
+  const { totals, by_campaign, by_day } = data
+  const openRate   = pct(totals.opened,  totals.sent)
+  const replyRate  = pct(totals.replied, totals.sent)
+  const bounceRate = pct(totals.bounced, totals.sent)
+
   const sentLabel = tActivity('tooltipSentLabel')
+  const dayFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
+  const chartData = by_day.map(d => ({
+    // Interpret "YYYY-MM-DD" as UTC to match the RPC's UTC bucketing.
+    day:  dayFmt.format(new Date(d.day + 'T00:00:00Z')),
+    sent: d.sent,
+  }))
 
   return (
     <div>
@@ -44,7 +68,7 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-bold text-[#1a1a2e]">{tHeader('title')}</h1>
           <p className="text-sm text-[#8a7e6e]">{tHeader('subtitle')}</p>
         </div>
-        <select value={period} onChange={e => setPeriod(e.target.value)}
+        <select value={period} onChange={e => setPeriod(e.target.value as Period)}
           className="border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm text-[#1a1a2e] bg-white focus:outline-none">
           <option value="7d">{tPeriod('last7d')}</option>
           <option value="30d">{tPeriod('last30d')}</option>
@@ -54,11 +78,11 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[
-          { key: 'emailsSent', value: stats.sent,                    color: 'text-[#1a1a2e]' },
-          { key: 'openRate',   value: stats.open_rate + '%',         color: 'text-[#3b6bef]' },
-          { key: 'replyRate',  value: stats.reply_rate + '%',        color: 'text-green-600' },
-          { key: 'replies',    value: stats.replies,                 color: 'text-[#1a1a2e]' },
-          { key: 'bounceRate', value: stats.bounce_rate + '%',       color: 'text-red-500' },
+          { key: 'emailsSent', value: totals.sent,        color: 'text-[#1a1a2e]' },
+          { key: 'openRate',   value: openRate + '%',     color: 'text-[#3b6bef]' },
+          { key: 'replyRate',  value: replyRate + '%',    color: 'text-green-600' },
+          { key: 'replies',    value: totals.replied,     color: 'text-[#1a1a2e]' },
+          { key: 'bounceRate', value: bounceRate + '%',   color: 'text-red-500' },
         ].map(kpi => (
           <div key={kpi.key} className="bg-white border border-[#e8e3dc] rounded-xl p-4">
             <div className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wider mb-2">{tKpis(kpi.key)}</div>
@@ -82,17 +106,17 @@ export default function AnalyticsPage() {
             </tr>
           </thead>
           <tbody>
-            {campaigns.length === 0 ? (
+            {by_campaign.length === 0 ? (
               <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-[#8a7e6e]">{tBreakdown('empty')}</td></tr>
-            ) : campaigns.map(c => (
-              <tr key={c.id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5]">
+            ) : by_campaign.map(c => (
+              <tr key={c.campaign_id} className="border-b border-[#f7f4f0] hover:bg-[#faf8f5]">
                 <td className="px-5 py-3 text-sm text-[#1a1a2e] font-medium">{c.name}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.sent_count || 0}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.open_count || 0}</td>
-                <td className="px-5 py-3 text-sm text-[#3b6bef] text-right font-medium">{c.sent_count > 0 ? ((c.open_count/c.sent_count)*100).toFixed(1)+'%' : '0.0%'}</td>
-                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.reply_count || 0}</td>
-                <td className="px-5 py-3 text-sm text-green-600 text-right font-medium">{c.sent_count > 0 ? ((c.reply_count/c.sent_count)*100).toFixed(1)+'%' : '0.0%'}</td>
-                <td className="px-5 py-3 text-sm text-red-500 text-right">{c.bounce_count || 0}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.sent}</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.opened}</td>
+                <td className="px-5 py-3 text-sm text-[#3b6bef] text-right font-medium">{pct(c.opened, c.sent)}%</td>
+                <td className="px-5 py-3 text-sm text-[#1a1a2e] text-right">{c.replied}</td>
+                <td className="px-5 py-3 text-sm text-green-600 text-right font-medium">{pct(c.replied, c.sent)}%</td>
+                <td className="px-5 py-3 text-sm text-red-500 text-right">{c.bounced}</td>
               </tr>
             ))}
           </tbody>
@@ -101,13 +125,13 @@ export default function AnalyticsPage() {
 
       <div className="bg-white border border-[#e8e3dc] rounded-xl p-5">
         <h2 className="font-semibold text-[#1a1a2e] mb-4">{tActivity('title')}</h2>
-        {campaigns.length === 0 ? (
+        {chartData.length === 0 ? (
           <div className="text-center py-8 text-sm text-[#8a7e6e]">{tActivity('empty')}</div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={campaigns.map(c => ({ name: c.name.slice(0,10), sent: c.sent_count || 0 }))}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+            <BarChart data={chartData}>
+              <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip formatter={(value: number | string) => [value, sentLabel]} />
               <Bar dataKey="sent" fill="#3b6bef" radius={[4,4,0,0]} />
             </BarChart>
