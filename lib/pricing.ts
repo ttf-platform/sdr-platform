@@ -1,36 +1,39 @@
 /**
  * lib/pricing.ts
  *
- * Single source of truth for Sentra/Mirvo plan pricing inside the app code.
- * Until this file existed, the pricing was duplicated across:
- *   - lib/bot-system-prompt.ts (LLM-facing copy)
- *   - content/help/plans-pricing.mdx (help-center copy)
- *   - messages/en.json (i18n strings)
- *   - app/[locale]/page.tsx (landing JSON-LD)
- * and the only "structured" source was `STRIPE_PRICES` (env-var price IDs,
- * no $ amounts). Anyone computing MRR had to invent constants — which is
- * why this file now exists.
+ * Pricing helpers. Since PR1 "plans-config foundation", the actual numbers
+ * live in lib/plans.ts → PLANS_SEED (single source of truth, admin-editable
+ * via the `plans` table in PR2). The exports here are DERIVED from that seed
+ * and continue to expose the same shapes as before so nothing downstream
+ * needs to change.
  *
  * NOTE: this is GROSS pricing at sticker rate. Discounts (LAUNCH50 etc.)
  * are NOT captured in the workspaces table, so MRR computed from these
  * constants is an UPPER BOUND. The /admin/revenue page surfaces this as
  * an explicit disclaimer.
- *
- * Reference for amounts: lib/bot-system-prompt.ts:129-131 +
- * content/help/plans-pricing.mdx + messages/en.json.
  */
 
 import type { PlanTier, BillingInterval } from '@/lib/stripe-prices'
+import { PLANS_SEED, PLANS_SEED_PRICE_MAP, type PlanPriceMap } from '@/lib/plans'
 
-/** Full sticker price in USD/month (monthly billing). */
+/**
+ * Full sticker price in USD/month (monthly billing). Derived from the seed
+ * — the "paid" tiers (starter/pro/power) are exactly those whose
+ * monthly_price_usd is non-null.
+ */
 export const PLAN_PRICES: Record<PlanTier, number> = {
-  starter: 149,
-  pro:     299,
-  power:   399,
+  starter: PLANS_SEED.starter.monthly_price_usd as number,
+  pro:     PLANS_SEED.pro.monthly_price_usd     as number,
+  power:   PLANS_SEED.power.monthly_price_usd   as number,
 } as const
 
-/** Annual plans get -20% (so effective monthly = full * 0.8). */
-export const ANNUAL_DISCOUNT = 0.20
+/**
+ * Annual plans get -20% (so effective monthly = full * 0.8). Derived from
+ * the starter tier's annual_discount ; the seed guarantees all paid tiers
+ * share the same value (this invariant is asserted by the plans.test.ts
+ * parity test — flipping it in the DB is a PR2 concern, not a PR1 one).
+ */
+export const ANNUAL_DISCOUNT = PLANS_SEED.starter.annual_discount as number
 
 /**
  * Convert one workspace's (plan_tier, billing_interval) into its monthly MRR
@@ -38,11 +41,15 @@ export const ANNUAL_DISCOUNT = 0.20
  * must decide whether to skip the row or count it as 0 with a flag.
  *
  * billing_interval handling:
- *   - 'monthly'        → PLAN_PRICES[tier]
- *   - 'yearly'         → PLAN_PRICES[tier] * (1 - ANNUAL_DISCOUNT)
+ *   - 'monthly'        → priceMap[tier].monthly_price_usd
+ *   - 'yearly'         → base * (1 - annual_discount)
  *   - null / unknown   → treated as monthly (default) BUT returns
  *                        `interval_assumed_monthly: true` so the caller can
  *                        surface a warning for the affected workspaces.
+ *
+ * priceMap : OPTIONAL. Defaults to the seed-derived map, so existing callers
+ * and tests behave exactly as before. Callers that want DB-edited values
+ * (PR2) pass `priceMapFromConfig(await loadPlansConfig())`.
  */
 export interface MrrComputation {
   mrr_usd:                  number
@@ -52,11 +59,15 @@ export interface MrrComputation {
 export function monthlyMrrForWorkspace(
   planTier:        string | null,
   billingInterval: string | null,
+  priceMap:        PlanPriceMap = PLANS_SEED_PRICE_MAP,
 ): MrrComputation | null {
-  if (!planTier || !(planTier in PLAN_PRICES)) return null
-  const base = PLAN_PRICES[planTier as PlanTier]
+  if (!planTier) return null
+  const entry = priceMap[planTier]
+  if (!entry || entry.monthly_price_usd === null) return null
+  const base = entry.monthly_price_usd
+  const discount = entry.annual_discount ?? 0
   if (billingInterval === 'yearly') {
-    return { mrr_usd: base * (1 - ANNUAL_DISCOUNT), interval_assumed_monthly: false }
+    return { mrr_usd: base * (1 - discount), interval_assumed_monthly: false }
   }
   if (billingInterval === 'monthly') {
     return { mrr_usd: base, interval_assumed_monthly: false }

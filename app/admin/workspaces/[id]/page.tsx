@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchAllAuthUsers } from '@/lib/admin-users';
-import { TIER_CAPS } from '@/lib/tier-limits';
+import { TIER_CAPS, capsFor } from '@/lib/tier-limits';
+import { loadPlansConfig } from '@/lib/plans';
 import { WorkspaceDetailClient, type WorkspaceDetailData } from './_components/WorkspaceDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -139,8 +140,9 @@ export default async function WorkspaceDeepDivePage(
     usageByMetric[row.metric] = (usageByMetric[row.metric] ?? 0) + Number(row.value ?? 0);
   }
 
+  const plansCfg = await loadPlansConfig();
   const tier = workspace.plan_tier as string | null;
-  const caps = isTierCapKey(tier) ? TIER_CAPS[tier] : null;
+  const caps = isTierCapKey(tier) ? capsFor(plansCfg, tier) : null;
   const usageQuota = {
     enrichments_used:  { used: usageByMetric.enrichments_used  ?? 0, cap: caps?.enrichments_per_month        ?? null },
     emails_sent:       { used: usageByMetric.emails_sent       ?? 0, cap: caps?.emails_per_month             ?? null },

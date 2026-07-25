@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { MONTHLY_CAPS, type Tier } from '@/lib/scan-limits';
-import { TIER_CAPS } from '@/lib/tier-limits';
+import { TIER_CAPS, capsFor } from '@/lib/tier-limits';
+import { loadPlansConfig } from '@/lib/plans';
 import { LimitsClient, type LimitsData } from './_components/LimitsClient';
 
 export const dynamic = 'force-dynamic';
@@ -64,6 +65,10 @@ function num(v: number | string | null | undefined): number {
 
 export default async function LimitsPage() {
   const admin = createAdminClient();
+
+  // Load Admin-editable plan config once for the whole page (PR1 : identical
+  // to the seed → same numbers as before). Falls back to seed on any error.
+  const plansCfg = await loadPlansConfig();
 
   // ── Time windows ────────────────────────────────────────────────────────
   const now = new Date();
@@ -171,7 +176,7 @@ export default async function LimitsPage() {
   for (const [workspace_id, used] of scanUsedByWorkspace.entries()) {
     const ws = wsById.get(workspace_id);
     const tier = ws?.plan_tier ?? null;
-    const cap = isScanTier(tier) ? MONTHLY_CAPS[tier] : null;
+    const cap = isScanTier(tier) ? plansCfg[tier].scans_per_month : null;
     const pct = cap != null && cap > 0 ? (used / cap) * 100 : null;
     if (pct != null && pct >= 80) {
       scanCapRows.push({ workspace_id, plan_tier: tier, used, cap, pct });
@@ -184,7 +189,7 @@ export default async function LimitsPage() {
   for (const [workspace_id, byMetric] of usageByWs.entries()) {
     const ws = wsById.get(workspace_id);
     const tier = ws?.plan_tier ?? null;
-    const caps = isTierCapKey(tier) ? TIER_CAPS[tier] : null;
+    const caps = isTierCapKey(tier) ? capsFor(plansCfg, tier) : null;
     const metrics = {
       enrichments_used: {
         used: byMetric.enrichments_used ?? 0,

@@ -3,20 +3,45 @@ import type { PlanTier } from '@/lib/stripe-prices'
 import { triggerOverageChargeIfNeeded } from '@/lib/overage-charge'
 import { getUsagePeriod } from '@/lib/billing-period'
 import { notifyWorkspaceOwner, type LocalizedText } from '@/lib/notifications'
+import { PLANS_SEED, loadPlansConfig, type PlanConfig, type Tier } from '@/lib/plans'
 
 type TierKey = PlanTier | 'free'
 
-export const TIER_CAPS: Record<TierKey, {
+export interface TierCaps {
   total_prospects: number               // lifetime safety cap
   prospects_sourced_per_month: number   // AI prospect sourcing monthly cap (hard cap, no overage)
   enrichments_per_month: number         // enrichment monthly cap
   emails_per_month: number              // monthly email send cap
   inboxes: number
-}> = {
-  free:    { total_prospects: 1000,  prospects_sourced_per_month: 0,   enrichments_per_month: 25,  emails_per_month: 100,  inboxes: 1 },
-  starter: { total_prospects: 10000, prospects_sourced_per_month: 120, enrichments_per_month: 100, emails_per_month: 1000, inboxes: 1 },
-  pro:     { total_prospects: 25000, prospects_sourced_per_month: 250, enrichments_per_month: 300, emails_per_month: 2000, inboxes: 2 },
-  power:   { total_prospects: 50000, prospects_sourced_per_month: 350, enrichments_per_month: 500, emails_per_month: 3000, inboxes: 3 },
+}
+
+/**
+ * Derived from PLANS_SEED — kept as a synchronous const for callers that
+ * cannot go async (initial-render fallbacks, test fixtures). The DB-driven
+ * variant is `capsFor(cfg, tier)` where `cfg` comes from `loadPlansConfig()`.
+ * Both surfaces read identical numbers when the DB matches the seed (the
+ * default in PR1).
+ */
+function toCaps(p: PlanConfig): TierCaps {
+  return {
+    total_prospects:             p.total_prospects,
+    prospects_sourced_per_month: p.prospects_sourced_per_month,
+    enrichments_per_month:       p.enrichments_per_month,
+    emails_per_month:            p.emails_per_month,
+    inboxes:                     p.inboxes,
+  }
+}
+
+export const TIER_CAPS: Record<TierKey, TierCaps> = {
+  free:    toCaps(PLANS_SEED.free),
+  starter: toCaps(PLANS_SEED.starter),
+  pro:     toCaps(PLANS_SEED.pro),
+  power:   toCaps(PLANS_SEED.power),
+}
+
+/** DB-driven cap lookup for one tier, with seed-safe fallback. */
+export function capsFor(cfg: Record<Tier, PlanConfig>, tier: TierKey): TierCaps {
+  return toCaps(cfg[tier] ?? PLANS_SEED[tier] ?? PLANS_SEED.starter)
 }
 
 type UsageMetric = 'enrichments_used' | 'prospects_sourced'
@@ -33,8 +58,9 @@ export async function checkTotalProspectsLimit(
     .from('workspaces').select('plan_tier')
     .eq('id', workspaceId).single()
 
+  const cfg = await loadPlansConfig()
   const tier = (ws?.plan_tier ?? 'starter') as TierKey
-  const cap = TIER_CAPS[tier]?.total_prospects ?? TIER_CAPS.starter.total_prospects
+  const cap = capsFor(cfg, tier).total_prospects
 
   const { count } = await admin
     .from('contacts')
@@ -66,8 +92,9 @@ export async function checkTierLimit(
     .from('workspaces').select('plan_tier, overage_enabled, current_period_start, current_period_end')
     .eq('id', workspaceId).single()
 
+  const cfg = await loadPlansConfig()
   const tier = (ws?.plan_tier ?? 'starter') as TierKey
-  const caps = TIER_CAPS[tier] ?? TIER_CAPS.starter
+  const caps = capsFor(cfg, tier)
 
   // Monthly metric — window anchored on the Stripe billing period (or the
   // calendar month when the workspace is not on a paid subscription — trial
@@ -196,8 +223,9 @@ export async function trackUsage(
   if (!notifCfg) return
 
   try {
+    const cfg = await loadPlansConfig()
     const tier = (ws?.plan_tier ?? 'starter') as TierKey
-    const caps = TIER_CAPS[tier] ?? TIER_CAPS.starter
+    const caps = capsFor(cfg, tier)
     const cap  = caps[notifCfg.capKey]
     if (!cap || cap <= 0) return  // pas de cap effectif (ex: free/prospects_sourced=0)
 

@@ -39,6 +39,7 @@ import {
 } from './bot-system-prompt';
 import { logAiCall } from './ai-cost';
 import { getUsagePeriod } from './billing-period';
+import { PLANS_SEED } from './plans';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -49,10 +50,12 @@ export const MAX_TOOL_LOOP_ITERATIONS = 5;
 export const MAX_TOKENS_PER_TURN = 1024;
 
 /**
- * Plan quotas — mirrors TIER_CAPS in lib/tier-limits.ts.
- * Inlined here to avoid importing lib/tier-limits.ts (which pulls in
- * the admin Supabase client and would break test isolation).
- * Keep in sync with tier-limits.ts when caps change.
+ * Plan quotas subset used by the chatbot's `getUserPlanAndQuotas` tool.
+ * Derived from PLANS_SEED — the same authoritative table that backs
+ * TIER_CAPS in lib/tier-limits.ts and the /admin/plans editor (PR2).
+ * The projection keeps only the four columns the bot surfaces to end
+ * users ; anything richer would leak into the LLM's answer without a UX
+ * reason.
  */
 const PLAN_CAPS: Record<string, {
   inboxes: number;
@@ -60,10 +63,10 @@ const PLAN_CAPS: Record<string, {
   prospects_sourced_per_month: number;
   total_prospects: number;
 }> = {
-  free:    { inboxes: 1, emails_per_month: 100,  prospects_sourced_per_month: 0,   total_prospects: 1000  },
-  starter: { inboxes: 1, emails_per_month: 1000, prospects_sourced_per_month: 120, total_prospects: 10000 },
-  pro:     { inboxes: 2, emails_per_month: 2000, prospects_sourced_per_month: 250, total_prospects: 25000 },
-  power:   { inboxes: 3, emails_per_month: 3000, prospects_sourced_per_month: 350, total_prospects: 50000 },
+  free:    { inboxes: PLANS_SEED.free.inboxes,    emails_per_month: PLANS_SEED.free.emails_per_month,    prospects_sourced_per_month: PLANS_SEED.free.prospects_sourced_per_month,    total_prospects: PLANS_SEED.free.total_prospects    },
+  starter: { inboxes: PLANS_SEED.starter.inboxes, emails_per_month: PLANS_SEED.starter.emails_per_month, prospects_sourced_per_month: PLANS_SEED.starter.prospects_sourced_per_month, total_prospects: PLANS_SEED.starter.total_prospects },
+  pro:     { inboxes: PLANS_SEED.pro.inboxes,     emails_per_month: PLANS_SEED.pro.emails_per_month,     prospects_sourced_per_month: PLANS_SEED.pro.prospects_sourced_per_month,     total_prospects: PLANS_SEED.pro.total_prospects     },
+  power:   { inboxes: PLANS_SEED.power.inboxes,   emails_per_month: PLANS_SEED.power.emails_per_month,   prospects_sourced_per_month: PLANS_SEED.power.prospects_sourced_per_month,   total_prospects: PLANS_SEED.power.total_prospects   },
 };
 
 // ---------------------------------------------------------------------------

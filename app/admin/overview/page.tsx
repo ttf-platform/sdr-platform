@@ -1,5 +1,6 @@
 import { getAdminSupabaseClient } from '@/lib/supabase-admin';
 import { ADMIN_BILLING_COLUMNS, aggregateBilling, type BillingRow } from '@/lib/admin-metrics';
+import { loadPlansConfig, priceMapFromConfig } from '@/lib/plans';
 import { OverviewClient } from './_components/OverviewClient';
 
 export const dynamic = 'force-dynamic';
@@ -32,9 +33,13 @@ export default async function OverviewPage() {
 async function loadOverviewData(): Promise<OverviewData> {
   const sb = getAdminSupabaseClient();
 
+  // Load Admin-editable plan config once (PR1 : identical to PLANS_SEED
+  // → same MRR aggregate as before). Threaded into aggregateBilling below.
+  const priceMap = priceMapFromConfig(await loadPlansConfig());
+
   const [totalUsers, workspaceStats, deliverability, signupsByDay, recentSignups] = await Promise.all([
     safeCountUsers(sb),
-    safeWorkspaceStats(sb),
+    safeWorkspaceStats(sb, priceMap),
     safeDeliverability(sb),
     safeSignupsByDay(sb),
     safeRecentSignups(sb),
@@ -73,7 +78,10 @@ async function safeCountUsers(sb: ReturnType<typeof getAdminSupabaseClient>): Pr
   }
 }
 
-async function safeWorkspaceStats(sb: ReturnType<typeof getAdminSupabaseClient>): Promise<{
+async function safeWorkspaceStats(
+  sb:       ReturnType<typeof getAdminSupabaseClient>,
+  priceMap: ReturnType<typeof priceMapFromConfig>,
+): Promise<{
   total: number | null; trial: number | null; paid: number | null; mrr: number | null;
 }> {
   try {
@@ -85,7 +93,7 @@ async function safeWorkspaceStats(sb: ReturnType<typeof getAdminSupabaseClient>)
     // showed up as "1 paid, 399$ MRR" on Overview).
     const { data, error } = await sb.from('workspaces').select(ADMIN_BILLING_COLUMNS);
     if (error || !data) return { total: null, trial: null, paid: null, mrr: null };
-    const agg = aggregateBilling(data as BillingRow[]);
+    const agg = aggregateBilling(data as BillingRow[], priceMap);
     return { total: agg.total, trial: agg.trialing, paid: agg.paidCount, mrr: agg.mrrTotal };
   } catch {
     return { total: null, trial: null, paid: null, mrr: null };

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
-import { TIER_CAPS } from '@/lib/tier-limits'
+import { capsFor } from '@/lib/tier-limits'
+import { loadPlansConfig } from '@/lib/plans'
 import type { PlanTier } from '@/lib/stripe-prices'
 import { getUsagePeriod } from '@/lib/billing-period'
 
@@ -19,8 +20,9 @@ export async function triggerOverageChargeIfNeeded(workspaceId: string): Promise
 
   if (!ws?.overage_enabled || !ws.stripe_customer_id) return
 
+  const cfg = await loadPlansConfig()
   const tier = (ws.plan_tier ?? 'starter') as PlanTier
-  const cap = TIER_CAPS[tier].enrichments_per_month
+  const cap = capsFor(cfg, tier).enrichments_per_month
 
   const period = getUsagePeriod(ws)
 
