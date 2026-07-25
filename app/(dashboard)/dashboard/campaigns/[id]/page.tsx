@@ -24,6 +24,7 @@ import {
 import type { ToneKey, LanguageValue } from '@/lib/icp-options'
 import { Modal } from '@/components/ui/Modal'
 import { AttachmentPicker } from '@/components/AttachmentPicker'
+import { isCommitted } from '@/lib/prospect-email-status'
 
 interface Step {
   id: string; step_order: number; step_type: 'initial' | 'follow_up'
@@ -1508,7 +1509,16 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     const contactName = [email.prospect.first_name, email.prospect.last_name]
                       .filter(Boolean).join(' ') || email.prospect.email || '—'
                     const bodyPreview = email.body.replace(/\n+/g, ' ').slice(0, 100)
-                    const isFinal = email.status === 'approved' || email.status === 'sent' || email.status === 'rejected'
+                    // Committed = the email is in flight or has already
+                    // reached the prospect (sending/sent/bounced/replied).
+                    // No mutation possible → hide Edit/Reject/Undo entirely,
+                    // matching the API's 409 `email_already_sent` guard.
+                    const committed = isCommitted(email.status)
+                    // Undo is only reversible for the two pre-commit terminal
+                    // states — 'approved' (pre-send Send-All checkbox) and
+                    // 'rejected' (undo a reject). 'sent' used to be here and
+                    // was the double-send bug: undo → draft → Send All → 2nd enqueue.
+                    const canUndo = email.status === 'approved' || email.status === 'rejected'
 
                     return (
                       <div key={email.id}
@@ -1557,20 +1567,25 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                           {/* Status badge */}
                           <EmailStatusBadge status={email.status} />
 
-                          {/* Action buttons */}
+                          {/* Action buttons — hidden entirely on committed
+                              rows (sending/sent/bounced/replied). The status
+                              badge to the left carries the state; there is
+                              no legal mutation from here. */}
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => setEditEmailId(email.id)}
-                              className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2 py-1 rounded-lg font-medium transition-colors">
-                              {tEmails('cardEdit')}
-                            </button>
-                            {isFinal ? (
+                            {!committed && (
+                              <button
+                                onClick={() => setEditEmailId(email.id)}
+                                className="text-xs text-[#3b6bef] border border-[#dde6fd] bg-[#f7f8ff] hover:bg-[#eef1fd] px-2 py-1 rounded-lg font-medium transition-colors">
+                                {tEmails('cardEdit')}
+                              </button>
+                            )}
+                            {canUndo ? (
                               <button
                                 onClick={() => undoEmail(email.id)}
                                 className="text-xs text-[#6b5e4e] border border-[#e8e3dc] bg-white hover:bg-[#f5f2ee] px-2 py-1 rounded-lg font-medium transition-colors">
                                 {tEmails('cardUndo')}
                               </button>
-                            ) : (
+                            ) : !committed && (
                               <>
                                 <button
                                   onClick={() => rejectEmail(email.id)}

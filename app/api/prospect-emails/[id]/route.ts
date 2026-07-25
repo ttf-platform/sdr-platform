@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { prospectEmailUpdateSchema, badRequest } from '@/lib/schemas'
+import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+
+const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
@@ -64,16 +67,27 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   updates.status    = 'edited'
   updates.edited_at = new Date().toISOString()
 
+  // Compare-and-set on status: an edit that flips a row committed elsewhere
+  // (sending/sent/bounced/replied) back to 'edited' would let Send All
+  // re-collect and re-enqueue the row → double-send. .single() on zero
+  // rows yields PGRST116 which we translate into a clear 409 rather than
+  // leaking as an opaque 500.
   const admin = createAdminClient()
   const { data: email, error } = await admin
     .from('prospect_emails')
     .update(updates)
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
+    .not('status', 'in', COMMITTED_NOT_IN_FILTER)
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ email })
 }
 
