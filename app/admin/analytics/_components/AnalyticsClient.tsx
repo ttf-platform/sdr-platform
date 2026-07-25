@@ -3,6 +3,7 @@
 import { TrendingUp, TrendingDown, Zap, DollarSign, type LucideIcon } from 'lucide-react';
 import { FunnelChart } from './FunnelChart';
 import { CohortsTable } from './CohortsTable';
+import { TrafficSourcesTable } from './TrafficSourcesTable';
 
 type AnalyticsData = {
   kpis: {
@@ -13,6 +14,7 @@ type AnalyticsData = {
   };
   funnel: { signups: number; activatedTrials: number; paid: number };
   cohorts: Array<{ month: string; signups: number; retainedLast7Days: number; retentionPct: number }>;
+  trafficSources: Array<{ source: string; signups: number; pct: number }>;
   dataIncomplete: boolean;
 };
 
@@ -60,9 +62,12 @@ export function AnalyticsClient({ data }: { data: AnalyticsData }) {
         <CohortsTable cohorts={data.cohorts} />
       </section>
 
-      <section className="rounded-lg border border-dashed border-[#e8e3dc] bg-[#fafaf9] p-6 text-center">
-        <h2 className="text-sm font-semibold text-[#4a4a5a]">Traffic sources — coming soon</h2>
-        <p className="mt-1 text-xs text-[#9a9a9a]">UTM tracking and referrers will be added once analytics_events instrumentation is in place.</p>
+      <section className="rounded-lg border border-[#e8e3dc] bg-white p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-[#1a1a1a]">Traffic sources</h2>
+          <p className="text-xs text-[#9a9a9a]">First-touch attribution at signup</p>
+        </div>
+        <TrafficSourcesTable sources={data.trafficSources} />
       </section>
     </div>
   );
