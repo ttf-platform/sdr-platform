@@ -983,7 +983,7 @@
           "list": "Liste",
           "addLead": "Ajouter un lead"
         },
-        "addLeadTooltip": "Ajoutez un lead manuellement, pour les opportunités qui ne viennent pas d'une campagne Mirvo (leads entrants, réseau, recommandations).",
+        "addLeadTooltip": "Ajoutez manuellement au pipeline un contact issu de l'une de vos campagnes. Il se remplit aussi automatiquement dès qu'un prospect répond ou réserve un rendez-vous.",
         "filters": {
           "searchPlaceholder": "Rechercher un lead…",
           "allStages": "Toutes les étapes"

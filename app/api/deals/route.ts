@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     .single()
 
   if (!prospect) {
-    return NextResponse.json({ error: 'Contact has no campaign assignments — add them to a campaign first' }, { status: 404 })
+    return NextResponse.json({ error: "This contact isn't in a campaign yet — add them to a campaign first, then they can enter the pipeline." }, { status: 404 })
   }
 
   // Check for duplicate
