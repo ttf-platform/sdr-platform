@@ -14,6 +14,13 @@ type AnalyticsData = {
   };
   funnel: { signups: number; activatedTrials: number; paid: number };
   cohorts: Array<{ month: string; signups: number; retainedLast7Days: number; retentionPct: number }>;
+  // First-touch attribution aggregated from workspaces.acquisition (migration
+  // 075, written at signup by app/api/auth/signup/route.ts). One row per
+  // distinct utm_source; workspaces with no utm_source (direct navigation,
+  // ad-blocked, or landed before #263) fall into "Direct / none". Sorted
+  // signups DESC. Inherits the same PostgREST 1 000-row cap as the cohorts /
+  // funnel queries above — a pre-existing platform limit, not widened here.
+  trafficSources: Array<{ source: string; signups: number; pct: number }>;
   // When true, at least one of the underlying queries (users list, workspaces,
   // campaigns, members) failed OR the users list was truncated by the maxPages
   // cap. The affected KPIs surface as null and the UI shows a "partial data"
@@ -48,7 +55,7 @@ async function loadAnalytics(): Promise<AnalyticsData> {
   // signal. Now each failure flips `dataIncomplete` and the affected
   // downstream metric surfaces the banner.
   const [wsResult, campaignsResult, membersResult] = await Promise.all([
-    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, canceled_at, stripe_subscription_id, is_free_granted, created_at'),
+    sb.from('workspaces').select('id, plan_tier, subscription_status, billing_interval, trial_end_date, canceled_at, stripe_subscription_id, is_free_granted, created_at, acquisition'),
     sb.from('campaigns').select('workspace_id, created_at'),
     sb.from('workspace_members').select('user_id, workspace_id'),
   ]);
@@ -160,10 +167,31 @@ async function loadAnalytics(): Promise<AnalyticsData> {
     });
   }
 
+  // Traffic sources — first-touch UTM attribution per workspace. Rows with
+  // no utm_source (or a non-string / empty one) collapse into a single
+  // "Direct / none" bucket so pre-#263 workspaces and organic signups stay
+  // countable rather than being dropped. Denominator = total workspaces in
+  // the query (subject to the 1 000-row PostgREST cap noted on the type).
+  const sourceCounts = new Map<string, number>();
+  for (const ws of workspacesArr) {
+    const raw = (ws.acquisition as { utm_source?: unknown } | null)?.utm_source;
+    const source = typeof raw === 'string' && raw.trim() ? raw.trim() : 'Direct / none';
+    sourceCounts.set(source, (sourceCounts.get(source) ?? 0) + 1);
+  }
+  const trafficTotal = workspacesArr.length;
+  const trafficSources: AnalyticsData['trafficSources'] = Array.from(sourceCounts.entries())
+    .map(([source, signups]) => ({
+      source,
+      signups,
+      pct: trafficTotal > 0 ? (signups / trafficTotal) * 100 : 0,
+    }))
+    .sort((a, b) => b.signups - a.signups);
+
   return {
     kpis: { signupsLast30Days, activationRate, trialToPaidRate, churnRate30d },
     funnel: { signups: allUsers.length, activatedTrials: activatedUserCount, paid: paidUserCount },
     cohorts,
+    trafficSources,
     dataIncomplete,
   };
 }
