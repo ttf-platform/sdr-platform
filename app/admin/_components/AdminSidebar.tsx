@@ -15,6 +15,7 @@ import {
   Activity,
   Gauge,
   DollarSign,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { AdminStatusIndicator } from './AdminStatusIndicator';
@@ -26,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/operations', label: 'Operations', icon: Activity },
   { href: '/admin/limits', label: 'Limits & spend', icon: Gauge },
+  { href: '/admin/plans', label: 'Plans', icon: Layers },
   { href: '/admin/revenue', label: 'Revenue', icon: DollarSign },
   { href: '/admin/support', label: 'Support Center', icon: LifeBuoy },
   { href: '/admin/email-sequences', label: 'Email sequences', icon: Mail },

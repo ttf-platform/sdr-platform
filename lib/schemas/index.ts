@@ -26,6 +26,7 @@ export * from './workspace'
 export * from './onboarding'
 export * from './common'
 export * from './notifications'
+export * from './plans-admin'
 
 import { NextResponse } from 'next/server'
 
