@@ -12,7 +12,11 @@ const CLOSED_REASONS = [
 export const dealCreateSchema = z.object({
   contact_id: z.string().uuid(),
   stage:      z.enum(DEAL_STAGES).optional(),
-  amount:     z.number().nonnegative().optional(),
+  // .nullish() (aligned with dealUpdateSchema below): the AddLead modal
+  // sends `amount: amount ? parseFloat(amount) : null` — an empty amount
+  // field posts `null`, which .optional() alone would reject as
+  // "Invalid payload". The route already collapses null via `amount ?? null`.
+  amount:     z.number().nonnegative().nullish(),
   notes:      z.string().max(5000).optional(),
 }).strict()
 

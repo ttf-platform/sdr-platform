@@ -983,7 +983,7 @@
           "list": "List",
           "addLead": "Add Lead"
         },
-        "addLeadTooltip": "Add a lead manually — for opportunities not coming from a Mirvo campaign (e.g. inbound leads, networking, referrals).",
+        "addLeadTooltip": "Manually add a contact from one of your campaigns to the pipeline. It also fills automatically when a prospect replies or books a meeting.",
         "filters": {
           "searchPlaceholder": "Search leads…",
           "allStages": "All stages"
