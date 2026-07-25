@@ -1,13 +1,20 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { estimateCostUsd as estimateAiCostUsd } from '@/lib/ai-cost'
+import { PLANS_SEED, loadPlansConfig, type Tier as PlansTier } from '@/lib/plans'
 
-export type Tier = 'free' | 'starter' | 'pro' | 'power'
+export type Tier = PlansTier
 
+/**
+ * Signal-scan monthly cap by tier. Derived from PLANS_SEED —
+ * `scans_per_month` in the seed IS the historical MONTHLY_CAPS. Kept as a
+ * sync const for callers that cannot go async; DB-driven callers use
+ * `checkScanLimits` which reads `loadPlansConfig()` internally.
+ */
 export const MONTHLY_CAPS: Record<Tier, number> = {
-  free: 25,
-  starter: 150,
-  pro: 250,
-  power: 350,
+  free:    PLANS_SEED.free.scans_per_month,
+  starter: PLANS_SEED.starter.scans_per_month,
+  pro:     PLANS_SEED.pro.scans_per_month,
+  power:   PLANS_SEED.power.scans_per_month,
 }
 
 const RATE_LIMIT_10MIN = 200
@@ -71,13 +78,14 @@ export type ScanCheck =
   | { allowed: false; reason: 'monthly_cap' | 'rate_limit'; current: number; cap: number }
 
 export async function checkScanLimits(workspaceId: string, prospectCountForThisRun: number): Promise<ScanCheck> {
-  const [tier, monthlyCount, recentCount] = await Promise.all([
+  const [tier, monthlyCount, recentCount, cfg] = await Promise.all([
     getWorkspaceTier(workspaceId),
     getMonthlyScanCount(workspaceId),
     getRecentScanCount(workspaceId),
+    loadPlansConfig(),
   ])
 
-  const monthlyCap = MONTHLY_CAPS[tier]
+  const monthlyCap = cfg[tier]?.scans_per_month ?? MONTHLY_CAPS[tier]
   if (monthlyCount + prospectCountForThisRun > monthlyCap) {
     return { allowed: false, reason: 'monthly_cap', current: monthlyCount, cap: monthlyCap }
   }

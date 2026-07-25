@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { monthlyMrrForWorkspace, PLAN_PRICES, type PlanTier } from '@/lib/pricing';
+import { loadPlansConfig, priceMapFromConfig } from '@/lib/plans';
 import { isRealRevenue } from '@/lib/admin-metrics';
 import { RevenueClient, type RevenueData } from './_components/RevenueClient';
 
@@ -40,6 +41,11 @@ export default async function RevenuePage() {
   const admin = createAdminClient();
   const nowIso = new Date().toISOString();
   const expiringHorizonIso = new Date(Date.now() + TRIAL_EXPIRING_DAYS * 86_400_000).toISOString();
+
+  // Load Admin-editable plan config once ; falls back to PLANS_SEED on any
+  // error so this page keeps rendering even if the `plans` table is
+  // missing/empty (PR1 safety). In PR1 the values match the seed exactly.
+  const priceMap = priceMapFromConfig(await loadPlansConfig());
 
   // ── Workspaces billing snapshot ─────────────────────────────────────────
   // Lecture seule, sans filtre status — on a besoin de tous les statuts pour
@@ -85,7 +91,7 @@ export default async function RevenuePage() {
     // showed a fake $698 MRR ; the plan-mix breakdown, unknown_plan and
     // interval_assumed banners all fired on those same phantom rows.
     if (!isRealRevenue(w)) continue;
-    const computation = monthlyMrrForWorkspace(w.plan_tier, w.billing_interval);
+    const computation = monthlyMrrForWorkspace(w.plan_tier, w.billing_interval, priceMap);
     if (!computation) {
       unknownPlanActiveCount++;
       continue;

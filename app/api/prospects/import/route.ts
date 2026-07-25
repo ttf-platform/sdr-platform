@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { TIER_CAPS } from '@/lib/tier-limits'
+import { capsFor } from '@/lib/tier-limits'
+import { loadPlansConfig } from '@/lib/plans'
 import type { PlanTier } from '@/lib/stripe-prices'
 import { prospectImportSchema, badRequest } from '@/lib/schemas'
 import { rateLimitByWorkspace } from '@/lib/rate-limit'
@@ -106,8 +107,9 @@ export async function POST(request: Request) {
     const { data: ws } = await admin
       .from('workspaces').select('plan_tier')
       .eq('id', guard.workspaceId).single()
+    const cfg = await loadPlansConfig()
     const tier = (ws?.plan_tier ?? 'starter') as PlanTier
-    const cap  = TIER_CAPS[tier].total_prospects
+    const cap  = capsFor(cfg, tier).total_prospects
 
     const { count: currentTotal } = await admin
       .from('contacts')

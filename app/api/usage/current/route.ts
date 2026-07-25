@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { TIER_CAPS } from '@/lib/tier-limits'
+import { capsFor } from '@/lib/tier-limits'
+import { loadPlansConfig } from '@/lib/plans'
 import { getTrialStatus } from '@/lib/trial-status'
 import { getUsagePeriod } from '@/lib/billing-period'
 import type { PlanTier } from '@/lib/stripe-prices'
@@ -22,8 +23,9 @@ export async function GET() {
     .select('plan_tier, subscription_status, trial_end_date, overage_enabled, overage_charges_made, current_period_start, current_period_end')
     .eq('id', member.workspace_id).single()
 
+  const cfg = await loadPlansConfig()
   const tier = ((ws?.plan_tier ?? 'starter') as PlanTier)
-  const caps = TIER_CAPS[tier]
+  const caps = capsFor(cfg, tier)
 
   const period = getUsagePeriod(ws)
 

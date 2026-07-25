@@ -40,6 +40,7 @@
  */
 
 import { monthlyMrrForWorkspace } from '@/lib/pricing'
+import type { PlanPriceMap } from '@/lib/plans'
 
 /**
  * Shared SELECT column list. Every admin route that consumes this helper
@@ -104,10 +105,19 @@ export function isRealRevenue(ws: BillingRow): boolean {
 /**
  * Per-workspace MRR contribution. Delegates to lib/pricing.ts — nothing new
  * is defined here so a plan price change ripples through the entire admin
- * surface by editing PLAN_PRICES exactly once.
+ * surface via PLANS_SEED (or, in PR2, the `plans` table row loaded upstream
+ * and threaded in via `priceMap`).
+ *
+ * `priceMap` is OPTIONAL and defaults to the seed-derived map inside
+ * `monthlyMrrForWorkspace` — so existing callers and tests behave exactly
+ * as before. Callers that want DB-edited values (PR2) load the config once
+ * and pass `priceMapFromConfig(cfg)` through.
  */
-export function workspaceMrr(ws: BillingRow): ReturnType<typeof monthlyMrrForWorkspace> {
-  return monthlyMrrForWorkspace(ws.plan_tier, ws.billing_interval ?? null)
+export function workspaceMrr(
+  ws:       BillingRow,
+  priceMap?: PlanPriceMap,
+): ReturnType<typeof monthlyMrrForWorkspace> {
+  return monthlyMrrForWorkspace(ws.plan_tier, ws.billing_interval ?? null, priceMap)
 }
 
 export interface BillingAggregate {
@@ -140,7 +150,10 @@ export interface BillingAggregate {
  * `isRealRevenue` — comped and no-Stripe workspaces are excluded so the
  * numbers match "what Stripe will actually invoice this month".
  */
-export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
+export function aggregateBilling(
+  rows:      BillingRow[],
+  priceMap?: PlanPriceMap,
+): BillingAggregate {
   const agg: BillingAggregate = {
     total:                  rows.length,
     active:                 0,
@@ -176,7 +189,7 @@ export function aggregateBilling(rows: BillingRow[]): BillingAggregate {
 
     agg.paidCount++
 
-    const m = workspaceMrr(ws)
+    const m = workspaceMrr(ws, priceMap)
     if (!m) {
       agg.unknownPlanActiveCount++
       continue

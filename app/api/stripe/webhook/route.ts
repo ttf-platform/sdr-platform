@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolvePlanFromPriceId } from '@/lib/stripe-plans'
 import { monthlyMrrForWorkspace } from '@/lib/pricing'
+import { loadPlansConfig, priceMapFromConfig, type PlanPriceMap } from '@/lib/plans'
 import { logSubscriptionEvent } from '@/lib/subscription-events'
 import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { sendCancellationEmail, sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
@@ -26,8 +27,8 @@ const EMPTY_BEFORE: WorkspaceBefore = {
   billing_interval:    null,
 }
 
-function mrrUsdFor(planTier: string | null, billingInterval: string | null): number | null {
-  const r = monthlyMrrForWorkspace(planTier, billingInterval)
+function mrrUsdFor(planTier: string | null, billingInterval: string | null, priceMap?: PlanPriceMap): number | null {
+  const r = monthlyMrrForWorkspace(planTier, billingInterval, priceMap)
   return r ? r.mrr_usd : null
 }
 
@@ -47,6 +48,11 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
   const occurredAt = new Date(event.created * 1000).toISOString()
+
+  // Load Admin-editable plan config once for the whole webhook invocation.
+  // In PR1 this is identical to PLANS_SEED → same MRR as before ; PR2's
+  // /admin/plans can shift the numbers without changing this route.
+  const priceMap = priceMapFromConfig(await loadPlansConfig())
 
   async function updateWorkspace(workspaceId: string, fields: Record<string, unknown>) {
     await admin.from('workspaces').update(fields).eq('id', workspaceId)
@@ -440,7 +446,7 @@ export async function POST(request: Request) {
         from_interval:   null,
         to_interval:     toInterval,
         from_mrr_usd:    null,
-        to_mrr_usd:      mrrUsdFor(toPlan, toInterval),
+        to_mrr_usd:      mrrUsdFor(toPlan, toInterval, priceMap),
         occurred_at:     occurredAt,
       })
 
@@ -513,8 +519,8 @@ export async function POST(request: Request) {
         to_plan:         toPlan,
         from_interval:   before.billing_interval,
         to_interval:     toInterval,
-        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval),
-        to_mrr_usd:      mrrUsdFor(toPlan, toInterval),
+        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval, priceMap),
+        to_mrr_usd:      mrrUsdFor(toPlan, toInterval, priceMap),
         occurred_at:     occurredAt,
       })
 
@@ -572,7 +578,7 @@ export async function POST(request: Request) {
         to_plan:         null,
         from_interval:   before.billing_interval,
         to_interval:     null,
-        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval),
+        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval, priceMap),
         to_mrr_usd:      0,
         occurred_at:     occurredAt,
       })
@@ -640,8 +646,8 @@ export async function POST(request: Request) {
         to_plan:         before.plan_tier,
         from_interval:   before.billing_interval,
         to_interval:     before.billing_interval,
-        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval),
-        to_mrr_usd:      mrrUsdFor(before.plan_tier, before.billing_interval),
+        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval, priceMap),
+        to_mrr_usd:      mrrUsdFor(before.plan_tier, before.billing_interval, priceMap),
         occurred_at:     occurredAt,
       })
 
@@ -758,8 +764,8 @@ export async function POST(request: Request) {
         to_plan:         before.plan_tier,
         from_interval:   before.billing_interval,
         to_interval:     before.billing_interval,
-        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval),
-        to_mrr_usd:      mrrUsdFor(before.plan_tier, before.billing_interval),
+        from_mrr_usd:    mrrUsdFor(before.plan_tier, before.billing_interval, priceMap),
+        to_mrr_usd:      mrrUsdFor(before.plan_tier, before.billing_interval, priceMap),
         occurred_at:     occurredAt,
       })
 
