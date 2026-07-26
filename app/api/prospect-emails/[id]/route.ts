@@ -100,13 +100,26 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
+  // Product rule : sending history is immutable. Deleting a committed row
+  // would erase the anti-double-send memory (UNIQUE on prospect_id,
+  // campaign_step_id) and let a fresh draft be created for the same pair.
+  // .select('id').single() on zero-matched rows yields PGRST116 which we
+  // translate into a 409, same shape as the sibling reject/edit routes.
   const admin = createAdminClient()
   const { error } = await admin
     .from('prospect_emails')
     .delete()
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
+    .not('status', 'in', COMMITTED_NOT_IN_FILTER)
+    .select('id')
+    .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

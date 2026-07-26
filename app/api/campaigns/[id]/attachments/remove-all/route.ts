@@ -17,6 +17,9 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripAllFileLinks } from '@/lib/normalize-body'
+import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+
+const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
 export const dynamic = 'force-dynamic'
 
@@ -70,27 +73,38 @@ export async function POST(_request: Request, { params }: Params) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
   const nowIso = new Date().toISOString()
   let updated = 0
+  let skipped = 0
 
+  // CAS on status : the SELECT above pre-filtered draft/edited, but a row
+  // can transition to sending/sent between that SELECT and the UPDATE
+  // below (batch runs for several seconds on large campaigns). Without
+  // .not(...COMMITTED...), we'd rewrite a committed row's body and flip
+  // it back to 'edited' → Send All would re-enqueue → double-send.
+  // .select('id') lets us count only rows the CAS actually mutated.
   for (const row of emails) {
     const currentBody = row.body ?? ''
     const newBody     = stripAllFileLinks(currentBody, appUrl)
     if (newBody === currentBody) {
-      // Aucun lien à retirer sur ce mail : no-op DB, mais on compte quand même
-      // pour cohérence de la totalisation. (Alternative : ne compter que les
-      // vraies mutations — cf. discussion PR3b si la nuance UX importe.)
+      // Aucun lien à retirer sur ce mail : no-op DB, on ne compte pas.
       continue
     }
-    const { error: updErr } = await admin
+    const { data: updRows, error: updErr } = await admin
       .from('prospect_emails')
       .update({ body: newBody, status: 'edited', edited_at: nowIso })
       .eq('id', row.id)
       .eq('workspace_id', guard.workspaceId)
+      .not('status', 'in', COMMITTED_NOT_IN_FILTER)
+      .select('id')
     if (updErr) {
       console.error('[attachments:remove-all] row update failed', { id: row.id, error: updErr.message })
+      continue
+    }
+    if (!updRows || updRows.length === 0) {
+      skipped++
       continue
     }
     updated++
   }
 
-  return NextResponse.json({ updated })
+  return NextResponse.json({ updated, skipped })
 }

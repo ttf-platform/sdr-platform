@@ -1427,6 +1427,7 @@
           "bulkApproving": "Validation…",
           "bulkReject": "Tout rejeter",
           "bulkRejecting": "Rejet…",
+          "selectDisabledSent": "Les emails envoyés restent dans votre historique — ils ne peuvent pas être sélectionnés ici.",
           "actionFailed": "L'action a échoué, réessayez.",
           "hasAttachment": "Pièce jointe",
           "attachmentsRemoveAllCta": "Retirer les pièces jointes",

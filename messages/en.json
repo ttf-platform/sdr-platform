@@ -1427,6 +1427,7 @@
           "bulkApproving": "Approving…",
           "bulkReject": "Reject all",
           "bulkRejecting": "Rejecting…",
+          "selectDisabledSent": "Sent emails stay in your history — they can't be selected here.",
           "actionFailed": "Action failed — please try again.",
           "hasAttachment": "Has attachment",
           "attachmentsRemoveAllCta": "Remove attachments",

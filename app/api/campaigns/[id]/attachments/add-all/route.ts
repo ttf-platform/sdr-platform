@@ -21,6 +21,9 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { insertFileLink } from '@/lib/normalize-body'
 import { badRequest } from '@/lib/schemas'
+import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+
+const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
 export const dynamic = 'force-dynamic'
 
@@ -103,8 +106,16 @@ export async function POST(request: Request, { params }: Params) {
   // 5. Transform + update en boucle (chaque body est unique).
   //    Sig='' → placement en fin de body (bulk, pas de résolution par variant).
   //    Sequential pour éviter de saturer le pool de connexions Supabase.
+  //
+  //    CAS on status : the SELECT at step 4 pre-filtered draft/edited, but
+  //    a row can transition to sending/sent between that SELECT and the
+  //    UPDATE below (batch runs for several seconds on large campaigns).
+  //    Without .not(...COMMITTED...), we'd rewrite a committed row's body
+  //    and flip it back to 'edited' → Send All would re-enqueue → double-send.
+  //    .select('id') lets us count only rows the CAS actually mutated.
   const nowIso = new Date().toISOString()
   let updated = 0
+  let skipped = 0
   for (const row of emails) {
     const currentBody = row.body ?? ''
     const newBody     = insertFileLink(currentBody, url, '')
@@ -114,17 +125,25 @@ export async function POST(request: Request, { params }: Params) {
       updated++
       continue
     }
-    const { error: updErr } = await admin
+    const { data: updRows, error: updErr } = await admin
       .from('prospect_emails')
       .update({ body: newBody, status: 'edited', edited_at: nowIso })
       .eq('id', row.id)
       .eq('workspace_id', guard.workspaceId)
+      .not('status', 'in', COMMITTED_NOT_IN_FILTER)
+      .select('id')
     if (updErr) {
       console.error('[attachments:add-all] row update failed', { id: row.id, error: updErr.message })
+      continue
+    }
+    if (!updRows || updRows.length === 0) {
+      // The row transitioned to a committed state between the SELECT and
+      // the UPDATE — skip it silently and let the UI show the real total.
+      skipped++
       continue
     }
     updated++
   }
 
-  return NextResponse.json({ updated })
+  return NextResponse.json({ updated, skipped })
 }
