@@ -8,6 +8,7 @@ import {
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { prospectEmailRegenerateSchema, badRequest } from '@/lib/schemas'
+import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
@@ -126,7 +127,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     })
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
-    .select()
+    .select(PROSPECT_EMAIL_LIST_COLUMNS)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

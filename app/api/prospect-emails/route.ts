@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { prospectEmailsListQuerySchema, badRequest } from '@/lib/schemas'
+import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 export async function GET(request: Request) {
   const guard = await billingGuard()
@@ -84,11 +85,14 @@ export async function GET(request: Request) {
     }
   }
 
-  // Main paginated query
+  // Main paginated query — vendor-invisibility allowlist enforced by
+  // PROSPECT_EMAIL_LIST_COLUMNS (see lib/prospect-email-columns.ts).
+  // Joins on campaign_steps + prospects are unchanged : they only pull
+  // internally-authored fields (step metadata + contact info).
   let q = admin
     .from('prospect_emails')
     .select(
-      `*,
+      `${PROSPECT_EMAIL_LIST_COLUMNS},
        campaign_steps!campaign_step_id(step_order, step_type, delay_days),
        prospects!prospect_id(
          email,

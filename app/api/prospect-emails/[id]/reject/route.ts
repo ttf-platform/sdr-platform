@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { enforceEmptyBody } from '@/lib/schemas'
 import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
@@ -23,7 +24,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
     .not('status', 'in', COMMITTED_NOT_IN_FILTER)
-    .select()
+    .select(PROSPECT_EMAIL_LIST_COLUMNS)
     .single()
 
   if (error) {

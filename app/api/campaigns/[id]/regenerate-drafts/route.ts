@@ -38,7 +38,35 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
 
-  // Delete only step-0 (initial email) drafts — follow-ups are not pre-generated
+  // Delete only step-0 (initial email) drafts — follow-ups are not pre-generated.
+  //
+  // Statuses cleared : draft / edited / rejected.
+  //   - 'draft' + 'edited' : never-approved AI output, safe to redo.
+  //   - 'rejected'         : user actively declined, safe to redo (a later
+  //                          undo could only bring it back to draft, so
+  //                          re-generating on top is the same net effect).
+  //
+  // Statuses PRESERVED (positive list, not a negation, so the intent is
+  // explicit and cannot silently include a future new status) :
+  //   - 'approved'                    → user validated this email, awaiting
+  //                                     send. Destroying it silently would
+  //                                     be the same double-send-class bug
+  //                                     as re-editing a committed row.
+  //   - 'sending' / 'sent' /
+  //     'bounced' / 'replied'         → COMMITTED_STATUSES per
+  //                                     lib/prospect-email-status.ts. The
+  //                                     row carries provider_message_id +
+  //                                     thread_id ; destroying it orphans
+  //                                     provider webhooks and loses history.
+  //   - 'failed'                      → last approve raised an enqueue error ;
+  //                                     the row is the audit trail. Keep it
+  //                                     until the operator explicitly clears.
+  //
+  // draft-generation.ts:251-309 pre-fetches existing (prospect_id,
+  // campaign_step_id) pairs and SKIPS them before building work items, so
+  // preserved rows do NOT trigger the UNIQUE(prospect_id, campaign_step_id)
+  // constraint from migration 014 — the pair simply gets skipped from
+  // regeneration and the response reports it via `skipped_existing`.
   const { data: initialStep } = await admin
     .from('campaign_steps')
     .select('id')
@@ -52,6 +80,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       .delete()
       .eq('workspace_id', guard.workspaceId)
       .eq('campaign_step_id', initialStep.id)
+      .in('status', ['draft', 'edited', 'rejected'])
   }
 
   const result = await generateDraftsForCampaign(params.id, guard.workspaceId, mode)
