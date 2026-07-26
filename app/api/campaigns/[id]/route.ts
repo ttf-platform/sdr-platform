@@ -47,14 +47,17 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     }
   }
 
-  const stepIds = (steps ?? []).map(s => s.id)
+  // MUST stay aligned with /api/campaigns/[id]/approval-queue's scope
+  // (step_order=0 only) — the send pipeline only ships step 0 today, so
+  // counting variants on follow-up steps here would show a badge for rows
+  // the queue no longer surfaces.
   let pending_drafts_count = 0
-  if (stepIds.length > 0) {
+  if (initialStep) {
     const { count } = await admin
       .from('prospect_email_variants')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', guard.workspaceId)
-      .in('campaign_step_id', stepIds)
+      .eq('campaign_step_id', initialStep.id)
       .in('status', ['draft', 'edited'])
     pending_drafts_count = count ?? 0
   }
