@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { dbUnavailableResponse, isNoRowsError } from '@/lib/db-errors'
+import { isNoRowsError } from '@/lib/db-errors'
+import { dbUnavailableResponse } from '@/lib/db-errors-response'
 
 // ICP gate — enforces that a workspace has enough product/ICP context before
 // running any action that consumes it. The threshold is the SAME as

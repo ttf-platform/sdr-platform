@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server'
-
 /**
- * Distinguishes "the row genuinely doesn't exist" from "the DB / network
- * hiccupped, we don't know". Used by every workspace-scoped guard so a
- * transient failure stops being funneled through the fail-closed
- * absent-data branch (which would surface as 402 trial-expired, 404
- * workspace-not-found, or /no-workspace redirects to legit users).
+ * Pure predicates that distinguish "the row genuinely doesn't exist" from
+ * "the DB / network hiccupped, we don't know". Used by every workspace-
+ * scoped guard so a transient failure stops being funneled through the
+ * fail-closed absent-data branch (which would surface as 402 trial-expired,
+ * 404 workspace-not-found, or /no-workspace redirects to legit users).
+ *
+ * This module is intentionally free of any server-only dependency (no
+ * `next/server` import) so it can be shared with 'use client' consumers
+ * (lib/hooks/useWorkspace.tsx). The NextResponse helper lives in the
+ * sibling module lib/db-errors-response.ts.
  *
  * Contract :
  *   - `isNoRowsError(err)`         → true ONLY for PGRST116 (PostgREST
@@ -16,19 +19,15 @@ import { NextResponse } from 'next/server'
  *                                    connection reset, PgBouncer pool
  *                                    saturation, RLS misconfig… all land
  *                                    here.
- *   - `isTransientAuthError(err)`  → for supabase.auth.getUser(). A
- *                                    missing/expired session responds 4xx
- *                                    (usually 401), which is a REAL
- *                                    auth failure, not transient — the
- *                                    caller should still 401. Only >=500
- *                                    (or missing status = network error)
- *                                    counts as transient.
- *   - `dbUnavailableResponse()`    → uniform 503 with Retry-After and a
- *                                    JSON body whose `error` field stays
- *                                    a string so existing client toasts
- *                                    (`body.error`) keep working. A `code`
- *                                    discriminator lets new clients
- *                                    branch on `DB_UNAVAILABLE` cleanly.
+ *   - `isTransientAuthError(err)`  → for supabase.auth.getUser() /
+ *                                    getSession(). See below — auth-js
+ *                                    marks retryable errors explicitly
+ *                                    via AuthRetryableFetchError, and
+ *                                    emits status:0 on fetch failures ;
+ *                                    a real "no session" surfaces as 400
+ *                                    (AuthApiError, e.g. invalid refresh
+ *                                    token), which is NOT transient — the
+ *                                    caller must send the user to /login.
  */
 
 // The single "no rows" PostgREST error code. Anything else in `error` means
@@ -48,32 +47,32 @@ export function isTransientDbError(error: unknown): boolean {
 }
 
 /**
- * getUser() surfaces auth failures with a `status` field. A legit
- * "no session" reply is 400/401 (definitely not transient) ; anything
- * >=500 or a missing status (network-level failure) is transient.
+ * Classifies a Supabase auth error (getUser / getSession) as transient
+ * (retryable) or terminal (real session failure).
+ *
+ * Verified against @supabase/auth-js@2.105.4 :
+ *   - lib/fetch.js:36  + :122   throw new AuthRetryableFetchError(msg, 0)
+ *     → any fetch-level failure (offline, DNS, mid-request abort) is
+ *       emitted with `status: 0`. Our previous `>= 500` check misclassified
+ *       these as terminal → false 401 lockouts (the exact regression this
+ *       PR exists to prevent).
+ *   - lib/fetch.js:40           NETWORK_ERROR_CODES = [502,503,504,520,
+ *                               521,522,523,524,530] → real HTTP status.
+ *   - lib/errors.js:243         isAuthRetryableFetchError() ≡
+ *                               isAuthError(e) && e.name === 'AuthRetryableFetchError'
+ *     → the library's own retryable marker ; we honour it directly.
+ *   - AuthApiError (400 on invalid_grant, invalid refresh_token, …) is a
+ *     REAL session failure → NOT transient → caller sends the user to
+ *     /login. Same for 401 / 403.
+ *   - GoTrue rate-limit responds 429 → retryable.
  */
 export function isTransientAuthError(error: unknown): boolean {
-  if (error == null) return false
-  if (typeof error !== 'object') return false
+  if (error == null || typeof error !== 'object') return false
+  // auth-js's own retryable marker — canonical signal, honour it first.
+  if ((error as { name?: unknown }).name === 'AuthRetryableFetchError') return true
   const status = (error as { status?: unknown }).status
-  if (typeof status !== 'number') return true  // missing → treat as transient
+  if (typeof status !== 'number') return true   // missing status → treat as transient
+  if (status === 0) return true                 // auth-js fetch.js:36,122 — network failure
+  if (status === 429) return true               // GoTrue rate-limit → retryable
   return status >= 500
-}
-
-/**
- * Uniform 503 for every "we hit a transient DB/network failure" path.
- *
- * `error` (string) is preserved for backward-compat with any client that
- * already reads `body.error` for toast text. `code: 'DB_UNAVAILABLE'`
- * is the discriminator new clients should branch on. `Retry-After: 5`
- * hints the client / fetch layer to back off before retrying.
- */
-export function dbUnavailableResponse(): NextResponse {
-  return NextResponse.json(
-    {
-      error: 'Service temporarily unavailable. Please retry in a moment.',
-      code:  'DB_UNAVAILABLE',
-    },
-    { status: 503, headers: { 'Retry-After': '5' } },
-  )
 }

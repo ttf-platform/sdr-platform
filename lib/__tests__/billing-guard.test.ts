@@ -172,6 +172,25 @@ describe('billingGuard — auth paths', () => {
     if (!res.blocked) return
     expect(res.response.status).toBe(401)
   })
+
+  it('getUser returns AuthRetryableFetchError with status: 0 → 503 DB_UNAVAILABLE, NOT 401', async () => {
+    // auth-js@2.105.4 fetch.js:36,122 emits status:0 on any network
+    // failure (offline, DNS, abort). Pre-fix isTransientAuthError checked
+    // `>= 500` and misclassified this as terminal, triggering a false 401
+    // for a legit user with a valid session but a flaky network. This
+    // test locks the regression fix.
+    getUserMock.mockResolvedValue({
+      data:  { user: null },
+      error: { status: 0, name: 'AuthRetryableFetchError' },
+    })
+
+    const res = await billingGuard()
+    expect(res.blocked).toBe(true)
+    if (!res.blocked) return
+    expect(res.response.status).toBe(503)
+    const body = await bodyOf(res)
+    expect(body.code).toBe('DB_UNAVAILABLE')
+  })
 })
 
 describe('billingGuard — non-regression : real lockouts still block', () => {

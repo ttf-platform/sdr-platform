@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { isTransientAuthError, isTransientDbError } from '@/lib/db-errors'
 
 const supabase = createClient()
 
@@ -97,9 +98,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
       if (cancelledRef.current) return
       if (!session) {
-        // Real absent-session → /login (unchanged). Transient error →
-        // show retry UI instead of ejecting the user.
-        if (lastSessionError) {
+        // Only TRANSIENT auth errors (network fetch failure = status 0,
+        // AuthRetryableFetchError, 429, 5xx) surface the retry UI. A real
+        // "no session" (invalid_refresh_token → AuthApiError 400, expired
+        // session, revoked cookie) is terminal → /login. Skipping this
+        // check would trap the user on the "connection problem" screen
+        // with no way out after a legitimate sign-out.
+        if (lastSessionError && isTransientAuthError(lastSessionError)) {
           setError(lastSessionError instanceof Error ? lastSessionError.message : String(lastSessionError))
           setLoading(false)
           return
@@ -132,7 +137,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
       if (cancelledRef.current) return
       if (!member) {
-        if (lastMemberError) {
+        // Only TRANSIENT DB errors (5xx, statement_timeout, network) surface
+        // the retry UI. A .maybeSingle() genuinely returning { data: null,
+        // error: null } means the user has no workspace_member row → keep
+        // the /no-workspace redirect. Passing the raw error through the
+        // predicate also filters PGRST116 (which .maybeSingle() shouldn't
+        // emit anyway, but defensive).
+        if (lastMemberError && isTransientDbError(lastMemberError)) {
           setError(lastMemberError instanceof Error ? lastMemberError.message : String(lastMemberError))
           setLoading(false)
           return

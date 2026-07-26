@@ -1,11 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTrialStatus } from '@/lib/trial-status'
-import {
-  dbUnavailableResponse,
-  isNoRowsError,
-  isTransientAuthError,
-} from '@/lib/db-errors'
+import { isNoRowsError, isTransientAuthError } from '@/lib/db-errors'
+import { dbUnavailableResponse } from '@/lib/db-errors-response'
 import { NextResponse } from 'next/server'
 
 // Guard for API routes that require an authenticated user with a workspace
@@ -33,7 +30,7 @@ export async function billingGuard(): Promise<
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (!user) {
     if (isTransientAuthError(authError)) {
-      console.error('[billing-guard] transient DB error — returning 503', authError)
+      console.error('[billing-guard] transient auth error — returning 503', authError)
       return { blocked: true, response: dbUnavailableResponse() }
     }
     return { blocked: true, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }

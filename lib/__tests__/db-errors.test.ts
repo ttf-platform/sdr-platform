@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  dbUnavailableResponse,
   isNoRowsError,
   isTransientAuthError,
   isTransientDbError,
 } from '../db-errors'
+import { dbUnavailableResponse } from '../db-errors-response'
 
 describe('isNoRowsError', () => {
   it('is true only for PGRST116', () => {
@@ -41,7 +41,9 @@ describe('isTransientDbError', () => {
 })
 
 describe('isTransientAuthError', () => {
-  it('is false for a real auth failure (400/401)', () => {
+  it('is false for a real auth failure (400 invalid_refresh_token / 401 / 403)', () => {
+    // auth-js AuthApiError carries the real GoTrue status. 400 =
+    // invalid_refresh_token / invalid_grant → user must go to /login.
     expect(isTransientAuthError({ status: 400 })).toBe(false)
     expect(isTransientAuthError({ status: 401 })).toBe(false)
     expect(isTransientAuthError({ status: 403 })).toBe(false)
@@ -51,7 +53,7 @@ describe('isTransientAuthError', () => {
     expect(isTransientAuthError({ status: 503 })).toBe(true)
     expect(isTransientAuthError({ status: 599 })).toBe(true)
   })
-  it('is true when status is missing (network-level failure)', () => {
+  it('is true when status is missing (defensive against library shape drift)', () => {
     expect(isTransientAuthError({})).toBe(true)
     expect(isTransientAuthError({ message: 'fetch failed' })).toBe(true)
   })
@@ -59,6 +61,21 @@ describe('isTransientAuthError', () => {
     expect(isTransientAuthError(null)).toBe(false)
     expect(isTransientAuthError(undefined)).toBe(false)
     expect(isTransientAuthError('nope')).toBe(false)
+  })
+  // ─── auth-js@2.105.4 network-error shapes ────────────────────────────
+  // fetch.js:36 + :122 throw new AuthRetryableFetchError(msg, 0) on any
+  // fetch-level failure (offline, DNS, mid-request abort). The previous
+  // `>= 500` check misclassified these as terminal → false 401 lockouts.
+  it('is true for a plain { status: 0 } (auth-js network failure)', () => {
+    expect(isTransientAuthError({ status: 0 })).toBe(true)
+  })
+  it('is true when auth-js marks the error retryable (name field, canonical marker)', () => {
+    // lib/errors.js:243 : isAuthRetryableFetchError() checks the class name.
+    expect(isTransientAuthError({ name: 'AuthRetryableFetchError', status: 0 })).toBe(true)
+    expect(isTransientAuthError({ name: 'AuthRetryableFetchError' })).toBe(true)
+  })
+  it('is true for 429 (GoTrue rate-limit → retryable)', () => {
+    expect(isTransientAuthError({ status: 429 })).toBe(true)
   })
 })
 

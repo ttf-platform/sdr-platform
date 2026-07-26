@@ -1,10 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  dbUnavailableResponse,
-  isNoRowsError,
-  isTransientAuthError,
-} from '@/lib/db-errors'
+import { isNoRowsError, isTransientAuthError } from '@/lib/db-errors'
+import { dbUnavailableResponse } from '@/lib/db-errors-response'
 import { NextResponse } from 'next/server'
 
 // Guard auth-seul pour les routes /api/notifications/*.
@@ -24,7 +21,7 @@ export async function notificationAuth(): Promise<
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (!user) {
     if (isTransientAuthError(authError)) {
-      console.error('[notification-auth] transient DB error — returning 503', authError)
+      console.error('[notification-auth] transient auth error — returning 503', authError)
       return { blocked: true, response: dbUnavailableResponse() }
     }
     return { blocked: true, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
