@@ -117,6 +117,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tSources = useTranslations('dashboard.campaigns.detail.sources')
   const tPagination = useTranslations('dashboard.campaigns.detail.pagination')
   const tToasts = useTranslations('dashboard.campaigns.detail.toasts')
+  const tSequence = useTranslations('dashboard.campaigns.detail.sequence')
   // ICP card i18n handles
   const tIcp        = useTranslations('dashboard.campaigns.detail.overview.icp')
   const tNewCamp    = useTranslations('components.campaignModals.newCampaign')
@@ -733,9 +734,22 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     if (res.step) setSteps(prev => [...prev, res.step])
   }
 
-  async function removeStep(id: string) {
-    await fetch(`/api/campaigns/${id}/steps/${id}`, { method: 'DELETE' })
-    setSteps(prev => prev.filter(s => s.id !== id))
+  async function removeStep(stepId: string) {
+    const res = await fetch(`/api/campaigns/${id}/steps/${stepId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      // 409 step_has_committed_emails : the step has 'sending'/'sent'/etc
+      // children ; the API refuses to cascade-delete them so history stays
+      // intact. Show the localised toast and keep the step in the UI.
+      let payload: { error?: string; count?: number } = {}
+      try { payload = await res.json() } catch { /* ignore */ }
+      if (res.status === 409 && payload.error === 'step_has_committed_emails') {
+        toast.error(tSequence('removeBlockedSentTitle'), {
+          description: tSequence('removeBlockedSentDescription', { count: payload.count ?? 0 }),
+        })
+      }
+      return
+    }
+    setSteps(prev => prev.filter(s => s.id !== stepId))
   }
 
   async function generateMissingDrafts() {
@@ -1542,13 +1556,23 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                           selectedEmailIds.has(email.id) ? 'border-[#3b6bef] bg-[#f5f7ff]' : 'border-[#e8e3dc]'
                         }`}>
                         <div className="flex items-center gap-3">
-                          {/* Checkbox */}
+                          {/* Checkbox — disabled on committed rows.
+                              Bulk actions (approve/reject/delete) all now
+                              refuse committed rows server-side; gating
+                              selection prevents the user from picking a
+                              row that would be silently skipped. */}
                           <input type="checkbox"
                             checked={selectedEmailIds.has(email.id)}
-                            onChange={() => setSelectedEmailIds(prev => {
-                              const n = new Set(prev); n.has(email.id) ? n.delete(email.id) : n.add(email.id); return n
-                            })}
-                            className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer shrink-0" />
+                            disabled={committed}
+                            title={committed ? tEmails('selectDisabledSent') : undefined}
+                            aria-label={committed ? tEmails('selectDisabledSent') : undefined}
+                            onChange={() => {
+                              if (committed) return
+                              setSelectedEmailIds(prev => {
+                                const n = new Set(prev); n.has(email.id) ? n.delete(email.id) : n.add(email.id); return n
+                              })
+                            }}
+                            className="rounded border-[#e8e3dc] text-[#3b6bef] cursor-pointer shrink-0 disabled:cursor-not-allowed disabled:opacity-40" />
 
                           {/* Prospect info */}
                           <div className="flex-1 min-w-0">

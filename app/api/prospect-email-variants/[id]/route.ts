@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { variantUpdateSchema, badRequest } from '@/lib/schemas'
-import { COMMITTED_STATUSES, isCommitted } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isCommitted, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -234,8 +234,15 @@ async function approveAndConverge(admin: Admin, workspaceId: string, variantId: 
       .select('id')
 
     if (updErr) {
-      convergeConflict = 'db_error'
-      convergeError = updErr
+      // Trigger MR001 = the row transitioned to a committed state between
+      // our CAS filter and the UPDATE (defense-in-depth for our own CAS).
+      // Treat it as the same 'already_sent' 409 the UI already handles.
+      if (isProspectEmailInvariantError(updErr)) {
+        convergeConflict = 'already_sent'
+      } else {
+        convergeConflict = 'db_error'
+        convergeError = updErr
+      }
     } else if (!updatedRows || updatedRows.length === 0) {
       convergeConflict = 'already_sent'
     }

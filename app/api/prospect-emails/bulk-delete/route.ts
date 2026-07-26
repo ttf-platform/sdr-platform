@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { bulkIdsSchema, badRequest } from '@/lib/schemas'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
+
+const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
 export async function POST(request: Request) {
   const guard = await billingGuard()
@@ -13,13 +16,30 @@ export async function POST(request: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues)
   const { ids } = parsed.data
 
+  // Product rule : sending history is immutable. Committed rows
+  // (sending / sent / bounced / replied) are skipped ; deleting them
+  // would erase the anti-double-send memory (UNIQUE constraint on
+  // (prospect_id, campaign_step_id)) and let "Regenerate all" create
+  // a fresh draft for the same pair. skipped_count bundles both
+  // "id belongs to another workspace" and "id is committed" — same
+  // shape as bulk-reject so the caller doesn't need to distinguish.
   const admin = createAdminClient()
-  const { error } = await admin
+  const { data: deleted, error } = await admin
     .from('prospect_emails')
     .delete()
     .eq('workspace_id', guard.workspaceId)
     .in('id', ids)
+    .not('status', 'in', COMMITTED_NOT_IN_FILTER)
+    .select('id')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ deleted_count: ids.length })
+  if (error) {
+    if (isProspectEmailInvariantError(error)) {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  const deleted_count = (deleted ?? []).length
+  const skipped_count = ids.length - deleted_count
+  return NextResponse.json({ deleted_count, skipped_count })
 }

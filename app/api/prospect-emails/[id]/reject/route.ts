@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { enforceEmptyBody } from '@/lib/schemas'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
@@ -28,7 +28,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .single()
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116' || isProspectEmailInvariantError(error)) {
       return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { bulkIdsSchema, badRequest } from '@/lib/schemas'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
@@ -29,7 +29,16 @@ export async function POST(request: Request) {
     .not('status', 'in', COMMITTED_NOT_IN_FILTER)
     .select('id')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // The CAS already excludes committed rows, so a trigger MR001 on this
+    // path means a row transitioned between the .in() filter and the
+    // UPDATE (extremely tight race). Surface it as 409 so the client can
+    // refresh, rather than as an opaque 500.
+    if (isProspectEmailInvariantError(error)) {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   const rejected_count = (updated ?? []).length
   const skipped_count  = ids.length - rejected_count

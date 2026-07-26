@@ -711,9 +711,20 @@ async function maybeStopFollowups(
     .maybeSingle()
   if (!campaign || !(campaign as Record<string, unknown>)[flagColumn]) return
 
-  // Pull every step of the same campaign + flip every approved/sending
-  // prospect_email for this prospect to 'rejected'. We never touch rows
-  // already in a terminal state (sent / bounced / replied / failed).
+  // Pull every step of the same campaign + flip every APPROVED prospect_email
+  // for this prospect to 'rejected'. 'sending' is deliberately excluded:
+  // the row has already been handed off to the sending provider and cannot
+  // be cancelled from here — that would need an API call to the provider,
+  // which is out of scope for this webhook. Rewriting 'sending' → 'rejected'
+  // in the DB would also let a subsequent undo flip it back to 'draft' and
+  // Send All re-enqueue it (double-send). Committed states (sent / bounced /
+  // replied / failed) are excluded for the same reason.
+  //
+  // Additional bulk-safety : a per-row exception thrown by the invariant
+  // trigger would abort the whole UPDATE and lose the smart-stop for the
+  // rest of the batch. Restricting the source set to 'approved' only keeps
+  // every row we touch on a transition the trigger accepts
+  // ('approved' → 'rejected' is not backward from a committed state).
   const { data: allSteps } = await admin
     .from('campaign_steps')
     .select('id')
@@ -733,6 +744,6 @@ async function maybeStopFollowups(
     .eq('workspace_id', workspaceId)
     .eq('prospect_id', pe.prospect_id)
     .in('campaign_step_id', stepIds)
-    .in('status', ['approved', 'sending'])
+    .in('status', ['approved'])
     .neq('id', pe.id)
 }

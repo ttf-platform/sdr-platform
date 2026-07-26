@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { prospectEmailUpdateSchema, badRequest } from '@/lib/schemas'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
@@ -87,7 +87,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .single()
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116' || isProspectEmailInvariantError(error)) {
       return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -100,13 +100,26 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
+  // Product rule : sending history is immutable. Deleting a committed row
+  // would erase the anti-double-send memory (UNIQUE on prospect_id,
+  // campaign_step_id) and let a fresh draft be created for the same pair.
+  // .select('id').single() on zero-matched rows yields PGRST116 which we
+  // translate into a 409, same shape as the sibling reject/edit routes.
   const admin = createAdminClient()
   const { error } = await admin
     .from('prospect_emails')
     .delete()
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
+    .not('status', 'in', COMMITTED_NOT_IN_FILTER)
+    .select('id')
+    .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === 'PGRST116' || isProspectEmailInvariantError(error)) {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

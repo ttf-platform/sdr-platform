@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { enforceEmptyBody } from '@/lib/schemas'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 
 // PostgREST wants the .not('status','in', ...) filter as a parenthesised
 // comma-list of quoted values. Build it from the shared list so a future
@@ -31,7 +31,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .not('status', 'in', COMMITTED_NOT_IN_FILTER)
     .select('id')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (isProspectEmailInvariantError(error)) {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   if (!updated || updated.length === 0) {
     return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
   }
