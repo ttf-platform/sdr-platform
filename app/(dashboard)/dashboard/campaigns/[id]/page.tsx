@@ -614,18 +614,32 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return () => { cancelled = true }
   }, [sendAllConfirmOpen, tDays, tPrefs])
 
-  // Send All handler — collecte tous les ids draft/edited via pagination,
-  // envoie le PREMIER approve seul pour détecter les blocages workspace-level
-  // (no_sending_mailbox / provider_mock_mode), puis approveIds pour le reste.
+  // Send All handler — collecte tous les ids draft/edited/approved via
+  // pagination, envoie le PREMIER approve seul pour détecter les blocages
+  // workspace-level (no_sending_mailbox / provider_mock_mode), puis
+  // approveIds pour le reste.
+  //
+  // 'approved' is included alongside draft/edited because approveAndConverge
+  // (POST /api/prospect-email-variants/[id] with action='approve') writes
+  // prospect_emails.status='approved' after a signal-personalised variant
+  // is approved from the campaign's Approval Queue. Without collecting
+  // 'approved' here, those emails are stuck : they sit in the DB, they
+  // count against the plan, they render in the emails tab with an
+  // "Approved" badge — but Send All never queues them and no other UI
+  // path ships them. This IS audit site #3 PR2's cul-de-sac.
   async function sendAllDrafts() {
     setSendAllBusy(true)
     try {
-      // 1. Pagination pour collecter TOUS les ids draft+edited.
-      const target = (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)
+      // 1. Pagination pour collecter TOUS les ids draft/edited/approved.
+      //    URL + target counter MUST be aligned : the while-loop exits as
+      //    soon as `ids.length >= target`. Fixing only the URL without the
+      //    target would collect fewer than the true total and silently
+      //    leave approved emails behind.
+      const target = (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) + (emailsByStatus.approved ?? 0)
       const ids: string[] = []
       let page = 1
       while (ids.length < target && page < 50 /* garde-fou */) {
-        const url = `/api/prospect-emails?campaign_id=${id}&step_order=0&status=draft,edited&limit=100&page=${page}`
+        const url = `/api/prospect-emails?campaign_id=${id}&step_order=0&status=draft,edited,approved&limit=100&page=${page}`
         const res = await fetch(url, { cache: 'no-store' })
         if (!res.ok) break
         const data = await res.json() as { emails?: Array<{ id: string }> }
@@ -1458,10 +1472,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   {/* Divider vertical — hidden en mobile pour éviter isolat */}
                   <span aria-hidden="true" className="hidden sm:block w-px h-[22px] bg-[#e8e3dc]" />
 
-                  {/* Send All — bouton primaire ACTIF quand draft+edited > 0.
+                  {/* Send All — bouton primaire ACTIF quand draft+edited+approved > 0.
+                      'approved' includes Approval-Queue variants that converged
+                      into prospect_emails (audit site #3 PR2/2 — the cul-de-sac).
                       Tooltip Info à gauche pour expliquer le timing.
                       #3b6bef = marque (incident #204, ne pas repeindre). */}
-                  {((emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0)) > 0 && (
+                  {((emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) + (emailsByStatus.approved ?? 0)) > 0 && (
                     <div className="inline-flex items-center gap-1.5">
                       <Tooltip content={tEmails('sendAllTooltip')} placement="top-end">
                         <button
@@ -1475,7 +1491,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                         type="button"
                         onClick={() => setSendAllConfirmOpen(true)}
                         className="inline-flex items-center gap-1.5 bg-[#3b6bef] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#2f57c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors">
-                        {tEmails('sendAllCount', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) })}
+                        {tEmails('sendAllCount', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) + (emailsByStatus.approved ?? 0) })}
                       </button>
                     </div>
                   )}
@@ -1711,7 +1727,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           <Modal
             isOpen={sendAllConfirmOpen}
             onClose={() => { if (!sendAllBusy) setSendAllConfirmOpen(false) }}
-            title={tEmails('sendAllConfirmTitle', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) })}
+            title={tEmails('sendAllConfirmTitle', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) + (emailsByStatus.approved ?? 0) })}
             size="md"
             footer={
               <>
@@ -1737,7 +1753,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           >
             <div className="space-y-3">
               <p className="text-sm text-[#1a1a2e]">
-                {tEmails('sendAllConfirmBody', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) })}
+                {tEmails('sendAllConfirmBody', { count: (emailsByStatus.draft ?? 0) + (emailsByStatus.edited ?? 0) + (emailsByStatus.approved ?? 0) })}
               </p>
               {sendAllWindow && (
                 <div className="inline-flex items-center gap-1.5 bg-[#f5f2ee] rounded-md px-3 py-2 text-sm text-[#6b5e4e]">

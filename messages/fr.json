@@ -1447,7 +1447,7 @@
           "sendAllConfirmTitle": "{count, plural, one {Envoyer 1 brouillon ?} other {Envoyer # brouillons ?}}",
           "sendAllConfirmBody": "{count, plural, one {Ceci approuve 1 brouillon et le met en file d'envoi.} other {Ceci approuve # brouillons et les met en file d'envoi.}} Ils partent progressivement dans la fenêtre de vos Préférences d'envoi — pas tous en même temps, ni immédiatement.",
           "sendAllConfirmWindow": "Envoi dans {days}, {start}–{end}",
-          "sendAllConfirmWarn": "Action irréversible. Les emails déjà approuvés, envoyés ou rejetés ne sont pas affectés.",
+          "sendAllConfirmWarn": "Action irréversible. Les emails déjà envoyés ou rejetés ne sont pas affectés.",
           "sendAllConfirmCancel": "Annuler",
           "sendAllConfirmCta": "Envoyer tous les brouillons",
           "sendAllBusy": "Envoi…",
@@ -1529,7 +1529,10 @@
             "actionFailed": "L'action a échoué",
             "noMatchedProspects": "Aucun prospect avec des signaux détectés pour l'instant. Lancez d'abord une analyse de signaux.",
             "generationFailed": "Échec de la génération",
-            "batchApproveFailed": "Échec de la validation groupée"
+            "batchApproveFailed": "Échec de la validation groupée",
+            "emailAlreadySent": "Cet e-mail a déjà été envoyé. La validation a été annulée.",
+            "batchPartial": "{ok} sur {total} validés. {failed} n'ont pas pu être validés — certains ont peut-être déjà été envoyés.",
+            "generatePartial": "{ok} sur {total} générés. {failed} n'ont pas pu être générés — réessayez dans un instant."
           }
         },
         "signalsDrawer": {

@@ -1447,7 +1447,7 @@
           "sendAllConfirmTitle": "{count, plural, one {Send 1 draft?} other {Send # drafts?}}",
           "sendAllConfirmBody": "{count, plural, one {This approves 1 draft and queues it to send.} other {This approves # drafts and queues them to send.}} They go out gradually within your Sending Preferences window — not all at once, and not immediately.",
           "sendAllConfirmWindow": "Sends within {days}, {start}–{end}",
-          "sendAllConfirmWarn": "This can't be undone. Emails already approved, sent, or rejected aren't affected.",
+          "sendAllConfirmWarn": "This can't be undone. Emails already sent or rejected aren't affected.",
           "sendAllConfirmCancel": "Cancel",
           "sendAllConfirmCta": "Send all drafts",
           "sendAllBusy": "Sending…",
@@ -1529,7 +1529,10 @@
             "actionFailed": "Action failed",
             "noMatchedProspects": "No prospects with detected signals yet. Run a signal scan first.",
             "generationFailed": "Generation failed",
-            "batchApproveFailed": "Batch approve failed"
+            "batchApproveFailed": "Batch approve failed",
+            "emailAlreadySent": "This email was already sent. The approval was canceled.",
+            "batchPartial": "{ok} of {total} approved. {failed} couldn't be approved — some may have already been sent.",
+            "generatePartial": "Generated {ok} of {total}. {failed} couldn't be generated — try again in a moment."
           }
         },
         "signalsDrawer": {
