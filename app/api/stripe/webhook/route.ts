@@ -739,7 +739,27 @@ export async function POST(request: Request) {
 
       const before = await readWorkspaceBefore({ customerId })
 
-      if (customerId) {
+      // Guard the reactivation write : we only touch subscription_status +
+      // canceled_at on subscription-cycle invoices, and only when the
+      // workspace is NOT already canceled.
+      //
+      // (a) A non-subscription invoice (billing_reason 'manual'/'quote'/
+      //     'upcoming'/'proration'…) must never flip the status or wipe the
+      //     J+30 purge anchor — a topup on a live sub, or a manual $-charge
+      //     on a canceled account, would otherwise re-activate the row.
+      // (b) A canceled workspace NEVER re-activates via payment_succeeded —
+      //     real reactivations flow through checkout.session.completed or
+      //     customer.subscription.updated ; keeping this door shut prevents
+      //     an out-of-order Stripe event (a late invoice landing after the
+      //     cancellation webhook) from silently resurrecting the workspace.
+      // (c) `before` may be EMPTY_BEFORE on a readWorkspaceBefore failure
+      //     (subscription_status === null). null !== 'canceled' → the guard
+      //     passes and we fall back to the historical behaviour of writing
+      //     'active' ; this fail-open is assumed and matches the pre-fix code.
+      const isSubInvoicePS = inv.billing_reason === 'subscription_cycle' || inv.billing_reason === 'subscription_create'
+      const wroteActive    = !!customerId && isSubInvoicePS && before.subscription_status !== 'canceled'
+
+      if (wroteActive) {
         // Reactivation clears the purge anchor: a successful payment means
         // the workspace is no longer eligible for J+30 deletion.
         await admin.from('workspaces')
@@ -750,16 +770,22 @@ export async function POST(request: Request) {
       // Resolve the dunning escalation state for this specific invoice — a
       // successful payment on invoice X ends the J0→J+3→J+7 cadence for X
       // even if other unrelated invoices are still open. The cron treats
-      // resolved_at IS NOT NULL as "off the escalation queue".
+      // resolved_at IS NOT NULL as "off the escalation queue". Kept
+      // UNCONDITIONAL : this is a no-op for invoices that were never in the
+      // dunning queue in the first place.
       if (inv.id) await resolveDunningStateForInvoice(inv.id)
 
       // payment_succeeded doesn't change plan/interval — carry forward from_*.
+      // to_status mirrors the actual write : if the guard above skipped the
+      // reactivation, the ledger records the pre-existing status (or
+      // 'unknown' when the workspace row could not be resolved), so
+      // /admin/audit doesn't lie about a status change that never happened.
       await logSubscriptionEvent(admin, {
         workspace_id:    before.id,
         event_type:      'payment_succeeded',
         stripe_event_id: event.id,
         from_status:     before.subscription_status,
-        to_status:       'active',
+        to_status:       wroteActive ? 'active' : (before.subscription_status ?? 'unknown'),
         from_plan:       before.plan_tier,
         to_plan:         before.plan_tier,
         from_interval:   before.billing_interval,
@@ -774,8 +800,7 @@ export async function POST(request: Request) {
       // manuel). `wid = before.id` ; si le workspace n'est pas encore résolu
       // côté DB (customer.created reçu avant que la ligne workspaces soit
       // écrite), on skip silencieusement.
-      const isSubInvoicePS = inv.billing_reason === 'subscription_cycle' || inv.billing_reason === 'subscription_create'
-      const widPS          = before.id
+      const widPS = before.id
       if (widPS && isSubInvoicePS) {
         notifyWorkspaceOwner(widPS, {
           type:     'payment_succeeded',
