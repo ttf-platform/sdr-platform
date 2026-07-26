@@ -13,6 +13,22 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// ─── @/lib/plans mock (hoisted-safe) ─────────────────────────────────────
+// PR4a wired executeGetUserPlanAndQuotas + executeGetUserCreditsUsage to
+// read caps via loadPlansConfig() → capsFor(). Tests must stay hermetic
+// (no Supabase network call from the loader) — the mock keeps the real
+// PLANS_SEED and other exports, only replaces loadPlansConfig with a
+// controllable vi.fn() so cases can inject a DB-edited config.
+const { loadPlansConfigMock } = vi.hoisted(() => ({
+  loadPlansConfigMock: vi.fn(),
+}));
+vi.mock('@/lib/plans', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/plans')>();
+  return { ...actual, loadPlansConfig: loadPlansConfigMock };
+});
+
+import { PLANS_SEED } from '@/lib/plans';
 import {
   detectEscalationKeyword,
   detectNegativeSentiment,
@@ -125,6 +141,9 @@ function makeMockSupabase(handlers: {
     gte(_col: string, _val: unknown) {
       return builder;
     },
+    lt(_col: string, _val: unknown) {
+      return builder;
+    },
     order(_col: string, _opts: unknown) {
       return builder;
     },
@@ -151,6 +170,12 @@ describe('executeToolCall', () => {
   let ctx: BotContext;
 
   beforeEach(() => {
+    // Default : loader returns the real PLANS_SEED. Individual tests may
+    // override before their own executeToolCall call to simulate an
+    // /admin/plans edit.
+    loadPlansConfigMock.mockReset();
+    loadPlansConfigMock.mockResolvedValue(PLANS_SEED);
+
     ctx = {
       userId: 'user-1',
       workspaceId: 'ws-1',
@@ -256,6 +281,98 @@ describe('executeToolCall', () => {
       campaigns: Array<{ open_rate: number }>;
     };
     expect(result.campaigns[0].open_rate).toBe(0);
+  });
+
+  // ─── getUserPlanAndQuotas — proves live table read via loadPlansConfig
+  it('getUserPlanAndQuotas surfaces quotas from PLANS_SEED (default loader)', async () => {
+    ctx.supabase = makeMockSupabase({
+      'workspaces:single': () => ({
+        data: {
+          id: 'ws-1',
+          plan_tier: 'starter',
+          subscription_status: 'active',
+          trial_end_date: null,
+          current_period_start: null,
+          current_period_end: null,
+        },
+        error: null,
+      }),
+      usage_tracking: () => ({ data: [], error: null }),
+      prospects:      () => ({ data: [], error: null, count: 0 }),
+      email_accounts: () => ({ data: [], error: null, count: 0 }),
+    });
+
+    const result = (await executeToolCall('getUserPlanAndQuotas', {}, ctx)) as {
+      plan: string;
+      mailbox_quota: number;
+      emails_quota_per_month: number;
+      prospects_lifetime_cap: number;
+    };
+    expect(result.plan).toBe('starter');
+    // Seed values (PLANS_SEED.starter) — regression guard for a silent
+    // hard-coded drift.
+    expect(result.mailbox_quota).toBe(PLANS_SEED.starter.inboxes);
+    expect(result.emails_quota_per_month).toBe(PLANS_SEED.starter.emails_per_month);
+    expect(result.prospects_lifetime_cap).toBe(PLANS_SEED.starter.total_prospects);
+  });
+
+  it('getUserPlanAndQuotas honours a DB-edited cap loaded from /admin/plans', async () => {
+    // Admin lowered starter emails_per_month from 1000 → 5 via /admin/plans.
+    // The bot must read the LIVE value, not a frozen literal. Regression
+    // guard for anyone re-introducing a static PLAN_CAPS lookup.
+    loadPlansConfigMock.mockResolvedValueOnce({
+      ...PLANS_SEED,
+      starter: { ...PLANS_SEED.starter, emails_per_month: 5 },
+    });
+    ctx.supabase = makeMockSupabase({
+      'workspaces:single': () => ({
+        data: {
+          id: 'ws-1',
+          plan_tier: 'starter',
+          subscription_status: 'active',
+          trial_end_date: null,
+          current_period_start: null,
+          current_period_end: null,
+        },
+        error: null,
+      }),
+      usage_tracking: () => ({ data: [], error: null }),
+      prospects:      () => ({ data: [], error: null, count: 0 }),
+      email_accounts: () => ({ data: [], error: null, count: 0 }),
+    });
+
+    const result = (await executeToolCall('getUserPlanAndQuotas', {}, ctx)) as {
+      emails_quota_per_month: number;
+    };
+    expect(result.emails_quota_per_month).toBe(5);
+  });
+
+  it('getUserCreditsUsage surfaces prospect-credit total from the live config', async () => {
+    // Admin raised prospects_sourced_per_month for pro from 250 → 1000.
+    loadPlansConfigMock.mockResolvedValueOnce({
+      ...PLANS_SEED,
+      pro: { ...PLANS_SEED.pro, prospects_sourced_per_month: 1000 },
+    });
+    ctx.supabase = makeMockSupabase({
+      'workspaces:single': () => ({
+        data: {
+          plan_tier: 'pro',
+          current_period_start: null,
+          current_period_end: null,
+        },
+        error: null,
+      }),
+      usage_tracking: () => ({ data: [{ value: 30 }], error: null }),
+    });
+
+    const result = (await executeToolCall('getUserCreditsUsage', {}, ctx)) as {
+      credits_total: number;
+      credits_used: number;
+      credits_remaining: number;
+    };
+    expect(result.credits_total).toBe(1000);
+    expect(result.credits_used).toBe(30);
+    expect(result.credits_remaining).toBe(970);
   });
 
   it('escalate_to_human inserts an escalation row and returns confirmation', async () => {
