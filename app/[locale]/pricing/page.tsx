@@ -1,6 +1,13 @@
 import type { Metadata } from 'next'
 import { Link } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { loadPlansConfig } from '@/lib/plans'
+
+// ISR — the page stays statically served from the edge, and any
+// /admin/plans edit surfaces on the next request past this window.
+// Not `force-dynamic` on purpose : pricing traffic is public + high-QPS,
+// and the plans-config table changes on human cadence, not per-request.
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Pricing — Mirvo',
@@ -32,21 +39,58 @@ export default async function PricingPage({
   const { locale } = await params
   setRequestLocale(locale)
   const t = await getTranslations('pricing')
+  // Source of truth = table plans (loadPlansConfig falls back to seed on
+  // any error, so /pricing renders even if the DB is unreachable). Prices
+  // + caps below are derived from `cfg` — no literal quota / price in this
+  // file anymore.
+  const cfg = await loadPlansConfig()
+
+  const yearlyPrice = (tier: 'starter' | 'pro' | 'power'): number => {
+    const monthly = cfg[tier].monthly_price_usd ?? 0
+    const discount = cfg[tier].annual_discount ?? 0
+    return Math.round(monthly * 12 * (1 - discount))
+  }
+  const discountPct = Math.round((cfg.starter.annual_discount ?? 0.2) * 100)
 
   const PLANS = [
     {
-      id: 'starter', name: t('starterName'), monthly: 149, yearly: 1430,
-      features: [t('starterF0'),t('starterF1'),t('starterF2'),t('starterF3'),t('starterF4'),t('starterF5')],
+      id: 'starter',
+      name: t('starterName'),
+      monthly: cfg.starter.monthly_price_usd ?? 0,
+      yearly:  yearlyPrice('starter'),
+      features: [
+        t('featProspects',   { count: cfg.starter.prospects_sourced_per_month }),
+        t('featEnrichments', { count: cfg.starter.enrichments_per_month }),
+        t('featInboxes',     { count: cfg.starter.inboxes }),
+        t('starterF3'), t('starterF4'), t('starterF5'),
+      ],
       inherits: null,
     },
     {
-      id: 'pro', name: t('proName'), monthly: 299, yearly: 2870, popular: true,
-      features: [t('proF0'),t('proF1'),t('proF2'),t('proF3'),t('proF4'),t('proF5')],
+      id: 'pro',
+      name: t('proName'),
+      monthly: cfg.pro.monthly_price_usd ?? 0,
+      yearly:  yearlyPrice('pro'),
+      popular: true,
+      features: [
+        t('featProspects',   { count: cfg.pro.prospects_sourced_per_month }),
+        t('featEnrichments', { count: cfg.pro.enrichments_per_month }),
+        t('featInboxes',     { count: cfg.pro.inboxes }),
+        t('proF3'), t('proF4'), t('proF5'),
+      ],
       inherits: t('starterName'),
     },
     {
-      id: 'power', name: t('powerName'), monthly: 399, yearly: 3830,
-      features: [t('powerF0'),t('powerF1'),t('powerF2'),t('powerF3'),t('powerF4')],
+      id: 'power',
+      name: t('powerName'),
+      monthly: cfg.power.monthly_price_usd ?? 0,
+      yearly:  yearlyPrice('power'),
+      features: [
+        t('featProspects',   { count: cfg.power.prospects_sourced_per_month }),
+        t('featEnrichments', { count: cfg.power.enrichments_per_month }),
+        t('featInboxes',     { count: cfg.power.inboxes }),
+        t('powerF3'), t('powerF4'),
+      ],
       inherits: t('proName'),
     },
   ]
@@ -109,7 +153,7 @@ export default async function PricingPage({
                   ${p.monthly}<span className={`text-lg font-normal ${p.popular ? 'text-[#8a9ab8]' : 'text-[#8a7e6e]'}`}>{t('perMonth')}</span>
                 </div>
                 <div className={`text-xs mb-6 ${p.popular ? 'text-[#8a9ab8]' : 'text-[#8a7e6e]'}`}>
-                  {t('orPerYear', { price: p.yearly })} <span className="text-green-400 font-semibold">{t('save20')}</span>
+                  {t('orPerYear', { price: p.yearly })} <span className="text-green-400 font-semibold">{t('saveAnnual', { pct: discountPct })}</span>
                 </div>
                 <ul className={`flex flex-col gap-2.5 mb-8 text-sm ${p.popular ? 'text-[#c8d4e8]' : 'text-[#4a4a5a]'}`}>
                   {p.inherits && (
