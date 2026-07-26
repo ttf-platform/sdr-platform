@@ -2423,7 +2423,7 @@
         "modeFastLabel": "Fast",
         "titleGenerate": "Générer les emails pour {count, plural, one {# prospect} other {# prospects}}",
         "titleRegenerate": "Régénérer les emails pour {count, plural, one {# prospect} other {# prospects}}",
-        "regenerateWarning": "Cela écrasera tous les brouillons existants de cette campagne.",
+        "regenerateWarning": "Cela remplacera les brouillons, les modifications et les emails rejetés. Les emails approuvés ou déjà envoyés sont préservés.",
         "includeBookingLink": "📅 Inclure le lien de réservation dans cet email",
         "includeSignature": "✍️  Inclure la signature email dans les emails générés",
         "fastTitle": "Fast",

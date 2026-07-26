@@ -3,6 +3,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { prospectEmailUpdateSchema, badRequest } from '@/lib/schemas'
 import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
@@ -11,11 +12,14 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const guard = await billingGuard()
   if (guard.blocked) return guard.response
 
+  // Vendor-invisibility allowlist enforced by PROSPECT_EMAIL_LIST_COLUMNS
+  // (see lib/prospect-email-columns.ts). Joins unchanged : campaign_steps
+  // + prospects only expose internally-authored fields.
   const admin = createAdminClient()
   const { data: raw, error } = await admin
     .from('prospect_emails')
     .select(`
-      *,
+      ${PROSPECT_EMAIL_LIST_COLUMNS},
       campaign_steps!campaign_step_id(step_order, step_type, delay_days, subject, body),
       prospects!prospect_id(
         email,
@@ -79,7 +83,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
     .not('status', 'in', COMMITTED_NOT_IN_FILTER)
-    .select()
+    .select(PROSPECT_EMAIL_LIST_COLUMNS)
     .single()
 
   if (error) {

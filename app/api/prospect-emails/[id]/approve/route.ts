@@ -3,24 +3,12 @@
  *
  * Approves a draft email and queues it for sending on the provider.
  *
- * Vendor-invisibility contract — CLAUDE.md ban on leaking provider identity:
- *
- *   The following columns of prospect_emails MUST NEVER appear in CLIENT_COLUMNS
- *   nor be otherwise serialised into a response body, because their value may
- *   contain a vendor-derived substring (e.g. "instantly", "[InstantlyProvider.…]",
- *   or a provider-set SMTP host):
- *
- *     - provider            literal 'instantly' in prod; vendor-named enum
- *     - send_error          carries "[InstantlyProvider.<method>] …" on failure
- *     - thread_id           provider-set Message-ID may embed the vendor domain
- *                           (e.g. "<abc@inboxes.instantly.ai>")
- *     - bounce_reason       provider-set free text; may include vendor strings
- *     - provider_inbox_id   only on email_accounts, but same rule
- *
- *   Anything new touching prospect_emails or a sibling table MUST audit any
- *   new column against this rule before adding it to CLIENT_COLUMNS. Adding
- *   another vendor-tainted field to the allowlist has happened 3 times in a
- *   row during sprint A3 — don't be the fourth.
+ * The vendor-invisibility doctrine + the column allowlist (formerly
+ * CLIENT_COLUMNS) live in lib/prospect-email-columns.ts so the other
+ * prospect-emails routes can reuse the same guardrail without duplicating
+ * the audit. Anything new touching prospect_emails or a sibling table MUST
+ * audit any new column against that doctrine before adding it to any
+ * exported allowlist.
  *
  * Sprint A3 rewires this from a unitary sendEmail() call to the campaign-
  * based send model: each Mirvo campaign maps 1:1 to a provider campaign
@@ -43,32 +31,11 @@ import { enforceEmptyBody } from '@/lib/schemas'
 import { campaignScheduleFromPrefs } from '@/lib/sending-schedule'
 import type { SendingPrefs } from '@/lib/types/sending-prefs'
 import { checkTierLimit, trackUsage } from '@/lib/tier-limits'
+// Column allowlist + full vendor-invisibility doctrine live in
+// lib/prospect-email-columns.ts.
+import { PROSPECT_EMAIL_CLIENT_COLUMNS as CLIENT_COLUMNS } from '@/lib/prospect-email-columns'
 
 const PROVIDER_TIMEOUT_MS = 10_000
-
-// Explicit allowlist of columns ever returned to the client.
-//
-// Per-field audit — every entry below must be categorically vendor-safe:
-//   - id                  uuid                              internal Mirvo id
-//   - status              enum text                         internal Mirvo enum (no vendor token)
-//   - provider_message_id text, opaque lead_id from provider — Instantly returns a
-//                                                            plain UUID per v2 API;
-//                                                            mock returns "mock_lead_<seed>".
-//                                                            No vendor substring possible.
-//   - sent_at             timestamptz                       timestamp
-//   - prospect_id         uuid                              internal
-//   - campaign_step_id    uuid                              internal
-//   - subject             text — user/AI-authored email subject. The AI prompt
-//                                does not surface the vendor name, and users
-//                                are not exposed to it either, so the subject
-//                                cannot carry a vendor substring in practice.
-//   - approved_at         timestamptz                       timestamp
-//   - updated_at          timestamptz                       timestamp
-//
-// Anything else (especially the list in the header doc-comment) stays out.
-const CLIENT_COLUMNS =
-  'id, status, provider_message_id, sent_at, ' +
-  'prospect_id, campaign_step_id, subject, approved_at, updated_at'
 
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params

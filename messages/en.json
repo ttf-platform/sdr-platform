@@ -2423,7 +2423,7 @@
         "modeFastLabel": "Fast",
         "titleGenerate": "Generate emails for {count, plural, one {# prospect} other {# prospects}}",
         "titleRegenerate": "Regenerate emails for {count, plural, one {# prospect} other {# prospects}}",
-        "regenerateWarning": "This will overwrite all existing drafts for this campaign.",
+        "regenerateWarning": "This will replace drafts, edits, and rejected emails. Approved and already-sent emails are preserved.",
         "includeBookingLink": "📅 Include calendar booking link in this email",
         "includeSignature": "✍️ Include email signature in generated emails",
         "fastTitle": "Fast",
