@@ -77,12 +77,31 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
 
   async function handleAction(variantId: string, action: 'approve' | 'reject') {
     setActionInProgress(variantId)
+    setError(null)
     try {
-      await fetch(`/api/prospect-email-variants/${variantId}`, {
+      const res = await fetch(`/api/prospect-email-variants/${variantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
+      if (!res.ok) {
+        // Special-case the 409s emitted by approveAndConverge — the variant
+        // was NOT flipped server-side, so the row must stay in the queue
+        // and the UI must not remove it. `email_already_sent` = CAS lost
+        // (audit site #3 PR2/2) ; `follow_up_not_sendable` = the variant
+        // is on a follow-up step and the send pipeline only ships step 0.
+        let payload: { error?: string } = {}
+        try { payload = await res.json() } catch { /* ignore */ }
+        if (res.status === 409 && payload.error === 'email_already_sent') {
+          setError(tErrors('emailAlreadySent'))
+        } else if (res.status === 409 && payload.error === 'follow_up_not_sendable') {
+          setError(tErrors('followUpNotSendable'))
+        } else {
+          setError(tErrors('actionFailed'))
+        }
+        await fetchVariants()
+        return
+      }
       setVariants(prev => prev.filter(v => v.id !== variantId))
     } catch (e) {
       setError(e instanceof Error ? e.message : tErrors('actionFailed'))
@@ -108,11 +127,26 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
         return
       }
 
+      // Count per-prospect success so a partial failure surfaces instead of
+      // being swallowed. Sequential to match the pre-existing shape (no
+      // rate-limiting concerns raised in this PR).
+      let ok = 0
+      let failed = 0
       for (const p of prospectsWithSignals as ProspectWithSignals[]) {
-        await fetch(`/api/prospects/${p.id}/generate-personalized`, { method: 'POST' })
+        try {
+          const res = await fetch(`/api/prospects/${p.id}/generate-personalized`, { method: 'POST' })
+          if (res.ok) ok++
+          else failed++
+        } catch {
+          failed++
+        }
       }
 
       await fetchVariants()
+
+      if (failed > 0) {
+        setError(tErrors('generatePartial', { ok, total: prospectsWithSignals.length, failed }))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : tErrors('generationFailed'))
     } finally {
@@ -123,17 +157,34 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
   async function handleBatchApprove() {
     if (!confirm(t('confirmBatch', { count: variants.length }))) return
     setActionInProgress('batch')
+    setError(null)
     try {
-      await Promise.all(
-        variants.map(v =>
-          fetch(`/api/prospect-email-variants/${v.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'approve' }),
-          })
-        )
+      // Track per-variant success so a 409 email_already_sent (CAS refusal
+      // from approveAndConverge) does not blank the whole queue optimistically.
+      // Only the successfully-approved variants are removed ; failed ones
+      // stay in place and the total is surfaced as a partial-success banner.
+      const results = await Promise.all(
+        variants.map(async v => {
+          try {
+            const res = await fetch(`/api/prospect-email-variants/${v.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'approve' }),
+            })
+            return { id: v.id, ok: res.ok }
+          } catch {
+            return { id: v.id, ok: false }
+          }
+        })
       )
-      setVariants([])
+      const okIds = new Set(results.filter(r => r.ok).map(r => r.id))
+      const ok = okIds.size
+      const total = results.length
+      const failed = total - ok
+      setVariants(prev => prev.filter(v => !okIds.has(v.id)))
+      if (failed > 0) {
+        setError(tErrors('batchPartial', { ok, total, failed }))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : tErrors('batchApproveFailed'))
     } finally {

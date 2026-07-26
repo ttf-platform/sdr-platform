@@ -9,6 +9,10 @@ import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { prospectEmailRegenerateSchema, badRequest } from '@/lib/schemas'
 import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
+import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+
+// Same PostgREST filter shape as undo / [id] PATCH / reject.
+const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
@@ -113,7 +117,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   // paths (follow-up regeneration, template mode initial).
   bodyOut = dedupeFirstNameRepeats(bodyOut, vars.first_name)
 
-  // 5. Overwrite draft — reset review state
+  // 5. Overwrite draft — reset review state. Compare-and-set on status:
+  //    the Edit modal can be open on a draft that Send All has meanwhile
+  //    flipped to sending/sent in parallel. Without this filter, clicking
+  //    Regenerate would push the row back to 'draft' and let the next Send
+  //    All re-enqueue it → the prospect receives the email twice. .single()
+  //    on zero rows yields PGRST116, translated to 409 email_already_sent
+  //    (same code path as the sibling reject / edit / undo routes).
   const { data: updated, error } = await admin
     .from('prospect_emails')
     .update({
@@ -127,9 +137,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     })
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
+    .not('status', 'in', COMMITTED_NOT_IN_FILTER)
     .select(PROSPECT_EMAIL_LIST_COLUMNS)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ email: updated })
 }

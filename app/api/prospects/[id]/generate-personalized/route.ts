@@ -72,12 +72,17 @@ export async function POST(_request: Request, { params }: Params) {
     })
   }
 
-  // 3. Fetch campaign steps (sequence template), ordered by step_order
+  // 3. Fetch the first-email step (step_order=0) of the campaign. Follow-up
+  //    steps used to be iterated too, but the send pipeline only ships step 0
+  //    today ; generating variants for follow-ups was burning LLM calls and
+  //    surfacing rows the user could 'approve' with no way to send them
+  //    (see the approval-queue route's step_order scope + approveAndConverge
+  //    step_order guard).
   const { data: steps, error: stepsError } = await admin
     .from('campaign_steps')
     .select('id, step_order, step_type, subject, body, delay_days')
     .eq('campaign_id', prospect.campaign_id)
-    .order('step_order', { ascending: true })
+    .eq('step_order', 0)
 
   if (stepsError) {
     return NextResponse.json({ error: stepsError.message }, { status: 500 })
