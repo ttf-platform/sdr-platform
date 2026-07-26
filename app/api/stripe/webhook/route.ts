@@ -54,8 +54,60 @@ export async function POST(request: Request) {
   // /admin/plans can shift the numbers without changing this route.
   const priceMap = priceMapFromConfig(await loadPlansConfig())
 
-  async function updateWorkspace(workspaceId: string, fields: Record<string, unknown>) {
-    await admin.from('workspaces').update(fields).eq('id', workspaceId)
+  // Ordered write : compare-and-set on workspaces.last_stripe_event_at
+  // (migration 084) so a Stripe event that arrives OUT OF ORDER (network
+  // retry, replay, or Connect fan-out re-delivery) cannot regress state
+  // written by a newer event. `event.created` is Stripe's authoritative
+  // ordering timestamp — we accept `null` (never-seen) or same-or-older
+  // than the incoming event.
+  //
+  // `.lte` (not `.lt`) because checkout.session.completed and
+  // customer.subscription.created routinely share the same second on a
+  // first-time subscription : a strict `<` would reject the second
+  // legitimate event of the pair. Same-second collisions are safe because
+  // both writes carry the same state.
+  //
+  // Return semantics :
+  //   - `true`  → the UPDATE landed. Caller runs the transition side-effects.
+  //   - `false` → the UPDATE was rejected (stale event) OR the workspace
+  //               row was not found. Caller MUST skip transition side-
+  //               effects (emails, admin alerts, canceled_at stamps,
+  //               dunning seeds) — recording them would lie about a state
+  //               change that didn't happen.
+  //
+  // Never throws. Any DB error is logged and returns `false` so the
+  // webhook stays 200 to Stripe (retrying is worse than skipping — Stripe
+  // will resend, and the guard makes replays safe by design).
+  async function updateWorkspaceOrdered(
+    by:     { id?: string; customerId?: string },
+    fields: Record<string, unknown>,
+  ): Promise<boolean> {
+    if (!by.id && !by.customerId) {
+      console.error('[stripe-webhook] updateWorkspaceOrdered: no id or customerId')
+      return false
+    }
+    try {
+      let q = admin
+        .from('workspaces')
+        .update({ ...fields, last_stripe_event_at: occurredAt })
+      // Prefer id when both are provided (more specific).
+      if (by.id) {
+        q = q.eq('id', by.id)
+      } else if (by.customerId) {
+        q = q.eq('stripe_customer_id', by.customerId)
+      }
+      const { data, error } = await q
+        .or(`last_stripe_event_at.is.null,last_stripe_event_at.lte.${occurredAt}`)
+        .select('id')
+      if (error) {
+        console.error('[stripe-webhook] updateWorkspaceOrdered failed', error.message)
+        return false
+      }
+      return (data?.length ?? 0) > 0
+    } catch (err) {
+      console.error('[stripe-webhook] updateWorkspaceOrdered unexpected failure', err)
+      return false
+    }
   }
 
   // Derive workspaces.current_period_start / end from a Stripe subscription.
@@ -68,7 +120,7 @@ export async function POST(request: Request) {
   //
   // Best-effort: called from the switch below with try/catch — never throws,
   // never fails the webhook. Returns the fields dict so the caller can merge
-  // it into its updateWorkspace(...) call.
+  // it into its updateWorkspaceOrdered(...) call.
   function periodFieldsFromSubscription(sub: Stripe.Subscription): {
     current_period_start: string | null
     current_period_end:   string | null
@@ -423,16 +475,28 @@ export async function POST(request: Request) {
       const plan        = session.metadata?.plan
       const interval    = session.metadata?.interval
       if (!workspaceId) break
-      await updateWorkspace(workspaceId, {
-        subscription_status:    'active',
-        stripe_subscription_id: session.subscription,
-        plan_tier:              plan,
-        billing_interval:       interval,
-        // Clear the purge anchor on reactivation (re-subscription after cancel).
-        canceled_at:            null,
-      })
+      // Ordered write. `applied=false` means an older Stripe event already
+      // wrote this row (out-of-order retry) OR the workspace row could not
+      // be resolved. In either case we must NOT fire the first-upgrade
+      // email — it would confirm an activation that either already ran a
+      // newer event, or never landed at all.
+      const applied = await updateWorkspaceOrdered(
+        { id: workspaceId },
+        {
+          subscription_status:    'active',
+          stripe_subscription_id: session.subscription,
+          plan_tier:              plan,
+          billing_interval:       interval,
+          // Clear the purge anchor on reactivation (re-subscription after cancel).
+          canceled_at:            null,
+        },
+      )
 
-      // History — checkout has no "before" subscription state.
+      // History — checkout has no "before" subscription state. When the
+      // ordered write was rejected we log the transition as `to_status:
+      // 'unknown'` (a legal ledger value per migration 064's CHECK on
+      // event_type only) so /admin/audit doesn't claim an activation
+      // that never applied.
       const toPlan     = plan     ?? null
       const toInterval = interval ?? null
       await logSubscriptionEvent(admin, {
@@ -440,7 +504,7 @@ export async function POST(request: Request) {
         event_type:      'checkout_completed',
         stripe_event_id: event.id,
         from_status:     null,
-        to_status:       'active',
+        to_status:       applied ? 'active' : 'unknown',
         from_plan:       null,
         to_plan:         toPlan,
         from_interval:   null,
@@ -455,8 +519,10 @@ export async function POST(request: Request) {
       // (Stripe Checkout is used to create a sub, not to renew), so no extra
       // status gating is needed here. maybeSendUpgradeEmail also emits the
       // new_subscription admin alert exactly once per workspace via the
-      // lifecycle_emails UNIQUE constraint.
-      await maybeSendUpgradeEmail(workspaceId, toPlan)
+      // lifecycle_emails UNIQUE constraint. Skipped on stale event.
+      if (applied) {
+        await maybeSendUpgradeEmail(workspaceId, toPlan)
+      }
       break
     }
 
@@ -492,29 +558,41 @@ export async function POST(request: Request) {
       } catch (err) {
         console.error('[stripe-webhook] periodFieldsFromSubscription failed (non-fatal):', err instanceof Error ? err.message : err)
       }
-      await updateWorkspace(workspaceId, {
-        subscription_status:    status,
-        stripe_subscription_id: sub.id,
-        ...(resolved ? { plan_tier: resolved.tier, billing_interval: resolved.interval } : {}),
-        ...(exitingCanceled ? { canceled_at: null } : {}),
-        ...(periodFields ?? {}),
-      })
+      const applied = await updateWorkspaceOrdered(
+        { id: workspaceId },
+        {
+          subscription_status:    status,
+          stripe_subscription_id: sub.id,
+          ...(resolved ? { plan_tier: resolved.tier, billing_interval: resolved.interval } : {}),
+          ...(exitingCanceled ? { canceled_at: null } : {}),
+          ...(periodFields ?? {}),
+        },
+      )
 
       // canceled_at anchors the J+30 purge cron. Stamped only when currently
       // NULL (atomic conditional write) so a webhook replay never restarts
       // the clock, and independent of whether readWorkspaceBefore succeeded.
-      if (status === 'canceled') {
+      // SKIPPED when the ordered write was rejected : a stale
+      // subscription.updated arriving after a newer subscription.deleted has
+      // already stamped canceled_at, or after a newer .updated cleared it,
+      // must not re-arm the purge clock.
+      if (applied && status === 'canceled') {
         await stampCanceledAtIfMissing(workspaceId)
       }
 
       const toPlan     = resolved ? resolved.tier     : before.plan_tier
       const toInterval = resolved ? resolved.interval : before.billing_interval
+      // Ledger mirrors the actual write : `to_status: 'unknown'` when the
+      // ordered write was skipped so /admin/audit doesn't record a phantom
+      // transition. `before.subscription_status` fallback keeps history
+      // consistent when the workspace row was readable but the event was
+      // simply outdated.
       await logSubscriptionEvent(admin, {
         workspace_id:    workspaceId,
         event_type:      'subscription_updated',
         stripe_event_id: event.id,
         from_status:     before.subscription_status,
-        to_status:       status,
+        to_status:       applied ? status : (before.subscription_status ?? 'unknown'),
         from_plan:       before.plan_tier,
         to_plan:         toPlan,
         from_interval:   before.billing_interval,
@@ -529,8 +607,9 @@ export async function POST(request: Request) {
       // Checkout we own). Only fires when the workspace transitioned FROM
       // a non-active state TO 'active'. lifecycle_emails UNIQUE protects
       // against a later re-entry into 'active' (post past_due recovery).
+      // Skipped on stale event : the transition didn't actually happen here.
       const wasNotActive = before.subscription_status !== 'active'
-      if (wasNotActive && status === 'active') {
+      if (applied && wasNotActive && status === 'active') {
         // maybeSendUpgradeEmail fires the new_subscription admin alert too;
         // lifecycle_emails UNIQUE dedups against the checkout.session.completed
         // branch above so admins get exactly one alert per workspace.
@@ -550,30 +629,50 @@ export async function POST(request: Request) {
 
       const before = await readWorkspaceBefore({ id: workspaceId })
 
-      await updateWorkspace(workspaceId, {
-        subscription_status:    'canceled',
-        stripe_subscription_id: null,
-        // Null the paid-period anchor so lib/billing-period.ts falls back
-        // to the calendar month for any residual reads before purge.
-        current_period_start:   null,
-        current_period_end:     null,
-      })
+      // Ordered write. THIS is the dangerous case for out-of-order events :
+      // a stale subscription.deleted arriving AFTER the user has already
+      // re-subscribed (subscription.created lands, then a delayed .deleted
+      // from the prior sub) would otherwise re-cancel the row, re-arm the
+      // J+30 purge, and email the user a fake "your subscription is
+      // canceled" note. `applied=false` gates all four side-effects below.
+      const applied = await updateWorkspaceOrdered(
+        { id: workspaceId },
+        {
+          subscription_status:    'canceled',
+          stripe_subscription_id: null,
+          // Null the paid-period anchor so lib/billing-period.ts falls back
+          // to the calendar month for any residual reads before purge.
+          current_period_start:   null,
+          current_period_end:     null,
+        },
+      )
       // canceled_at anchors the J+30 purge cron. Atomic conditional write:
       // stamped only when currently NULL, so a webhook replay of the same
-      // cancellation never restarts the clock.
-      await stampCanceledAtIfMissing(workspaceId)
+      // cancellation never restarts the clock. SKIPPED on stale event —
+      // otherwise a late .deleted after a re-subscription would arm the
+      // purge on the fresh sub.
+      if (applied) {
+        await stampCanceledAtIfMissing(workspaceId)
+      }
 
       // The cancellation email takes over the messaging from here — retire
       // any open dunning escalation so J+7 doesn't fire on a workspace that
-      // just received a "your subscription is canceled" email.
-      await resolveOpenDunningStatesForWorkspace(workspaceId)
+      // just received a "your subscription is canceled" email. Skipped on
+      // stale event : the freshly-active workspace's dunning (if any)
+      // belongs to the current sub, not the ghost being processed here.
+      if (applied) {
+        await resolveOpenDunningStatesForWorkspace(workspaceId)
+      }
 
+      // Ledger `to_status` mirrors the actual write : 'canceled' when the
+      // ordered write landed, otherwise the pre-existing status so
+      // /admin/audit doesn't record a phantom cancellation.
       await logSubscriptionEvent(admin, {
         workspace_id:    workspaceId,
         event_type:      'subscription_deleted',
         stripe_event_id: event.id,
         from_status:     before.subscription_status,
-        to_status:       'canceled',
+        to_status:       applied ? 'canceled' : (before.subscription_status ?? 'unknown'),
         from_plan:       before.plan_tier,
         to_plan:         null,
         from_interval:   before.billing_interval,
@@ -587,8 +686,10 @@ export async function POST(request: Request) {
       // expirations (handled inside the helper via fromStatus check).
       // before.plan_tier carries the plan the user was on. sub.id keys
       // idempotency per-subscription so a re-sub + re-cancel later
-      // triggers a fresh email.
-      if (workspaceId && sub.id) {
+      // triggers a fresh email. Skipped on stale event — sending a
+      // cancellation email for a sub the user just replaced would be
+      // actively harmful.
+      if (applied && workspaceId && sub.id) {
         await maybeSendCancellationEmail(
           workspaceId,
           sub.id,
@@ -600,7 +701,8 @@ export async function POST(request: Request) {
       // Admin alert — subscription_cancelled. Skip trial expirations (they
       // fire subscription.deleted too when the trial ends without a payment
       // method, which is not an active cancellation worth alerting on).
-      if (workspaceId && before.subscription_status !== 'trialing') {
+      // Skipped on stale event to keep the admin alert stream truthful.
+      if (applied && workspaceId && before.subscription_status !== 'trialing') {
         await dispatchAdminAlert({
           event: 'subscription_cancelled',
           title: `Subscription cancelled: ${before.plan_tier ?? 'unknown'}`,
@@ -624,24 +726,27 @@ export async function POST(request: Request) {
         ? await readWorkspaceBefore({ id: workspaceId })
         : await readWorkspaceBefore({ customerId })
 
-      if (!workspaceId) {
-        // Fallback: look up by stripe_customer_id
-        if (customerId) {
-          await admin.from('workspaces')
-            .update({ subscription_status: 'past_due' })
-            .eq('stripe_customer_id', customerId)
-        }
-      } else {
-        await updateWorkspace(workspaceId, { subscription_status: 'past_due' })
-      }
+      // Single ordered write regardless of whether we found the workspace
+      // by metadata id or by stripe_customer_id (prefer id when both are
+      // present — see updateWorkspaceOrdered). If the event is stale
+      // (Stripe replayed a failure that already happened, or a
+      // payment_failed lands out of order after payment_succeeded on the
+      // same invoice), `applied=false` and the whole dunning fan-out
+      // below is skipped — a false dunning email + admin alert would be
+      // actively harmful.
+      const applied = await updateWorkspaceOrdered(
+        workspaceId ? { id: workspaceId } : { customerId },
+        { subscription_status: 'past_due' },
+      )
 
       // payment_failed doesn't change plan/interval — carry forward from_*.
+      // Ledger mirrors the actual write via `applied`.
       await logSubscriptionEvent(admin, {
         workspace_id:    workspaceId ?? before.id,
         event_type:      'payment_failed',
         stripe_event_id: event.id,
         from_status:     before.subscription_status,
-        to_status:       'past_due',
+        to_status:       applied ? 'past_due' : (before.subscription_status ?? 'unknown'),
         from_plan:       before.plan_tier,
         to_plan:         before.plan_tier,
         from_interval:   before.billing_interval,
@@ -654,10 +759,14 @@ export async function POST(request: Request) {
       // Dunning email — first failure only, real subscription invoices only,
       // and not for an already-canceled workspace. Fire-and-forget; the
       // helper guards itself and never throws past its own try/catch.
+      // `applied` gate ensures a stale payment_failed (Stripe replay after
+      // the failure was already resolved by a payment_succeeded) does NOT
+      // seed a fresh dunning row, email the user, or alert admins.
       const isFirstAttempt = inv.attempt_count === 1
       const isSubInvoice   = inv.billing_reason === 'subscription_cycle' || inv.billing_reason === 'subscription_create'
       const wid            = workspaceId ?? before.id
       if (
+        applied &&
         wid &&
         inv.id &&
         isFirstAttempt &&
@@ -739,40 +848,48 @@ export async function POST(request: Request) {
 
       const before = await readWorkspaceBefore({ customerId })
 
-      // Guard the reactivation write : we only touch subscription_status +
-      // canceled_at on subscription-cycle invoices, and only when the
-      // workspace is NOT already canceled.
+      // Two-step gate.
       //
-      // (a) A non-subscription invoice (billing_reason 'manual'/'quote'/
-      //     'upcoming'/'proration'…) must never flip the status or wipe the
-      //     J+30 purge anchor — a topup on a live sub, or a manual $-charge
-      //     on a canceled account, would otherwise re-activate the row.
-      // (b) A canceled workspace NEVER re-activates via payment_succeeded —
-      //     real reactivations flow through checkout.session.completed or
-      //     customer.subscription.updated ; keeping this door shut prevents
-      //     an out-of-order Stripe event (a late invoice landing after the
-      //     cancellation webhook) from silently resurrecting the workspace.
-      // (c) `before` may be EMPTY_BEFORE on a readWorkspaceBefore failure
-      //     (subscription_status === null). null !== 'canceled' → the guard
-      //     passes and we fall back to the historical behaviour of writing
-      //     'active' ; this fail-open is assumed and matches the pre-fix code.
+      // 1. ELIGIBILITY (billing_reason + not-canceled) — from #323 :
+      //    (a) A non-subscription invoice (billing_reason 'manual'/'quote'
+      //        /etc.) must never flip status nor wipe the J+30 purge anchor.
+      //    (b) A canceled workspace NEVER re-activates via payment_succeeded ;
+      //        real reactivations flow through checkout.session.completed or
+      //        customer.subscription.updated. Keeps the door shut against a
+      //        late invoice arriving after the cancellation webhook.
+      //    (c) `before` may be EMPTY_BEFORE on read failure ; null !==
+      //        'canceled' → gate passes, historical fail-open preserved.
+      //
+      // 2. ORDERING (last_stripe_event_at CAS) — from this PR :
+      //    Even if the workspace looks eligible, an out-of-order Stripe
+      //    event whose `event.created` predates a newer write must not
+      //    land. The helper rejects → `applied=false` → all transition
+      //    side-effects skip.
+      //
+      // resolveDunningStateForInvoice stays UNCONDITIONAL below : the
+      // payment did clear (Stripe wouldn't fire payment_succeeded
+      // otherwise), so the invoice-specific dunning row should be resolved
+      // regardless of ordering — resolving twice is a no-op, and we NEVER
+      // want to leave a resolved invoice haunting the escalation queue.
       const isSubInvoicePS = inv.billing_reason === 'subscription_cycle' || inv.billing_reason === 'subscription_create'
-      const wroteActive    = !!customerId && isSubInvoicePS && before.subscription_status !== 'canceled'
+      const eligible       = !!customerId && isSubInvoicePS && before.subscription_status !== 'canceled'
 
-      if (wroteActive) {
-        // Reactivation clears the purge anchor: a successful payment means
-        // the workspace is no longer eligible for J+30 deletion.
-        await admin.from('workspaces')
-          .update({ subscription_status: 'active', canceled_at: null })
-          .eq('stripe_customer_id', customerId)
-      }
+      const applied = eligible
+        ? await updateWorkspaceOrdered(
+            { customerId },
+            // Reactivation clears the purge anchor: a successful payment
+            // means the workspace is no longer eligible for J+30 deletion.
+            { subscription_status: 'active', canceled_at: null },
+          )
+        : false
 
       // Resolve the dunning escalation state for this specific invoice — a
       // successful payment on invoice X ends the J0→J+3→J+7 cadence for X
       // even if other unrelated invoices are still open. The cron treats
       // resolved_at IS NOT NULL as "off the escalation queue". Kept
       // UNCONDITIONAL : this is a no-op for invoices that were never in the
-      // dunning queue in the first place.
+      // dunning queue in the first place, and safe on stale events (the
+      // payment DID clear, whatever the event ordering).
       if (inv.id) await resolveDunningStateForInvoice(inv.id)
 
       // payment_succeeded doesn't change plan/interval — carry forward from_*.
@@ -785,7 +902,7 @@ export async function POST(request: Request) {
         event_type:      'payment_succeeded',
         stripe_event_id: event.id,
         from_status:     before.subscription_status,
-        to_status:       wroteActive ? 'active' : (before.subscription_status ?? 'unknown'),
+        to_status:       applied ? 'active' : (before.subscription_status ?? 'unknown'),
         from_plan:       before.plan_tier,
         to_plan:         before.plan_tier,
         from_interval:   before.billing_interval,
