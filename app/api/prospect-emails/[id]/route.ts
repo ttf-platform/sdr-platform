@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { prospectEmailUpdateSchema, badRequest } from '@/lib/schemas'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
@@ -87,7 +87,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .single()
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116' || isProspectEmailInvariantError(error)) {
       return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -116,7 +116,7 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
     .single()
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116' || isProspectEmailInvariantError(error)) {
       return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })

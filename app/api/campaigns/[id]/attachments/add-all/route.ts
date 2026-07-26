@@ -113,15 +113,21 @@ export async function POST(request: Request, { params }: Params) {
   //    Without .not(...COMMITTED...), we'd rewrite a committed row's body
   //    and flip it back to 'edited' → Send All would re-enqueue → double-send.
   //    .select('id') lets us count only rows the CAS actually mutated.
+  //
+  //    Counter contract (aligned with remove-all) :
+  //      updated + skipped + errors = emails.length  (the total scanned)
+  //    A no-op body (link already present) counts as `updated` — the row
+  //    is in the expected final state.
   const nowIso = new Date().toISOString()
   let updated = 0
   let skipped = 0
+  let errors  = 0
   for (const row of emails) {
     const currentBody = row.body ?? ''
     const newBody     = insertFileLink(currentBody, url, '')
     if (newBody === currentBody) {
-      // Le lien est déjà présent au même endroit — pas d'update inutile.
-      // On compte quand même comme "traité" pour que l'user voie le batch complet.
+      // Link already present at the right place — no-op, counted as updated
+      // (final state = target state).
       updated++
       continue
     }
@@ -134,6 +140,7 @@ export async function POST(request: Request, { params }: Params) {
       .select('id')
     if (updErr) {
       console.error('[attachments:add-all] row update failed', { id: row.id, error: updErr.message })
+      errors++
       continue
     }
     if (!updRows || updRows.length === 0) {
@@ -145,5 +152,5 @@ export async function POST(request: Request, { params }: Params) {
     updated++
   }
 
-  return NextResponse.json({ updated, skipped })
+  return NextResponse.json({ updated, skipped, errors })
 }

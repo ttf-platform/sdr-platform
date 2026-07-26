@@ -74,6 +74,7 @@ export async function POST(_request: Request, { params }: Params) {
   const nowIso = new Date().toISOString()
   let updated = 0
   let skipped = 0
+  let errors  = 0
 
   // CAS on status : the SELECT above pre-filtered draft/edited, but a row
   // can transition to sending/sent between that SELECT and the UPDATE
@@ -81,11 +82,17 @@ export async function POST(_request: Request, { params }: Params) {
   // .not(...COMMITTED...), we'd rewrite a committed row's body and flip
   // it back to 'edited' → Send All would re-enqueue → double-send.
   // .select('id') lets us count only rows the CAS actually mutated.
+  //
+  // Counter contract (aligned with add-all) :
+  //   updated + skipped + errors = emails.length  (the total scanned)
+  // A no-op body (no link to strip) counts as `updated` — the row is
+  // already in the expected final state.
   for (const row of emails) {
     const currentBody = row.body ?? ''
     const newBody     = stripAllFileLinks(currentBody, appUrl)
     if (newBody === currentBody) {
-      // Aucun lien à retirer sur ce mail : no-op DB, on ne compte pas.
+      // No link to remove — no-op, counted as updated (final state = target).
+      updated++
       continue
     }
     const { data: updRows, error: updErr } = await admin
@@ -97,6 +104,7 @@ export async function POST(_request: Request, { params }: Params) {
       .select('id')
     if (updErr) {
       console.error('[attachments:remove-all] row update failed', { id: row.id, error: updErr.message })
+      errors++
       continue
     }
     if (!updRows || updRows.length === 0) {
@@ -106,5 +114,5 @@ export async function POST(_request: Request, { params }: Params) {
     updated++
   }
 
-  return NextResponse.json({ updated, skipped })
+  return NextResponse.json({ updated, skipped, errors })
 }

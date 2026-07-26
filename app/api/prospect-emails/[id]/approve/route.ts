@@ -340,13 +340,24 @@ async function markFailed(
   console.error('[approve] send_failed:', { prospectEmailId, workspaceId, providerName, errorMessage })
 
   const now = new Date().toISOString()
+  // CAS on status : only mark as failed if the row is STILL 'sending'.
+  // If the provider webhook (handleSent) has already raced ahead and
+  // written status='sent' while we were waiting on this error path, we
+  // must NOT overwrite it with 'failed' — doing so would let the user
+  // regenerate the row (failed → draft is legit) and Send All would
+  // re-enqueue the same lead → double-send. The migration 085 trigger
+  // enforces the same invariant server-side (BLOCK B). .maybeSingle()
+  // returns null on 0 rows without throwing, so the log write still
+  // fires and the response stays coherent (email:null on race loss).
   const [{ data: email }] = await Promise.all([
     admin
       .from('prospect_emails')
       .update({ status: 'failed', send_error: errorMessage })
       .eq('id', prospectEmailId)
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'sending')
       .select(CLIENT_COLUMNS)
-      .single(),
+      .maybeSingle(),
     admin.from('email_send_log').insert({
       workspace_id:      workspaceId,
       prospect_email_id: prospectEmailId,

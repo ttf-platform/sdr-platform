@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { bulkIdsSchema, badRequest } from '@/lib/schemas'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
 
@@ -32,7 +32,12 @@ export async function POST(request: Request) {
     .not('status', 'in', COMMITTED_NOT_IN_FILTER)
     .select('id')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (isProspectEmailInvariantError(error)) {
+      return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   const deleted_count = (deleted ?? []).length
   const skipped_count = ids.length - deleted_count

@@ -9,7 +9,7 @@ import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { prospectEmailRegenerateSchema, badRequest } from '@/lib/schemas'
 import { PROSPECT_EMAIL_LIST_COLUMNS } from '@/lib/prospect-email-columns'
-import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
+import { COMMITTED_STATUSES, isProspectEmailInvariantError } from '@/lib/prospect-email-status'
 
 // Same PostgREST filter shape as undo / [id] PATCH / reject.
 const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map(s => `"${s}"`).join(',')})`
@@ -142,7 +142,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     .single()
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116' || isProspectEmailInvariantError(error)) {
       return NextResponse.json({ error: 'email_already_sent' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
