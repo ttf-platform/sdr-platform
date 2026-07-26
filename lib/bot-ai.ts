@@ -20,7 +20,7 @@
  *  - campaigns(id, workspace_id, name, status, prospects_count, sent_count, opened_count,
  *      replied_count, created_at)  ← no bounces column in DB
  *  - workspaces(id, plan_tier, subscription_status, trial_end_date, overage_enabled)
- *      plan quotas come from PLAN_CAPS below, NOT from workspace columns
+ *      plan quotas come from lib/plans.ts → loadPlansConfig() → capsFor(), NOT from workspace columns
  *  - workspace_members(user_id, workspace_id)
  *  - usage_tracking(workspace_id, metric, value, period_start, created_at)
  *      metrics: 'enrichments_used' | 'emails_sent' | 'meetings_booked' | 'prospects_added'
@@ -33,13 +33,14 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getAnthropicClient } from './anthropic';
 import {
-  BOT_SYSTEM_PROMPT,
+  buildBotSystemPrompt,
   ESCALATION_KEYWORDS,
   NEGATIVE_SENTIMENT_PATTERNS,
 } from './bot-system-prompt';
 import { logAiCall } from './ai-cost';
 import { getUsagePeriod } from './billing-period';
-import { PLANS_SEED } from './plans';
+import { loadPlansConfig, type Tier } from './plans';
+import { capsFor } from './tier-limits';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,26 +49,6 @@ import { PLANS_SEED } from './plans';
 export const BOT_MODEL = 'claude-haiku-4-5-20251001';
 export const MAX_TOOL_LOOP_ITERATIONS = 5;
 export const MAX_TOKENS_PER_TURN = 1024;
-
-/**
- * Plan quotas subset used by the chatbot's `getUserPlanAndQuotas` tool.
- * Derived from PLANS_SEED — the same authoritative table that backs
- * TIER_CAPS in lib/tier-limits.ts and the /admin/plans editor (PR2).
- * The projection keeps only the four columns the bot surfaces to end
- * users ; anything richer would leak into the LLM's answer without a UX
- * reason.
- */
-const PLAN_CAPS: Record<string, {
-  inboxes: number;
-  emails_per_month: number;
-  prospects_sourced_per_month: number;
-  total_prospects: number;
-}> = {
-  free:    { inboxes: PLANS_SEED.free.inboxes,    emails_per_month: PLANS_SEED.free.emails_per_month,    prospects_sourced_per_month: PLANS_SEED.free.prospects_sourced_per_month,    total_prospects: PLANS_SEED.free.total_prospects    },
-  starter: { inboxes: PLANS_SEED.starter.inboxes, emails_per_month: PLANS_SEED.starter.emails_per_month, prospects_sourced_per_month: PLANS_SEED.starter.prospects_sourced_per_month, total_prospects: PLANS_SEED.starter.total_prospects },
-  pro:     { inboxes: PLANS_SEED.pro.inboxes,     emails_per_month: PLANS_SEED.pro.emails_per_month,     prospects_sourced_per_month: PLANS_SEED.pro.prospects_sourced_per_month,     total_prospects: PLANS_SEED.pro.total_prospects     },
-  power:   { inboxes: PLANS_SEED.power.inboxes,   emails_per_month: PLANS_SEED.power.emails_per_month,   prospects_sourced_per_month: PLANS_SEED.power.prospects_sourced_per_month,   total_prospects: PLANS_SEED.power.total_prospects   },
-};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -257,7 +238,10 @@ async function executeGetUserCampaigns(ctx: BotContext): Promise<unknown> {
 
 async function executeGetUserPlanAndQuotas(ctx: BotContext): Promise<unknown> {
   // Actual workspaces columns: plan_tier, subscription_status, trial_end_date
-  // Quotas (mailbox_quota, emails_quota, etc.) are NOT in DB — they come from PLAN_CAPS
+  // Quotas (mailbox_quota, emails_quota, etc.) are NOT in DB workspace
+  // columns — they come from the plans-config table via loadPlansConfig()
+  // → capsFor(). Any /admin/plans edit propagates here on the next call
+  // (60 s cache + immediate invalidation on the PUT).
   const { data: workspace, error } = await ctx.supabase
     .from('workspaces')
     .select('id, plan_tier, subscription_status, trial_end_date, current_period_start, current_period_end')
@@ -268,8 +252,8 @@ async function executeGetUserPlanAndQuotas(ctx: BotContext): Promise<unknown> {
     return { error: 'Could not fetch plan info right now.' };
   }
 
-  const tier = (workspace.plan_tier ?? 'starter') as keyof typeof PLAN_CAPS;
-  const caps = PLAN_CAPS[tier] ?? PLAN_CAPS.starter;
+  const tier = (workspace.plan_tier ?? 'starter') as Tier;
+  const caps = capsFor(await loadPlansConfig(), tier);
 
   // emails_sent_this_month — usage window anchored on the Stripe billing
   // period (calendar-month fallback for trials).
@@ -320,7 +304,8 @@ async function executeGetUserPlanAndQuotas(ctx: BotContext): Promise<unknown> {
 
 async function executeGetUserCreditsUsage(ctx: BotContext): Promise<unknown> {
   // No credit_ledger table. Prospect credits = enrichments_used in usage_tracking.
-  // Quota comes from PLAN_CAPS, not a workspace column.
+  // Quota comes from the plans-config table via loadPlansConfig() → capsFor()
+  // (same source of truth as /admin/plans and checkTierLimit — never diverges).
   const { data: workspace, error: wsErr } = await ctx.supabase
     .from('workspaces')
     .select('plan_tier, current_period_start, current_period_end')
@@ -331,8 +316,8 @@ async function executeGetUserCreditsUsage(ctx: BotContext): Promise<unknown> {
     return { error: 'Could not fetch credits info right now.' };
   }
 
-  const tier = (workspace.plan_tier ?? 'starter') as keyof typeof PLAN_CAPS;
-  const total = (PLAN_CAPS[tier] ?? PLAN_CAPS.starter).prospects_sourced_per_month;
+  const tier = (workspace.plan_tier ?? 'starter') as Tier;
+  const total = capsFor(await loadPlansConfig(), tier).prospects_sourced_per_month;
 
   const period = getUsagePeriod(workspace);
 
@@ -479,11 +464,17 @@ export async function sendBotMessage(
 
   let finalText = '';
 
+  // Hoisted OUT of the loop so the prompt (and its heavy interpolation of
+  // the plans-config table) is built exactly ONCE per user message —
+  // matches the Anthropic ephemeral cache lifetime and avoids reloading
+  // the plans cache per tool-loop iteration.
+  const systemPrompt = buildBotSystemPrompt(await loadPlansConfig());
+
   for (let iter = 0; iter < MAX_TOOL_LOOP_ITERATIONS; iter++) {
     const response = await client.messages.create({
       model: BOT_MODEL,
       max_tokens: MAX_TOKENS_PER_TURN,
-      system: [{ type: 'text', text: BOT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       tools: BOT_TOOLS,
       messages,
     });

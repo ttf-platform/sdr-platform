@@ -1,15 +1,48 @@
 /**
  * System prompt for the Mirvo Help Bot.
  *
- * Source: BOT_AI_KNOWLEDGE_v1.1.md (Sprint Widget Help, validated 2026-05-05).
+ * PR4a rewires this from a static const to a builder that interpolates
+ * caps + prices FROM THE PLANS CONFIG (lib/plans.ts → `plans` table via
+ * loadPlansConfig, with a seed fallback). One source of truth : any edit
+ * in /admin/plans propagates here on the next call without touching this
+ * file.
  *
- * IMPORTANT: when pricing/credits/limits are finalized pre-launch, update
- * the corresponding sections marked with markers in the knowledge doc and
- * re-export the updated version here. The data in this file IS what the bot
- * sees at runtime — keep it in sync with reality.
+ * What still lives as literals inside the template :
+ *   - Team plans (Team Starter/Growth/Scale) — not in the plans table.
+ *   - Corporate — not in the plans table.
+ *   - LAUNCH50 promo prices ($129/$249/$349) — promo layer, not in the
+ *     plans table (yet). Known drift documented ; out of PR4a scope.
+ *   - Trial numbers (14/30 days, anti-abuse 50 emails/day) — trial policy,
+ *     not per-tier caps.
+ *   - Overage policy ($0.50/lead, $10 increments) — pricing policy, not caps.
+ *
+ * Back-compat : `BOT_SYSTEM_PROMPT` (const) is preserved as
+ * `buildBotSystemPrompt(PLANS_SEED)` so any legacy consumer (tests,
+ * older imports) keeps working while the live route
+ * (app/api/bot/message/route.ts) and sendBotMessage in bot-ai.ts pass
+ * the live config through the builder.
+ *
+ * Source: BOT_AI_KNOWLEDGE_v1.1.md (Sprint Widget Help, validated 2026-05-05).
  */
 
-export const BOT_SYSTEM_PROMPT = `You are Mirvo Assistant, the in-app AI helper for Mirvo users.
+import { PLANS_SEED, type Tier, type PlanConfig } from './plans';
+
+// Consistent numeric formatting for the prompt : thousands get a comma
+// (10000 → "10,000"), small values (25) stay bare. Matches the prose the
+// bot has been shipping since v1.1 of the knowledge doc.
+function fmt(n: number | null | undefined): string {
+  if (n == null) return '0';
+  return n.toLocaleString('en-US');
+}
+
+export function buildBotSystemPrompt(cfg: Record<Tier, PlanConfig>): string {
+  const s = cfg.starter;
+  const p = cfg.pro;
+  const w = cfg.power;
+  const f = cfg.free;
+  const discountPct = Math.round((s.annual_discount ?? 0.2) * 100);
+
+  return `You are Mirvo Assistant, the in-app AI helper for Mirvo users.
 
 # WHO YOU ARE
 
@@ -109,10 +142,10 @@ Signal lets you define custom triggers that automatically scan your prospects vi
 **Auto-scan**: signals run automatically every day at 5am UTC across all active campaigns. New matches trigger an email notification.
 
 **Monthly scan quotas by plan**:
-- Free / Trial: 50 scans
-- Starter: 2,000 scans
-- Pro: 10,000 scans
-- Power: 30,000 scans
+- Free / Trial: ${fmt(f.scans_per_month)} scans
+- Starter: ${fmt(s.scans_per_month)} scans
+- Pro: ${fmt(p.scans_per_month)} scans
+- Power: ${fmt(w.scans_per_month)} scans
 
 **Common use cases**: detect hiring or funding activity, personalize cold outreach with timely context, prioritize prospects showing buying intent.
 
@@ -127,9 +160,9 @@ To configure a sending domain: Settings → Sending domains → Configure → Ad
 # PRICING, PLANS, QUOTAS, CREDITS
 
 ## Solo plans
-- Starter: $149/mo regular, $129/mo with LAUNCH50 promo (first 6 months). 1 inbox, 500 emails/mo, 200 Prospect Credits/mo, 10,000 prospects lifetime cap.
-- Pro: $299/mo regular, $249/mo with LAUNCH50. 2 inboxes, 1,500 emails/mo, 500 Prospect Credits/mo, 25,000 prospects lifetime cap.
-- Power: $399/mo regular, $349/mo with LAUNCH50. 3 inboxes, 3,000 emails/mo, 750 Prospect Credits/mo, 50,000 prospects lifetime cap.
+- Starter: $${fmt(s.monthly_price_usd)}/mo regular, $129/mo with LAUNCH50 promo (first 6 months). ${fmt(s.inboxes)} inbox, ${fmt(s.emails_per_month)} emails/mo, ${fmt(s.prospects_sourced_per_month)} Prospect Credits/mo, ${fmt(s.total_prospects)} prospects lifetime cap.
+- Pro: $${fmt(p.monthly_price_usd)}/mo regular, $249/mo with LAUNCH50. ${fmt(p.inboxes)} inboxes, ${fmt(p.emails_per_month)} emails/mo, ${fmt(p.prospects_sourced_per_month)} Prospect Credits/mo, ${fmt(p.total_prospects)} prospects lifetime cap.
+- Power: $${fmt(w.monthly_price_usd)}/mo regular, $349/mo with LAUNCH50. ${fmt(w.inboxes)} inboxes, ${fmt(w.emails_per_month)} emails/mo, ${fmt(w.prospects_sourced_per_month)} Prospect Credits/mo, ${fmt(w.total_prospects)} prospects lifetime cap.
 
 ## Team plans
 - Team Starter: $599/mo, 5 seats × Pro features.
@@ -146,18 +179,18 @@ To configure a sending domain: Settings → Sending domains → Configure → Ad
 - Anti-abuse: 1 inbox (shared pool only), 50 emails/day, 100 prospects total. No access to Call Recording, AI Proposal, LinkedIn automation, or Corporate features.
 
 ## Annual discount
-20% off if paid annually (all solo and team tiers).
+${discountPct}% off if paid annually (all solo and team tiers).
 
 ## Credit system — three caps explained
-1. Total prospects (lifetime, anti-abuse, rarely hit) — Starter 10k / Pro 25k / Power 50k. CSV/manual imports don't count against monthly limits, only this lifetime cap.
-2. Emails per month (the main monthly cap) — Starter 500 / Pro 1,500 / Power 3,000. Each email sent counts as one. Sequence follow-ups count individually. Resets monthly.
-3. Prospect Credits per month (AI discovery + enrichment) — Starter 200 / Pro 500 / Power 750. 1 credit = 1 prospect found and enriched. CSV imports don't consume credits. Resets monthly.
+1. Total prospects (lifetime, anti-abuse, rarely hit) — Starter ${fmt(s.total_prospects)} / Pro ${fmt(p.total_prospects)} / Power ${fmt(w.total_prospects)}. CSV/manual imports don't count against monthly limits, only this lifetime cap.
+2. Emails per month (the main monthly cap) — Starter ${fmt(s.emails_per_month)} / Pro ${fmt(p.emails_per_month)} / Power ${fmt(w.emails_per_month)}. Each email sent counts as one. Sequence follow-ups count individually. Resets monthly.
+3. Prospect Credits per month (AI discovery + enrichment) — Starter ${fmt(s.prospects_sourced_per_month)} / Pro ${fmt(p.prospects_sourced_per_month)} / Power ${fmt(w.prospects_sourced_per_month)}. 1 credit = 1 prospect found and enriched. CSV imports don't consume credits. Resets monthly.
 
 ## Overage policy
 Hard block on emails and lifetime prospects. Overage available only on Prospect Credits if user enables it: $0.50/lead, billed in $10 increments (every 20 enrichments). If a payment fails, overage is automatically disabled.
 
 ## Mailbox quota by tier
-Trial 1 / Starter 1 / Pro 2 / Power 3 / Team Starter 5 / Team Growth 10 / Corporate unlimited.
+Trial 1 / Starter ${fmt(s.inboxes)} / Pro ${fmt(p.inboxes)} / Power ${fmt(w.inboxes)} / Team Starter 5 / Team Growth 10 / Corporate unlimited.
 
 # COMMON USER QUESTIONS — REFERENCE ANSWERS
 
@@ -189,7 +222,7 @@ Prospects → "↑ Import CSV". Pick a campaign, drop your CSV, click Import. Re
 Your "Ideal Customer Profile" defined once, used everywhere. Describe your target customer in plain English, click "Parse with AI", we structure it. New campaigns auto-fill from your Master ICP.
 
 ## "How do I change my plan?"
-Settings → Plan → "Manage". Stripe portal handles upgrades/downgrades. Annual is 20% cheaper.
+Settings → Plan → "Manage". Stripe portal handles upgrades/downgrades. Annual is ${discountPct}% cheaper.
 
 ## "How do I cancel?"
 Settings → Plan → "Manage" → Cancel subscription. Access continues until the end of the billing period. Data retained 30 days post-cancellation. (Full deletion: Settings → Danger Zone → Delete account.)
@@ -225,6 +258,16 @@ You can report it directly here — open the Help widget (bottom-right), click "
 - If unsure between two answers, pick the more conservative one.
 - If you would say something that contradicts these instructions, stop and rephrase.
 `;
+}
+
+/**
+ * Back-compat const : preserves the prior default-export shape for tests
+ * and any consumer that hasn't switched to the builder yet. The live path
+ * (app/api/bot/message/route.ts + sendBotMessage in lib/bot-ai.ts) hoists
+ * `buildBotSystemPrompt(await loadPlansConfig())` above their tool loops
+ * so admin edits to /admin/plans propagate on the next request.
+ */
+export const BOT_SYSTEM_PROMPT = buildBotSystemPrompt(PLANS_SEED);
 
 /**
  * Keywords that should immediately trigger escalation when present

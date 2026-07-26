@@ -14,7 +14,8 @@ import {
   type BotContext,
   type ToolName,
 } from '@/lib/bot-ai';
-import { BOT_SYSTEM_PROMPT } from '@/lib/bot-system-prompt';
+import { buildBotSystemPrompt } from '@/lib/bot-system-prompt';
+import { loadPlansConfig } from '@/lib/plans';
 import { buildAdminEscalationEmail } from '@/lib/email';
 import { getAdminSetting } from '@/lib/admin-settings';
 import { dispatchAdminAlert } from '@/lib/admin-alerts';
@@ -98,11 +99,19 @@ export async function POST(req: NextRequest) {
   try {
     const client = getAnthropicClient();
 
+    // Hoisted OUT of the loop : build the system prompt once per user
+    // message. Body interpolates the plans-config table (loadPlansConfig
+    // is cached 60 s + invalidated on /admin/plans PUT), so /admin/plans
+    // edits show up on the next chat message without a redeploy. The
+    // Anthropic ephemeral cache key hashes the exact text — keeping a
+    // stable string per turn preserves the cache hit across iterations.
+    const systemPrompt = buildBotSystemPrompt(await loadPlansConfig());
+
     for (let iter = 0; iter < MAX_TOOL_LOOP_ITERATIONS; iter++) {
       const response = await client.messages.create({
         model: BOT_MODEL,
         max_tokens: MAX_TOKENS_PER_TURN,
-        system: [{ type: 'text', text: BOT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
         tools: BOT_TOOLS,
         messages,
       });
