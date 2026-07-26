@@ -39,6 +39,11 @@ const COMMITTED_NOT_IN_FILTER = `(${COMMITTED_STATUSES.map((s) => `"${s}"`).join
 //   flag back so the UI never shows an approved variant without a
 //   sendable twin row.
 //
+//   Scope guard (PR A) : approve is only accepted on variants whose
+//   campaign_step has step_order=0. Follow-up steps have no send path yet
+//   (see lib/email-provider-adapter.ts enqueueLead) — 409
+//   follow_up_not_sendable is returned before any mutation.
+//
 // `reject` / `edit` are unchanged and never touch prospect_emails.
 export async function PATCH(request: Request, { params }: Params) {
   const { id: variantId } = await params
@@ -110,7 +115,36 @@ async function approveAndConverge(admin: Admin, workspaceId: string, variantId: 
 
   const previousStatus = variant.status as string
 
-  // 2. Pre-check : is there already a COMMITTED prospect_email for this
+  // 2. Defense-in-depth : the approval-queue route already scopes to
+  //    step_order=0, and generate-personalized only produces step-0 variants
+  //    going forward, but variants for follow-up steps already exist in the
+  //    DB and are still reachable by a direct PATCH. Refuse them here BEFORE
+  //    any mutation. No flag flip → no rollback needed.
+  const { data: stepRow, error: stepErr } = await admin
+    .from('campaign_steps')
+    .select('id, step_order')
+    .eq('id', variant.campaign_step_id)
+    .single()
+
+  if (stepErr || !stepRow) {
+    console.error('[variant approve] campaign_steps lookup failed:', stepErr)
+    return NextResponse.json(
+      { error: 'converge_failed', message: 'Could not stage the email for sending. Please try again.' },
+      { status: 500 },
+    )
+  }
+
+  if (stepRow.step_order !== 0) {
+    return NextResponse.json(
+      {
+        error: 'follow_up_not_sendable',
+        message: 'Sending follow-up emails is coming soon. This variant can be reviewed but is not yet ready to be approved.',
+      },
+      { status: 409 },
+    )
+  }
+
+  // 3. Pre-check : is there already a COMMITTED prospect_email for this
   //    (prospect_id, campaign_step_id) pair ? If so, refuse BEFORE we
   //    touch the variant flag — the common bail path (email already sent)
   //    then needs no rollback. .maybeSingle() returns null on 0 rows
@@ -148,7 +182,7 @@ async function approveAndConverge(admin: Admin, workspaceId: string, variantId: 
 
   const now = new Date().toISOString()
 
-  // 3. Flip the variant flag. Matches the pre-fix order so the rollback
+  // 4. Flip the variant flag. Matches the pre-fix order so the rollback
   //    machinery below (extended from the original peErr branch) handles
   //    every downstream failure the same way.
   const { data: updatedVariant, error: variantErr } = await admin
@@ -166,7 +200,7 @@ async function approveAndConverge(admin: Admin, workspaceId: string, variantId: 
     )
   }
 
-  // 4. Converge into prospect_emails. The edited content takes precedence
+  // 5. Converge into prospect_emails. The edited content takes precedence
   //    when the user has touched the draft; otherwise the AI-generated
   //    text is used as-is. Workspace isolation: both prospect_id and
   //    campaign_step_id belong to exactly one workspace via FK, so this

@@ -1531,6 +1531,7 @@
             "generationFailed": "Échec de la génération",
             "batchApproveFailed": "Échec de la validation groupée",
             "emailAlreadySent": "Cet e-mail a déjà été envoyé. La validation a été annulée.",
+            "followUpNotSendable": "L'envoi des relances arrive bientôt. Cette variante peut être relue mais pas encore validée.",
             "batchPartial": "{ok} sur {total} validés. {failed} n'ont pas pu être validés — certains ont peut-être déjà été envoyés.",
             "generatePartial": "{ok} sur {total} générés. {failed} n'ont pas pu être générés — réessayez dans un instant."
           }

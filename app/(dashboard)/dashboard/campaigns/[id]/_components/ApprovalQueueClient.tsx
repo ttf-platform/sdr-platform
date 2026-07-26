@@ -85,13 +85,17 @@ export function ApprovalQueueClient({ campaignId }: ApprovalQueueClientProps) {
         body: JSON.stringify({ action }),
       })
       if (!res.ok) {
-        // Special-case the CAS 409 emitted by approveAndConverge (audit
-        // site #3 PR2/2) — the variant was NOT flipped server-side, so the
-        // row must stay in the queue and the UI must not remove it.
+        // Special-case the 409s emitted by approveAndConverge — the variant
+        // was NOT flipped server-side, so the row must stay in the queue
+        // and the UI must not remove it. `email_already_sent` = CAS lost
+        // (audit site #3 PR2/2) ; `follow_up_not_sendable` = the variant
+        // is on a follow-up step and the send pipeline only ships step 0.
         let payload: { error?: string } = {}
         try { payload = await res.json() } catch { /* ignore */ }
         if (res.status === 409 && payload.error === 'email_already_sent') {
           setError(tErrors('emailAlreadySent'))
+        } else if (res.status === 409 && payload.error === 'follow_up_not_sendable') {
+          setError(tErrors('followUpNotSendable'))
         } else {
           setError(tErrors('actionFailed'))
         }

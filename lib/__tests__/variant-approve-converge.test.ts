@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const {
   billingGuardMock,
   variantSelectSingleMock,
+  stepSelectSingleMock,
   peSelectMaybeSingleMock,
   variantUpdateSingleMock,
   peUpdateSelectMock,
@@ -33,6 +34,7 @@ const {
 } = vi.hoisted(() => ({
   billingGuardMock:        vi.fn(),
   variantSelectSingleMock: vi.fn(),
+  stepSelectSingleMock:    vi.fn(),
   peSelectMaybeSingleMock: vi.fn(),
   variantUpdateSingleMock: vi.fn(),
   peUpdateSelectMock:      vi.fn(),
@@ -74,6 +76,14 @@ vi.mock('@/lib/supabase/admin', () => ({
                 return terminal
               },
             }),
+          }),
+        }
+      }
+      if (table === 'campaign_steps') {
+        return {
+          // Step scope guard : .select().eq().single()
+          select: () => ({
+            eq: () => ({ single: stepSelectSingleMock }),
           }),
         }
       }
@@ -139,6 +149,7 @@ const params = Promise.resolve({ id: VARIANT_ID })
 beforeEach(() => {
   billingGuardMock.mockReset()
   variantSelectSingleMock.mockReset()
+  stepSelectSingleMock.mockReset()
   peSelectMaybeSingleMock.mockReset()
   variantUpdateSingleMock.mockReset()
   peUpdateSelectMock.mockReset()
@@ -151,6 +162,9 @@ beforeEach(() => {
     userId:      USER_ID,
   })
   variantSelectSingleMock.mockResolvedValue({ data: VARIANT_ROW, error: null })
+  // Default baseline : step_order=0 so pre-existing tests exercise the
+  // convergence paths (the follow-up guard only kicks in when != 0).
+  stepSelectSingleMock.mockResolvedValue({ data: { id: STEP_ID, step_order: 0 }, error: null })
   variantUpdateSingleMock.mockResolvedValue({
     data: {
       id:              VARIANT_ID,
@@ -293,5 +307,40 @@ describe('approveAndConverge — INSERT unique-violation is a 409, not a 500', (
     expect(peInsertMock).toHaveBeenCalledTimes(1)
     expect(peUpdateSelectMock).not.toHaveBeenCalled()
     expect(variantRollbackMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ─── Case 6 : follow-up step (step_order != 0) → 409, NO writes ───────────
+describe('approveAndConverge — follow-up step is refused (send pipeline is step-0-only)', () => {
+  it('variant attached to step_order=1 → 409 follow_up_not_sendable, no writes anywhere', async () => {
+    stepSelectSingleMock.mockResolvedValue({
+      data:  { id: STEP_ID, step_order: 1 },
+      error: null,
+    })
+
+    const res = await PATCH(makeApproveRequest(), { params })
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error).toBe('follow_up_not_sendable')
+
+    // Refused BEFORE the pre-check and BEFORE the variant flag flip, so
+    // literally nothing else runs — no rollback needed either.
+    expect(peSelectMaybeSingleMock).not.toHaveBeenCalled()
+    expect(variantUpdateSingleMock).not.toHaveBeenCalled()
+    expect(peUpdateSelectMock).not.toHaveBeenCalled()
+    expect(peInsertMock).not.toHaveBeenCalled()
+    expect(variantRollbackMock).not.toHaveBeenCalled()
+  })
+
+  it('non-regression : variant on step_order=0 still converges normally', async () => {
+    // Baseline mocks are all step_order=0-friendly ; explicitly assert that
+    // the guard does not accidentally block the happy path.
+    peSelectMaybeSingleMock.mockResolvedValue({ data: null, error: null })
+    peInsertMock.mockResolvedValue({ error: null })
+
+    const res = await PATCH(makeApproveRequest(), { params })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.variant.status).toBe('approved')
   })
 })
