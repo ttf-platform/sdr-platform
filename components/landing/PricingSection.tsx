@@ -5,41 +5,48 @@ import { CTAButton } from './CTAButton';
 import { SectionEyebrow } from './SectionEyebrow';
 import { Link } from '@/i18n/routing';
 
-export function PricingSection() {
+// Serialisable per-tier projection injected by the async Server Component
+// parent (app/[locale]/page.tsx) after loadPlansConfig(). Kept minimal to
+// avoid re-serialising the whole plans-config into the client bundle.
+export type LandingPlansMap = Record<
+  'starter' | 'pro' | 'power',
+  {
+    monthly_price_usd:           number | null
+    annual_discount:             number | null
+    prospects_sourced_per_month: number
+    emails_per_month:            number
+    enrichments_per_month:       number
+  }
+>
+
+const PLAN_IDS: Array<'starter' | 'pro' | 'power'> = ['starter', 'pro', 'power']
+
+export function PricingSection({ plans }: { plans: LandingPlansMap }) {
   const t = useTranslations('landing.pricing');
 
-  const PLANS = [
-    {
-      name: t('starterName'),
-      price: t('starterPrice'),
-      annual: t('starterAnnual'),
-      annualNote: t('annualNote'),
-      tagline: t('starterTagline'),
-      features: [t('starterF0'), t('starterF1'), t('starterF2'), t('starterF3'), t('starterF4')],
-      highlighted: false,
-      badge: null,
-    },
-    {
-      name: t('proName'),
-      price: t('proPrice'),
-      annual: t('proAnnual'),
-      annualNote: t('annualNote'),
-      tagline: t('proTagline'),
-      features: [t('proF0'), t('proF1'), t('proF2'), t('proF3'), t('proF4')],
-      highlighted: true,
-      badge: t('proBadge'),
-    },
-    {
-      name: t('powerName'),
-      price: t('powerPrice'),
-      annual: t('powerAnnual'),
-      annualNote: t('annualNote'),
-      tagline: t('powerTagline'),
-      features: [t('powerF0'), t('powerF1'), t('powerF2'), t('powerF3'), t('powerF4')],
-      highlighted: false,
-      badge: null,
-    },
-  ];
+  const PLANS = PLAN_IDS.map((id) => {
+    const c = plans[id]
+    const monthly = c.monthly_price_usd ?? 0
+    const yearly  = Math.round(monthly * 12 * (1 - (c.annual_discount ?? 0)))
+    const isPro   = id === 'pro'
+    return {
+      id,
+      name:        t(`${id}Name`),
+      price:       t('monthlyPrice', { price: monthly }),
+      annual:      t('annualPrice',  { price: yearly }),
+      annualNote:  t('saveAnnual',   { pct: Math.round((c.annual_discount ?? 0.2) * 100) }),
+      tagline:     t(`${id}Tagline`),
+      features: [
+        t('featProspects',   { count: c.prospects_sourced_per_month }),
+        t('featEmails',      { count: c.emails_per_month }),
+        t('featEnrichments', { count: c.enrichments_per_month }),
+        t(`${id}F3`),
+        t(`${id}F4`),
+      ],
+      highlighted: isPro,
+      badge:       isPro ? t('proBadge') : null,
+    }
+  });
 
   return (
     <section id="pricing" className="py-24 bg-[#faf8f5]">
