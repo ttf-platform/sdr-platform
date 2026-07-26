@@ -1496,7 +1496,9 @@
           "stopOnReplyLabel": "Stop on reply",
           "stopOnReplyDescription": "Auto-stop sequence when prospect replies (recommended)",
           "stopOnBounceLabel": "Stop on bounce",
-          "stopOnBounceDescription": "Auto-stop sequence when email bounces"
+          "stopOnBounceDescription": "Auto-stop sequence when email bounces",
+          "removeBlockedSentTitle": "This step can't be removed",
+          "removeBlockedSentDescription": "{count, plural, one {# email has already been sent from this step. Removing the step would erase its send history.} other {# emails have already been sent from this step. Removing the step would erase their send history.}}"
         },
         "toasts": {
           "mailboxNotReady": "Connect and verify a mailbox first.",

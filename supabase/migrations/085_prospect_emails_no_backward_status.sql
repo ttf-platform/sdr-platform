@@ -13,33 +13,32 @@
 --   Committed  (handed off to provider): sending, sent, bounced, replied
 --   Special              : failed (real send failure marker)
 --
--- RULE 1 — no backward transition (BEFORE UPDATE)
+-- RULE 1 — status transition allowlist (BEFORE UPDATE)
 -- ----------------------------------------------------------------------------
---   BLOCK A  OLD.status ∈ (sending, sent, bounced, replied)
---        AND NEW.status ∈ (draft, edited, approved, rejected)
+-- Expressed as a POSITIVE allowlist per OLD state, not as a pair of
+-- specific interdictions. A permissive default (only block what we can
+-- name) let sent→sending slip through in the previous revision. This
+-- form blocks anything not explicitly enumerated.
 --
---   BLOCK B  OLD.status ∈ (sent, bounced, replied)
---        AND NEW.status  = 'failed'
+--   From 'sending' : NEW must be in ('sent','failed','bounced','replied')
+--       → committed transitions written by webhook /instantly
+--         (sent/bounced/replied) or the real send-failure marker written
+--         by approve/route.ts markFailed (failed).
+--       → BLOCKS sending → draft/edited/approved/rejected.
+--
+--   From 'sent' | 'bounced' | 'replied' : NEW must be in ('sent','bounced','replied')
+--       → committed rows can only transition between webhook-confirmed
+--         terminal states (sent → bounced, sent → replied). Everything
+--         else is blocked : 'sending' (would re-enqueue), 'failed'
+--         (would let regenerate → draft → double-send), any pre-commit.
+--
+--   From anything else ('draft'|'edited'|'approved'|'rejected'|'failed')
+--       → no restriction. In particular 'failed → draft' remains allowed
+--         (regen after a real failure) and pre-commit rows are freely
+--         mutable.
 --
 --   → raises with SQLSTATE 'MR001', stable message text
 --     "MIRVO_INVARIANT: prospect_emails.status <old> -> <new> is not allowed (id=<id>)"
---
---   Why BLOCK B : approve/route.ts marks a real send failure with
---   status='failed', and 'failed' → 'draft' is (correctly) allowed so the
---   user can regenerate. But if the approve route's markFailed path races
---   the webhook's status='sent' write and loses, overwriting 'sent' with
---   'failed' would let the user regenerate → draft → Send All re-enqueue
---   → double-send. Blocking sent/bounced/replied → 'failed' is the
---   defense-in-depth ; the app-layer also carries a CAS on the same
---   UPDATE (approve/route.ts markFailed only accepts OLD='sending').
---
---   Explicitly ALLOWED (all other transitions pass through untouched) :
---     sending → failed       (approve/route.ts marks a real send failure)
---     sending → sent         (webhook /instantly confirms delivery)
---     sent    → replied      (webhook /instantly)
---     sent    → bounced      (webhook /instantly)
---     failed  → draft        (regeneration after a real failure — legit)
---     any pre-commit ↔ any pre-commit (draft ↔ edited ↔ approved ↔ rejected)
 --
 --   Ambiguity of a sending-timeout is intentionally NOT resolved here —
 --   idempotency keys on the provider side are the correct fix and belong
@@ -65,7 +64,11 @@
 --   trigger context at the time the WHEN clause is evaluated. A direct DELETE
 --   evaluates WHEN at depth 0 ; a cascade DELETE from a parent's own RI
 --   trigger evaluates WHEN at depth ≥ 1 (the RI trigger frame is active).
---   Verified in 085_VERIFY.sql cases 10 + 11.
+--   Verified in scripts/085_prospect_emails_invariant_verify.sql cases 10-12.
+--   The verify script lives outside supabase/migrations/ on purpose : a
+--   `supabase db push` would sort '085_VERIFY.sql' alphabetically BEFORE
+--   this file (uppercase V < lowercase p) and run the fixture INSERTs +
+--   deliberate failures before the trigger even exists.
 --
 --   The is_sample exception is defensive : clear-sample-data already scopes
 --   its DELETE with .eq('is_sample', true), and no code today creates a
@@ -99,25 +102,29 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- BLOCK A : committed → pre-commit.
-  IF OLD.status IN ('sending', 'sent', 'bounced', 'replied')
-     AND NEW.status IN ('draft', 'edited', 'approved', 'rejected') THEN
+  -- From 'sending' : only allowed to move to a committed state or the
+  -- real-failure marker.
+  IF OLD.status = 'sending'
+     AND NEW.status NOT IN ('sent', 'failed', 'bounced', 'replied') THEN
     RAISE EXCEPTION
       'MIRVO_INVARIANT: prospect_emails.status % -> % is not allowed (id=%)',
       OLD.status, NEW.status, OLD.id
       USING ERRCODE = 'MR001';
   END IF;
 
-  -- BLOCK B : webhook-confirmed states can't be overwritten with 'failed'.
-  -- sending → failed remains ALLOWED (real send failure marker).
+  -- From 'sent' / 'bounced' / 'replied' : must stay in the committed
+  -- terminal set. Blocks 'sending' (would re-enqueue), 'failed' (would
+  -- let regen → draft → double-send), and every pre-commit state.
   IF OLD.status IN ('sent', 'bounced', 'replied')
-     AND NEW.status = 'failed' THEN
+     AND NEW.status NOT IN ('sent', 'bounced', 'replied') THEN
     RAISE EXCEPTION
       'MIRVO_INVARIANT: prospect_emails.status % -> % is not allowed (id=%)',
       OLD.status, NEW.status, OLD.id
       USING ERRCODE = 'MR001';
   END IF;
 
+  -- Every other OLD state ('draft'|'edited'|'approved'|'rejected'|'failed')
+  -- is freely mutable — no additional restriction.
   RETURN NEW;
 END;
 $$;
@@ -169,7 +176,7 @@ CREATE TRIGGER trg_prospect_emails_forbid_committed_delete
 -- -----------------------------------------------------------------------------
 
 COMMENT ON FUNCTION public.prospect_emails_forbid_backward_status() IS
-  'Mirvo invariant : blocks UPDATE of prospect_emails.status from a committed state (sending/sent/bounced/replied) to a pre-commit state (draft/edited/approved/rejected), and blocks sent/bounced/replied -> failed. Raises SQLSTATE MR001. See migration 085.';
+  'Mirvo invariant : allowlist per OLD state on prospect_emails.status. sending -> (sent|failed|bounced|replied) only ; sent|bounced|replied -> (sent|bounced|replied) only. Every other OLD is freely mutable. Raises SQLSTATE MR001. See migration 085.';
 
 COMMENT ON FUNCTION public.prospect_emails_forbid_committed_delete() IS
   'Mirvo invariant : blocks DIRECT DELETE of prospect_emails rows whose status is committed (sending/sent/bounced/replied), unless is_sample=true. Cascade deletes (via pg_trigger_depth()>0) pass through untouched. Raises SQLSTATE MR002. See migration 085.';

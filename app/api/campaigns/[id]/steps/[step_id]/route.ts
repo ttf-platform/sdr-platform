@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { campaignStepUpdateSchema, badRequest } from '@/lib/schemas'
+import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
 
 async function verifyOwnership(admin: ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, stepId: string, workspaceId: string) {
   const { data } = await admin
@@ -53,6 +54,33 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
   const admin = createAdminClient()
   if (!await verifyOwnership(admin, params.step_id, guard.workspaceId)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  // PROVISIONAL guard : deleting a step cascades to its prospect_emails
+  // (campaign_step_id ON DELETE CASCADE). A row in status 'sending' would
+  // vanish before its confirmation webhook arrives, and every 'sent' row
+  // loses its history — the send goes out, no trace remains, no way to
+  // reconcile. Migration 072 chose SET NULL on prospects.campaign_id for
+  // exactly this reason ("to preserve prospect history"). The DB trigger
+  // deliberately lets FK cascades through (pg_trigger_depth()=0), so the
+  // guard must be here at the app layer.
+  //
+  // Product decision (Max) : deleted campaigns and their emails will be
+  // ARCHIVED rather than dropped. Until that lands, refuse the DELETE
+  // when any committed prospect_email is attached to the step.
+  const { count: committedCount, error: countErr } = await admin
+    .from('prospect_emails')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', guard.workspaceId)
+    .eq('campaign_step_id', params.step_id)
+    .in('status', COMMITTED_STATUSES as unknown as string[])
+
+  if (countErr) return NextResponse.json({ error: countErr.message }, { status: 500 })
+  if ((committedCount ?? 0) > 0) {
+    return NextResponse.json(
+      { error: 'step_has_committed_emails', count: committedCount },
+      { status: 409 },
+    )
   }
 
   const { error } = await admin.from('campaign_steps').delete().eq('id', params.step_id)

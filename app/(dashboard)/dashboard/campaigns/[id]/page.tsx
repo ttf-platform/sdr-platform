@@ -117,6 +117,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const tSources = useTranslations('dashboard.campaigns.detail.sources')
   const tPagination = useTranslations('dashboard.campaigns.detail.pagination')
   const tToasts = useTranslations('dashboard.campaigns.detail.toasts')
+  const tSequence = useTranslations('dashboard.campaigns.detail.sequence')
   // ICP card i18n handles
   const tIcp        = useTranslations('dashboard.campaigns.detail.overview.icp')
   const tNewCamp    = useTranslations('components.campaignModals.newCampaign')
@@ -733,9 +734,22 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     if (res.step) setSteps(prev => [...prev, res.step])
   }
 
-  async function removeStep(id: string) {
-    await fetch(`/api/campaigns/${id}/steps/${id}`, { method: 'DELETE' })
-    setSteps(prev => prev.filter(s => s.id !== id))
+  async function removeStep(stepId: string) {
+    const res = await fetch(`/api/campaigns/${id}/steps/${stepId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      // 409 step_has_committed_emails : the step has 'sending'/'sent'/etc
+      // children ; the API refuses to cascade-delete them so history stays
+      // intact. Show the localised toast and keep the step in the UI.
+      let payload: { error?: string; count?: number } = {}
+      try { payload = await res.json() } catch { /* ignore */ }
+      if (res.status === 409 && payload.error === 'step_has_committed_emails') {
+        toast.error(tSequence('removeBlockedSentTitle'), {
+          description: tSequence('removeBlockedSentDescription', { count: payload.count ?? 0 }),
+        })
+      }
+      return
+    }
+    setSteps(prev => prev.filter(s => s.id !== stepId))
   }
 
   async function generateMissingDrafts() {

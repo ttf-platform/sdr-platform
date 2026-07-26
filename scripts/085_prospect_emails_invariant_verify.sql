@@ -1,8 +1,14 @@
 -- =============================================================================
--- 085_VERIFY.sql — MANUAL VERIFICATION SCRIPT
+-- scripts/085_prospect_emails_invariant_verify.sql — MANUAL VERIFICATION SCRIPT
 -- =============================================================================
 --
 -- NOT INTENDED FOR AUTOMATIC APPLICATION.
+-- Lives OUTSIDE supabase/migrations/ on purpose : the previous filename
+-- (085_VERIFY.sql) sorted alphabetically BEFORE the actual migration
+-- (085_prospect_emails_no_backward_status.sql — uppercase V < lowercase p),
+-- so a `supabase db push` would have run the fixture INSERTs + deliberate
+-- failures BEFORE the trigger existed, in production.
+--
 -- Run this by hand in the Supabase SQL Editor AFTER migration 085 has been
 -- applied and BEFORE the code merge is promoted to production.
 --
@@ -73,14 +79,14 @@ VALUES ('00000000-0000-0000-0000-000000000385',
         '00000000-0000-0000-0000-000000000485')
 ON CONFLICT (id) DO NOTHING;
 
--- 12 campaign_steps (one per case + spare) — each case gets a distinct
+-- 16 campaign_steps (one per case + spare) — each case gets a distinct
 -- (prospect_id, campaign_step_id) pair so the UNIQUE(prospect_id,
 -- campaign_step_id) constraint on prospect_emails is not tripped.
 DO $$
 DECLARE
   i int;
 BEGIN
-  FOR i IN 1..12 LOOP
+  FOR i IN 1..16 LOOP
     INSERT INTO campaign_steps (id, campaign_id, step_order, body)
     VALUES (
       ('00000000-0000-0000-0000-000000000' || lpad((280 + i)::text, 3, '0'))::uuid,
@@ -95,7 +101,7 @@ COMMIT;
 
 DO $$
 BEGIN
-  RAISE NOTICE '=== 085_VERIFY : setup done, running 12 cases ===';
+  RAISE NOTICE '=== 085_VERIFY : setup done, running 16 cases ===';
 END $$;
 
 -- -----------------------------------------------------------------------------
@@ -372,6 +378,78 @@ BEGIN
   END;
 END $$;
 
+-- Case 13 — sent → sending : EXPECTED BLOCK (positive-allowlist safety net)
+DO $$
+DECLARE
+  pe_id uuid := '00000000-0000-0000-0000-000000000613';
+  step_id uuid := '00000000-0000-0000-0000-000000000293';
+BEGIN
+  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
+          step_id, 's', 'b', 'fast', 'sent');
+  BEGIN
+    UPDATE prospect_emails SET status = 'sending' WHERE id = pe_id;
+    RAISE WARNING 'FAIL 13: UPDATE succeeded, expected MR001 (sent -> sending would re-enqueue)';
+  EXCEPTION
+    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 13: sent -> sending blocked by MR001';
+    WHEN OTHERS THEN RAISE WARNING 'FAIL 13: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+  END;
+END $$;
+
+-- Case 14 — bounced → sending : EXPECTED BLOCK (same allowlist)
+DO $$
+DECLARE
+  pe_id uuid := '00000000-0000-0000-0000-000000000614';
+  step_id uuid := '00000000-0000-0000-0000-000000000294';
+BEGIN
+  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
+          step_id, 's', 'b', 'fast', 'bounced');
+  BEGIN
+    UPDATE prospect_emails SET status = 'sending' WHERE id = pe_id;
+    RAISE WARNING 'FAIL 14: UPDATE succeeded, expected MR001';
+  EXCEPTION
+    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 14: bounced -> sending blocked by MR001';
+    WHEN OTHERS THEN RAISE WARNING 'FAIL 14: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+  END;
+END $$;
+
+-- Case 15 — replied → sending : EXPECTED BLOCK (same allowlist)
+DO $$
+DECLARE
+  pe_id uuid := '00000000-0000-0000-0000-000000000615';
+  step_id uuid := '00000000-0000-0000-0000-000000000295';
+BEGIN
+  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
+          step_id, 's', 'b', 'fast', 'replied');
+  BEGIN
+    UPDATE prospect_emails SET status = 'sending' WHERE id = pe_id;
+    RAISE WARNING 'FAIL 15: UPDATE succeeded, expected MR001';
+  EXCEPTION
+    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 15: replied -> sending blocked by MR001';
+    WHEN OTHERS THEN RAISE WARNING 'FAIL 15: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+  END;
+END $$;
+
+-- Case 16 — sent → approved : re-verify positive-allowlist blocks it too
+DO $$
+DECLARE
+  pe_id uuid := '00000000-0000-0000-0000-000000000616';
+  step_id uuid := '00000000-0000-0000-0000-000000000296';
+BEGIN
+  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
+          step_id, 's', 'b', 'fast', 'sent');
+  BEGIN
+    UPDATE prospect_emails SET status = 'approved' WHERE id = pe_id;
+    RAISE WARNING 'FAIL 16: UPDATE succeeded, expected MR001';
+  EXCEPTION
+    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 16: sent -> approved blocked by MR001';
+    WHEN OTHERS THEN RAISE WARNING 'FAIL 16: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+  END;
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE '=== 085_VERIFY : all cases done, cleaning up ===';
@@ -417,5 +495,5 @@ COMMIT;
 
 DO $$
 BEGIN
-  RAISE NOTICE '=== 085_VERIFY : cleanup done — expect 12 OK lines above ===';
+  RAISE NOTICE '=== 085_VERIFY : cleanup done — expect 16 OK lines above ===';
 END $$;

@@ -1496,7 +1496,9 @@
           "stopOnReplyLabel": "Arrêter à la réponse",
           "stopOnReplyDescription": "Arrête automatiquement la séquence quand le prospect répond (recommandé)",
           "stopOnBounceLabel": "Arrêter au rejet",
-          "stopOnBounceDescription": "Arrête automatiquement la séquence quand l'e-mail est rejeté"
+          "stopOnBounceDescription": "Arrête automatiquement la séquence quand l'e-mail est rejeté",
+          "removeBlockedSentTitle": "Cette étape ne peut pas être supprimée",
+          "removeBlockedSentDescription": "{count, plural, one {# e-mail a déjà été envoyé depuis cette étape. La supprimer effacerait son historique d'envoi.} other {# e-mails ont déjà été envoyés depuis cette étape. Les supprimer effacerait leur historique d'envoi.}}"
         },
         "toasts": {
           "mailboxNotReady": "Connectez et vérifiez d'abord une boîte de réception.",
