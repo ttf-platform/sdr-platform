@@ -7,20 +7,15 @@ order: 9
 last_updated: 2026-05-29
 ---
 
+import { PlanTable } from '@/components/help/PlanTable'
+
 # Plans and pricing
 
 Mirvo has three plans. This page explains what's included in each and helps you pick the right one.
 
-{/* PRICING_DATA */}
-
 ## Plans overview
 
-| | Starter | Pro | Power |
-|---|---|---|---|
-| Price | $149/mo | $299/mo | $399/mo |
-| Lifetime prospects | 2,500 | 10,000 | Unlimited |
-| Emails per month | 1,000 | 5,000 | 20,000 |
-| Prospect Credits/mo | 500 | 2,000 | 5,000 |
+<PlanTable />
 
 *Subject to change pre-launch. Current pricing always shown in Settings, Billing.*
 
@@ -28,7 +23,7 @@ Mirvo has three plans. This page explains what's included in each and helps you 
 
 All plans include:
 
-- Unlimited campaigns and Signals
+- No cap on campaigns or Signals
 - AI-drafted personalized emails (not templates)
 - Approval Queue with inline editing
 - Mirvo inbox with intent sorting
@@ -38,11 +33,11 @@ All plans include:
 
 ## What each plan is for
 
-**Starter ($149/mo):** Solo founder or small team just starting outbound. 1,000 emails per month covers about 3-5 active campaigns at steady state. Good if you're still learning your ICP and want to validate before scaling.
+**Starter:** Solo founder or small team just starting outbound. Covers a few active campaigns at steady state. Good if you're still learning your ICP and want to validate before scaling.
 
-**Pro ($299/mo):** The most popular plan. 5,000 emails per month and 10,000 lifetime prospects supports a serious outbound motion. Right for founders who've found product-market fit and are scaling pipeline.
+**Pro:** The most popular plan. Enough monthly volume and prospect headroom for a serious outbound motion. Right for founders who've found product-market fit and are scaling pipeline.
 
-**Power ($399/mo):** High-volume teams. Unlimited lifetime prospects and 20,000 emails per month. Right for companies with multiple ICPs or SDR teams using Mirvo.
+**Power:** High-volume teams. The widest monthly send and sourcing allowance we offer. Right for companies with multiple ICPs or SDR teams using Mirvo.
 
 ## Understanding the three caps
 
@@ -59,7 +54,5 @@ Imported prospects (CSV or paste) don't consume Prospect Credits. Credits only a
 ## Upgrading
 
 Go to **Settings, Billing, Change plan**. Upgrades take effect immediately. You're charged the prorated difference for the current billing period.
-
-{/* /PRICING_DATA */}
 
 - [Quotas explained](/help/quotas-explained): more detail on all three caps

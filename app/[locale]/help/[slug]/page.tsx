@@ -7,6 +7,12 @@ import { HelpLayout } from '@/components/help/HelpLayout'
 import { ArticleNav } from '@/components/help/ArticleNav'
 import { FRBanner } from '@/components/help/FRBanner'
 
+// ISR — same 60 s cadence as landing (PR5a) and /pricing (PR4b). The
+// plans-pricing article renders a <PlanTable /> that reads
+// loadPlansConfig() at request time ; without revalidate the article
+// would be frozen at build and re-diverge from /admin/plans edits.
+export const revalidate = 60
+
 export async function generateStaticParams() {
   const articles = getArticles()
   const locales = ['en', 'fr']
