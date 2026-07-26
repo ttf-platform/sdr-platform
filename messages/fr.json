@@ -643,6 +643,9 @@
     },
     "shell": {
       "loading": "Chargement…",
+      "connectionErrorTitle": "Problème de connexion",
+      "connectionErrorBody": "Impossible de joindre votre espace de travail. Vos données sont intactes — c'est généralement temporaire.",
+      "retry": "Réessayer",
       "accountMenu": "Menu du compte",
       "settings": "Paramètres",
       "homepage": "Accueil",

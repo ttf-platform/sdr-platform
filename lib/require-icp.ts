@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isNoRowsError } from '@/lib/db-errors'
+import { dbUnavailableResponse } from '@/lib/db-errors-response'
 
 // ICP gate — enforces that a workspace has enough product/ICP context before
 // running any action that consumes it. The threshold is the SAME as
@@ -22,11 +24,20 @@ export async function assertIcpConfigured(workspaceId: string): Promise<
   | { blocked: false }
 > {
   const admin = createAdminClient()
-  const { data: profile } = await admin
+  const { data: profile, error } = await admin
     .from('workspace_profiles')
     .select('product_description, icp_description')
     .eq('workspace_id', workspaceId)
     .single()
+
+  // Audit site #2 : a transient DB failure must not surface as
+  // "icp_not_configured" (422) and force a legit user through the ICP
+  // wizard. A missing row (PGRST116) is a real absent-profile → falls
+  // through to the 422 below.
+  if (error && !isNoRowsError(error)) {
+    console.error('[require-icp] transient DB error — returning 503', error)
+    return { blocked: true, response: dbUnavailableResponse() }
+  }
 
   const productOk = !!profile?.product_description?.trim()
   const icpOk     = !!profile?.icp_description?.trim()

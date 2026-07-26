@@ -30,7 +30,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const tShell = useTranslations('dashboard.shell')
   // Session + workspace_members bootstrap is owned by WorkspaceProvider
   // (lib/hooks/useWorkspace). Consumers here just read.
-  const { user, workspace } = useWorkspace()
+  const { user, workspace, error: workspaceError, refetch } = useWorkspace()
   const [billingData, setBillingData] = useState<{ blocked: boolean; daysRemaining: number; status: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
@@ -125,6 +125,29 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const hasLinkedIn = !!ws?.has_linkedin
   const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || ''
   const initials = firstName?.[0]?.toUpperCase() || '?'
+
+  // Transient DB / network failure surfaced by WorkspaceProvider — takes
+  // precedence over the loading fallback so a legit user gets a truthful
+  // "connection problem" screen with a retry, instead of an infinite
+  // "Loading…" or a redirect to /login / /no-workspace that would eject
+  // them from a still-valid session. Palette + spacing match the loading
+  // shell (min-h-screen bg-[#f5f2ee] centered) ; primary CTA reuses the
+  // same button treatment as the trial-ended overlay below.
+  if (workspaceError) return (
+    <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8e3dc] w-full max-w-md p-8 text-center">
+        <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{tShell('connectionErrorTitle')}</h2>
+        <p className="text-sm text-[#6b5e4e] mb-6 leading-relaxed">{tShell('connectionErrorBody')}</p>
+        <button
+          type="button"
+          onClick={() => { void refetch() }}
+          className="w-full bg-[#3b6bef] hover:bg-[#2a5bdf] text-white rounded-xl py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2"
+        >
+          {tShell('retry')}
+        </button>
+      </div>
+    </div>
+  )
 
   if (!user) return (
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center">

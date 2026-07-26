@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { isTransientAuthError, isTransientDbError } from '@/lib/db-errors'
 
 const supabase = createClient()
 
@@ -82,33 +83,74 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       // Session — retry 5× / 300ms to absorb post-signup cookie hydration.
       // Verbatim behaviour from settings/page.tsx pre-refactor l.173-179.
+      // Capture the last error so we can distinguish a real "no session"
+      // (fall through to /login) from a transient auth failure (surface
+      // the error to the shell instead of a redirect that would kick the
+      // user OUT of their still-valid session).
       let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null
+      let lastSessionError: unknown = null
       for (let i = 0; i < 5; i++) {
-        const { data } = await supabase.auth.getSession()
+        const { data, error: sessionError } = await supabase.auth.getSession()
+        lastSessionError = sessionError ?? null
         if (data.session) { session = data.session; break }
         if (cancelledRef.current) return
         await sleep(300)
       }
       if (cancelledRef.current) return
-      if (!session) { window.location.href = '/login'; return }
+      if (!session) {
+        // Only TRANSIENT auth errors (network fetch failure = status 0,
+        // AuthRetryableFetchError, 429, 5xx) surface the retry UI. A real
+        // "no session" (invalid_refresh_token → AuthApiError 400, expired
+        // session, revoked cookie) is terminal → /login. Skipping this
+        // check would trap the user on the "connection problem" screen
+        // with no way out after a legitimate sign-out.
+        if (lastSessionError && isTransientAuthError(lastSessionError)) {
+          setError(lastSessionError instanceof Error ? lastSessionError.message : String(lastSessionError))
+          setLoading(false)
+          return
+        }
+        window.location.href = '/login'
+        return
+      }
       setUser(session.user)
 
       // Member — retry 3× / 400ms for post-signup replication lag.
       // Superset SELECT (union of Shell + Settings + TrialBadge previous
       // column sets) so every consumer can drop its own fetch.
+      //
+      // Same distinction : .maybeSingle() returns { data: null, error: null }
+      // on a genuinely missing row → /no-workspace redirect stays.
+      // A transient error (network / DB) surfaces in `error` → show retry
+      // UI instead of redirecting a legit workspace-owning user away.
       let member: WorkspaceMember | null = null
+      let lastMemberError: unknown = null
       for (let i = 0; i < 3; i++) {
-        const { data } = await supabase
+        const { data, error: memberError } = await supabase
           .from('workspace_members')
           .select('workspace_id, role, workspaces(name, plan, plan_tier, credits, subscription_status, trial_end_date, seats_limit)')
           .eq('user_id', session.user.id)
           .maybeSingle()
+        lastMemberError = memberError ?? null
         if (data) { member = data as unknown as WorkspaceMember; break }
         if (cancelledRef.current) return
         await sleep(400)
       }
       if (cancelledRef.current) return
-      if (!member) { window.location.href = '/no-workspace'; return }
+      if (!member) {
+        // Only TRANSIENT DB errors (5xx, statement_timeout, network) surface
+        // the retry UI. A .maybeSingle() genuinely returning { data: null,
+        // error: null } means the user has no workspace_member row → keep
+        // the /no-workspace redirect. Passing the raw error through the
+        // predicate also filters PGRST116 (which .maybeSingle() shouldn't
+        // emit anyway, but defensive).
+        if (lastMemberError && isTransientDbError(lastMemberError)) {
+          setError(lastMemberError instanceof Error ? lastMemberError.message : String(lastMemberError))
+          setLoading(false)
+          return
+        }
+        window.location.href = '/no-workspace'
+        return
+      }
       setWorkspace(member)
       setLoading(false)
     }
