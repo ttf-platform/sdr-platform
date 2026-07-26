@@ -61,6 +61,29 @@ export async function GET() {
 
   const trialStatus = getTrialStatus(ws ?? {})
 
+  // All-tiers projection so /dashboard/billing (client component that can't
+  // call loadPlansConfig itself) can render prices + feature bullets for
+  // every plan from the SAME source of truth as caps enforcement + /admin/plans.
+  // Additive field — no existing consumer of this route reads `plans`.
+  type BillingTier = 'starter' | 'pro' | 'power'
+  const BILLING_TIERS: readonly BillingTier[] = ['starter', 'pro', 'power']
+  const plans = BILLING_TIERS.reduce((acc, tKey) => {
+    acc[tKey] = {
+      monthly_price_usd:           cfg[tKey].monthly_price_usd,
+      annual_discount:             cfg[tKey].annual_discount,
+      prospects_sourced_per_month: cfg[tKey].prospects_sourced_per_month,
+      enrichments_per_month:       cfg[tKey].enrichments_per_month,
+      inboxes:                     cfg[tKey].inboxes,
+    }
+    return acc
+  }, {} as Record<BillingTier, {
+    monthly_price_usd:           number | null
+    annual_discount:             number | null
+    prospects_sourced_per_month: number
+    enrichments_per_month:       number
+    inboxes:                     number
+  }>)
+
   return NextResponse.json({
     plan_tier:               tier,
     // Total prospects — lifetime cap (Sprint 16b enforcement)
@@ -90,5 +113,6 @@ export async function GET() {
     subscription_status:        ws?.subscription_status ?? 'trialing',
     days_remaining:             trialStatus.daysRemaining,
     blocked:                    trialStatus.blockedActions,
+    plans,
   })
 }

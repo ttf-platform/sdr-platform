@@ -1797,26 +1797,20 @@
           "currentPlan": "Offre actuelle",
           "changing": "Changement…"
         },
+        "featProspects": "{count, number} prospects/mois",
+        "featEnrichments": "{count, number} enrichissements/mois",
+        "featInboxes": "{count, plural, one {# boîte de réception} other {# boîtes de réception}}",
         "features": {
           "starter": {
-            "0": "100 prospects/mois",
-            "1": "500 enrichissements/mois",
-            "2": "1 boîte de réception",
             "3": "Page de réservation",
             "4": "Brief du matin"
           },
           "pro": {
-            "0": "250 prospects/mois",
-            "1": "1 000 enrichissements/mois",
-            "2": "2 boîtes de réception",
             "3": "IA avancée",
             "4": "Brief du matin Mode B",
             "5": "Support prioritaire"
           },
           "power": {
-            "0": "500 prospects/mois",
-            "1": "2 000 enrichissements/mois",
-            "2": "3 boîtes de réception",
             "3": "IA premium + mise en cache",
             "4": "Pipeline complet + analyses"
           }

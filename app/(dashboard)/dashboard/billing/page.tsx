@@ -20,6 +20,16 @@ interface UsageData {
   overage_charges_made: number
   trial_end: string | null; subscription_status: string
   days_remaining: number; blocked: boolean
+  // All-tiers projection surfaced by /api/usage/current (additive). Optional
+  // for backward-compat with an older response ; page renders "$0/mo" until
+  // present, but in practice the additive lands in the same PR.
+  plans?: Record<'starter' | 'pro' | 'power', {
+    monthly_price_usd:           number | null
+    annual_discount:             number | null
+    prospects_sourced_per_month: number
+    enrichments_per_month:       number
+    inboxes:                     number
+  }>
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,13 +40,15 @@ const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', po
 // Sujet grammatical FR = abonnement (masc.), LOCAL, no cross-namespace reuse.
 const SUBSCRIPTION_STATUS_KEYS = ['trialing', 'active', 'past_due', 'canceled', 'expired'] as const
 
-// PLANS keeps numeric values + name + inherits. Feature bullets resolved at render
-// via t('plans.features.{planId}.{index}'). Values remain hardcoded ($/mo, $/yr) —
-// currency + number formats deferred to a dedicated locale-format lot.
+// PLANS keeps only the display-shape scaffold. Prices + quotas are derived
+// per-render from usage.plans (all-tiers projection of loadPlansConfig via
+// /api/usage/current) so /admin/plans edits propagate here on the next
+// request. Feature bullets 0/1/2 = parametric shared keys (featProspects/
+// featEnrichments/featInboxes) fed the live cap ; .3+ stay per-tier static.
 const PLANS = [
-  { id: 'starter', name: 'Starter', monthly: 149, yearly: 1430, prospects: 100, enrichments: 500,  inboxes: 1, inherits: null,      featureCount: 5 },
-  { id: 'pro',     name: 'Pro',     monthly: 299, yearly: 2870, prospects: 250, enrichments: 1000, inboxes: 2, inherits: 'Starter', featureCount: 6 },
-  { id: 'power',   name: 'Power',   monthly: 399, yearly: 3830, prospects: 500, enrichments: 2000, inboxes: 3, inherits: 'Pro',     featureCount: 5 },
+  { id: 'starter', name: 'Starter', inherits: null,      featureCount: 5 },
+  { id: 'pro',     name: 'Pro',     inherits: 'Starter', featureCount: 6 },
+  { id: 'power',   name: 'Power',   inherits: 'Pro',     featureCount: 5 },
 ]
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -378,11 +390,15 @@ export default function BillingPage() {
         ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLANS.map(p => {
-            const isCurrent  = p.id === currentPlan
+            const planId    = p.id as 'starter' | 'pro' | 'power'
+            const planCfg   = usage.plans?.[planId]
+            const monthly   = planCfg?.monthly_price_usd ?? 0
+            const yearly    = Math.round(monthly * 12 * (1 - (planCfg?.annual_discount ?? 0)))
+            const isCurrent = p.id === currentPlan
             // $ hardcodé + /yr /mo suffixes — traité au lot formats localisés futur
-            const price      = interval === 'yearly' ? `$${p.yearly}/yr` : `$${p.monthly}/mo`
-            const tIdx       = tierIndex[p.id] ?? 0
-            const cIdx       = tierIndex[currentPlan ?? ''] ?? 0
+            const price     = interval === 'yearly' ? `$${yearly}/yr` : `$${monthly}/mo`
+            const tIdx      = tierIndex[p.id] ?? 0
+            const cIdx      = tierIndex[currentPlan ?? ''] ?? 0
             const isCurrentActive = isCurrent && isActive
             let btnLabel: string
             if (status === 'trialing' || status === 'expired') {
@@ -396,7 +412,6 @@ export default function BillingPage() {
             } else {
               btnLabel = tButton('currentPlan')
             }
-            const planId = p.id as 'starter' | 'pro' | 'power'
             return (
               <div key={p.id} className={`rounded-xl border p-4 ${isCurrent ? 'border-[#3b6bef] bg-[#eef1fd]' : 'border-[#e8e3dc] bg-white'}`}>
                 <div className="flex items-center justify-between mb-1">
@@ -405,7 +420,7 @@ export default function BillingPage() {
                 </div>
                 <div className="text-xl font-bold text-[#1a1a2e] mb-3 flex items-baseline gap-1.5">
                   {interval === 'yearly' && (
-                    <span className="text-sm font-normal text-[#8a7e6e] line-through">${p.monthly * 12}</span>
+                    <span className="text-sm font-normal text-[#8a7e6e] line-through">${monthly * 12}</span>
                   )}
                   <span>{price}</span>
                 </div>
@@ -416,7 +431,13 @@ export default function BillingPage() {
                   {Array.from({ length: p.featureCount }, (_, i) => (
                     <li key={i} className="flex items-center gap-1.5">
                       <span className="text-green-500">✓</span>
-                      {tFeatures(`${planId}.${i}`)}
+                      {i === 0
+                        ? tPlans('featProspects',   { count: planCfg?.prospects_sourced_per_month ?? 0 })
+                        : i === 1
+                        ? tPlans('featEnrichments', { count: planCfg?.enrichments_per_month ?? 0 })
+                        : i === 2
+                        ? tPlans('featInboxes',     { count: planCfg?.inboxes ?? 0 })
+                        : tFeatures(`${planId}.${i}`)}
                     </li>
                   ))}
                 </ul>
