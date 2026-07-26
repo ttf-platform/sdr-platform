@@ -643,6 +643,9 @@
     },
     "shell": {
       "loading": "Loading...",
+      "connectionErrorTitle": "Connection problem",
+      "connectionErrorBody": "We couldn't reach your workspace. Your data is safe — this is usually temporary.",
+      "retry": "Retry",
       "accountMenu": "Account menu",
       "settings": "Settings",
       "homepage": "Homepage",
