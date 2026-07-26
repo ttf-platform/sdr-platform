@@ -1797,26 +1797,20 @@
           "currentPlan": "Current plan",
           "changing": "Changing..."
         },
+        "featProspects": "{count, number} prospects/mo",
+        "featEnrichments": "{count, number} enrichments/mo",
+        "featInboxes": "{count, plural, one {# inbox} other {# inboxes}}",
         "features": {
           "starter": {
-            "0": "100 prospects/mo",
-            "1": "500 enrichments/mo",
-            "2": "1 inbox",
             "3": "Booking page",
             "4": "Morning Brief"
           },
           "pro": {
-            "0": "250 prospects/mo",
-            "1": "1,000 enrichments/mo",
-            "2": "2 inboxes",
             "3": "Advanced AI",
             "4": "Morning Brief Mode B",
             "5": "Priority support"
           },
           "power": {
-            "0": "500 prospects/mo",
-            "1": "2,000 enrichments/mo",
-            "2": "3 inboxes",
             "3": "Premium AI + caching",
             "4": "Full pipeline + analytics"
           }
