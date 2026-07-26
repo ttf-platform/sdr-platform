@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Fraunces } from 'next/font/google';
 import { setRequestLocale } from 'next-intl/server';
+import { loadPlansConfig } from '@/lib/plans';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { Hero } from '@/components/landing/Hero';
 import { TrustBand } from '@/components/landing/TrustBand';
@@ -8,13 +9,20 @@ import { SectionProblem } from '@/components/landing/SectionProblem';
 import { SectionSolution } from '@/components/landing/SectionSolution';
 import { SectionHowItWorks } from '@/components/landing/SectionHowItWorks';
 import { SectionSignals } from '@/components/landing/SectionSignals';
-import { PricingSection } from '@/components/landing/PricingSection';
+import { PricingSection, type LandingPlansMap } from '@/components/landing/PricingSection';
 import { SectionStackComparison } from '@/components/landing/SectionStackComparison';
 import { SectionBuiltForFounders } from '@/components/landing/SectionBuiltForFounders';
 import { SectionLimitsAndRoadmap } from '@/components/landing/SectionLimitsAndRoadmap';
 import { SectionFAQ } from '@/components/landing/SectionFAQ';
 import { SectionFinalCTA } from '@/components/landing/SectionFinalCTA';
 import { LandingFooter } from '@/components/landing/LandingFooter';
+
+// ISR — landing stays statically served from the CDN, and any /admin/plans
+// edit surfaces on the next request past this window. Not force-dynamic
+// on purpose : landing traffic is public + high-QPS, and the plans-config
+// table changes on human cadence, not per-request. Same cadence as
+// /pricing (PR4b) so the two public pages stay coherent.
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Mirvo: cold outreach you control',
@@ -72,6 +80,19 @@ export default async function LandingPage({
 }) {
   const { locale } = await params
   setRequestLocale(locale)
+  // Source of truth = table plans. loadPlansConfig falls back to seed on
+  // any error, so the landing keeps rendering even if the DB is unreachable.
+  const cfg = await loadPlansConfig()
+  const plans: LandingPlansMap = (['starter', 'pro', 'power'] as const).reduce((acc, t) => {
+    acc[t] = {
+      monthly_price_usd:           cfg[t].monthly_price_usd,
+      annual_discount:             cfg[t].annual_discount,
+      prospects_sourced_per_month: cfg[t].prospects_sourced_per_month,
+      emails_per_month:            cfg[t].emails_per_month,
+      enrichments_per_month:       cfg[t].enrichments_per_month,
+    }
+    return acc
+  }, {} as LandingPlansMap)
   return (
     <div className={`${fraunces.variable} min-h-screen bg-[#faf8f5]`}>
       <a
@@ -92,7 +113,7 @@ export default async function LandingPage({
         <SectionSolution />
         <SectionHowItWorks />
         <SectionSignals />
-        <PricingSection />
+        <PricingSection plans={plans} />
         <SectionStackComparison />
         <SectionBuiltForFounders />
         <SectionLimitsAndRoadmap />
