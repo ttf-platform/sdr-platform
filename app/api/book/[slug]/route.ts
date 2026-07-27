@@ -5,6 +5,7 @@ import { bookingCreateSchema, badRequest } from '@/lib/schemas'
 import { rateLimitByIp, rateLimitBySlug } from '@/lib/rate-limit'
 import { sendBookingConfirmationEmail } from '@/lib/email'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
+import { normalizeEmailForRateLimit, toPlainTextForEmail } from '@/lib/text-safety'
 
 // Per-recipient / per-slug / platform caps for the confirmation-email path.
 // These live IN THE DB (COUNT before INSERT) rather than in Redis because
@@ -195,12 +196,19 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   //   - expired + cancelled + confirmed rows STILL count — otherwise the
   //     cron flipping pending → expired would silently reset the counter
   //     every 24h.
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const attendeeEmailLc = attendee_email.toLowerCase()
+  //
+  // The RECIPIENT count is keyed on `attendee_email_normalized`
+  // (normalizeEmailForRateLimit — plus-tag + Gmail-dot collapsed) so an
+  // attacker cannot burn through the 3-per-24h ceiling by sending to
+  // `victim`, `victim+1`, `vic.tim@gmail.com`, etc. The raw
+  // `attendee_email` is preserved separately for display + delivery.
+  const since24h            = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const attendeeEmailLc     = attendee_email.toLowerCase()
+  const attendeeEmailNormalized = normalizeEmailForRateLimit(attendee_email)
 
   const [recipientCountRes, slugCountRes, platformCountRes] = await Promise.all([
     admin.from('meetings').select('id', { count: 'exact', head: true })
-      .eq('attendee_email', attendeeEmailLc)
+      .eq('attendee_email_normalized', attendeeEmailNormalized)
       .gte('confirmation_sent_at', since24h),
     admin.from('meetings').select('id', { count: 'exact', head: true })
       .eq('booking_slug', params.slug)
@@ -222,6 +230,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const slugCount      = slugCountRes.count      ?? 0
   const platformCount  = platformCountRes.count  ?? 0
 
+  // Per-recipient + per-slug caps BLOCK — they defend an individual
+  // victim / booking page.
   if (recipientCount >= CONF_RECIPIENT_MAX_PER_24H) {
     return NextResponse.json(
       { error: 'recipient_limit_reached',
@@ -236,23 +246,20 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       { status: 429 },
     )
   }
-  if (platformCount >= CONF_PLATFORM_MAX_PER_24H) {
-    return NextResponse.json(
-      { error: 'platform_limit_reached',
-        message: 'Bookings are temporarily paused. Please try again in a moment.' },
-      { status: 503 },
-    )
-  }
 
-  // Best-effort health alert as we approach the platform cap. Fires on
-  // every insert while in the [80%, 100%) band — deliberately noisy so
-  // ops raise the cap once real traffic warrants it. dispatchAdminAlert
-  // is fire-and-forget and never throws.
+  // Platform-wide cap is ALERT-ONLY, not a block. Rationale : a global
+  // reject would let an attacker who saturates the 500/day budget put
+  // EVERY tenant into "bookings temporarily paused" for the day —
+  // cross-client denial of service via a single client's abuse. The
+  // per-recipient + per-slug limits are already tight enough to bound
+  // individual harm ; we'd rather absorb the alert spam than take down
+  // bookings for all clients. Raise the cap or add capacity when the
+  // alert fires.
   if (platformCount >= CONF_PLATFORM_ALERT_AT) {
     dispatchAdminAlert({
       event:   'health_alert',
       title:   `Booking confirmation cap at ${platformCount}/${CONF_PLATFORM_MAX_PER_24H}`,
-      body:    `The public booking confirmation email path is at ${platformCount} of ${CONF_PLATFORM_MAX_PER_24H} in the last 24h. Raise CONF_PLATFORM_MAX_PER_24H in app/api/book/[slug]/route.ts once real traffic warrants it.`,
+      body:    `The public booking confirmation email path is at ${platformCount} of ${CONF_PLATFORM_MAX_PER_24H} in the last 24h. Alert-only : this cap does not block writes. Raise CONF_PLATFORM_MAX_PER_24H in app/api/book/[slug]/route.ts once real traffic warrants it.`,
       link:    '/admin/overview',
       metadata: { source: 'booking-confirmation-cap', count: platformCount, max: CONF_PLATFORM_MAX_PER_24H },
     }).catch(() => {})
@@ -279,15 +286,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       title:                `Meeting with ${attendee_email}`,
       meeting_at:           slotStartUTC.toISOString(),
       duration_min,
-      attendee_email:       attendeeEmailLc,
-      attendee_name:        attendee_name ?? null,
-      company_name:         company_name  ?? null,
-      notes:                notes         ?? null,
-      booking_slug:         params.slug,
-      status:               'pending',
-      confirmation_token:   confirmationToken,
-      confirmation_sent_at: nowISO,
-      expires_at:           expiresAtISO,
+      attendee_email:              attendeeEmailLc,
+      attendee_email_normalized:   attendeeEmailNormalized,
+      attendee_name:               attendee_name ?? null,
+      company_name:                company_name  ?? null,
+      notes:                       notes         ?? null,
+      booking_slug:                params.slug,
+      status:                      'pending',
+      confirmation_token:          confirmationToken,
+      confirmation_sent_at:        nowISO,
+      expires_at:                  expiresAtISO,
     })
     .select().single()
 
@@ -296,10 +304,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 })
   }
 
-  // Owner name from workspace_profiles.full_name (server-controlled). Same
-  // fallback discipline as GET (PR1) — no login-email leak.
+  // Owner name from user_metadata.full_name : USER-supplied text at
+  // signup, not server-controlled. escapeHtml (lib/email.ts:521) does
+  // not neutralise the markdown-whitelist tokens ([, ], (, ), *) and
+  // renderEmailMarkdown will turn `[phish](https://evil.example)` into
+  // a real anchor inside an email signed by the Mirvo domain. Run it
+  // through toPlainTextForEmail (strips those tokens + control chars +
+  // caps length) BEFORE it reaches renderTemplate. Same fallback
+  // discipline as GET (PR1) — no login-email leak.
   const { data: ownerData } = await admin.auth.admin.getUserById(ownerMember.user_id)
-  const ownerName = ownerData?.user?.user_metadata?.full_name ?? ''
+  const ownerName = toPlainTextForEmail(ownerData?.user?.user_metadata?.full_name ?? '')
 
   const appUrl     = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
   const confirmUrl = `${appUrl}/book/confirm/${confirmationToken}`
@@ -335,9 +349,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   })
 
   if (!emailResult.ok) {
-    // Undo the pending row so a legit retry isn't punished by the recipient
-    // cap. Direct DELETE of a 'pending' row is allowed by migration 085's
-    // trigger (only committed statuses are protected).
+    // Undo the pending row so a legit retry isn't punished by the
+    // recipient cap. NOTE : migration 085's DELETE trigger is on
+    // `prospect_emails`, NOT on `meetings` — there is no DELETE trigger
+    // on `meetings` today. A direct DELETE goes through unconditionally.
     await admin.from('meetings').delete().eq('id', meeting.id)
     console.error('[book:create] confirmation email failed, pending row rolled back', emailResult.error)
     return NextResponse.json(

@@ -4,46 +4,35 @@
 --
 -- NOT INTENDED FOR AUTOMATIC APPLICATION.
 -- Lives OUTSIDE supabase/migrations/ on purpose : any filename that sorts
--- before the actual migration ('086_meetings_pending_confirmation.sql')
--- would be run by `supabase db push` and would either fail on missing
--- objects or run its deliberate failures in production.
+-- before the actual migrations would be run by `supabase db push`.
 --
--- Run this by hand in the Supabase SQL Editor AFTER migration 086 has been
--- applied. Copy the whole file, run it, read the last query's result grid.
--- One row per case + a TOTAL row (case_no = 999).
+-- Run this by hand in the Supabase SQL Editor AFTER migrations 086 AND
+-- 087 have been applied. Copy the whole file, run it, read the last
+-- query's result grid. One row per case + a TOTAL row (case_no = 999).
 --
--- CASES COVERED
+-- CASES (updated for the audit-site-#4 PR2 correction pass)
 --   1. Unknown token           → outcome='unknown'.
 --   2. Expired token           → outcome='expired'.
 --   3. Happy path              → outcome='confirmed' AND row flipped to
---                                'scheduled' with confirmation_token cleared.
---   4. Sequential double-click → first 'confirmed', second 'already_confirmed'.
---                                Proves the state machine ; two calls on the
---                                same token can never both flip to scheduled.
+--                                'scheduled'. Since 087, the token is
+--                                PRESERVED on success (not NULL-ed) so a
+--                                legitimate re-click resolves properly.
+--   4. Real sequential re-click → first 'confirmed', second call with
+--                                the SAME token (unchanged) → 'already_confirmed'.
+--                                No artificial re-attach of the token
+--                                (087 removed that mutation).
 --   5. Slot conflict           → first slot 'confirmed', overlapping slot
---                                'slot_taken'. Proves the buffered-conflict
---                                re-check under the advisory lock.
+--                                'slot_taken'.
+--   6. Slot in the past (M2)   → confirm attempted with meeting_at <= now()
+--                                → 'slot_passed'.
 --
--- CONCURRENCY NOTE (advisory lock)
---   The SQL Editor runs everything in one session, so true concurrent
---   confirmations of the SAME token cannot be simulated here. However :
---     - The state machine (case 4) proves that two calls on the same token
---       cannot both flip to scheduled — the second sees status='scheduled'
---       AND confirmed_at IS NOT NULL and returns 'already_confirmed'.
---     - The buffered-conflict check (case 5) proves that two DIFFERENT
---       tokens on overlapping slots cannot both flip to scheduled — the
---       second sees the first as a scheduled row and returns 'slot_taken'.
---     - The advisory lock (pg_advisory_xact_lock on hashtext(workspace_id))
---       is what serialises those checks under real concurrent load. Its
---       correctness cannot be tested from a single session ; it mirrors
---       reserve_dfy_order_slot (migration 059) which has been in production
---       since sprint A2a-2b without regression.
+-- Per-case fixtures : every INSERT that a case depends on lives INSIDE
+-- that case's DO block. If a fixture INSERT fails (schema drift, FK
+-- change), only that case fails — the rest still run.
 --
--- CLEANUP
---   Everything is scoped to a throwaway workspace pinned at
---   '00000000-0000-0000-0000-000000000086'. Cleanup deletes that workspace
---   → migration 085's DELETE trigger allows the cascade at
---   pg_trigger_depth() > 0. The temp results table is not a child.
+-- CLEANUP : workspace DELETE cascades everything. Migration 085's DELETE
+-- trigger is on prospect_emails (not meetings), so this cascade is
+-- unconditionally allowed. The temp results table is not a child.
 -- =============================================================================
 
 -- 0. Idempotent teardown of any prior run.
@@ -59,44 +48,10 @@ CREATE TEMP TABLE _mrv086_results (
   verdict     text NOT NULL CHECK (verdict IN ('OK', 'FAIL'))
 );
 
--- 2. Fixtures.
-INSERT INTO workspaces (id, name, slug)
-VALUES ('00000000-0000-0000-0000-000000000086',
-        'MIGRATION_086_VERIFY_TMP',
-        'migration-086-verify-tmp-' || substr(md5(random()::text), 1, 8));
-
-INSERT INTO contacts (id, workspace_id, email)
-VALUES ('00000000-0000-0000-0000-000000000486',
-        '00000000-0000-0000-0000-000000000086',
-        'contact-086@example.test');
-
-INSERT INTO campaigns (id, workspace_id, name, status)
-VALUES ('00000000-0000-0000-0000-000000000186',
-        '00000000-0000-0000-0000-000000000086',
-        'MIGRATION_086_VERIFY_TMP', 'draft');
-
-INSERT INTO campaign_steps (id, campaign_id, step_order, body)
-VALUES ('00000000-0000-0000-0000-000000000286',
-        '00000000-0000-0000-0000-000000000186', 0, 'test body');
-
-INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
-VALUES ('00000000-0000-0000-0000-000000000386',
-        '00000000-0000-0000-0000-000000000086',
-        '00000000-0000-0000-0000-000000000186',
-        'prospect-086@example.test',
-        '00000000-0000-0000-0000-000000000486');
-
-INSERT INTO workspace_profiles (workspace_id, booking_slug, booking_config)
-VALUES ('00000000-0000-0000-0000-000000000086',
-        'test-086-' || substr(md5(random()::text), 1, 8),
-        '{"buffer_minutes": 15, "timezone": "UTC", "enabled": true}'::jsonb)
-ON CONFLICT (workspace_id) DO NOTHING;
-
--- Need a workspace_members owner row for user_id FK on meetings — but
--- meetings.user_id references auth.users. Grab any existing user to satisfy
--- the FK, or fail loudly. In practice the migration 086 script hasn't
--- introduced this constraint ; it's from baseline. Use the first user we
--- find.
+-- 2. Shared scaffolding (workspace + contact + prospect + campaign +
+--    step + workspace_profiles). One row each — every case owns its own
+--    campaign_step so the UNIQUE(prospect_id, campaign_step_id) on
+--    prospect_emails (unused here) never collides.
 DO $$
 DECLARE
   v_user_id uuid;
@@ -105,10 +60,39 @@ BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'No auth.users row available for FK on meetings.user_id — create a user first';
   END IF;
-
-  -- Meeting fixture used by cases 3, 4, 5 (via re-inserts under different ids).
-  -- Kept as a template variable in the DO blocks below.
   PERFORM set_config('_mrv086.user_id', v_user_id::text, false);
+
+  INSERT INTO workspaces (id, name, slug)
+  VALUES ('00000000-0000-0000-0000-000000000086',
+          'MIGRATION_086_VERIFY_TMP',
+          'migration-086-verify-tmp-' || substr(md5(random()::text), 1, 8));
+
+  INSERT INTO contacts (id, workspace_id, email)
+  VALUES ('00000000-0000-0000-0000-000000000486',
+          '00000000-0000-0000-0000-000000000086',
+          'contact-086@example.test');
+
+  INSERT INTO campaigns (id, workspace_id, name, status)
+  VALUES ('00000000-0000-0000-0000-000000000186',
+          '00000000-0000-0000-0000-000000000086',
+          'MIGRATION_086_VERIFY_TMP', 'draft');
+
+  INSERT INTO campaign_steps (id, campaign_id, step_order, body)
+  VALUES ('00000000-0000-0000-0000-000000000286',
+          '00000000-0000-0000-0000-000000000186', 0, 'test body');
+
+  INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
+  VALUES ('00000000-0000-0000-0000-000000000386',
+          '00000000-0000-0000-0000-000000000086',
+          '00000000-0000-0000-0000-000000000186',
+          'prospect-086@example.test',
+          '00000000-0000-0000-0000-000000000486');
+
+  INSERT INTO workspace_profiles (workspace_id, booking_slug, booking_config)
+  VALUES ('00000000-0000-0000-0000-000000000086',
+          'test-086-' || substr(md5(random()::text), 1, 8),
+          '{"buffer_minutes": 15, "timezone": "UTC", "enabled": true}'::jsonb)
+  ON CONFLICT (workspace_id) DO NOTHING;
 END $$;
 
 -- Case 1 — Unknown token
@@ -165,7 +149,7 @@ BEGIN
   END;
 END $$;
 
--- Case 3 — Happy path : pending → scheduled + token cleared
+-- Case 3 — Happy path : pending → scheduled ; token PRESERVED (087 change).
 DO $$
 DECLARE
   v_result jsonb;
@@ -188,39 +172,33 @@ BEGIN
     IF (v_result->>'outcome') = 'confirmed'
        AND v_row.status = 'scheduled'
        AND v_row.confirmed_at IS NOT NULL
-       AND v_row.confirmation_token IS NULL THEN
+       AND v_row.confirmation_token = 'mrv086-token-happy' THEN
       INSERT INTO _mrv086_results VALUES
-        (3, 'Happy path (pending -> scheduled + token cleared)',
-         'outcome=confirmed AND status=scheduled AND token=NULL',
-         v_result::text || ' ; status=' || v_row.status || ' ; token IS NULL: ' ||
-           (v_row.confirmation_token IS NULL)::text, 'OK');
+        (3, 'Happy path (pending -> scheduled ; token preserved)',
+         'outcome=confirmed AND status=scheduled AND token preserved',
+         v_result::text || ' ; status=' || v_row.status ||
+           ' ; token IS NOT NULL: ' || (v_row.confirmation_token IS NOT NULL)::text, 'OK');
     ELSE
       INSERT INTO _mrv086_results VALUES
-        (3, 'Happy path (pending -> scheduled + token cleared)',
-         'outcome=confirmed AND status=scheduled AND token=NULL',
-         v_result::text || ' ; status=' || v_row.status || ' ; token IS NULL: ' ||
-           (v_row.confirmation_token IS NULL)::text, 'FAIL');
+        (3, 'Happy path (pending -> scheduled ; token preserved)',
+         'outcome=confirmed AND status=scheduled AND token preserved',
+         v_result::text || ' ; status=' || v_row.status ||
+           ' ; token IS NOT NULL: ' || (v_row.confirmation_token IS NOT NULL)::text, 'FAIL');
     END IF;
   EXCEPTION
     WHEN OTHERS THEN
       INSERT INTO _mrv086_results VALUES
-        (3, 'Happy path (pending -> scheduled + token cleared)',
+        (3, 'Happy path (pending -> scheduled ; token preserved)',
          'outcome=confirmed',
          'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 4 — Sequential double-click : first confirmed, second already_confirmed.
--- Proves the state machine : two calls on the same token cannot both
--- succeed. Note that the case-3 UPDATE cleared the token, so a re-call of
--- the raw token from case 3 would return 'unknown'. For a genuine
--- double-click test we insert a fresh row, confirm, then attempt a
--- SECOND confirm — but because the RPC clears the token on success, the
--- second call by token would return 'unknown'. Instead, we simulate the
--- race by re-INSERTing the same token on the SAME row (impossible under
--- normal use ; here purely for state-machine coverage) : after the first
--- confirm the row is scheduled, re-attaching the token and calling again
--- must return 'already_confirmed', not 'confirmed'.
+-- Case 4 — REAL sequential re-click (no artificial token re-attach).
+-- Attendee clicks their email twice — the token is unchanged between
+-- calls (087 keeps it on success), so the second call resolves the same
+-- row and returns 'already_confirmed'. This is the shape production
+-- traffic actually produces.
 DO $$
 DECLARE
   v_r1 jsonb;
@@ -234,43 +212,35 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000704',
             '00000000-0000-0000-0000-000000000086', v_user,
             'test 4', now() + interval '3 days', 30,
-            'attendee-4@example.test', 'pending', 'mrv086-token-double',
+            'attendee-4@example.test', 'pending', 'mrv086-token-reclick',
             now(), now() + interval '1 day');
 
-    v_r1 := confirm_booking('mrv086-token-double');
-
-    -- Simulate the race : re-attach the token to the (now-scheduled) row
-    -- and re-invoke. In a real concurrent race, both confirms would find
-    -- the token still attached ; the advisory lock ensures the SECOND
-    -- one sees the row already flipped to scheduled+confirmed_at IS NOT NULL.
-    UPDATE meetings
-       SET confirmation_token = 'mrv086-token-double'
-     WHERE id = '00000000-0000-0000-0000-000000000704';
-
-    v_r2 := confirm_booking('mrv086-token-double');
+    v_r1 := confirm_booking('mrv086-token-reclick');
+    -- Second click of the same email link — token still attached (087
+    -- preserves it), state machine returns already_confirmed.
+    v_r2 := confirm_booking('mrv086-token-reclick');
 
     IF (v_r1->>'outcome') = 'confirmed' AND (v_r2->>'outcome') = 'already_confirmed' THEN
       INSERT INTO _mrv086_results VALUES
-        (4, 'Sequential double-confirm (state machine)',
+        (4, 'Real re-click (same token, twice)',
          'first=confirmed, second=already_confirmed',
          'first=' || (v_r1->>'outcome') || ' ; second=' || (v_r2->>'outcome'), 'OK');
     ELSE
       INSERT INTO _mrv086_results VALUES
-        (4, 'Sequential double-confirm (state machine)',
+        (4, 'Real re-click (same token, twice)',
          'first=confirmed, second=already_confirmed',
          'first=' || (v_r1->>'outcome') || ' ; second=' || (v_r2->>'outcome'), 'FAIL');
     END IF;
   EXCEPTION
     WHEN OTHERS THEN
       INSERT INTO _mrv086_results VALUES
-        (4, 'Sequential double-confirm (state machine)',
+        (4, 'Real re-click (same token, twice)',
          'first=confirmed, second=already_confirmed',
          'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 5 — Slot conflict : confirm slot A, then confirm slot B overlapping
--- with A → B must return 'slot_taken'. Proves the buffered-conflict check.
+-- Case 5 — Slot conflict : confirm slot A, then confirm slot B overlapping A.
 DO $$
 DECLARE
   v_a jsonb;
@@ -280,7 +250,6 @@ DECLARE
   v_slot_b timestamptz;
 BEGIN
   BEGIN
-    -- B starts 10 minutes AFTER A starts → clearly overlaps a 30-min A.
     v_slot_b := v_slot_a + interval '10 minutes';
 
     INSERT INTO meetings (id, workspace_id, user_id, title, meeting_at, duration_min,
@@ -323,6 +292,40 @@ BEGIN
   END;
 END $$;
 
+-- Case 6 — M2 : confirmation attempted after the slot itself is in the past.
+-- Token still valid (< 24h), but meeting_at is now < now(). RPC must
+-- refuse with 'slot_passed' rather than schedule a past meeting.
+DO $$
+DECLARE
+  v_result jsonb;
+  v_user   uuid := current_setting('_mrv086.user_id', true)::uuid;
+BEGIN
+  BEGIN
+    INSERT INTO meetings (id, workspace_id, user_id, title, meeting_at, duration_min,
+                          attendee_email, status, confirmation_token,
+                          confirmation_sent_at, expires_at)
+    VALUES ('00000000-0000-0000-0000-000000000706',
+            '00000000-0000-0000-0000-000000000086', v_user,
+            'test 6', now() - interval '30 minutes', 30,     -- slot in the past
+            'attendee-6@example.test', 'pending', 'mrv086-token-past-slot',
+            now() - interval '1 hour', now() + interval '23 hours');  -- token still fresh
+
+    v_result := confirm_booking('mrv086-token-past-slot');
+    IF (v_result->>'outcome') = 'slot_passed' THEN
+      INSERT INTO _mrv086_results VALUES
+        (6, 'Past slot (M2)', 'outcome=slot_passed', v_result::text, 'OK');
+    ELSE
+      INSERT INTO _mrv086_results VALUES
+        (6, 'Past slot (M2)', 'outcome=slot_passed', v_result::text, 'FAIL');
+    END IF;
+  EXCEPTION
+    WHEN OTHERS THEN
+      INSERT INTO _mrv086_results VALUES
+        (6, 'Past slot (M2)', 'outcome=slot_passed',
+         'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
+  END;
+END $$;
+
 -- 3. Cleanup — cascade via workspace DELETE.
 DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000086';
 
@@ -330,7 +333,7 @@ DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000086';
 INSERT INTO _mrv086_results
 SELECT 999,
        'TOTAL',
-       '5 cases (all OK)',
+       '6 cases (all OK)',
        (SELECT count(*) FROM _mrv086_results WHERE verdict = 'OK'  )::text || ' OK / ' ||
        (SELECT count(*) FROM _mrv086_results WHERE verdict = 'FAIL')::text || ' FAIL',
        CASE

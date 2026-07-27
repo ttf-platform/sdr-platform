@@ -30,19 +30,45 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient()
 
-  const { data: expired, error } = await admin
+  const nowISO = new Date().toISOString()
+
+  // (1) Flip pending → expired for any row past its 24h confirmation window.
+  const { data: expired, error: expErr } = await admin
     .from('meetings')
     .update({ status: 'expired' })
     .eq('status', 'pending')
-    .lt('expires_at', new Date().toISOString())
+    .lt('expires_at', nowISO)
     .select('id')
 
-  if (error) {
-    console.error('[cron/expire-pending-bookings] update failed:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (expErr) {
+    console.error('[cron/expire-pending-bookings] expire update failed:', expErr.message)
+    return NextResponse.json({ error: expErr.message }, { status: 500 })
   }
 
-  const count = expired?.length ?? 0
-  console.log('[cron/expire-pending-bookings] expired', { count })
-  return NextResponse.json({ expired_count: count })
+  // (2) NULL confirmation_token on scheduled rows older than 30 days.
+  //     Since 087, the RPC no longer clears the token on success (so a
+  //     legitimate re-click by the attendee resolves to already_confirmed
+  //     instead of unknown). This periodic cleanup reduces the long-term
+  //     surface of a token that could be scraped from an old inbox — the
+  //     UNIQUE index makes the NULL-set free. 30 days is well past the
+  //     "did the attendee reasonably need to re-click?" horizon.
+  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: cleared, error: clrErr } = await admin
+    .from('meetings')
+    .update({ confirmation_token: null })
+    .eq('status', 'scheduled')
+    .not('confirmation_token', 'is', null)
+    .lt('confirmed_at', thirtyDaysAgoISO)
+    .select('id')
+
+  if (clrErr) {
+    console.error('[cron/expire-pending-bookings] token-clear update failed:', clrErr.message)
+    // Don't 500 : the expire step already ran ; a token-clear failure is
+    // best-effort and will retry on the next run.
+  }
+
+  const expired_count = expired?.length ?? 0
+  const cleared_count = cleared?.length ?? 0
+  console.log('[cron/expire-pending-bookings] done', { expired_count, cleared_count })
+  return NextResponse.json({ expired_count, cleared_count })
 }

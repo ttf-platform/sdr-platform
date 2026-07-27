@@ -394,9 +394,22 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, Record<EmailTempl
   // free-text user content by design (attendee_name / notes are excluded) —
   // the renderer sanitizes markdown and escapes HTML but a `[phish](url)`
   // token in a free-text field would still render as a clickable link
-  // signed by the Mirvo domain. Every placeholder here is server-controlled
-  // and validated upstream (dates/times formatted server-side, hostName
-  // comes from workspace_profiles.full_name, confirmUrl is our own domain).
+  // signed by the Mirvo domain.
+  //
+  // Placeholder trust classification (verified) :
+  //   - dateStr / timeStr / durationMin / expiresInHours : server-formatted,
+  //     safe.
+  //   - tzLabel : IANA name, Zod-validated via bookingCreateSchema
+  //     (Intl.DateTimeFormat({timeZone: tz}) round-trips), safe.
+  //   - confirmUrl : our own domain, server-constructed from
+  //     NEXT_PUBLIC_APP_URL + a random token, safe.
+  //   - hostName : USER-supplied at signup (auth.users.user_metadata.
+  //     full_name). NOT SAFE as-is — the caller in
+  //     app/api/book/[slug]/route.ts MUST route it through
+  //     toPlainTextForEmail (lib/text-safety.ts) which strips `[ ] ( )
+  //     * \r \n` and the ASCII control range and bounds the length.
+  //     Leaving that sanitizer in place is load-bearing ; removing it
+  //     reopens the phishing-link-in-signed-email vector.
   booking_confirmation: {
     en: {
       subject:   'Confirm your meeting with {{hostName}} — {{dateStr}} at {{timeStr}}',

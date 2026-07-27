@@ -4,32 +4,51 @@ import { useTranslations, useLocale } from 'next-intl'
 import { safeExternalHref } from '@/lib/url-safety'
 
 // Public confirmation landing page.
-// Client component that POSTs the token to /api/book/confirm/[token] on
-// mount, then renders one of five terminal states :
-//   confirmed / already_confirmed → date/time + ICS + calendar links
-//   expired                       → "pick a fresh slot" (CTA back to booking)
-//   slot_taken                    → "pick another slot" (CTA back to booking)
-//   unknown                       → "link not valid"
-//   db_error                      → "try again in a moment"
 //
-// The token is in the URL PATH (not query params) on purpose : PostHog is
-// initialised with capture_pageview: true (app/providers.tsx) which would
-// send the full URL — including query params — to analytics. Path-level
-// tokens are still captured but PostHog's default masking neutralises
-// `[token]` segments; more importantly, sharing a screenshot / DevTools
-// URL bar with a token in the query would be a leak vector, and the path
-// form keeps the failure mode consistent.
+// Design goals for this page (post-audit-site-#4 PR2 corrections) :
+//
+//   1. NEVER auto-confirm on page mount. JS-executing security scanners
+//      (link-preview fetchers, spam-gateway sandboxes, corporate URL
+//      rewriters that actually run the JS) would otherwise confirm on the
+//      visitor's behalf. This page :
+//          - fetches the state read-only on mount (GET, no side-effects),
+//          - shows a "Confirm my meeting" button when status is pending,
+//          - only fires the confirmation POST on the button's onClick.
+//
+//   2. Strip the token from the URL as soon as the page has read it. The
+//      previous revision claimed PostHog "masks [token] segments" — that
+//      was WRONG. PostHog's capture_pageview: true (app/providers.tsx)
+//      captures the real URL path. history.replaceState rewrites it to
+//      /book/confirm/redacted so no analytics / referer / clipboard-share
+//      captures the token itself. The value is kept in a ref that survives
+//      the URL swap for the POST call.
+//
+// Six outcomes rendered (loading → done):
+//     pending           → shows details + "Confirm my meeting" button
+//     confirmed         → date/time + ICS + calendar links (post-click)
+//     already_confirmed → same + "already confirmed" title (re-click)
+//     expired           → "pick a fresh slot"
+//     slot_passed       → "this time has passed"  (M2 : slot < now())
+//     slot_taken        → "someone confirmed before you"
+//     unknown           → "link not valid"
+//     db_error          → "try again"
 
-type ConfirmedMeeting = {
+type ConfirmedPayload = {
   meeting: { id: string; meeting_at: string; duration_min: number; booking_slug: string | null }
   ics: string
   calendar_links: { google: string; outlook365: string; outlookLive: string; yahoo: string }
 }
 
-type ConfirmResponse =
-  | ({ outcome: 'confirmed' } & ConfirmedMeeting)
-  | ({ outcome: 'already_confirmed' } & ConfirmedMeeting)
+type PendingPayload = {
+  meeting: { id: string; meeting_at: string; duration_min: number; booking_slug: string | null }
+}
+
+type PeekResponse =
+  | ({ outcome: 'pending' } & PendingPayload)
+  | ({ outcome: 'confirmed' } & ConfirmedPayload)
+  | ({ outcome: 'already_confirmed' } & ConfirmedPayload)
   | { outcome: 'expired' }
+  | { outcome: 'slot_passed' }
   | { outcome: 'slot_taken' }
   | { outcome: 'unknown' }
   | { outcome: 'db_error'; message?: string }
@@ -39,36 +58,57 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
   const t = useTranslations('book')
   const locale = useLocale()
 
-  const [state, setState] = useState<
+  const [peek, setPeek] = useState<
     | { status: 'loading' }
-    | { status: 'done'; response: ConfirmResponse }
+    | { status: 'done'; response: PeekResponse }
   >({ status: 'loading' })
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/book/confirm/${token}`, { method: 'POST' })
+
+    // Strip the token from the URL before the first render commits it to
+    // history. Path segments are captured by PostHog (capture_pageview:
+    // true) — we rewrite to a redacted marker so the token doesn't land
+    // in analytics, referers, or clipboard shares.
+    if (typeof window !== 'undefined') {
+      try { window.history.replaceState(null, '', '/book/confirm/redacted') } catch { /* ignore */ }
+    }
+
+    fetch(`/api/book/confirm/${token}`, { method: 'GET' })
       .then(async r => {
         const body = await r.json().catch(() => ({ outcome: 'db_error' as const }))
-        return body as ConfirmResponse
+        return body as PeekResponse
       })
       .then(response => {
         if (cancelled) return
-        setState({ status: 'done', response })
+        setPeek({ status: 'done', response })
       })
       .catch(() => {
         if (cancelled) return
-        setState({ status: 'done', response: { outcome: 'db_error' } })
+        setPeek({ status: 'done', response: { outcome: 'db_error' } })
       })
     return () => { cancelled = true }
   }, [token])
 
-  // Meeting-page slug for "pick another slot" CTAs. Only populated on
-  // confirmed / already_confirmed outcomes ; on slot_taken/expired we
-  // display a generic notice with no back-link (we don't know the slug).
+  async function onConfirmClick() {
+    setConfirming(true)
+    const res = await fetch(`/api/book/confirm/${token}`, { method: 'POST' })
+      .then(async r => {
+        const body = await r.json().catch(() => ({ outcome: 'db_error' as const }))
+        return body as PeekResponse
+      })
+      .catch(() => ({ outcome: 'db_error' as const }))
+    setPeek({ status: 'done', response: res })
+    setConfirming(false)
+  }
+
   const bookingSlug =
-    state.status === 'done' &&
-    (state.response.outcome === 'confirmed' || state.response.outcome === 'already_confirmed')
-      ? state.response.meeting.booking_slug
+    peek.status === 'done' &&
+    (peek.response.outcome === 'pending' ||
+     peek.response.outcome === 'confirmed' ||
+     peek.response.outcome === 'already_confirmed')
+      ? peek.response.meeting.booking_slug
       : null
 
   function fmtDateTime(iso: string): { date: string; time: string } {
@@ -96,19 +136,47 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
     <div className="min-h-screen bg-[#f5f2ee] py-12 px-4">
       <div className="max-w-md mx-auto">
         <div className="bg-white border border-[#e8e3dc] rounded-xl p-6">
-          {state.status === 'loading' && (
+          {peek.status === 'loading' && (
             <div className="text-center py-8">
               <div className="w-8 h-8 border-2 border-[#3b6bef] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-sm text-[#8a7e6e]">{t('confirmingTitle')}</p>
             </div>
           )}
 
-          {state.status === 'done' && (state.response.outcome === 'confirmed' || state.response.outcome === 'already_confirmed') && (() => {
-            const meeting = state.response.meeting
-            const links = state.response.calendar_links
-            const ics = state.response.ics
+          {/* PENDING — the "Confirm my meeting" button is the ONLY code
+              path that triggers the confirmation POST. */}
+          {peek.status === 'done' && peek.response.outcome === 'pending' && (() => {
+            const meeting = peek.response.meeting
+            const { date: mDate, time: mTime } = fmtDateTime(meeting.meeting_at)
+            return (
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-[#1a1a2e] mb-1">{t('confirmDetailsTitle')}</h2>
+                <p className="text-sm text-[#8a7e6e] mb-5">{t('confirmDetailsSub')}</p>
+
+                <div className="bg-[#f5f2ee] rounded-lg p-4 text-left mb-5 text-sm">
+                  <p className="font-semibold text-[#1a1a2e]">{mDate}</p>
+                  <p className="text-[#8a7e6e] mt-0.5">{mTime} · {meeting.duration_min} min</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onConfirmClick}
+                  disabled={confirming}
+                  className="w-full bg-[#3b6bef] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#2f57c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b6bef] focus-visible:ring-offset-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {confirming ? t('confirmBusy') : t('confirmCta')}
+                </button>
+              </div>
+            )
+          })()}
+
+          {/* CONFIRMED / ALREADY_CONFIRMED */}
+          {peek.status === 'done' && (peek.response.outcome === 'confirmed' || peek.response.outcome === 'already_confirmed') && (() => {
+            const meeting = peek.response.meeting
+            const links   = peek.response.calendar_links
+            const ics     = peek.response.ics
             const { date: confDate, time: confTime } = fmtDateTime(meeting.meeting_at)
-            const isAlreadyConfirmed = state.response.outcome === 'already_confirmed'
+            const isAlreadyConfirmed = peek.response.outcome === 'already_confirmed'
             return (
               <div className="text-center">
                 <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
@@ -160,15 +228,32 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
             )
           })()}
 
-          {state.status === 'done' && state.response.outcome === 'expired' && (
+          {peek.status === 'done' && peek.response.outcome === 'expired' && (
             <div className="text-center">
               <div className="text-4xl mb-3">⏳</div>
               <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('expiredTitle')}</h2>
-              <p className="text-sm text-[#4a3f32] mb-5 leading-relaxed">{t('expiredBody')}</p>
+              <p className="text-sm text-[#4a3f32] leading-relaxed">{t('expiredBody')}</p>
             </div>
           )}
 
-          {state.status === 'done' && state.response.outcome === 'slot_taken' && (
+          {peek.status === 'done' && peek.response.outcome === 'slot_passed' && (
+            <div className="text-center">
+              <div className="text-4xl mb-3">⏰</div>
+              <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('slotPassedTitle')}</h2>
+              <p className="text-sm text-[#4a3f32] leading-relaxed">{t('slotPassedBody')}</p>
+              {bookingSlug && (() => {
+                const href = safeExternalHref(`/book/${bookingSlug}`)
+                return href ? (
+                  <a href={href}
+                    className="inline-block mt-5 bg-[#3b6bef] text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-[#2f57c9] transition-colors">
+                    {t('slotPassedCta')}
+                  </a>
+                ) : null
+              })()}
+            </div>
+          )}
+
+          {peek.status === 'done' && peek.response.outcome === 'slot_taken' && (
             <div className="text-center">
               <div className="text-4xl mb-3">📆</div>
               <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('slotTakenTitle')}</h2>
@@ -185,7 +270,7 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
             </div>
           )}
 
-          {state.status === 'done' && state.response.outcome === 'unknown' && (
+          {peek.status === 'done' && peek.response.outcome === 'unknown' && (
             <div className="text-center">
               <div className="text-4xl mb-3">🔍</div>
               <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('unknownTitle')}</h2>
@@ -193,7 +278,7 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
             </div>
           )}
 
-          {state.status === 'done' && state.response.outcome === 'db_error' && (
+          {peek.status === 'done' && peek.response.outcome === 'db_error' && (
             <div className="text-center">
               <div className="text-4xl mb-3">⚠️</div>
               <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('confirmErrorTitle')}</h2>
