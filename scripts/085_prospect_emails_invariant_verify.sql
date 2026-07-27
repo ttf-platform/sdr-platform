@@ -74,6 +74,7 @@
 -- -----------------------------------------------------------------------------
 
 DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000085';
+DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000086'; -- case 18 sandbox
 
 -- -----------------------------------------------------------------------------
 -- 1. Results table (TEMP — session-scoped, dropped when the session ends).
@@ -545,22 +546,116 @@ BEGIN
   END;
 END $$;
 
+-- Case 17 — CASCADE via DELETE campaign_steps : a step owning a 'sent'
+-- prospect_email must be deletable at the DB level (the guard is at the
+-- app layer in api/campaigns/[id]/steps/[step_id], not in the trigger).
+-- The FK campaign_step_id ON DELETE CASCADE fires the child DELETE at
+-- pg_trigger_depth() > 0, so the DELETE trigger must skip and the child
+-- email must vanish.
+DO $$
+DECLARE
+  step_id  uuid := '00000000-0000-0000-0000-000000000297';
+  child_id uuid := '00000000-0000-0000-0000-000000000617';
+  child_survivor boolean;
+BEGIN
+  BEGIN
+    INSERT INTO campaign_steps (id, campaign_id, step_order, body)
+    VALUES (step_id, '00000000-0000-0000-0000-000000000185', 17, 'test body 17');
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (child_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
+
+    DELETE FROM campaign_steps WHERE id = step_id;
+
+    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = child_id) INTO child_survivor;
+    IF child_survivor THEN
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'child prospect_email survived', 'FAIL');
+    ELSE
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'child prospect_email removed', 'OK');
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'MR002' THEN
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'MR002 raised on cascade — B1 fix regressed', 'FAIL');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
+  END;
+END $$;
+
+-- Case 18 — CASCADE via DELETE workspaces : a workspace owning a 'sent'
+-- prospect_email must be deletable. This is the RGPD purge path exercised
+-- by cron/purge-canceled-workspaces — if this case fails we cannot ship
+-- the trigger. Uses a SECOND workspace ('...086') pinned separately from
+-- the main script fixture ('...085') so its DELETE does not interfere
+-- with the rest of the run.
+DO $$
+DECLARE
+  ws2      uuid := '00000000-0000-0000-0000-000000000086';
+  ct2      uuid := '00000000-0000-0000-0000-000000000486';
+  cp2      uuid := '00000000-0000-0000-0000-000000000186';
+  st2      uuid := '00000000-0000-0000-0000-000000000798';
+  pr2      uuid := '00000000-0000-0000-0000-000000000386';
+  pe2      uuid := '00000000-0000-0000-0000-000000000618';
+  child_survivor boolean;
+BEGIN
+  BEGIN
+    INSERT INTO workspaces (id, name, slug)
+    VALUES (ws2, 'MIGRATION_085_VERIFY_TMP_2',
+            'migration-085-verify-tmp-2-' || substr(md5(random()::text), 1, 8));
+    INSERT INTO contacts (id, workspace_id, email)
+    VALUES (ct2, ws2, 'contact-085-ws2@example.test');
+    INSERT INTO campaigns (id, workspace_id, name, status)
+    VALUES (cp2, ws2, 'MIGRATION_085_VERIFY_TMP_2', 'draft');
+    INSERT INTO campaign_steps (id, campaign_id, step_order, body)
+    VALUES (st2, cp2, 0, 'test body ws2');
+    INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
+    VALUES (pr2, ws2, cp2, 'prospect-085-ws2@example.test', ct2);
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe2, ws2, pr2, st2, 's', 'b', 'fast', 'sent');
+
+    DELETE FROM workspaces WHERE id = ws2;
+
+    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = pe2) INTO child_survivor;
+    IF child_survivor THEN
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'child prospect_email survived', 'FAIL');
+    ELSE
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'child prospect_email removed', 'OK');
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'MR002' THEN
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'MR002 raised on cascade — B1 fix regressed', 'FAIL');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
+  END;
+END $$;
+
 -- -----------------------------------------------------------------------------
 -- 4. Cleanup fixtures via workspace DELETE (cascade wipes every child).
 --    Does NOT touch _mrv085_results (TEMP TABLE, not a workspace child).
+--    Case 18 already deletes its own workspace ('...086') as part of the
+--    test ; the second DELETE below is a defensive no-op in case case 18
+--    aborted before reaching its own cleanup.
 -- -----------------------------------------------------------------------------
 
 DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000085';
+DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000086';
 
 -- -----------------------------------------------------------------------------
--- 5. Summary row (case_no = 999). Counts OK / FAIL across cases 1..16 and
+-- 5. Summary row (case_no = 999). Counts OK / FAIL across cases 1..18 and
 --    flags the whole run OK only if every case is OK.
 -- -----------------------------------------------------------------------------
 
 INSERT INTO _mrv085_results
 SELECT 999,
        'TOTAL',
-       '16 cases (all OK)',
+       '18 cases (all OK)',
        (SELECT count(*) FROM _mrv085_results WHERE verdict = 'OK'  )::text || ' OK / ' ||
        (SELECT count(*) FROM _mrv085_results WHERE verdict = 'FAIL')::text || ' FAIL',
        CASE
