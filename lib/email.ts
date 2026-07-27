@@ -452,6 +452,78 @@ export async function sendWinbackEmail(params: {
  * getAdminNotificationEmail() with the same 'admin_email_not_configured'
  * fail-soft as the other sendAdmin*Email helpers.
  */
+// ─── Booking confirmation (transactional, external recipient) ─────────────
+//
+// FIRST email in the codebase whose recipient is an arbitrary EXTERNAL
+// address controlled by an unauthenticated visitor. Two deliberate departures
+// from the other senders :
+//
+//   1. It DOES NOT reuse FROM_ADDRESS.
+//      The FROM_ADDRESS constant (hello@mirvo.ai) is shared by every
+//      lifecycle + admin email above. If booking-confirmation abuse pollutes
+//      the sending reputation of hello@, it takes down onboarding /
+//      dunning / winback / admin alerts with it. This sender reads its own
+//      env var so ops can point it at a dedicated mailbox / subdomain /
+//      provider (e.g. meetings.mirvo.ai) as soon as trust needs to be
+//      isolated. Fallback stays inside mirvo.ai but on a distinct local-part
+//      so anti-abuse filters can be tuned per-recipient.
+//
+//   2. NO caller-supplied free text is ever placed in the body.
+//      The registry template only interpolates server-controlled fields
+//      (host_name, date/time strings, tz, duration, confirmUrl,
+//      expiresInHours). Attendee name and booking notes are DELIBERATELY
+//      not passed through. Rationale : renderEmailMarkdown recognises
+//      `[label](url)` links AFTER escapeHtml, so free text could produce
+//      a clickable phishing link signed by the Mirvo domain.
+//
+// If a future revision needs attendee_name, sanitize before it reaches
+// this function : strip `[ ] ( ) *` and control characters, then pass a
+// plain-text-only placeholder to the template.
+//
+// Return shape mirrors the other senders : { ok, messageId?, error? }.
+const BOOKING_FROM_ADDRESS = process.env.BOOKING_FROM_ADDRESS
+  ?? 'Mirvo Meetings <meetings@mirvo.ai>';
+
+export async function sendBookingConfirmationEmail(params: {
+  to:             string;
+  locale:         EmailTemplateLocale;
+  hostName:       string;
+  dateStr:        string;
+  timeStr:        string;
+  durationMin:    number;
+  tzLabel:        string;
+  confirmUrl:     string;
+  expiresInHours: number;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const { to, locale, hostName, dateStr, timeStr, durationMin, tzLabel,
+          confirmUrl, expiresInHours } = params;
+  try {
+    const fields = await getEmailTemplate('booking_confirmation', locale);
+    const { subject, html, text } = renderTemplate(fields, {
+      hostName,
+      dateStr,
+      timeStr,
+      durationMin:    String(durationMin),
+      tzLabel,
+      confirmUrl,
+      expiresInHours: String(expiresInHours),
+    }, locale);
+    const resend = getResendClient();
+    const result = await resend.emails.send({
+      from: BOOKING_FROM_ADDRESS,
+      to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, messageId: result.data?.id };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    console.error('[email] sendBookingConfirmationEmail failed:', msg);
+    return { ok: false, error: msg };
+  }
+}
+
 export async function sendAdminAlertEmail(params: {
   subject:     string
   bodyText:    string | null

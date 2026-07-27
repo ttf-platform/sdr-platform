@@ -12,6 +12,13 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     .from('meetings').select('*').eq('id', params.id).single()
   if (error || !meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // Never emit an ICS for an unconfirmed public booking : the slot isn't
+  // reserved and the attendee would be tricked into adding a meeting the
+  // host doesn't have on their calendar. Same for 'expired'.
+  if (meeting.status === 'pending' || meeting.status === 'expired') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const ics = generateICS({
     ...meeting,
     organizer_email: user.email                    ?? '',

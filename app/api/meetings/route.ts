@@ -17,10 +17,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const statusFilter = searchParams.get('status') ?? 'all'
 
+  // Public bookings sit as 'pending' until the attendee confirms via email,
+  // and pending rows that expire without confirmation flip to 'expired' via
+  // the cron. Neither should surface in the owner's calendar / list — a
+  // pending booking has NOT reserved the slot and MUST NOT look confirmed.
+  // Conservative choice : hide both entirely. Reversible later (add a
+  // badge, filter tab, etc.) — see 086 PR2 notes.
   let query = supabase
     .from('meetings')
     .select('*')
     .eq('workspace_id', member.workspace_id)
+    .not('status', 'in', '("pending","expired")')
     .order('meeting_at', { ascending: true })
 
   if (statusFilter === 'upcoming') {

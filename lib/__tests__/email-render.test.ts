@@ -85,6 +85,15 @@ describe('renderTemplate — every registry key × 2 locales', () => {
     signal_digest: { greeting: 'Hi Alex,',    matchCount: '3',
                      matchList: '- Acme Co (hiring SDRs)\n- Beta Inc (raised Series A)\n- Gamma Ltd (new tool stack)',
                      baseUrl: 'https://app.mirvo.ai' },
+    booking_confirmation: {
+      hostName:       'Alex Founder',
+      dateStr:        'Wednesday, June 4, 2026',
+      timeStr:        '2:30 PM',
+      durationMin:    '30',
+      tzLabel:        'America/New_York',
+      confirmUrl:     'https://app.mirvo.ai/book/confirm/abc123XYZ_test-token',
+      expiresInHours: '24',
+    },
   }
 
   for (const meta of EMAIL_TEMPLATE_META) {

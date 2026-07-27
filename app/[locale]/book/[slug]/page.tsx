@@ -92,19 +92,6 @@ function fmtSlot(utcIso: string, tz: string): string {
   }).format(new Date(utcIso))
 }
 
-// Format confirmation date + time in a given TZ
-function fmtConfirm(utcIso: string, tz: string, locale: string): { date: string; time: string } {
-  const d = new Date(utcIso)
-  return {
-    date: new Intl.DateTimeFormat(locale, {
-      timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    }).format(d),
-    time: new Intl.DateTimeFormat(locale, {
-      timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true,
-    }).format(d),
-  }
-}
-
 export default function BookPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const t = useTranslations('book')
@@ -129,10 +116,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [busyRanges, setBusyRanges] = useState<BusyRange[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr]   = useState('')
-  const [confirmed, setConfirmed]   = useState<{
-    meeting: any; ics: string
-    calendar_links: { google: string; outlook365: string; outlookLive: string; yahoo: string }
-  } | null>(null)
+  const [pendingInfo, setPendingInfo] = useState<{ email: string; expiresInHours: number } | null>(null)
 
   // Prospect timezone: auto-detected, overrideable
   const [detectedTz] = useState<string>(() =>
@@ -234,19 +218,20 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       // Server returns error codes for the flows we localise here ; other
       // errors keep the pre-existing behaviour of displaying res.error
       // verbatim.
-      const localised = res.error === 'slot_in_past' ? t('errorSlotInPast') : res.error
+      const localised =
+          res.error === 'slot_in_past'            ? t('errorSlotInPast')
+        : res.error === 'recipient_limit_reached' ? t('errorRecipientLimit')
+        : res.error === 'slug_limit_reached'      ? t('errorSlugLimit')
+        : res.error === 'platform_limit_reached'  ? t('errorPlatformLimit')
+        : res.error === 'email_send_failed'       ? t('errorEmailSendFailed')
+        : res.error
       setSubmitErr(localised); setSubmitting(false); return
     }
-    setConfirmed(res); setStep('done'); setSubmitting(false)
-  }
-
-  function downloadICS() {
-    if (!confirmed?.ics) return
-    const blob = new Blob([confirmed.ics], { type: 'text/calendar' })
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob), download: 'meeting.ics',
-    })
-    a.click(); URL.revokeObjectURL(a.href)
+    // 202 pending — a confirmation email is on its way to the attendee.
+    // Nothing is booked until they click. The confirmed screen (ICS,
+    // calendar links, side-effects) lives at /book/confirm/[token].
+    setPendingInfo({ email: res.email ?? form.email, expiresInHours: res.expires_in_hours ?? 24 })
+    setStep('done'); setSubmitting(false)
   }
 
   const initials    = data?.owner_name?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || '?'
@@ -436,63 +421,25 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             </form>
           )}
 
-          {/* ── Step 4: Confirmed ── */}
-          {step === 'done' && confirmed && (() => {
-            const { date: confDate, time: confTime } = fmtConfirm(confirmed.meeting.meeting_at, prospectTz, locale)
-            return (
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-[#1a1a2e] mb-1">{t('confirmedTitle')}</h2>
-                <p className="text-sm text-[#8a7e6e] mb-5">{t('confirmedWith', { name: firstName || 'your host' })}</p>
-
-                <div className="bg-[#f5f2ee] rounded-lg p-4 text-left mb-6 text-sm">
-                  <p className="font-semibold text-[#1a1a2e]">{confDate}</p>
-                  <p className="text-[#8a7e6e] mt-0.5">
-                    {confTime} · {confirmed.meeting.duration_min} min
-                    <span className="text-xs ml-1">({prospectTz})</span>
-                  </p>
-                  {data.video_meeting_url && (() => {
-                    const safe = safeExternalHref(data.video_meeting_url);
-                    return safe
-                      ? <a href={safe} target="_blank" rel="noopener noreferrer"
-                          className="text-[#3b6bef] mt-2 block truncate text-xs">{data.video_meeting_url}</a>
-                      : <span className="text-[#8a7e6e] mt-2 block truncate text-xs" title={data.video_meeting_url}>{data.video_meeting_url} (invalid)</span>;
-                  })()}
-                </div>
-
-                <p className="text-xs font-semibold text-[#8a7e6e] uppercase tracking-wide mb-1">{t('addToCalendar')}</p>
-                <p className="text-xs text-[#8a7e6e] mb-3">{t('icsNote')}</p>
-                <div className="flex flex-col gap-2">
-                  <a href={confirmed.calendar_links.google} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> {t('googleCalendar')}
-                  </a>
-                  <a href={confirmed.calendar_links.outlook365} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> {t('outlookO365')}
-                  </a>
-                  <a href={confirmed.calendar_links.outlookLive} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> {t('outlookCom')}
-                  </a>
-                  <a href={confirmed.calendar_links.yahoo} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📅</span> {t('yahooCalendar')}
-                  </a>
-                  <button onClick={downloadICS}
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-[#e8e3dc] text-sm font-medium text-[#1a1a2e] hover:border-[#3b6bef] hover:bg-[#3b6bef]/5 transition-colors">
-                    <span className="text-base">📥</span> {t('downloadICS')}
-                  </button>
-                </div>
-
-                <p className="text-sm text-[#8a7e6e] mt-5">{t('allSet')}</p>
+          {/* ── Step 4: Pending — check inbox ── */}
+          {/* The double-opt-in flow lands here after POST returns 202. The
+              full "confirmed" screen (ICS + calendar links) now lives on
+              /book/confirm/[token] and only renders after the attendee
+              clicks the email link. */}
+          {step === 'done' && pendingInfo && (
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-[#eef1fd] flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-[#3b6bef]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
               </div>
-            )
-          })()}
+              <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('pendingTitle')}</h2>
+              <p className="text-sm text-[#4a3f32] mb-3 leading-relaxed">
+                {t('pendingBody', { email: pendingInfo.email, hours: pendingInfo.expiresInHours })}
+              </p>
+              <p className="text-xs text-[#8a7e6e]">{t('pendingNote')}</p>
+            </div>
+          )}
         </div>
 
         <p className="text-center mt-6 text-xs text-[#8a7e6e]">{t('poweredBy')} <span className="font-semibold">Mirvo</span></p>
