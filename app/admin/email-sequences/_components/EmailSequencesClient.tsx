@@ -62,9 +62,10 @@ type ServerEntry = {
 type MetaEntry = typeof EMAIL_TEMPLATE_META[number]
 
 const CATEGORY_LABEL: Record<EmailTemplateCategory, string> = {
-  onboarding: 'Onboarding',
-  billing:    'Facturation',
-  product:    'Produit',
+  onboarding:    'Onboarding',
+  billing:       'Facturation',
+  product:       'Produit',
+  transactional: 'Transactionnel',
 }
 
 const KEY_LABEL: Record<EmailTemplateKey, string> = {
@@ -79,6 +80,7 @@ const KEY_LABEL: Record<EmailTemplateKey, string> = {
   cancellation:           'Résiliation confirmée',
   winback:                'Win-back (relance résiliation)',
   signal_digest:          'Digest quotidien de signaux',
+  booking_confirmation:   'Confirmation de rendez-vous (public)',
 }
 
 function entryKey(k: EmailTemplateKey, l: EmailTemplateLocale): string {
