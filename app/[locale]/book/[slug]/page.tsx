@@ -163,7 +163,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       .catch(() => setNotFound(true))
   }, [slug])
 
-  // Prefill form from ?prospect=uuid
+  // Prefill form from ?prospect=uuid — name + company only. Email is not
+  // returned by the API (public endpoint, PII protection) so the attendee
+  // must type it themselves in the form below.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const prospectId = new URLSearchParams(window.location.search).get('prospect')
@@ -172,7 +174,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       .then(r => r.json())
       .then(d => {
         if (d.error) return
-        setForm(f => ({ ...f, name: d.name || f.name, email: d.email || f.email, company: d.company || f.company }))
+        setForm(f => ({ ...f, name: d.name || f.name, company: d.company || f.company }))
       })
       .catch(() => {/* silently ignore */})
   }, [slug])
@@ -228,7 +230,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       }),
     }).then(r => r.json())
 
-    if (res.error) { setSubmitErr(res.error); setSubmitting(false); return }
+    if (res.error) {
+      // Server returns error codes for the flows we localise here ; other
+      // errors keep the pre-existing behaviour of displaying res.error
+      // verbatim.
+      const localised = res.error === 'slot_in_past' ? t('errorSlotInPast') : res.error
+      setSubmitErr(localised); setSubmitting(false); return
+    }
     setConfirmed(res); setStep('done'); setSubmitting(false)
   }
 

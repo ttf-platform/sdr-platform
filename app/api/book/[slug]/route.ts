@@ -5,7 +5,7 @@ import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { generateICS } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
 import { bookingCreateSchema, badRequest } from '@/lib/schemas'
-import { rateLimitByIp } from '@/lib/rate-limit'
+import { rateLimitByIp, rateLimitBySlug } from '@/lib/rate-limit'
 
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
 
@@ -32,10 +32,14 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
   const params = await context.params
   const admin = createAdminClient()
   const { data: profile, error } = await getProfile(params.slug)
-  if (error || !profile) return NextResponse.json({ error: 'Booking page not found' }, { status: 404 })
+  // Unified 404 — same body for "no such slug" and "slug exists but disabled".
+  // Distinguishable messages would give a public enumeration oracle : slugs
+  // are short (owner-picked) and probing whether a name maps to an existing
+  // workspace is a step in a targeting attack. Same message on both branches.
+  if (error || !profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const cfg = profile.booking_config ?? {}
-  if (cfg.enabled === false) return NextResponse.json({ error: 'Booking page is disabled' }, { status: 404 })
+  if (cfg.enabled === false) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const { data: ownerMember } = await admin
     .from('workspace_members').select('user_id')
@@ -44,7 +48,10 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
   let ownerName = ''
   if (ownerMember) {
     const { data } = await admin.auth.admin.getUserById(ownerMember.user_id)
-    ownerName = data?.user?.user_metadata?.full_name ?? data?.user?.email ?? ''
+    // Never fall back to the owner's login email — this response is public.
+    // Empty string is fine ; the page handles a missing owner_name with
+    // `?` initials and 'me'/'your host' string fallbacks.
+    ownerName = data?.user?.user_metadata?.full_name ?? ''
   }
 
   return NextResponse.json({
@@ -63,8 +70,20 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   const params = await context.params
+
+  // Two independent limits :
+  //   1. Per-IP 10 / 10 min — the primary gate against a single-source flood.
+  //   2. Per-slug 60 / hour — bounds the DAMAGE an attacker with rotating
+  //      IPs can inflict on ONE booking page. This is not a protection
+  //      against distributed abuse (rotating IPs pass the per-IP limit),
+  //      it is a ceiling ; it also punishes the legitimate owner by
+  //      capping their real bookings when the page is under attack, which
+  //      is an accepted trade-off vs unbounded meeting-table pollution.
   const rl = await rateLimitByIp(request, { limit: 10, window: '10 m', prefix: 'booking-create' })
   if (!rl.allowed) return rl.response
+  const rlSlug = await rateLimitBySlug(params.slug, { limit: 60, window: '1 h', prefix: 'booking-create-slug' })
+  if (!rlSlug.allowed) return rlSlug.response
+
   const admin = createAdminClient()
 
   let rawBody: unknown
@@ -74,10 +93,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = parsed.data
 
   const { data: profile, error: pErr } = await getProfile(params.slug)
-  if (pErr || !profile) return NextResponse.json({ error: 'Booking page not found' }, { status: 404 })
+  if (pErr || !profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const cfg = profile.booking_config ?? {}
-  if (cfg.enabled === false) return NextResponse.json({ error: 'Booking page is disabled' }, { status: 404 })
+  if (cfg.enabled === false) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   if (!(cfg.meeting_durations ?? [30]).includes(duration_min)) {
     return NextResponse.json({ error: 'Invalid meeting duration' }, { status: 400 })
@@ -90,6 +109,17 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
   if (isNaN(slotStartUTC.getTime())) {
     return NextResponse.json({ error: 'Invalid date or time' }, { status: 400 })
+  }
+
+  // Reject slots in the past. The client already filters past slots out of
+  // the UI (page.tsx l.196), but a direct API call would still land — a
+  // booking in the past could bypass the owner's future-only calendar and
+  // pollute their history. Compare in UTC after conversion above. Error
+  // code + EN/FR i18n : the client maps 'slot_in_past' to a localised
+  // message ; other flows keep displaying res.error verbatim (pre-existing
+  // behavior).
+  if (slotStartUTC.getTime() <= Date.now()) {
+    return NextResponse.json({ error: 'slot_in_past' }, { status: 400 })
   }
 
   // ── Find owner's calendar date for this UTC slot ──────────────────────────

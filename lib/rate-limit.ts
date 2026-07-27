@@ -62,6 +62,23 @@ export async function rateLimitByWorkspace(
 }
 
 /**
+ * Rate limit keyed by a public slug (booking page, and future public
+ * resources of the same shape). Same sliding-window backing store as
+ * rateLimitByWorkspace / rateLimitByUser — only the key differs. Used
+ * to CAP THE DAMAGE an attacker with rotating IPs can inflict on a
+ * single public page, alongside a per-IP limit that catches the
+ * common case.
+ */
+export async function rateLimitBySlug(
+  slug: string,
+  config: RateLimitConfig,
+): Promise<RateLimitResult> {
+  const { success, reset } = await getLimiter(config).limit(slug)
+  if (success) return { allowed: true }
+  return { allowed: false, response: buildLimitedResponse(reset) }
+}
+
+/**
  * Rate limit keyed by user id. Used for per-user protections where the
  * cost is billed to Anthropic on a per-message basis regardless of the
  * workspace (bot conversations). Same sliding-window backing store as

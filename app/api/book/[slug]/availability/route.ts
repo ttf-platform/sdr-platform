@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { bookingAvailabilitySchema, badRequest } from '@/lib/schemas'
+import { rateLimitByIp } from '@/lib/rate-limit'
 
 function getTzOffset(tz: string, dateStr: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -15,6 +16,17 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
+  // Public, unauthenticated endpoint. Legitimate usage : a prospect browses
+  // a few dates, changes timezone once or twice → up to ~20 requests per
+  // real session. Scraping vector : enumerate (slug, date) pairs to
+  // fingerprint an owner's busy pattern from their booked meetings. 30/min
+  // per IP keeps the legit user comfortable (any session fits), narrows
+  // scraping to ~43k dates/day per IP, and stays TIGHTER than the
+  // middleware's 60/min global (which counts across every route, not just
+  // this one).
+  const rl = await rateLimitByIp(request, { limit: 30, window: '1 m', prefix: 'booking-availability' })
+  if (!rl.allowed) return rl.response
+
   const params = await context.params
   const { searchParams } = new URL(request.url)
   const qp = Object.fromEntries(searchParams)

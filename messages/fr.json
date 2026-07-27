@@ -565,6 +565,7 @@
     "confirmBooking": "Confirmer la réservation",
     "confirmedTitle": "Réunion confirmée !",
     "confirmedWith": "avec {name}",
+    "errorSlotInPast": "L'horaire choisi est déjà passé. Choisissez un créneau à venir.",
     "addToCalendar": "Ajouter à votre calendrier",
     "icsNote": "Utilisateurs d'Apple Calendar : téléchargez le fichier .ics et double-cliquez pour l'ajouter.",
     "googleCalendar": "Google Agenda",
