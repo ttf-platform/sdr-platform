@@ -268,40 +268,30 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   // dropping every "success" row. The deliverability rate is now sourced
   // exclusively from the webhook: SENT → 'sent', BOUNCED → 'failed',
   // markFailed() (below) → 'failed' on enqueue failure. No 'queued' state.
+  //
+  // Mock-send finalisation folded into the SAME statement. Real prod
+  // (isMock=false) never adds these fields. In staging with
+  // ALLOW_MOCK_SEND, the webhook /instantly SENT → prospect_emails.
+  // status='sent' path (webhooks/instantly/route.ts:556 — the ONLY writer
+  // of status='sent' on this table) never fires, so without this the row
+  // would stay 'sending' forever and the approval queue would look stuck.
+  // Merging into ONE update means the returned `email` row (fed to the
+  // client via .select().single()) already carries status='sent' — no UI
+  // stale-state after approval. The sending → sent transition is
+  // explicitly allowed by migration 085 rule 1 (verified in the migration
+  // file : "From 'sending' : NEW must be in ('sent','failed','bounced','replied')").
+  const mockFinalise = diag.isMock && diag.mockSendAllowed
   const { data: email } = await admin
     .from('prospect_emails')
     .update({
       provider:            providerName,
       provider_message_id: providerLeadId,
       send_error:          null,
+      ...(mockFinalise ? { status: 'sent', sent_at: new Date().toISOString() } : {}),
     })
     .eq('id', pe.id)
     .select(CLIENT_COLUMNS)
     .single()
-
-  // Mock-send finalisation. Only fires in staging when the operator
-  // explicitly opted into ALLOW_MOCK_SEND — real prod (isMock=false) never
-  // reaches this branch. The webhook /instantly SENT → prospect_emails.
-  // status='sent' path (webhooks/instantly/route.ts:556 — the ONLY writer
-  // of status='sent' on this table) never fires in mock, so without this
-  // fallback the row would stay 'sending' forever, the approval queue
-  // would look stuck, and reconciliation would be impossible. The
-  // sending → sent transition is explicitly allowed by migration 085
-  // rule 1 (verified in supabase/migrations/085_..._backward_status.sql:
-  // "From 'sending' : NEW must be in ('sent','failed','bounced','replied')").
-  if (diag.isMock && diag.mockSendAllowed) {
-    const nowIso = new Date().toISOString()
-    const { error: markSentErr } = await admin
-      .from('prospect_emails')
-      .update({ status: 'sent', sent_at: nowIso })
-      .eq('id', pe.id)
-    if (markSentErr) {
-      console.error('[approve] mock finalisation to sent failed (non-blocking)', {
-        workspace_id: guard.workspaceId,
-        error:        markSentErr.message,
-      })
-    }
-  }
 
   // Meter the send against the monthly emails cap. Best-effort at the call
   // site : the lead is already queued at the provider, so a tracking
