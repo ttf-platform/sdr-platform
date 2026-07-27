@@ -99,6 +99,17 @@ function checkResend(): CheckResult {
 function checkInstantlyProvider(): CheckResult {
   const d = getEmailProviderDiagnostic()
   if (d.isMock) {
+    // Stay 'degraded' either way — a mock provider is never a healthy
+    // production state. Passing 'down' would flip /api/health to 503 on
+    // every request in staging, which is not the goal of ALLOW_MOCK_SEND.
+    // Note : lib/health-alert already alerts on 'degraded', so the daily
+    // alert fires regardless of this branch — see health-alert/route.ts:60.
+    if (d.mockSendAllowed) {
+      return {
+        status: 'degraded',
+        error:  'email provider is in MOCK mode with ALLOW_MOCK_SEND=true — sends are simulated, nothing goes out',
+      }
+    }
     return { status: 'degraded', error: `email provider is in MOCK mode: ${d.reason}` }
   }
   return { status: 'ok' }

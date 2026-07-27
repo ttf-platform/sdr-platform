@@ -18,7 +18,7 @@ import { z } from 'zod'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
-import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
+import { getEmailProviderDiagnostic, isMockSendBlocked } from '@/lib/email-provider-health'
 import { rateLimitByWorkspace } from '@/lib/rate-limit'
 import { badRequest } from '@/lib/schemas'
 
@@ -107,10 +107,17 @@ export async function POST(
 
   // Gate 7 — reject if the app fell back to MockEmailProvider. Sending
   // through mock would return 200 client-side but nothing goes out.
+  // Staging escape hatch : ALLOW_MOCK_SEND=true + MOCK_EMAIL_PROVIDER=true
+  // lets the mock simulate. isMockSendBlocked requires BOTH flags, so an
+  // accidental factory fallback (missing INSTANTLY_API_KEY in prod) still
+  // fails closed here.
   const diag = getEmailProviderDiagnostic()
-  if (diag.isMock) {
+  if (isMockSendBlocked(diag)) {
     console.error('[inbox/reply] refused: provider is mock', { reason: diag.reason })
     return NextResponse.json({ error: 'provider_mock_mode' }, { status: 422 })
+  }
+  if (diag.isMock && diag.mockSendAllowed) {
+    console.error('[inbox/reply] MOCK SEND ALLOWED — nothing actually goes out', { workspace_id: guard.workspaceId })
   }
 
   // Gate 8 — rate limit per workspace. 20/min is generous vs a human
@@ -161,7 +168,11 @@ export async function POST(
       generated_at:        now,
       sent_at:             now,
       thread_id:           parent.thread_id,
-      provider:            'instantly',
+      // Use the REAL provider name from the factory diagnostic. In staging
+      // with ALLOW_MOCK_SEND this is 'mock' — labelling the row 'instantly'
+      // (as the previous hardcode did) would attribute a simulated send to
+      // a provider that never touched it, muddying provenance analytics.
+      provider:            diag.provider,
       provider_message_id: providerResult.providerMessageId,
     })
 

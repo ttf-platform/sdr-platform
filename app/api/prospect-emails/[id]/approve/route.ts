@@ -26,7 +26,7 @@ import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmailProvider } from '@/lib/email-provider-adapter'
-import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
+import { getEmailProviderDiagnostic, isMockSendBlocked } from '@/lib/email-provider-health'
 import { enforceEmptyBody } from '@/lib/schemas'
 import { campaignScheduleFromPrefs } from '@/lib/sending-schedule'
 import type { SendingPrefs } from '@/lib/types/sending-prefs'
@@ -119,12 +119,20 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   // Gate C — provider_mock_mode. If the app fell back to the mock provider
   // (MOCK_EMAIL_PROVIDER=true OR INSTANTLY_API_KEY missing), the three
   // campaign-based calls below all succeed silently and prospect_emails
-  // flips to 'sending' but nothing goes out. Refuse loudly. Same gate as
-  // /api/inbox/messages/[id]/reply (A2 lot 2).
+  // flips to 'sending' but nothing goes out. Refuse loudly by default.
+  //
+  // Escape hatch : an operator can set ALLOW_MOCK_SEND=true (STAGING only,
+  // see .env.example) to let the mock simulate the send. isMockSendBlocked
+  // requires MOCK_EMAIL_PROVIDER=true as WELL, so an accidental factory
+  // fallback (missing INSTANTLY_API_KEY in prod) still fails closed here.
+  // Same gate shape in /api/inbox/messages/[id]/reply.
   const diag = getEmailProviderDiagnostic()
-  if (diag.isMock) {
+  if (isMockSendBlocked(diag)) {
     console.error('[approve] blocked: provider in mock mode', { workspace_id: guard.workspaceId })
     return NextResponse.json({ error: 'provider_mock_mode' }, { status: 422 })
+  }
+  if (diag.isMock && diag.mockSendAllowed) {
+    console.error('[approve] MOCK SEND ALLOWED — nothing actually goes out', { workspace_id: guard.workspaceId })
   }
 
   // 3. Reserve the row — compare-and-set on status. The earlier read at
@@ -270,6 +278,30 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .eq('id', pe.id)
     .select(CLIENT_COLUMNS)
     .single()
+
+  // Mock-send finalisation. Only fires in staging when the operator
+  // explicitly opted into ALLOW_MOCK_SEND — real prod (isMock=false) never
+  // reaches this branch. The webhook /instantly SENT → prospect_emails.
+  // status='sent' path (webhooks/instantly/route.ts:556 — the ONLY writer
+  // of status='sent' on this table) never fires in mock, so without this
+  // fallback the row would stay 'sending' forever, the approval queue
+  // would look stuck, and reconciliation would be impossible. The
+  // sending → sent transition is explicitly allowed by migration 085
+  // rule 1 (verified in supabase/migrations/085_..._backward_status.sql:
+  // "From 'sending' : NEW must be in ('sent','failed','bounced','replied')").
+  if (diag.isMock && diag.mockSendAllowed) {
+    const nowIso = new Date().toISOString()
+    const { error: markSentErr } = await admin
+      .from('prospect_emails')
+      .update({ status: 'sent', sent_at: nowIso })
+      .eq('id', pe.id)
+    if (markSentErr) {
+      console.error('[approve] mock finalisation to sent failed (non-blocking)', {
+        workspace_id: guard.workspaceId,
+        error:        markSentErr.message,
+      })
+    }
+  }
 
   // Meter the send against the monthly emails cap. Best-effort at the call
   // site : the lead is already queued at the provider, so a tracking
