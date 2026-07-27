@@ -565,6 +565,7 @@
     "confirmBooking": "Confirm booking",
     "confirmedTitle": "Meeting confirmed!",
     "confirmedWith": "with {name}",
+    "errorSlotInPast": "The chosen time is in the past. Please pick a future slot.",
     "addToCalendar": "Add to your calendar",
     "icsNote": "Apple Calendar users: download the .ics and double-click to add.",
     "googleCalendar": "Google Calendar",
