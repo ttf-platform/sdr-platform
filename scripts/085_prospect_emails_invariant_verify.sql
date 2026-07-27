@@ -3,85 +3,123 @@
 -- =============================================================================
 --
 -- NOT INTENDED FOR AUTOMATIC APPLICATION.
--- Lives OUTSIDE supabase/migrations/ on purpose : the previous filename
--- (085_VERIFY.sql) sorted alphabetically BEFORE the actual migration
--- (085_prospect_emails_no_backward_status.sql — uppercase V < lowercase p),
--- so a `supabase db push` would have run the fixture INSERTs + deliberate
--- failures BEFORE the trigger existed, in production.
+-- Lives OUTSIDE supabase/migrations/ on purpose : any filename that sorts
+-- before the actual migration ('085_prospect_emails_no_backward_status.sql')
+-- would be run by `supabase db push` and would either fail on missing
+-- triggers or run its deliberate failures in production.
 --
 -- Run this by hand in the Supabase SQL Editor AFTER migration 085 has been
--- applied and BEFORE the code merge is promoted to production.
+-- applied. Copy the whole file, run it, read the last query's result grid.
 --
--- Every case runs inside its own DO $$ … $$ block :
---   * Raises "OK <case n>: <expected outcome>" via RAISE NOTICE on success.
---   * Raises "FAIL <case n>: <what actually happened>" via RAISE WARNING on
---     any deviation (unexpected error class, unexpected SQLSTATE, unexpected
---     success where a block was expected).
+-- WHY A RESULT TABLE (not RAISE NOTICE) :
+--   The Supabase SQL Editor DOES NOT surface RAISE NOTICE or RAISE WARNING
+--   output. The previous revision of this file used RAISE NOTICE to report
+--   OK / FAIL per case, and every EXCEPTION handler caught the deliberate
+--   failures, so the whole script always ended on "Success. No rows returned"
+--   with zero visibility into whether any assertion had actually passed.
 --
--- Blocks are independent : a per-case sub-transaction is opened with
--- BEGIN … EXCEPTION so a failure in one case cannot poison the following
--- ones or the cleanup. Watch the Notices/Warnings pane in the SQL editor
--- to read the per-case OK / FAIL line.
+--   This revision inserts one row per case into a TEMP TABLE
+--   `_mrv085_results`, cleans up its fixtures, then ends with a single
+--   SELECT on that table. The SQL Editor shows the result grid of the LAST
+--   statement, which is that SELECT. A `TOTAL` synthesis row with
+--   case_no = 999 sums up OK / FAIL counts so a quick glance is enough.
 --
--- Fixtures are scoped to a throwaway workspace pinned at
--- '00000000-0000-0000-0000-000000000085' (85 = migration number) and
--- torn down at the end. The cleanup itself works despite the DELETE
--- trigger : it flips every fixture row to is_sample=true first, then
--- deletes via the trigger's is_sample exception. The workspace DELETE
--- cascades to prospects / contacts / campaigns / campaign_steps.
+-- CLEANUP STRATEGY UNDER THE LIVE DELETE TRIGGER :
+--   Migration 085's trigger blocks DIRECT DELETE of committed prospect_emails
+--   (SQLSTATE MR002), but explicitly allows CASCADE DELETEs via the
+--   `WHEN (pg_trigger_depth() = 0)` clause : when a parent row is deleted
+--   and Postgres's RI cascade fires the child DELETE on prospect_emails,
+--   pg_trigger_depth() is >= 1 inside the RI trigger frame, so the WHEN
+--   clause evaluates false and the trigger short-circuits.
 --
--- All fixtures explicitly set every NOT NULL column verified in
--- supabase/migrations/000_baseline.sql :
---   workspaces        : id, name, slug
---   contacts          : id, workspace_id, email
---   campaigns         : id, name (workspace_id nullable but populated)
---   campaign_steps    : id, body (campaign_id nullable but populated)
---   prospects         : id, email, contact_id (workspace_id/campaign_id nullable but populated)
---   prospect_emails   : id, workspace_id, prospect_id, campaign_step_id,
---                       subject, body, mode ('fast'|'smart'), status
+--   Consequence : the ONLY safe way to remove fixture rows in committed
+--   states is to delete the parent WORKSPACE and let the cascade wipe
+--   everything. This script therefore :
+--     1. At the start, `DELETE FROM workspaces WHERE id = '<pinned>'` — this
+--        wipes any leftovers from a prior run via cascade. If the workspace
+--        does not exist, no-op.
+--     2. At the end, before the final SELECT, does the same DELETE to clear
+--        the fixtures created by this run.
+--     3. `_mrv085_results` is a TEMP TABLE, not touched by either cleanup.
 --
+--   No is_sample flip trick, no per-row DELETE. One workspace DELETE is the
+--   universal broom.
+--
+-- FIXTURES :
+--   Pinned to workspace id '00000000-0000-0000-0000-000000000085'
+--   (85 = migration number). Every NOT NULL column verified in
+--   000_baseline.sql is set explicitly :
+--     workspaces        : id, name, slug
+--     contacts          : id, workspace_id, email
+--     campaigns         : id, name (workspace_id nullable but populated)
+--     campaign_steps    : id, body (campaign_id nullable but populated)
+--     prospects         : id, email, contact_id (workspace_id/campaign_id populated)
+--     prospect_emails   : id, workspace_id, prospect_id, campaign_step_id,
+--                         subject, body, mode ('fast'|'smart'), status
+--
+-- ASSERTION DISCIPLINE :
+--   Every "BLOCK" case asserts the SPECIFIC SQLSTATE it expects (MR001 or
+--   MR002). Any other exception class — NOT NULL violation, FK violation,
+--   unique violation, anything at all — is recorded as FAIL with the actual
+--   SQLSTATE surfaced in the `actual` column. This means : if the trigger
+--   were removed today and the UPDATE just went through, or if the fixture
+--   INSERT hit a NOT NULL because the schema drifted, the case would show
+--   FAIL, not a false OK.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- Setup — scaffolding
+-- 0. Idempotent teardown of any prior run — cascade via workspace DELETE.
+--    pg_trigger_depth() > 0 during the cascade, so the DELETE trigger's
+--    WHEN clause skips and committed children are wiped.
 -- -----------------------------------------------------------------------------
 
-DO $$
-BEGIN
-  RAISE NOTICE '=== 085_VERIFY : setup start ===';
-END $$;
+DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000085';
+DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000086'; -- case 18 sandbox
 
-BEGIN;
+-- -----------------------------------------------------------------------------
+-- 1. Results table (TEMP — session-scoped, dropped when the session ends).
+--    Kept minimal : one row per case + one summary row (case_no = 999).
+-- -----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS _mrv085_results;
+
+CREATE TEMP TABLE _mrv085_results (
+  case_no     int  PRIMARY KEY,
+  description text NOT NULL,
+  expected    text NOT NULL,
+  actual      text NOT NULL,
+  verdict     text NOT NULL CHECK (verdict IN ('OK', 'FAIL'))
+);
+
+-- -----------------------------------------------------------------------------
+-- 2. Fixtures (scaffolding shared across cases). Each case owns a distinct
+--    campaign_step so the UNIQUE(prospect_id, campaign_step_id) constraint
+--    on prospect_emails is not tripped when several cases run in sequence.
+-- -----------------------------------------------------------------------------
 
 INSERT INTO workspaces (id, name, slug)
 VALUES ('00000000-0000-0000-0000-000000000085',
         'MIGRATION_085_VERIFY_TMP',
-        'migration-085-verify-tmp-' || substr(md5(random()::text), 1, 8))
-ON CONFLICT (id) DO NOTHING;
+        'migration-085-verify-tmp-' || substr(md5(random()::text), 1, 8));
 
 INSERT INTO contacts (id, workspace_id, email)
 VALUES ('00000000-0000-0000-0000-000000000485',
         '00000000-0000-0000-0000-000000000085',
-        'contact-085@example.test')
-ON CONFLICT (id) DO NOTHING;
+        'contact-085@example.test');
 
 INSERT INTO campaigns (id, workspace_id, name, status)
 VALUES ('00000000-0000-0000-0000-000000000185',
         '00000000-0000-0000-0000-000000000085',
-        'MIGRATION_085_VERIFY_TMP', 'draft')
-ON CONFLICT (id) DO NOTHING;
+        'MIGRATION_085_VERIFY_TMP', 'draft');
 
 INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
 VALUES ('00000000-0000-0000-0000-000000000385',
         '00000000-0000-0000-0000-000000000085',
         '00000000-0000-0000-0000-000000000185',
         'prospect-085@example.test',
-        '00000000-0000-0000-0000-000000000485')
-ON CONFLICT (id) DO NOTHING;
+        '00000000-0000-0000-0000-000000000485');
 
--- 16 campaign_steps (one per case + spare) — each case gets a distinct
--- (prospect_id, campaign_step_id) pair so the UNIQUE(prospect_id,
--- campaign_step_id) constraint on prospect_emails is not tripped.
+-- 16 campaign_steps, ids '00000000-0000-0000-0000-000000000281' .. '296'.
 DO $$
 DECLARE
   i int;
@@ -93,407 +131,544 @@ BEGIN
       '00000000-0000-0000-0000-000000000185',
       i,
       'test body ' || i::text
-    ) ON CONFLICT (id) DO NOTHING;
+    );
   END LOOP;
 END $$;
 
-COMMIT;
-
-DO $$
-BEGIN
-  RAISE NOTICE '=== 085_VERIFY : setup done, running 16 cases ===';
-END $$;
-
 -- -----------------------------------------------------------------------------
--- Helper : per-case runner returns OK / FAIL through RAISE NOTICE/WARNING.
--- Each case follows the same shape :
---    BEGIN
---      <arrange : insert a row in a specific state>
---      BEGIN
---        <act : the transition being tested>
---        <assert on outcome — was it supposed to succeed?>
---      EXCEPTION WHEN SQLSTATE 'MR001' THEN
---        <if expected → OK ; else → FAIL>
---      WHEN OTHERS THEN
---        <always → FAIL with SQLSTATE + message>
---      END;
---    END;
+-- 3. Cases. Every DO block records EXACTLY ONE row in _mrv085_results.
+--    The inner BEGIN...EXCEPTION covers fixture INSERT + ACT + any post-ACT
+--    assertion, so ANY unexpected exception (NOT NULL, FK, unique, etc.)
+--    surfaces in `actual` with the real SQLSTATE and yields FAIL.
 -- -----------------------------------------------------------------------------
 
--- Case 1 — sent → draft : EXPECTED BLOCK (SQLSTATE MR001)
+-- Case 1 — sent → draft : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000601';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000601';
   step_id uuid := '00000000-0000-0000-0000-000000000281';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'draft' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 01: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (1, 'sent -> draft', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 01: sent -> draft blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 01: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (1, 'sent -> draft', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (1, 'sent -> draft', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 2 — sent → edited : EXPECTED BLOCK (MR001)
+-- Case 2 — sent → edited : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000602';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000602';
   step_id uuid := '00000000-0000-0000-0000-000000000282';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'edited' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 02: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (2, 'sent -> edited', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 02: sent -> edited blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 02: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (2, 'sent -> edited', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (2, 'sent -> edited', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 3 — sending → approved : EXPECTED BLOCK (MR001)
+-- Case 3 — sending → approved : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000603';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000603';
   step_id uuid := '00000000-0000-0000-0000-000000000283';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sending');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sending');
     UPDATE prospect_emails SET status = 'approved' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 03: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (3, 'sending -> approved', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 03: sending -> approved blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 03: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (3, 'sending -> approved', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (3, 'sending -> approved', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 4 — sent → rejected : EXPECTED BLOCK (MR001)
+-- Case 4 — sent → rejected : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000604';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000604';
   step_id uuid := '00000000-0000-0000-0000-000000000284';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'rejected' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 04: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (4, 'sent -> rejected', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 04: sent -> rejected blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 04: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (4, 'sent -> rejected', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (4, 'sent -> rejected', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 5 — sending → failed : EXPECTED PASS (real send failure marker)
+-- Case 5 — sending → failed : PASS (real send failure marker)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000605';
-  step_id uuid := '00000000-0000-0000-0000-000000000285';
-  new_status text;
+  pe_id       uuid := '00000000-0000-0000-0000-000000000605';
+  step_id     uuid := '00000000-0000-0000-0000-000000000285';
+  final_state text;
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sending');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sending');
     UPDATE prospect_emails SET status = 'failed' WHERE id = pe_id;
-    SELECT status INTO new_status FROM prospect_emails WHERE id = pe_id;
-    IF new_status = 'failed' THEN
-      RAISE NOTICE 'OK 05: sending -> failed passes (real send failure)';
+    SELECT status INTO final_state FROM prospect_emails WHERE id = pe_id;
+    IF final_state = 'failed' THEN
+      INSERT INTO _mrv085_results VALUES
+        (5, 'sending -> failed', 'PASS (status=failed)', 'status=failed', 'OK');
     ELSE
-      RAISE WARNING 'FAIL 05: expected status=failed, got %', new_status;
+      INSERT INTO _mrv085_results VALUES
+        (5, 'sending -> failed', 'PASS (status=failed)', 'status=' || COALESCE(final_state, 'NULL'), 'FAIL');
     END IF;
   EXCEPTION
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 05: expected pass, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (5, 'sending -> failed', 'PASS (status=failed)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 6 — sent → replied : EXPECTED PASS (committed → committed via webhook)
+-- Case 6 — sent → replied : PASS (committed → committed via webhook)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000606';
-  step_id uuid := '00000000-0000-0000-0000-000000000286';
-  new_status text;
+  pe_id       uuid := '00000000-0000-0000-0000-000000000606';
+  step_id     uuid := '00000000-0000-0000-0000-000000000286';
+  final_state text;
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'replied' WHERE id = pe_id;
-    SELECT status INTO new_status FROM prospect_emails WHERE id = pe_id;
-    IF new_status = 'replied' THEN
-      RAISE NOTICE 'OK 06: sent -> replied passes (webhook)';
+    SELECT status INTO final_state FROM prospect_emails WHERE id = pe_id;
+    IF final_state = 'replied' THEN
+      INSERT INTO _mrv085_results VALUES
+        (6, 'sent -> replied', 'PASS (status=replied)', 'status=replied', 'OK');
     ELSE
-      RAISE WARNING 'FAIL 06: expected status=replied, got %', new_status;
+      INSERT INTO _mrv085_results VALUES
+        (6, 'sent -> replied', 'PASS (status=replied)', 'status=' || COALESCE(final_state, 'NULL'), 'FAIL');
     END IF;
   EXCEPTION
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 06: expected pass, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (6, 'sent -> replied', 'PASS (status=replied)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 7 — failed → draft : EXPECTED PASS (regen after real failure)
+-- Case 7 — failed → draft : PASS (regen after real failure)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000607';
-  step_id uuid := '00000000-0000-0000-0000-000000000287';
-  new_status text;
+  pe_id       uuid := '00000000-0000-0000-0000-000000000607';
+  step_id     uuid := '00000000-0000-0000-0000-000000000287';
+  final_state text;
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'failed');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'failed');
     UPDATE prospect_emails SET status = 'draft' WHERE id = pe_id;
-    SELECT status INTO new_status FROM prospect_emails WHERE id = pe_id;
-    IF new_status = 'draft' THEN
-      RAISE NOTICE 'OK 07: failed -> draft passes (legit regen)';
+    SELECT status INTO final_state FROM prospect_emails WHERE id = pe_id;
+    IF final_state = 'draft' THEN
+      INSERT INTO _mrv085_results VALUES
+        (7, 'failed -> draft', 'PASS (status=draft)', 'status=draft', 'OK');
     ELSE
-      RAISE WARNING 'FAIL 07: expected status=draft, got %', new_status;
+      INSERT INTO _mrv085_results VALUES
+        (7, 'failed -> draft', 'PASS (status=draft)', 'status=' || COALESCE(final_state, 'NULL'), 'FAIL');
     END IF;
   EXCEPTION
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 07: expected pass, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (7, 'failed -> draft', 'PASS (status=draft)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 8 — sent → failed : EXPECTED BLOCK (S1 : webhook race, MR001)
+-- Case 8 — sent → failed : BLOCK MR001 (webhook race — S1)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000608';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000608';
   step_id uuid := '00000000-0000-0000-0000-000000000288';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'failed' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 08: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (8, 'sent -> failed (S1 race)', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 08: sent -> failed blocked by MR001 (S1)';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 08: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (8, 'sent -> failed (S1 race)', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (8, 'sent -> failed (S1 race)', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 9 — bounced → failed : EXPECTED BLOCK (S1, MR001)
+-- Case 9 — bounced → failed : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000609';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000609';
   step_id uuid := '00000000-0000-0000-0000-000000000289';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'bounced');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'bounced');
     UPDATE prospect_emails SET status = 'failed' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 09: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (9, 'bounced -> failed', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 09: bounced -> failed blocked by MR001 (S1)';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 09: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (9, 'bounced -> failed', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (9, 'bounced -> failed', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 10 — DIRECT DELETE of a 'sent' row (is_sample=false) : EXPECTED BLOCK (MR002)
+-- Case 10 — DIRECT DELETE of a 'sent' row (is_sample=false) : BLOCK MR002
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000610';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000610';
   step_id uuid := '00000000-0000-0000-0000-000000000290';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status, is_sample)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent', false);
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status, is_sample)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent', false);
     DELETE FROM prospect_emails WHERE id = pe_id;
-    RAISE WARNING 'FAIL 10: DIRECT DELETE succeeded, expected MR002';
+    INSERT INTO _mrv085_results VALUES
+      (10, 'DIRECT DELETE sent (is_sample=false)', 'BLOCK MR002', 'DELETE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR002' THEN RAISE NOTICE 'OK 10: direct DELETE of sent blocked by MR002';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 10: expected MR002, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR002' THEN
+      INSERT INTO _mrv085_results VALUES
+        (10, 'DIRECT DELETE sent (is_sample=false)', 'BLOCK MR002', 'MR002 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (10, 'DIRECT DELETE sent (is_sample=false)', 'BLOCK MR002', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 11 — DIRECT DELETE of a 'sent' row with is_sample=true : EXPECTED PASS
+-- Case 11 — DIRECT DELETE of a 'sent' row with is_sample=true : PASS (defensive exception)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000611';
+  pe_id  uuid := '00000000-0000-0000-0000-000000000611';
   step_id uuid := '00000000-0000-0000-0000-000000000291';
-  still_there boolean;
+  survivor boolean;
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status, is_sample)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent', true);
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status, is_sample)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent', true);
     DELETE FROM prospect_emails WHERE id = pe_id;
-    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = pe_id) INTO still_there;
-    IF still_there THEN
-      RAISE WARNING 'FAIL 11: DELETE reported OK but row still there';
+    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = pe_id) INTO survivor;
+    IF survivor THEN
+      INSERT INTO _mrv085_results VALUES
+        (11, 'DIRECT DELETE sent (is_sample=true)', 'PASS (row removed)', 'row still present after DELETE', 'FAIL');
     ELSE
-      RAISE NOTICE 'OK 11: DELETE of sent+is_sample passes (defensive exception)';
+      INSERT INTO _mrv085_results VALUES
+        (11, 'DIRECT DELETE sent (is_sample=true)', 'PASS (row removed)', 'row removed', 'OK');
     END IF;
   EXCEPTION
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 11: expected pass, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (11, 'DIRECT DELETE sent (is_sample=true)', 'PASS (row removed)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 12 — CASCADE DELETE : delete the prospect that has a 'sent' email.
--- EXPECTED PASS at the prospect level AND the child prospect_email must be
--- gone (via FK ON DELETE CASCADE). Trigger MUST NOT fire on the cascade
--- because pg_trigger_depth()>0 during a cascade — see B1 fix.
+-- Case 12 — CASCADE via prospect DELETE. A prospect owning a 'sent' email
+-- must be deletable, and the child prospect_email must vanish through the
+-- FK cascade. If the DELETE trigger fired at depth > 0 it would raise MR002
+-- and the cascade would abort — this case is B1's proof.
 DO $$
 DECLARE
-  child_id uuid := '00000000-0000-0000-0000-000000000612';
-  child_step uuid := '00000000-0000-0000-0000-000000000292';
   cascade_prospect uuid := '00000000-0000-0000-0000-000000000712';
   cascade_contact  uuid := '00000000-0000-0000-0000-000000000812';
-  child_still_there boolean;
+  child_id         uuid := '00000000-0000-0000-0000-000000000612';
+  child_step       uuid := '00000000-0000-0000-0000-000000000292';
+  child_survivor   boolean;
 BEGIN
-  -- Give this case its own contact + prospect so we can delete the prospect
-  -- without collateral on the shared '385' prospect.
-  INSERT INTO contacts (id, workspace_id, email)
-  VALUES (cascade_contact, '00000000-0000-0000-0000-000000000085', 'cascade-085@example.test')
-  ON CONFLICT (id) DO NOTHING;
-  INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
-  VALUES (cascade_prospect, '00000000-0000-0000-0000-000000000085',
-          '00000000-0000-0000-0000-000000000185',
-          'cascade-prospect-085@example.test', cascade_contact)
-  ON CONFLICT (id) DO NOTHING;
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (child_id, '00000000-0000-0000-0000-000000000085', cascade_prospect,
-          child_step, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO contacts (id, workspace_id, email)
+    VALUES (cascade_contact, '00000000-0000-0000-0000-000000000085', 'cascade-085@example.test');
+    INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
+    VALUES (cascade_prospect, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000185',
+            'cascade-prospect-085@example.test', cascade_contact);
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (child_id, '00000000-0000-0000-0000-000000000085', cascade_prospect,
+            child_step, 's', 'b', 'fast', 'sent');
+
     DELETE FROM prospects WHERE id = cascade_prospect;
-    -- If we get here the cascade worked and the child row must be gone.
-    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = child_id) INTO child_still_there;
-    IF child_still_there THEN
-      RAISE WARNING 'FAIL 12: DELETE prospect succeeded but child prospect_email survived';
+
+    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = child_id) INTO child_survivor;
+    IF child_survivor THEN
+      INSERT INTO _mrv085_results VALUES
+        (12, 'CASCADE DELETE prospect -> child sent email', 'PASS (cascade wipes child)', 'child prospect_email survived', 'FAIL');
     ELSE
-      RAISE NOTICE 'OK 12: DELETE prospect cascades to sent prospect_email (pg_trigger_depth>0)';
+      INSERT INTO _mrv085_results VALUES
+        (12, 'CASCADE DELETE prospect -> child sent email', 'PASS (cascade wipes child)', 'child prospect_email removed', 'OK');
     END IF;
   EXCEPTION
-    WHEN SQLSTATE 'MR002' THEN RAISE WARNING 'FAIL 12: MR002 raised on cascade (B1 fix broken)';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 12: unexpected SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR002' THEN
+      INSERT INTO _mrv085_results VALUES
+        (12, 'CASCADE DELETE prospect -> child sent email', 'PASS (cascade wipes child)', 'MR002 raised on cascade — B1 fix regressed', 'FAIL');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (12, 'CASCADE DELETE prospect -> child sent email', 'PASS (cascade wipes child)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 13 — sent → sending : EXPECTED BLOCK (positive-allowlist safety net)
+-- Case 13 — sent → sending : BLOCK MR001 (positive-allowlist safety net)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000613';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000613';
   step_id uuid := '00000000-0000-0000-0000-000000000293';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'sending' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 13: UPDATE succeeded, expected MR001 (sent -> sending would re-enqueue)';
+    INSERT INTO _mrv085_results VALUES
+      (13, 'sent -> sending', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 13: sent -> sending blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 13: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (13, 'sent -> sending', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (13, 'sent -> sending', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 14 — bounced → sending : EXPECTED BLOCK (same allowlist)
+-- Case 14 — bounced → sending : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000614';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000614';
   step_id uuid := '00000000-0000-0000-0000-000000000294';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'bounced');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'bounced');
     UPDATE prospect_emails SET status = 'sending' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 14: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (14, 'bounced -> sending', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 14: bounced -> sending blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 14: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (14, 'bounced -> sending', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (14, 'bounced -> sending', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 15 — replied → sending : EXPECTED BLOCK (same allowlist)
+-- Case 15 — replied → sending : BLOCK MR001
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000615';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000615';
   step_id uuid := '00000000-0000-0000-0000-000000000295';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'replied');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'replied');
     UPDATE prospect_emails SET status = 'sending' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 15: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (15, 'replied -> sending', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 15: replied -> sending blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 15: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (15, 'replied -> sending', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (15, 'replied -> sending', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
--- Case 16 — sent → approved : re-verify positive-allowlist blocks it too
+-- Case 16 — sent → approved : BLOCK MR001 (re-verify positive allowlist)
 DO $$
 DECLARE
-  pe_id uuid := '00000000-0000-0000-0000-000000000616';
+  pe_id   uuid := '00000000-0000-0000-0000-000000000616';
   step_id uuid := '00000000-0000-0000-0000-000000000296';
 BEGIN
-  INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
-  VALUES (pe_id, '00000000-0000-0000-0000-000000000085', '00000000-0000-0000-0000-000000000385',
-          step_id, 's', 'b', 'fast', 'sent');
   BEGIN
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
     UPDATE prospect_emails SET status = 'approved' WHERE id = pe_id;
-    RAISE WARNING 'FAIL 16: UPDATE succeeded, expected MR001';
+    INSERT INTO _mrv085_results VALUES
+      (16, 'sent -> approved', 'BLOCK MR001', 'UPDATE succeeded (no exception)', 'FAIL');
   EXCEPTION
-    WHEN SQLSTATE 'MR001' THEN RAISE NOTICE 'OK 16: sent -> approved blocked by MR001';
-    WHEN OTHERS THEN RAISE WARNING 'FAIL 16: expected MR001, got SQLSTATE % : %', SQLSTATE, SQLERRM;
+    WHEN SQLSTATE 'MR001' THEN
+      INSERT INTO _mrv085_results VALUES
+        (16, 'sent -> approved', 'BLOCK MR001', 'MR001 raised: ' || SQLERRM, 'OK');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (16, 'sent -> approved', 'BLOCK MR001', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
   END;
 END $$;
 
+-- Case 17 — CASCADE via DELETE campaign_steps : a step owning a 'sent'
+-- prospect_email must be deletable at the DB level (the guard is at the
+-- app layer in api/campaigns/[id]/steps/[step_id], not in the trigger).
+-- The FK campaign_step_id ON DELETE CASCADE fires the child DELETE at
+-- pg_trigger_depth() > 0, so the DELETE trigger must skip and the child
+-- email must vanish.
 DO $$
+DECLARE
+  step_id  uuid := '00000000-0000-0000-0000-000000000297';
+  child_id uuid := '00000000-0000-0000-0000-000000000617';
+  child_survivor boolean;
 BEGIN
-  RAISE NOTICE '=== 085_VERIFY : all cases done, cleaning up ===';
+  BEGIN
+    INSERT INTO campaign_steps (id, campaign_id, step_order, body)
+    VALUES (step_id, '00000000-0000-0000-0000-000000000185', 17, 'test body 17');
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (child_id, '00000000-0000-0000-0000-000000000085',
+            '00000000-0000-0000-0000-000000000385', step_id, 's', 'b', 'fast', 'sent');
+
+    DELETE FROM campaign_steps WHERE id = step_id;
+
+    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = child_id) INTO child_survivor;
+    IF child_survivor THEN
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'child prospect_email survived', 'FAIL');
+    ELSE
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'child prospect_email removed', 'OK');
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'MR002' THEN
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'MR002 raised on cascade — B1 fix regressed', 'FAIL');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (17, 'CASCADE DELETE campaign_step -> child sent email', 'PASS (cascade wipes child)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
+  END;
+END $$;
+
+-- Case 18 — CASCADE via DELETE workspaces : a workspace owning a 'sent'
+-- prospect_email must be deletable. This is the RGPD purge path exercised
+-- by cron/purge-canceled-workspaces — if this case fails we cannot ship
+-- the trigger. Uses a SECOND workspace ('...086') pinned separately from
+-- the main script fixture ('...085') so its DELETE does not interfere
+-- with the rest of the run.
+DO $$
+DECLARE
+  ws2      uuid := '00000000-0000-0000-0000-000000000086';
+  ct2      uuid := '00000000-0000-0000-0000-000000000486';
+  cp2      uuid := '00000000-0000-0000-0000-000000000186';
+  st2      uuid := '00000000-0000-0000-0000-000000000798';
+  pr2      uuid := '00000000-0000-0000-0000-000000000386';
+  pe2      uuid := '00000000-0000-0000-0000-000000000618';
+  child_survivor boolean;
+BEGIN
+  BEGIN
+    INSERT INTO workspaces (id, name, slug)
+    VALUES (ws2, 'MIGRATION_085_VERIFY_TMP_2',
+            'migration-085-verify-tmp-2-' || substr(md5(random()::text), 1, 8));
+    INSERT INTO contacts (id, workspace_id, email)
+    VALUES (ct2, ws2, 'contact-085-ws2@example.test');
+    INSERT INTO campaigns (id, workspace_id, name, status)
+    VALUES (cp2, ws2, 'MIGRATION_085_VERIFY_TMP_2', 'draft');
+    INSERT INTO campaign_steps (id, campaign_id, step_order, body)
+    VALUES (st2, cp2, 0, 'test body ws2');
+    INSERT INTO prospects (id, workspace_id, campaign_id, email, contact_id)
+    VALUES (pr2, ws2, cp2, 'prospect-085-ws2@example.test', ct2);
+    INSERT INTO prospect_emails (id, workspace_id, prospect_id, campaign_step_id, subject, body, mode, status)
+    VALUES (pe2, ws2, pr2, st2, 's', 'b', 'fast', 'sent');
+
+    DELETE FROM workspaces WHERE id = ws2;
+
+    SELECT EXISTS(SELECT 1 FROM prospect_emails WHERE id = pe2) INTO child_survivor;
+    IF child_survivor THEN
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'child prospect_email survived', 'FAIL');
+    ELSE
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'child prospect_email removed', 'OK');
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'MR002' THEN
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'MR002 raised on cascade — B1 fix regressed', 'FAIL');
+    WHEN OTHERS THEN
+      INSERT INTO _mrv085_results VALUES
+        (18, 'CASCADE DELETE workspace -> child sent email (RGPD)', 'PASS (cascade wipes child)', 'unexpected SQLSTATE ' || SQLSTATE || ': ' || SQLERRM, 'FAIL');
+  END;
 END $$;
 
 -- -----------------------------------------------------------------------------
--- Cleanup — safe against the DELETE trigger.
---
--- Every surviving fixture row (cases 1-9 leave committed prospect_emails
--- behind because their UPDATE was blocked, plus case 10's undeleted 'sent')
--- carries a committed status. Flipping them all to is_sample=true first
--- lets the DELETE trigger's is_sample exception clear them.
--- The workspace DELETE cascades to prospects / contacts / campaigns /
--- campaign_steps (verified in case 12).
+-- 4. Cleanup fixtures via workspace DELETE (cascade wipes every child).
+--    Does NOT touch _mrv085_results (TEMP TABLE, not a workspace child).
+--    Case 18 already deletes its own workspace ('...086') as part of the
+--    test ; the second DELETE below is a defensive no-op in case case 18
+--    aborted before reaching its own cleanup.
 -- -----------------------------------------------------------------------------
 
-BEGIN;
+DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000085';
+DELETE FROM workspaces WHERE id = '00000000-0000-0000-0000-000000000086';
 
--- Only committed rows need the is_sample flip (the pre-commit ones and the
--- case 11 sample row are already deleted or safe to delete).
-UPDATE prospect_emails SET is_sample = true
- WHERE workspace_id = '00000000-0000-0000-0000-000000000085';
+-- -----------------------------------------------------------------------------
+-- 5. Summary row (case_no = 999). Counts OK / FAIL across cases 1..18 and
+--    flags the whole run OK only if every case is OK.
+-- -----------------------------------------------------------------------------
 
-DELETE FROM prospect_emails
- WHERE workspace_id = '00000000-0000-0000-0000-000000000085';
+INSERT INTO _mrv085_results
+SELECT 999,
+       'TOTAL',
+       '18 cases (all OK)',
+       (SELECT count(*) FROM _mrv085_results WHERE verdict = 'OK'  )::text || ' OK / ' ||
+       (SELECT count(*) FROM _mrv085_results WHERE verdict = 'FAIL')::text || ' FAIL',
+       CASE
+         WHEN EXISTS (SELECT 1 FROM _mrv085_results WHERE verdict = 'FAIL') THEN 'FAIL'
+         ELSE 'OK'
+       END;
 
-DELETE FROM prospects
- WHERE workspace_id = '00000000-0000-0000-0000-000000000085';
+-- -----------------------------------------------------------------------------
+-- 6. FINAL statement — the SQL Editor renders this as the result grid.
+--    Any statement AFTER this SELECT would hide the results, so this MUST
+--    be the last line of the file.
+-- -----------------------------------------------------------------------------
 
-DELETE FROM contacts
- WHERE workspace_id = '00000000-0000-0000-0000-000000000085';
-
-DELETE FROM campaign_steps
- WHERE campaign_id = '00000000-0000-0000-0000-000000000185';
-
-DELETE FROM campaigns
- WHERE id = '00000000-0000-0000-0000-000000000185';
-
-DELETE FROM workspaces
- WHERE id = '00000000-0000-0000-0000-000000000085';
-
-COMMIT;
-
-DO $$
-BEGIN
-  RAISE NOTICE '=== 085_VERIFY : cleanup done — expect 16 OK lines above ===';
-END $$;
+SELECT case_no, description, expected, actual, verdict
+FROM _mrv085_results
+ORDER BY case_no;
