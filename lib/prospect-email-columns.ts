@@ -47,12 +47,11 @@
 //                                are not exposed to it either, so the subject
 //                                cannot carry a vendor substring in practice.
 //   - approved_at         timestamptz                       timestamp
-//   - updated_at          timestamptz                       timestamp
 //
 // Anything else (especially the list in the header doc-comment) stays out.
 export const PROSPECT_EMAIL_CLIENT_COLUMNS =
   'id, status, provider_message_id, sent_at, ' +
-  'prospect_id, campaign_step_id, subject, approved_at, updated_at'
+  'prospect_id, campaign_step_id, subject, approved_at'
 
 /**
  * Wider allowlist for the LIST + DETAIL views (GET /api/prospect-emails and

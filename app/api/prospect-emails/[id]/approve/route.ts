@@ -306,7 +306,24 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   // explicitly allowed by migration 085 rule 1 (verified in the migration
   // file : "From 'sending' : NEW must be in ('sent','failed','bounced','replied')").
   const mockFinalise = diag.isMock && diag.mockSendAllowed
-  const { data: email } = await admin
+  // Decouple the WRITE from the wide response PROJECTION. Reasoning :
+  //   Historically both were fused on one .update().select(CLIENT_COLUMNS)
+  //   chain. When CLIENT_COLUMNS drifts from the schema (e.g. previous
+  //   `updated_at` entry that never existed on prospect_emails), PostgREST
+  //   rejects the whole statement with 42703 — the write never executes,
+  //   the row stays 'sending' with provider_message_id NULL, and the route
+  //   returns 200 with `email:null` as if all was fine. At this point the
+  //   lead is ALREADY queued on the provider, so a missed persist means
+  //   inbound webhooks (SENT / REPLY) can no longer match the row by
+  //   provider_message_id → the send is orphaned in Mirvo forever.
+  //
+  //   Post-fix : the write uses a minimal, safe projection ('id'). Its
+  //   error is read explicitly and logged with a stable prefix if it
+  //   fails. THEN a separate SELECT rebuilds the response with the wide
+  //   projection ; if THAT fails, the client sees `email:null` but the
+  //   write is safe. Order matters (Gate A/B/C, CAS reserve, mockFinalise
+  //   all intact — see brief §3).
+  const { error: finaliseWriteError } = await admin
     .from('prospect_emails')
     .update({
       provider:            providerName,
@@ -315,7 +332,25 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       ...(mockFinalise ? { status: 'sent', sent_at: new Date().toISOString() } : {}),
     })
     .eq('id', pe.id)
+    .select('id')
+    .single()
+  if (finaliseWriteError) {
+    console.error('[approve] finalise_write_failed:', {
+      prospect_email_id:   pe.id,
+      workspace_id:        guard.workspaceId,
+      provider:            providerName,
+      provider_message_id: providerLeadId,
+      db_code:             (finaliseWriteError as { code?: string }).code ?? 'unknown',
+      db_message:          finaliseWriteError.message,
+    })
+  }
+  // Separate SELECT to build the response. A failure here degrades to
+  // email:null (same shape the client already tolerates) — but the write
+  // above has already landed.
+  const { data: email } = await admin
+    .from('prospect_emails')
     .select(CLIENT_COLUMNS)
+    .eq('id', pe.id)
     .single()
 
   // Meter the send against the monthly emails cap. Best-effort at the call
@@ -396,14 +431,23 @@ async function markFailed(
   // enforces the same invariant server-side (BLOCK B). .maybeSingle()
   // returns null on 0 rows without throwing, so the log write still
   // fires and the response stays coherent (email:null on race loss).
-  const [{ data: email }] = await Promise.all([
+  //
+  // Decouple write from wide projection (see brief §3). The CAS guard
+  // .eq('status','sending') MUST stay on the UPDATE so a race-lost
+  // reader still returns 0 rows here ; the response then keeps its
+  // documented email:null shape. We ask only for 'id' so a schema drift
+  // on CLIENT_COLUMNS cannot mask a CAS success as a CAS failure — the
+  // pre-fix code had .select(CLIENT_COLUMNS) fused with the UPDATE, so
+  // a PostgREST 42703 on the projection would return data:null AND
+  // error≠null on a genuine CAS win, indistinguishable from a race loss.
+  const [updateRes] = await Promise.all([
     admin
       .from('prospect_emails')
       .update({ status: 'failed', send_error: errorMessage })
       .eq('id', prospectEmailId)
       .eq('workspace_id', workspaceId)
       .eq('status', 'sending')
-      .select(CLIENT_COLUMNS)
+      .select('id')
       .maybeSingle(),
     admin.from('email_send_log').insert({
       workspace_id:      workspaceId,
@@ -414,6 +458,27 @@ async function markFailed(
       created_at:        now,
     }),
   ])
+  if (updateRes.error) {
+    console.error('[approve] mark_failed_write_failed:', {
+      prospect_email_id: prospectEmailId,
+      workspace_id:      workspaceId,
+      db_code:           (updateRes.error as { code?: string }).code ?? 'unknown',
+      db_message:        updateRes.error.message,
+    })
+  }
+  // Reread with the wide projection ONLY if the CAS matched a row —
+  // otherwise the race was lost (webhook already flipped status='sent'
+  // for instance), no row for us to reproject, and email stays null as
+  // the pre-fix contract documented at lines 390-398.
+  let email: unknown = null
+  if (updateRes.data?.id) {
+    const { data: rowForResp } = await admin
+      .from('prospect_emails')
+      .select(CLIENT_COLUMNS)
+      .eq('id', prospectEmailId)
+      .single()
+    email = rowForResp
+  }
   return NextResponse.json(
     { error: 'send_failed', message: GENERIC_SEND_FAILURE, email },
     { status: 502 },
