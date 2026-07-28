@@ -150,12 +150,19 @@ async function approveAndConverge(admin: Admin, workspaceId: string, variantId: 
   //    then needs no rollback. .maybeSingle() returns null on 0 rows
   //    without an error, so a legit "no twin yet" is data:null / error:null.
   //    An actual DB failure surfaces as `preErr` and blocks the write.
+  //
+  //    We MUST scope this pre-check to origin='campaign' (migration 088).
+  //    Without the filter, an inbox-reply copy on the same (prospect, step)
+  //    would produce 2+ rows, .maybeSingle() would raise PGRST116, and every
+  //    variant approval for that (prospect, step) would 500 with
+  //    'converge_failed' — the exact regression the current PR closes.
   const { data: existingPe, error: preErr } = await admin
     .from('prospect_emails')
     .select('id, status')
     .eq('prospect_id', variant.prospect_id)
     .eq('campaign_step_id', variant.campaign_step_id)
     .eq('workspace_id', workspaceId)
+    .eq('origin', 'campaign')
     .maybeSingle()
 
   if (preErr) {

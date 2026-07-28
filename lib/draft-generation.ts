@@ -248,8 +248,13 @@ export async function generateDraftsForCampaign(
     return { error: 'Campaign has no prospects.', status: 400 }
   }
 
-  // 5. Fetch existing drafts for dedup (UNIQUE constraint enforced in DB, but
-  //    filtering here avoids a batch insert that partially fails on conflict)
+  // 5. Fetch existing drafts for dedup (UNIQUE PARTIAL index enforced in DB
+  //    on (prospect_id, campaign_step_id) WHERE origin='campaign' — see
+  //    migration 089). Filtering here avoids a batch insert that partially
+  //    fails on conflict. We MUST scope this pre-check to origin='campaign'
+  //    otherwise inbox-reply copies (migration 088) inflate the existingSet
+  //    and cause spurious skips of pending draft generation for a (prospect,
+  //    step) pair whose ONLY row is an inbox reply.
   const prospectIds = prospects.map(p => p.id)
   const stepIds     = steps.map(s => s.id)
 
@@ -257,6 +262,7 @@ export async function generateDraftsForCampaign(
     .from('prospect_emails')
     .select('prospect_id, campaign_step_id')
     .eq('workspace_id', workspaceId)
+    .eq('origin', 'campaign')
     .in('prospect_id', prospectIds)
     .in('campaign_step_id', stepIds)
 
@@ -383,14 +389,40 @@ export async function generateDraftsForCampaign(
     }
   })
 
-  // 9. Upsert: ignoreDuplicates guards against concurrent double-call.
-  //    UNIQUE(prospect_id, campaign_step_id) is a non-partial constraint so
-  //    ignoreDuplicates resolves correctly.
+  // 9. INSERT batch. Post migration 089, the underlying uniqueness is a
+  //    PARTIAL unique index (WHERE origin='campaign'), which PostgREST /
+  //    supabase-js CANNOT arbitrate via `onConflict` — the produced SQL is
+  //    `ON CONFLICT (cols) DO NOTHING` without a WHERE predicate, and
+  //    Postgres rejects with 42P10 ("no matching unique or exclusion
+  //    constraint"). The same behaviour is documented in-repo at
+  //    app/api/prospects/import/route.ts:170-171.
+  //
+  //    We keep the same anti-concurrence discipline (dedup filter above at
+  //    l.256-269 + concurrent-double-call detection) but rely on the
+  //    application-level dedup rather than DB-level arbitration. If a race
+  //    slips a duplicate through (two concurrent generate-drafts calls on
+  //    the same (prospect,step) between our SELECT and this INSERT), the
+  //    partial unique index still rejects with 23505 — we swallow it as a
+  //    non-fatal race artifact rather than surfacing a 500.
   const { error: insertError } = await admin
     .from('prospect_emails')
-    .upsert(insertRows, { onConflict: 'prospect_id,campaign_step_id', ignoreDuplicates: true })
+    .insert(insertRows)
 
-  if (insertError) return { error: insertError.message, status: 500 }
+  if (insertError) {
+    const code = (insertError as { code?: string }).code
+    if (code !== '23505') {
+      return { error: insertError.message, status: 500 }
+    }
+    // Unique violation on the partial index — a concurrent generate-drafts
+    // won the race. The rows it inserted are what the user asked for ; ours
+    // are the same content by construction (same templates, same variables).
+    // Log the race for observability and return success.
+    console.warn('[draft-generation] 23505 on partial unique index — concurrent generation absorbed', {
+      workspace_id: workspaceId,
+      campaign_id:  campaignId,
+      code,
+    })
+  }
 
   // 10. Record mode used on campaign
   await admin

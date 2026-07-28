@@ -35,10 +35,15 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const by_status: Record<string, number> = {}
 
   if (initialStep) {
+    // .eq('origin','campaign') — the header badges count campaign-generated
+    // rows only. Inbox-reply copies (migration 088) inherit the parent's
+    // campaign_step_id but are not drafts to be sent by this campaign, so
+    // they must not inflate drafts_count / by_status here.
     const { data: emailRows } = await admin
       .from('prospect_emails')
       .select('status')
       .eq('workspace_id', guard.workspaceId)
+      .eq('origin', 'campaign')
       .eq('campaign_step_id', initialStep.id)
 
     for (const row of emailRows ?? []) {

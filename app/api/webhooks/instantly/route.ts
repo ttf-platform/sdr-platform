@@ -371,11 +371,35 @@ async function findProspectEmail(
   workspaceId: string,
   fields: ExtractedFields,
 ): Promise<ProspectEmailRef | null> {
+  // Both lookups are scoped to origin='campaign' (migration 088). Rationale :
+  //
+  //   Instantly webhook events (SENT / BOUNCED / REPLY) fire about a
+  //   provider send. Their consumption advances the LIFECYCLE of the
+  //   campaign row (`sent → replied`, `sent → bounced`) which is the
+  //   pipeline anchor for this (prospect, step). Inbox-reply copies
+  //   (origin='inbox_reply') inherit the parent's thread_id AND may end up
+  //   with a newer sent_at than the campaign row → without the filter, the
+  //   `.order('sent_at', desc).limit(1)` would resolve to the reply copy,
+  //   and handleReply / handleBounced would apply their status update to
+  //   the reply copy instead of the campaign row. The campaign row's
+  //   replied_at / bounced_at would then never be refreshed, breaking
+  //   downstream analytics.
+  //
+  //   handleSent (route.ts:549) already gates on
+  //   .in('status', ['sending','approved']) so a mis-resolved reply copy
+  //   (status='sent') would be a no-op there — but handleReply (:446) and
+  //   handleBounced (:596) have no such gate and would mis-route.
+  //
+  //   A bounce of the reply copy itself would arrive with the reply's own
+  //   provider_message_id (distinct from the parent send). With this
+  //   filter it lands as an unresolved orphan (ignored) — exactly the
+  //   pre-fix behaviour for reply-copy bounces, so no regression.
   if (fields.threadId) {
     const { data } = await admin
       .from('prospect_emails')
       .select('id, prospect_id, campaign_step_id, status')
       .eq('workspace_id', workspaceId)
+      .eq('origin', 'campaign')
       .eq('thread_id', fields.threadId)
       .order('sent_at', { ascending: false })
       .limit(1)
@@ -387,6 +411,7 @@ async function findProspectEmail(
       .from('prospect_emails')
       .select('id, prospect_id, campaign_step_id, status')
       .eq('workspace_id', workspaceId)
+      .eq('origin', 'campaign')
       .eq('provider_message_id', fields.providerMessageId)
       .order('sent_at', { ascending: false })
       .limit(1)
