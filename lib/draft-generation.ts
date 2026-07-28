@@ -398,12 +398,23 @@ export async function generateDraftsForCampaign(
   //    app/api/prospects/import/route.ts:170-171.
   //
   //    We keep the same anti-concurrence discipline (dedup filter above at
-  //    l.256-269 + concurrent-double-call detection) but rely on the
-  //    application-level dedup rather than DB-level arbitration. If a race
-  //    slips a duplicate through (two concurrent generate-drafts calls on
-  //    the same (prospect,step) between our SELECT and this INSERT), the
-  //    partial unique index still rejects with 23505 — we swallow it as a
-  //    non-fatal race artifact rather than surfacing a 500.
+  //    l.256-269) but rely on the application-level dedup rather than
+  //    DB-level arbitration. If a race slips a duplicate through (two
+  //    concurrent generate-drafts calls on the same (prospect,step)
+  //    between our SELECT and this INSERT), the partial unique index
+  //    still rejects with 23505.
+  //
+  //    ATOMIC-BATCH GOTCHA — Postgres rejects the WHOLE batch on a single
+  //    row's unique violation. A naive `.insert(rows)` + swallow-23505
+  //    would silently drop N-1 legitimate rows because a single pair
+  //    raced. So on 23505 we FALL BACK to per-row inserts and count
+  //    ACTUAL successes. Per-row 23505 = race for THAT pair (absorbed) ;
+  //    per-row anything else = surface. The counter cannot lie.
+  //
+  //    Happy path : 1 round-trip, generated_count = insertRows.length.
+  //    Race path  : 1 + N round-trips (only on the race branch — rare),
+  //                 generated_count = actual successful inserts.
+  let generated_count = insertRows.length
   const { error: insertError } = await admin
     .from('prospect_emails')
     .insert(insertRows)
@@ -413,14 +424,34 @@ export async function generateDraftsForCampaign(
     if (code !== '23505') {
       return { error: insertError.message, status: 500 }
     }
-    // Unique violation on the partial index — a concurrent generate-drafts
-    // won the race. The rows it inserted are what the user asked for ; ours
-    // are the same content by construction (same templates, same variables).
-    // Log the race for observability and return success.
-    console.warn('[draft-generation] 23505 on partial unique index — concurrent generation absorbed', {
+    // Batch atomically rejected. Retry per-row so non-colliding rows land.
+    generated_count = 0
+    for (const row of insertRows) {
+      const { error: rowErr } = await admin
+        .from('prospect_emails')
+        .insert(row)
+      if (!rowErr) {
+        generated_count++
+        continue
+      }
+      const rowCode = (rowErr as { code?: string }).code
+      if (rowCode === '23505') {
+        // Concurrent race for this specific (prospect_id, campaign_step_id)
+        // pair — a parallel generate-drafts already inserted a row with the
+        // same content by construction. Skip silently.
+        continue
+      }
+      // Any other error (NOT NULL, RLS regression, transient DB) : surface
+      // it. Silently dropping N-1 rows because of an unrelated per-row
+      // problem is exactly the class of bug this PR closes for its parent.
+      return { error: rowErr.message, status: 500 }
+    }
+    console.warn('[draft-generation] batch 23505 — retried per-row', {
       workspace_id: workspaceId,
       campaign_id:  campaignId,
-      code,
+      requested:    insertRows.length,
+      inserted:     generated_count,
+      race_skipped: insertRows.length - generated_count,
     })
   }
 
@@ -432,7 +463,7 @@ export async function generateDraftsForCampaign(
     .eq('workspace_id', workspaceId)
 
   return {
-    generated_count:     insertRows.length,
+    generated_count,
     skipped_existing,
     errors,
     campaign_step_count: steps.length,
