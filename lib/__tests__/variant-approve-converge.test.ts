@@ -89,11 +89,16 @@ vi.mock('@/lib/supabase/admin', () => ({
       }
       if (table === 'prospect_emails') {
         return {
-          // Pre-check : .select().eq().eq().eq().maybeSingle()
+          // Pre-check : .select().eq().eq().eq().eq().maybeSingle()
           select: () => ({
             eq: () => ({
               eq: () => ({
-                eq: () => ({ maybeSingle: peSelectMaybeSingleMock }),
+                eq: () => ({
+                  // .eq('origin','campaign') added by the inbox-reply-persistable-
+                  // copy PR (chain length now 4 : prospect_id, campaign_step_id,
+                  // workspace_id, origin).
+                  eq: () => ({ maybeSingle: peSelectMaybeSingleMock }),
+                }),
               }),
             }),
           }),

@@ -248,8 +248,13 @@ export async function generateDraftsForCampaign(
     return { error: 'Campaign has no prospects.', status: 400 }
   }
 
-  // 5. Fetch existing drafts for dedup (UNIQUE constraint enforced in DB, but
-  //    filtering here avoids a batch insert that partially fails on conflict)
+  // 5. Fetch existing drafts for dedup (UNIQUE PARTIAL index enforced in DB
+  //    on (prospect_id, campaign_step_id) WHERE origin='campaign' — see
+  //    migration 089). Filtering here avoids a batch insert that partially
+  //    fails on conflict. We MUST scope this pre-check to origin='campaign'
+  //    otherwise inbox-reply copies (migration 088) inflate the existingSet
+  //    and cause spurious skips of pending draft generation for a (prospect,
+  //    step) pair whose ONLY row is an inbox reply.
   const prospectIds = prospects.map(p => p.id)
   const stepIds     = steps.map(s => s.id)
 
@@ -257,6 +262,7 @@ export async function generateDraftsForCampaign(
     .from('prospect_emails')
     .select('prospect_id, campaign_step_id')
     .eq('workspace_id', workspaceId)
+    .eq('origin', 'campaign')
     .in('prospect_id', prospectIds)
     .in('campaign_step_id', stepIds)
 
@@ -383,14 +389,71 @@ export async function generateDraftsForCampaign(
     }
   })
 
-  // 9. Upsert: ignoreDuplicates guards against concurrent double-call.
-  //    UNIQUE(prospect_id, campaign_step_id) is a non-partial constraint so
-  //    ignoreDuplicates resolves correctly.
+  // 9. INSERT batch. Post migration 089, the underlying uniqueness is a
+  //    PARTIAL unique index (WHERE origin='campaign'), which PostgREST /
+  //    supabase-js CANNOT arbitrate via `onConflict` — the produced SQL is
+  //    `ON CONFLICT (cols) DO NOTHING` without a WHERE predicate, and
+  //    Postgres rejects with 42P10 ("no matching unique or exclusion
+  //    constraint"). The same behaviour is documented in-repo at
+  //    app/api/prospects/import/route.ts:170-171.
+  //
+  //    We keep the same anti-concurrence discipline (dedup filter above at
+  //    l.256-269) but rely on the application-level dedup rather than
+  //    DB-level arbitration. If a race slips a duplicate through (two
+  //    concurrent generate-drafts calls on the same (prospect,step)
+  //    between our SELECT and this INSERT), the partial unique index
+  //    still rejects with 23505.
+  //
+  //    ATOMIC-BATCH GOTCHA — Postgres rejects the WHOLE batch on a single
+  //    row's unique violation. A naive `.insert(rows)` + swallow-23505
+  //    would silently drop N-1 legitimate rows because a single pair
+  //    raced. So on 23505 we FALL BACK to per-row inserts and count
+  //    ACTUAL successes. Per-row 23505 = race for THAT pair (absorbed) ;
+  //    per-row anything else = surface. The counter cannot lie.
+  //
+  //    Happy path : 1 round-trip, generated_count = insertRows.length.
+  //    Race path  : 1 + N round-trips (only on the race branch — rare),
+  //                 generated_count = actual successful inserts.
+  let generated_count = insertRows.length
   const { error: insertError } = await admin
     .from('prospect_emails')
-    .upsert(insertRows, { onConflict: 'prospect_id,campaign_step_id', ignoreDuplicates: true })
+    .insert(insertRows)
 
-  if (insertError) return { error: insertError.message, status: 500 }
+  if (insertError) {
+    const code = (insertError as { code?: string }).code
+    if (code !== '23505') {
+      return { error: insertError.message, status: 500 }
+    }
+    // Batch atomically rejected. Retry per-row so non-colliding rows land.
+    generated_count = 0
+    for (const row of insertRows) {
+      const { error: rowErr } = await admin
+        .from('prospect_emails')
+        .insert(row)
+      if (!rowErr) {
+        generated_count++
+        continue
+      }
+      const rowCode = (rowErr as { code?: string }).code
+      if (rowCode === '23505') {
+        // Concurrent race for this specific (prospect_id, campaign_step_id)
+        // pair — a parallel generate-drafts already inserted a row with the
+        // same content by construction. Skip silently.
+        continue
+      }
+      // Any other error (NOT NULL, RLS regression, transient DB) : surface
+      // it. Silently dropping N-1 rows because of an unrelated per-row
+      // problem is exactly the class of bug this PR closes for its parent.
+      return { error: rowErr.message, status: 500 }
+    }
+    console.warn('[draft-generation] batch 23505 — retried per-row', {
+      workspace_id: workspaceId,
+      campaign_id:  campaignId,
+      requested:    insertRows.length,
+      inserted:     generated_count,
+      race_skipped: insertRows.length - generated_count,
+    })
+  }
 
   // 10. Record mode used on campaign
   await admin
@@ -400,7 +463,7 @@ export async function generateDraftsForCampaign(
     .eq('workspace_id', workspaceId)
 
   return {
-    generated_count:     insertRows.length,
+    generated_count,
     skipped_existing,
     errors,
     campaign_step_count: steps.length,
