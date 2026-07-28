@@ -774,6 +774,7 @@
         "mailboxPaused": "Cette boîte de réception est en pause. Réactivez-la pour répondre.",
         "providerMockMode": "L'envoi d'e-mails n'est pas actif. Contactez le support.",
         "providerSendFailed": "L'envoi de la réponse a échoué. Réessayez dans un instant.",
+        "replySentButNotPersisted": "Votre réponse a bien été envoyée, mais nous n'avons pas pu l'enregistrer dans votre historique. Ne renvoyez PAS — le destinataire l'a déjà reçue. Contactez le support si vous avez besoin d'une copie.",
         "replyFailedGeneric": "La réponse a échoué. Réessayez."
       },
       "toasts": {

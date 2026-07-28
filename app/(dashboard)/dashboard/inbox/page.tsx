@@ -289,6 +289,11 @@ export default function InboxPage() {
         return tErrors('providerMockMode')
       case 'provider_send_failed':
         return tErrors('providerSendFailed')
+      case 'reply_sent_but_not_persisted':
+        // The provider accepted the send but the DB copy failed to persist.
+        // User must NOT retry (double-send). Companion of app/api/inbox/
+        // messages/[id]/reply/route.ts — see comments there.
+        return tErrors('replySentButNotPersisted')
       default:
         return tErrors('replyFailedGeneric')
     }
