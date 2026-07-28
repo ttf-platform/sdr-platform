@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const {
   billingGuardMock,
   peSelectSingleMock,
+  peRereadMock,
   stepSelectSingleMock,
   campaignSelectSingleMock,
   emailAccountsCountMock,
@@ -43,6 +44,7 @@ const {
 } = vi.hoisted(() => ({
   billingGuardMock:            vi.fn(),
   peSelectSingleMock:          vi.fn(),
+  peRereadMock:                vi.fn(),
   stepSelectSingleMock:        vi.fn(),
   campaignSelectSingleMock:    vi.fn(),
   emailAccountsCountMock:      vi.fn(),
@@ -88,16 +90,20 @@ vi.mock('@/lib/supabase/admin', () => ({
     from: (table: string) => {
       if (table === 'prospect_emails') {
         return {
-          // Fetch draft : .select().eq().eq().single()
-          // CAS reserve : .update().eq().in().select()          → array
-          // markFailed : .update().eq().eq().eq().select().maybeSingle()
-          // Success    : .update().eq().select().single()
+          // Two distinct read chains :
+          //   Initial fetch : .select().eq().eq().single()  → peSelectSingleMock
+          //   Reread        : .select().eq().single()        → peRereadMock
+          // The second .eq() call disambiguates : the initial fetch scopes
+          // by (id, workspace_id) ; the reread scopes only by id after the
+          // update already gated the row.
           select: () => ({
             eq: () => ({
-              eq: () => ({ single: peSelectSingleMock }),
+              eq:     () => ({ single: peSelectSingleMock }),
+              single: peRereadMock,
             }),
           }),
           update: (payload: Record<string, unknown>) => {
+            // CAS reserve : draft/edited/approved → 'sending'
             if (payload.status === 'sending') {
               return {
                 eq: () => ({
@@ -105,6 +111,9 @@ vi.mock('@/lib/supabase/admin', () => ({
                 }),
               }
             }
+            // markFailed : .update({status:'failed', send_error})
+            //              .eq(id).eq(workspace_id).eq(status='sending')
+            //              .select('id').maybeSingle()
             if (payload.status === 'failed') {
               return {
                 eq: () => ({
@@ -116,7 +125,9 @@ vi.mock('@/lib/supabase/admin', () => ({
                 }),
               }
             }
-            // Success flip (provider / provider_message_id / send_error=null)
+            // Success finalise : .update({provider, provider_message_id,
+            //   send_error:null, [status:sent, sent_at] on mockFinalise})
+            //   .eq(id).select('id').single()
             return {
               eq: () => ({
                 select: () => ({ single: peSuccessUpdateMock }),
@@ -244,12 +255,20 @@ beforeEach(() => {
   })
   emailAccountsCountMock.mockResolvedValue({ count: 1, error: null })
   peReserveCasMock.mockResolvedValue({ data: [{ id: PE_ID }], error: null })
+  // Post-§3 : the write only projects 'id'. Wide projection now lives
+  // on a separate SELECT (peRereadMock below).
   peSuccessUpdateMock.mockResolvedValue({
-    data:  { id: PE_ID, status: 'sent', provider_message_id: 'mock_lead_1' },
+    data:  { id: PE_ID },
     error: null,
   })
   peMarkFailedUpdateMock.mockResolvedValue({
-    data:  { id: PE_ID, status: 'failed' },
+    data:  { id: PE_ID },
+    error: null,
+  })
+  peRereadMock.mockResolvedValue({
+    data:  { id: PE_ID, status: 'sent', provider_message_id: 'mock_lead_1',
+             sent_at: '2026-07-28T00:00:00Z', prospect_id: PROSPECT_ID,
+             campaign_step_id: STEP_ID, subject: 'Hey there', approved_at: '2026-07-28T00:00:00Z' },
     error: null,
   })
   emailSendLogInsertMock.mockResolvedValue({ data: null, error: null })
@@ -331,5 +350,98 @@ describe('POST /api/prospect-emails/[id]/approve — contacts-join fix', () => {
     expect(logRow.error).toBe('prospect_lookup_failed:42703')
 
     expect(providerEnqueueLeadMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── §3 invariant : the write must land even when the reread fails ────────
+//
+// The bug this PR exists to prevent is exactly the shape where a
+// schema-drift on the WIDE response projection stops the WRITE from
+// ever executing (PostgREST rejects the whole statement). Post-§3 the
+// write uses a narrow ('id') projection ; the wide projection is a
+// SEPARATE SELECT. These tests lock the invariant : forcing the reread
+// to fail must NOT prevent the write from having happened, on both the
+// success finalise (l.309-347) and the markFailed CAS (l.432-459).
+
+describe('POST /api/prospect-emails/[id]/approve — §3 write/projection decoupling', () => {
+  it('Success finalise : the UPDATE lands even when the response reread returns a 42703', async () => {
+    prospectSelectSingleMock.mockResolvedValue({
+      data:  { email: 'p@example.com', contacts: { first_name: 'Ada', last_name: 'Lovelace' } },
+      error: null,
+    })
+    // Write succeeds (returns the row id).
+    peSuccessUpdateMock.mockResolvedValue({ data: { id: PE_ID }, error: null })
+    // Reread FAILS with a schema-drift 42703 (simulate the shape of the
+    // very bug we are fixing — e.g. a future CLIENT_COLUMNS entry that
+    // stopped matching the schema).
+    peRereadMock.mockResolvedValue({
+      data:  null,
+      error: { code: '42703', message: 'column prospect_emails.foo does not exist' },
+    })
+
+    const res = await POST(makeReq(), { params })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    // email degrades to null, exactly as the client already tolerates.
+    expect(body.email).toBeNull()
+    // The critical invariant : the UPDATE was invoked (the mock records it),
+    // meaning provider / provider_message_id have been persisted. Prior to
+    // §3 the fused .update().select(CLIENT_COLUMNS).single() would have
+    // been rejected wholesale by PostgREST, leaving the row stuck.
+    expect(peSuccessUpdateMock).toHaveBeenCalledTimes(1)
+    // And the provider write payload actually carried the expected fields.
+    // (The .update()'s payload landed in the mock builder above ; we can
+    // introspect via providerEnqueueLead calls to confirm we passed Gate D.)
+    expect(providerEnqueueLeadMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("markFailed : the UPDATE with CAS on status='sending' runs even when the response reread fails", async () => {
+    // Force a route into the markFailed path by making the prospect
+    // resolution return PGRST116.
+    prospectSelectSingleMock.mockResolvedValue({
+      data:  null,
+      error: { code: 'PGRST116', message: 'No rows returned' },
+    })
+    // CAS matched a row (race won).
+    peMarkFailedUpdateMock.mockResolvedValue({ data: { id: PE_ID }, error: null })
+    // Reread fails.
+    peRereadMock.mockResolvedValue({
+      data:  null,
+      error: { code: '42703', message: 'column prospect_emails.foo does not exist' },
+    })
+
+    const res = await POST(makeReq(), { params })
+
+    expect(res.status).toBe(502)
+    const body = await res.json()
+    expect(body.error).toBe('send_failed')
+    expect(body.email).toBeNull()
+
+    // Contract : write + log both fired.
+    expect(peMarkFailedUpdateMock).toHaveBeenCalledTimes(1)
+    expect(emailSendLogInsertMock).toHaveBeenCalledTimes(1)
+    expect(emailSendLogInsertMock.mock.calls[0][0].provider).toBe('mock')
+  })
+
+  it("markFailed : race lost (CAS matches 0 rows) → response stays email:null and reread is not attempted", async () => {
+    prospectSelectSingleMock.mockResolvedValue({
+      data:  null,
+      error: { code: 'PGRST116', message: 'No rows returned' },
+    })
+    // CAS matched NO row — the webhook already flipped 'sending' → 'sent'
+    // between our reserve and our failure.
+    peMarkFailedUpdateMock.mockResolvedValue({ data: null, error: null })
+
+    const res = await POST(makeReq(), { params })
+
+    expect(res.status).toBe(502)
+    const body = await res.json()
+    expect(body.email).toBeNull()
+
+    // Log still writes.
+    expect(emailSendLogInsertMock).toHaveBeenCalledTimes(1)
+    // Reread is NOT attempted when CAS lost the race.
+    expect(peRereadMock).not.toHaveBeenCalled()
   })
 })
