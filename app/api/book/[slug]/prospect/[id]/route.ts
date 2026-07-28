@@ -30,17 +30,25 @@ export async function GET(
   // and the prospect's email is PII we don't want leaking through a
   // brute-forced UUID lookup. The form asks the attendee to type their
   // email themselves.
+  //
+  // first_name / last_name / company live on `contacts` since migration
+  // 013 — embedded via the contacts!contact_id to-one join. Selecting
+  // them directly on `prospects` (as this code did before this PR) made
+  // PostgREST reject the entire query ; the previous data-only
+  // destructure silently returned an empty prefill without any 404 → the
+  // form appeared unpopulated even for a valid link.
   const { data: prospect } = await admin
     .from('prospects')
-    .select('first_name, last_name, company')
+    .select('contacts!contact_id(first_name, last_name, company)')
     .eq('id', params.id)
     .eq('workspace_id', profile.workspace_id)
-    .single()
+    .single<{ contacts: { first_name: string | null; last_name: string | null; company: string | null } | null }>()
 
   if (!prospect) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const contact = prospect.contacts
   return NextResponse.json({
-    name:    [prospect.first_name, prospect.last_name].filter(Boolean).join(' '),
-    company: prospect.company ?? '',
+    name:    [contact?.first_name, contact?.last_name].filter(Boolean).join(' '),
+    company: contact?.company ?? '',
   })
 }

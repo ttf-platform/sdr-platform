@@ -31,6 +31,7 @@ import { enforceEmptyBody } from '@/lib/schemas'
 import { campaignScheduleFromPrefs } from '@/lib/sending-schedule'
 import type { SendingPrefs } from '@/lib/types/sending-prefs'
 import { checkTierLimit, trackUsage } from '@/lib/tier-limits'
+import { isNoRowsError } from '@/lib/db-errors'
 // Column allowlist + full vendor-invisibility doctrine live in
 // lib/prospect-email-columns.ts.
 import { PROSPECT_EMAIL_CLIENT_COLUMNS as CLIENT_COLUMNS } from '@/lib/prospect-email-columns'
@@ -160,24 +161,48 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: 'already_sent' }, { status: 409 })
   }
 
-  // 4. Recipient info. Filter by workspace explicitly even though pe is
-  //    already workspace-scoped — RLS plus explicit code filter is the
-  //    project standard for cross-workspace defense-in-depth.
-  const { data: prospect } = await admin
-    .from('prospects')
-    .select('email, first_name, last_name')
-    .eq('id', pe.prospect_id)
-    .eq('workspace_id', guard.workspaceId)
-    .single()
-
-  if (!prospect?.email) {
-    return await markFailed(admin, pe.id, guard.workspaceId, 'prospect_email_missing', null)
-  }
-
+  // Hoisted above the recipient resolution so every markFailed() call below
+  // carries a non-null `provider` — email_send_log.provider is NOT NULL
+  // (baseline 000). Prior to this PR the resolution block below sat above
+  // the assignment and passed literal null on the prospect_email_missing
+  // path, silently violating the constraint (the insert was in a
+  // Promise.all whose result wasn't destructured, so the error was swallowed).
   const provider = getEmailProvider()
   const providerName = process.env.MOCK_EMAIL_PROVIDER === 'true' || !process.env.INSTANTLY_API_KEY
     ? 'mock'
     : 'instantly'
+
+  // 4. Recipient info. Filter by workspace explicitly even though pe is
+  //    already workspace-scoped — RLS plus explicit code filter is the
+  //    project standard for cross-workspace defense-in-depth.
+  //
+  //    first_name / last_name live on `contacts` since migration 013 —
+  //    embedded via the contacts!contact_id to-one join. Selecting them
+  //    on `prospects` directly (as this code did before this PR) makes
+  //    PostgREST reject the entire query, and the previous data-only
+  //    destructure silently produced `prospect === null` → the code path
+  //    surfaced this as a misleading 502 prospect_email_missing on every
+  //    approve call.
+  //
+  //    We read `error` explicitly and distinguish PGRST116 (row truly
+  //    absent — keep the historic prospect_email_missing signal) from
+  //    every other error (transient DB / RLS misconfig / column drift —
+  //    surface the PostgREST code in send_error so the same silent
+  //    failure mode cannot re-occur unnoticed).
+  const { data: prospect, error: prospectError } = await admin
+    .from('prospects')
+    .select('email, contacts!contact_id(first_name, last_name)')
+    .eq('id', pe.prospect_id)
+    .eq('workspace_id', guard.workspaceId)
+    .single<{ email: string | null; contacts: { first_name: string | null; last_name: string | null } | null }>()
+
+  if (prospectError && !isNoRowsError(prospectError)) {
+    const code = (prospectError as { code?: string }).code ?? 'unknown'
+    return await markFailed(admin, pe.id, guard.workspaceId, `prospect_lookup_failed:${code}`, providerName)
+  }
+  if (!prospect?.email) {
+    return await markFailed(admin, pe.id, guard.workspaceId, 'prospect_email_missing', providerName)
+  }
 
   // 5. Ensure the provider-side campaign exists (create on first approval).
   let providerCampaignId = campaign.provider_campaign_id as string | null
@@ -234,8 +259,8 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       provider.enqueueLead({
         providerCampaignId: providerCampaignId!,
         email:              prospect.email,
-        firstName:          prospect.first_name ?? null,
-        lastName:           prospect.last_name ?? null,
+        firstName:          prospect.contacts?.first_name ?? null,
+        lastName:           prospect.contacts?.last_name ?? null,
         subject:            pe.subject,
         body:               pe.body,
       }),

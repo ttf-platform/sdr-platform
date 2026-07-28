@@ -7,6 +7,37 @@ import { ViewAsClient, type ViewAsData } from './_components/ViewAsClient';
 export const dynamic = 'force-dynamic';
 
 type ProspectRow = ViewAsData['prospects'][number];
+// The 10 columns migrated from `prospects` to `contacts` by migration 013
+// (first_name / last_name / company / title / industry / company_size /
+// location / linkedin_url / website / custom_data) come back as an
+// embedded to-one join. Typing this raw shape then explicitly flattening
+// to ProspectRow is the ONLY runtime-safe transform — `.returns<>()` is
+// a blind cast, so a mismatch between the select() string and the type
+// param is not caught by the compiler nor by any runtime guard. Prior to
+// this PR the code claimed ProspectRow shape but selected columns that
+// don't exist on prospects → PostgREST rejected the whole query and every
+// admin view-as page rendered an empty prospects list.
+type ProspectRawRow = {
+  id:               string;
+  email:            string;
+  status:           string;
+  source:           string;
+  enriched_at:      string | null;
+  last_activity_at: string | null;
+  created_at:       string;
+  contacts: {
+    first_name:   string | null;
+    last_name:    string | null;
+    company:      string | null;
+    title:        string | null;
+    industry:     string | null;
+    company_size: string | null;
+    location:     string | null;
+    linkedin_url: string | null;
+    website:      string | null;
+    custom_data:  Record<string, unknown> | null;
+  } | null;
+};
 type CampaignRowBase = Omit<ViewAsData['campaigns'][number], 'steps'>;
 type CampaignStepRow = {
   id:                   string;
@@ -118,17 +149,19 @@ export default async function ViewAsPage(
     emailsRes,
   ] = await Promise.all([
     // Prospects — enriched fields INCLUDED; notes NOT touched (separate table).
+    // The 10 formerly-on-prospects enrichment columns now live on `contacts`
+    // (migration 013) — embed via contacts!contact_id and flatten below.
     admin
       .from('prospects')
       .select(
-        'id, email, first_name, last_name, company, title, industry, ' +
-        'company_size, location, linkedin_url, website, status, source, ' +
-        'custom_data, enriched_at, last_activity_at, created_at',
+        'id, email, status, source, enriched_at, last_activity_at, created_at, ' +
+        'contacts!contact_id(first_name, last_name, company, title, industry, ' +
+        'company_size, location, linkedin_url, website, custom_data)',
       )
       .eq('workspace_id', id)
       .order('last_activity_at', { ascending: false, nullsFirst: false })
       .limit(PROSPECTS_LIMIT)
-      .returns<ProspectRow[]>(),
+      .returns<ProspectRawRow[]>(),
 
     admin
       .from('campaigns')
@@ -161,10 +194,33 @@ export default async function ViewAsPage(
       .returns<EmailRow[]>(),
   ]);
 
-  const prospectsRaw  = prospectsRes.data  ?? [];
+  const prospectsRawJoined: ProspectRawRow[] = prospectsRes.data ?? [];
   const campaignsRaw  = campaignsRes.data  ?? [];
   const dealsRaw      = dealsRes.data      ?? [];
   const emailsRaw     = emailsRes.data     ?? [];
+
+  // Explicit flatten join → flat ProspectRow shape. The ViewAsClient
+  // (and every downstream compose step below) still consumes the flat
+  // shape verbatim ; touching that would ripple into the client bundle.
+  const prospectsRaw: ProspectRow[] = prospectsRawJoined.map((p) => ({
+    id:               p.id,
+    email:            p.email,
+    first_name:       p.contacts?.first_name       ?? null,
+    last_name:        p.contacts?.last_name        ?? null,
+    company:          p.contacts?.company          ?? null,
+    title:            p.contacts?.title            ?? null,
+    industry:         p.contacts?.industry         ?? null,
+    company_size:     p.contacts?.company_size     ?? null,
+    location:         p.contacts?.location         ?? null,
+    linkedin_url:     p.contacts?.linkedin_url     ?? null,
+    website:          p.contacts?.website          ?? null,
+    status:           p.status,
+    source:           p.source,
+    custom_data:      p.contacts?.custom_data      ?? null,
+    enriched_at:      p.enriched_at,
+    last_activity_at: p.last_activity_at,
+    created_at:       p.created_at,
+  }));
 
   const campaignIds = new Set<string>(campaignsRaw.map((c) => c.id));
 
