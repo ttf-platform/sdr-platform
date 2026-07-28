@@ -774,6 +774,7 @@
         "mailboxPaused": "This mailbox is paused. Resume it to reply.",
         "providerMockMode": "Email sending is not active. Contact support.",
         "providerSendFailed": "Reply failed to send. Try again in a moment.",
+        "replySentButNotPersisted": "Your reply was delivered, but we could not save it to your inbox history. Do not resend — the recipient already got it. Please contact support if you need a copy.",
         "replyFailedGeneric": "Reply failed. Try again."
       },
       "toasts": {

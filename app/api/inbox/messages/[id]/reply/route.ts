@@ -154,6 +154,14 @@ export async function POST(
   // Insert into prospect_emails so the thread route picks it up as a
   // 'sent' item. Campaign_step_id / prospect_id / mode inherited from the
   // parent outbound row (NOT NULL constraints on this table).
+  //
+  // origin='inbox_reply' (migration 088) places the row OUTSIDE the partial
+  // unique index prospect_emails_prospect_step_campaign_uniq (migration 089
+  // WHERE origin='campaign') so we can coexist with the campaign row on the
+  // same (prospect_id, campaign_step_id). Pre-089 this insert crashed with
+  // 23505 on the old non-partial constraint (sim finding C1). Multiple
+  // inbox_reply rows on the same couple are allowed (a lead can trigger
+  // several replies in one thread over time — see 089 verify script case 3).
   const now = new Date().toISOString()
   const { error: insertErr } = await admin
     .from('prospect_emails')
@@ -174,16 +182,44 @@ export async function POST(
       // a provider that never touched it, muddying provenance analytics.
       provider:            diag.provider,
       provider_message_id: providerResult.providerMessageId,
+      origin:              'inbox_reply',
     })
 
   if (insertErr) {
-    // Send succeeded at the provider but the DB row failed to persist.
-    // Log for reconciliation — the reply reached the prospect regardless.
+    // Send succeeded at the provider — the reply REACHED the recipient.
+    // We failed to persist the outbound copy. Contract choice :
+    //
+    // Return a distinct 500 error code, NOT the pre-fix HTTP 200. Two
+    // reasons :
+    //   1. The pre-fix silent 200 is what let sim finding C1 hide for
+    //      months. Every future schema drift on this insert (e.g. NOT NULL
+    //      added on a column we don't set, RLS change on the admin path,
+    //      or a fresh partial-index predicate we don't match) would be
+    //      swallowed the same way.
+    //   2. The user MUST know their reply is not in their inbox history —
+    //      otherwise they cannot answer support if the recipient responds
+    //      to a message we have no record of.
+    //
+    // `sent:true` in the body tells the UI NOT to prompt for retry — a
+    // retry would double-send. Companion mapping added to
+    // app/(dashboard)/dashboard/inbox/page.tsx::mapSendError so the
+    // rendered message says explicitly "sent, but not saved" rather than
+    // the pre-fix generic "reply failed, try again".
     console.error('[inbox/reply] insert prospect_emails failed after successful send', {
       workspace_id: guard.workspaceId,
       message_id:   parent.id,
       db_error:     insertErr.message,
+      db_code:      (insertErr as { code?: string }).code ?? 'unknown',
     })
+    return NextResponse.json(
+      {
+        error:   'reply_sent_but_not_persisted',
+        message: 'Your reply was delivered, but we could not save it to your inbox history. Do NOT resend — the recipient already got it. Please contact support if you need a copy.',
+        sent:    true,
+        sent_at: now,
+      },
+      { status: 500 },
+    )
   }
 
   return NextResponse.json({ ok: true, sent_at: now })
