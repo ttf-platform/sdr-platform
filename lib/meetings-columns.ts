@@ -32,11 +32,24 @@
  *                                   caps as above. Not secret per se, but
  *                                   has no consumer today and its
  *                                   semantics are anti-abuse internals.
- *     - expires_at                  cutoff for the pending → expired cron
- *                                   flip. The GET /api/meetings server-
- *                                   side filter (isPendingStillVisible)
- *                                   already hides rows past this timestamp
- *                                   so the client never needs to know it.
+ *
+ *   PROMOTED IN v2 :
+ *     - expires_at                  originally excluded (v1) : the
+ *                                   isPendingStillVisible filter already
+ *                                   drops past-deadline rows server-side.
+ *                                   Promoted in v2 because the pending-
+ *                                   card hint on the owner's dashboard
+ *                                   needs to render "the attendee can
+ *                                   confirm until <time>" — otherwise the
+ *                                   owner sees a pending row with no
+ *                                   sense of urgency and schedules over
+ *                                   it. The value is derivable client-
+ *                                   side from confirmation_sent_at +
+ *                                   CONF_EXPIRES_HOURS anyway, so hiding
+ *                                   it while confirmation_sent_at stays
+ *                                   hidden was defence-in-depth theatre.
+ *                                   Surfacing it directly is honest.
+ *
  *
  *   Same discipline as lib/prospect-email-columns.ts (added in #326 for
  *   vendor-invisibility) — the pattern is proven ; don't be the fourth
@@ -73,12 +86,13 @@
 
 // Columns returned by GET /api/meetings. Deliberately includes booking_slug
 // (present on public-booking rows, null on admin-created ; useful for future
-// filtering) and created_at / updated_at (ordering + display), while
-// excluding the four fields above.
+// filtering), created_at / updated_at (ordering + display), and — new in
+// v2 — expires_at (pending-card hint deadline, see PROMOTED note above).
+// Excludes the three fields still guarded as vendor / anti-abuse internals.
 export const MEETING_LIST_COLUMNS =
   'id, workspace_id, user_id, prospect_id, title, meeting_at, duration_min, ' +
   'attendee_email, attendee_name, company_name, status, notes, booking_slug, ' +
-  'confirmed_at, created_at, updated_at'
+  'confirmed_at, expires_at, created_at, updated_at'
 
 /**
  * Columns for the single-row read in GET /api/meetings/[id]/ics.

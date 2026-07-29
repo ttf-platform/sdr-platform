@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { meetingUpdateSchema, badRequest } from '@/lib/schemas'
 import { convertNaiveLocalToUtc } from '@/lib/meeting-tz'
+import { MEETING_LIST_COLUMNS } from '@/lib/meetings-columns'
 
 // Guard : mutating a 'pending' or 'expired' row bypasses invariants owned
 // by the public booking flow.
@@ -75,8 +76,27 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     updates.meeting_at = convertNaiveLocalToUtc(parsed.data.meeting_at, wpTz)
   }
 
+  // .select(MEETING_LIST_COLUMNS) — NOT .select() : the returned row is
+  // sent straight to the client at l.…88 below. `.select()` with no
+  // argument returns every column, which since PR B's pending-bookings
+  // work includes confirmation_token, attendee_email_normalized,
+  // confirmation_sent_at, and expires_at.
+  //
+  // This path is genuinely reachable with those fields populated : the
+  // NON_MUTABLE_STATUSES guard above lets scheduled rows through, and
+  // migration 087 delibrately KEEPS the confirmation_token on the row
+  // after confirm_booking succeeds (so a repeat click resolves to
+  // already_confirmed instead of unknown). A public booking that got
+  // confirmed is now a scheduled row with a live token — PATCH-ing that
+  // row for any reason (updating notes, marking it completed) would
+  // return the token to the owner's browser.
+  //
+  // Not a public leak (session client, workspace-scoped RLS), but the
+  // token IS the double-opt-in bypass primitive and has no reason to
+  // leave the DB. Same vendor-invisibility / defence-in-depth discipline
+  // as the GET route allowlist.
   const { data: meeting, error } = await supabase
-    .from('meetings').update(updates).eq('id', params.id).select().single()
+    .from('meetings').update(updates).eq('id', params.id).select(MEETING_LIST_COLUMNS).single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ meeting })

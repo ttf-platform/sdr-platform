@@ -1719,7 +1719,8 @@
         "pending": "En attente de confirmation"
       },
       "pending": {
-        "cardHint": "Le participant n'a pas encore cliqué sur son lien de confirmation. Le créneau est réservé provisoirement pendant {minutes} minutes après l'envoi de l'invitation."
+        "cardHintWithDeadline": "Le participant n'a pas encore cliqué sur son lien de confirmation — il peut le faire jusqu'au {deadline}. D'ici là, le créneau peut encore lui revenir. Évitez de réserver par-dessus.",
+        "cardHintNoDeadline": "Le participant n'a pas encore cliqué sur son lien de confirmation. D'ici là, le créneau peut encore lui revenir. Évitez de réserver par-dessus."
       },
       "toasts": {
         "createdSimple": "Rendez-vous créé.",

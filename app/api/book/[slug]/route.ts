@@ -328,7 +328,17 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       confirmation_sent_at:        nowISO,
       expires_at:                  expiresAtISO,
     })
-    .select().single()
+    // .select('id') : the response body at l.…399-403 is
+    // `{pending, email, expires_in_hours}` — the meeting row is NEVER
+    // shipped to the public caller. But this INSERT sets a live
+    // confirmation_token + a public attendee_email_normalized ; the
+    // pre-fix `.select()` pulled the entire row into `meeting` on the
+    // server (harmless today, harmful the moment someone widens the
+    // response by mistake). The only downstream consumer is `meeting.id`
+    // (rollback DELETE at l.…387 on email failure) — everything else on
+    // the row is either already in scope from the INSERT payload above
+    // or unused. Same defence-in-depth as the sibling routes.
+    .select('id').single()
 
   if (insErr || !meeting) {
     console.error('[book:create] pending insert failed', insErr)

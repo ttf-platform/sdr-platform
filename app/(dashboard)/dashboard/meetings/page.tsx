@@ -9,7 +9,6 @@ import { Toggle } from '@/components/ui/Toggle'
 // is the CONSTANT 'UTC' below to keep SSR/hydration deterministic. The
 // sCfgTzOrigin state gates whether the value ever reaches the save payload.
 import { TIMEZONES } from '@/lib/timezones'
-import { RETENTION_MINUTES } from '@/lib/meetings-retention'
 
 const supabase = createClient()
 
@@ -19,6 +18,12 @@ interface Meeting {
   title: string; meeting_at: string; duration_min: number
   attendee_email: string; attendee_name: string | null
   company_name: string | null; status: string; notes: string | null
+  // Public-booking rows carry expires_at (attendee-confirmation deadline,
+  // 24 h post confirmation_sent_at). Owner-created rows have it NULL.
+  // Rendered on the pending-card hint so the owner sees the deadline
+  // and doesn't confuse the 15-min blocking window (which does NOT
+  // concern them) with the 24-h visibility / confirmation window.
+  expires_at: string | null
 }
 interface AvailWindow { start: string; end: string }
 interface BookingConfig {
@@ -64,16 +69,17 @@ const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday
 // detected-but-out-of-list value selected instead of silently replacing it
 // with the first item.
 // STATUS_COLORS covers ALL statuses the /api/meetings response can now
-// carry — 'pending' surfaced in PR B and gets a muted neutral pill (not a
-// hero colour) so the eye can distinguish it from a confirmed booking at a
-// glance in both list + calendar-cell chips. 'expired' is filtered
-// server-side and does not need a colour.
+// carry — 'pending' surfaced in PR B and gets the amber "action required"
+// variant per sentra-design-system (yellow / Warning, Action required) so
+// the eye reads it as "this deserves attention" without the alarm of the
+// red cancelled tone. 'expired' is filtered server-side and does not need
+// a colour.
 const STATUS_COLORS: Record<string,string> = {
   scheduled: 'bg-blue-50 text-blue-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-600',
   no_show:   'bg-orange-50 text-orange-600',
-  pending:   'bg-[#f5f2ee] text-[#8a7e6e] border border-[#e8e3dc]',
+  pending:   'bg-amber-50 text-amber-700 border border-amber-200',
 }
 
 // Values only. Labels resolved at render via useTranslations().
@@ -371,10 +377,16 @@ export default function MeetingsPage() {
       : isPending
         ? tStatuses('pending')
         : m.status
+    // Palette discipline (v2 sentra-design-system audit) : pending card
+    // background reuses `#f5f2ee` — the canonical app-fond color from the
+    // palette — rather than the v1 custom `#faf7f2`. Result : the pending
+    // card visually SINKS into the page background (owner reads it as
+    // "muted") while the confirmed cards float on `#ffffff`. No custom
+    // hex, still visually distinct at first glance.
     return (
       <div className={
         'bg-white border rounded-xl p-4 ' +
-        (isPending ? 'border-[#e8e3dc] bg-[#faf7f2]' : 'border-[#e8e3dc]')
+        (isPending ? 'border-[#e8e3dc] bg-[#f5f2ee]' : 'border-[#e8e3dc]')
       }>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -393,8 +405,34 @@ export default function MeetingsPage() {
               <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
             )}
             {isPending && (
-              <p className="text-xs text-[#8a7e6e] mt-1 italic">
-                {t('pending.cardHint', { minutes: RETENTION_MINUTES })}
+              // Owner-facing hint (v2 — v1 wrongly showed the 15-min blocking
+              // window, which is the OTHER retention concept and does not
+              // concern the owner). The two windows :
+              //   - 15 min : how long a pending row blocks OTHER prospects
+              //              from booking the same slot on the public page.
+              //              Never shown to the owner ; it would suggest
+              //              "the slot is free in 15 min" and lead to a
+              //              double-book of a booking the attendee can
+              //              still confirm for another 23 h 45 min.
+              //   - 24 h  : how long the ATTENDEE can still confirm and
+              //              take the slot (CONF_EXPIRES_HOURS in
+              //              book/[slug]/route.ts:19). This is what the
+              //              owner actually needs to know.
+              // Render the deadline (m.expires_at) in the workspace TZ,
+              // matching the fmtDatetime pattern used above. If expires_at
+              // is null (defensive : shape-inconsistent pending, non-
+              // public row somehow flipped to pending), fall back to the
+              // no-deadline variant.
+              <p className="text-xs text-[#6b5e4e] mt-1 italic">
+                {/* text-[#6b5e4e] not text-[#8a7e6e] : on the #f5f2ee pending
+                    card background, text-secondary #8a7e6e falls to ~3.4:1
+                    contrast (below WCAG AA 4.5:1 for small italic text).
+                    text-tertiary #6b5e4e clears AA at ~4.9:1 and is the
+                    same token used on card body copy elsewhere in this
+                    file. */}
+                {m.expires_at
+                  ? t('pending.cardHintWithDeadline', { deadline: fmtDatetime(m.expires_at, sCfg.timezone) })
+                  : t('pending.cardHintNoDeadline')}
               </p>
             )}
             {m.notes && (
@@ -766,7 +804,11 @@ export default function MeetingsPage() {
           <div className="flex-1 flex flex-col gap-1">
             <span className="text-sm text-[#1a1a2e]">{toast.msg}</span>
             {toast.warning && (
-              <span className="text-xs text-[#a26b1f] bg-[#fdf6e3] border border-[#f5e1a3] rounded-md px-2 py-1">{toast.warning}</span>
+              // Warning-tone : amber variant per sentra-design-system
+              // "yellow / Warning, Action required". Uses Tailwind amber-*
+              // scale (not custom hexes) so it stays in-palette and
+              // consistent with any future amber pill / banner.
+              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">{toast.warning}</span>
             )}
           </div>
           {toast.showBriefLink && (

@@ -1719,7 +1719,8 @@
         "pending": "Awaiting confirmation"
       },
       "pending": {
-        "cardHint": "The attendee has not clicked their confirmation email yet. This slot is provisionally held for {minutes} minutes after the invite was sent."
+        "cardHintWithDeadline": "The attendee has not clicked their confirmation email yet — they can confirm until {deadline}. Until then, this slot may still become theirs. Avoid double-booking over it.",
+        "cardHintNoDeadline": "The attendee has not clicked their confirmation email yet. Until they do, this slot may still become theirs. Avoid double-booking over it."
       },
       "toasts": {
         "createdSimple": "Meeting created.",

@@ -5,7 +5,7 @@ import { billingGuard } from '@/lib/billing-guard'
 import { ensureDealAtMeetingBooked } from '@/lib/deals'
 import { meetingCreateSchema, badRequest } from '@/lib/schemas'
 import { MEETING_LIST_COLUMNS } from '@/lib/meetings-columns'
-import { isPendingStillVisible, isPendingStillActive } from '@/lib/meetings-retention'
+import { isPendingStillVisible } from '@/lib/meetings-retention'
 import { convertNaiveLocalToUtc } from '@/lib/meeting-tz'
 
 export async function GET(request: Request) {
@@ -48,27 +48,36 @@ export async function GET(request: Request) {
   //
   // Column allowlist (MEETING_LIST_COLUMNS from lib/meetings-columns.ts) —
   // in the SAME COMMIT as the pending-surfacing change. Splitting the two
-  // would create an interim state where confirmation_token / expires_at /
-  // confirmation_sent_at / attendee_email_normalized cross the wire to
+  // would create an interim state where confirmation_token /
+  // attendee_email_normalized / confirmation_sent_at cross the wire to
   // the owner's browser for the first time. That's a defence-in-depth +
   // vendor-invisibility concern, not the closure of a public leak — the
   // route runs under session-authenticated + workspace-scoped RLS.
+  //
+  // expires_at IS in MEETING_LIST_COLUMNS since v2 — the owner needs it
+  // to render the "attendee can confirm until <time>" hint on pending
+  // rows (see lib/meetings-columns.ts PROMOTED IN v2 note). Same value
+  // drives the isPendingStillVisible filter below : one read, two uses.
   let query = supabase
     .from('meetings')
-    .select(MEETING_LIST_COLUMNS + ', expires_at')
-    // ↑ expires_at is read on the server for the isPendingStillVisible
-    //   filter below, then stripped before the response goes over the wire.
-    //   It never reaches the client.
+    .select(MEETING_LIST_COLUMNS)
     .eq('workspace_id', member.workspace_id)
     .neq('status', 'expired')
     .order('meeting_at', { ascending: true })
 
   if (statusFilter === 'upcoming') {
-    // Historically excluded pending. Kept that way : "Upcoming" is the
-    // owner's committed calendar. Pending rows still surface via the
-    // "All" tab. Rename the tab or fold pending in with an explicit UI
-    // decision — not silently here.
-    query = query.eq('status', 'scheduled').gte('meeting_at', new Date().toISOString())
+    // "Upcoming" is the owner's default landing view (page.tsx:145 —
+    // tab='upcoming', view='list'). Restricting it to status='scheduled'
+    // was the whole reason pending bookings stayed invisible : the tab
+    // that opens on page load hid every attendee-not-yet-confirmed row
+    // for up to 24 h, exactly the window this PR closes. Now we surface
+    // scheduled AND pending future rows here — the isPendingStillVisible
+    // filter downstream drops any pending row past its expires_at (cron
+    // gap), so we do NOT re-implement that in the query. The client-side
+    // MeetingCard renders pending as read-only + visually distinct.
+    query = query
+      .in('status', ['scheduled', 'pending'])
+      .gte('meeting_at', new Date().toISOString())
   } else if (statusFilter === 'cancelled') {
     query = query.in('status', ['cancelled', 'no_show'])
   }
@@ -76,10 +85,10 @@ export async function GET(request: Request) {
   const { data: rows, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // JS filter for the cron-gap case (see comment block above) + strip
-  // expires_at from the payload. We read it as a server-side gate; the
-  // client neither needs it nor should have it (see MEETING_LIST_COLUMNS
-  // audit in lib/meetings-columns.ts).
+  // JS filter for the cron-gap case (see comment block above). expires_at
+  // is now part of the response (v2) — no stripping — because the
+  // pending-card hint renders "attendee can confirm until <time>" from
+  // it. Same value gates the filter here : one read, two uses.
   //
   // `as any[]` cast : the .select() with a runtime-composed column string
   // widens the row type to GenericStringError in the Supabase SDK typings
@@ -87,15 +96,13 @@ export async function GET(request: Request) {
   // Same escape as app/api/prospect-emails/route.ts:139. Runtime shape is
   // known from the string we passed above.
   type MeetingRow = Record<string, unknown> & { status: string; expires_at: string | null }
-  const meetings = ((rows ?? []) as unknown as MeetingRow[])
-    .filter(row => {
-      if (row.status !== 'pending') return true
-      return isPendingStillVisible({
-        status: row.status,
-        expires_at: row.expires_at ?? null,
-      })
+  const meetings = ((rows ?? []) as unknown as MeetingRow[]).filter(row => {
+    if (row.status !== 'pending') return true
+    return isPendingStillVisible({
+      status: row.status,
+      expires_at: row.expires_at ?? null,
     })
-    .map(({ expires_at: _expires_at, ...safe }) => safe)
+  })
 
   return NextResponse.json({ meetings })
 }
@@ -129,7 +136,24 @@ export async function POST(request: Request) {
   const meeting_at_utc = convertNaiveLocalToUtc(meeting_at, wpTz)
   const durationMin    = duration_min ?? 30
 
-  const { data: meeting, error } = await supabase
+  // .select(MEETING_LIST_COLUMNS) — NOT .select() : the returned row is
+  // sent straight to the client at l.…218 below. `.select()` with no
+  // argument = all columns, which since the pending-bookings work now
+  // includes confirmation_token, attendee_email_normalized,
+  // confirmation_sent_at, expires_at — those four MUST NEVER cross the
+  // wire (see lib/meetings-columns.ts). An owner-created row has those
+  // fields NULL today, so the pre-fix leak was harmless in practice, but
+  // (a) it's the same class as the PATCH leak fixed alongside, and
+  // (b) any future column added to the meetings table that carries
+  // secret / anti-abuse material would silently leak through this insert
+  // response until someone re-audited every .select() shape by hand.
+  // `insertResult.data as unknown as { id: string }` cast : same
+  // GenericStringError widening as the GET query above (runtime-composed
+  // column string can't be narrowed by the Supabase SDK types). Runtime
+  // shape is guaranteed by the MEETING_LIST_COLUMNS string. Only .id is
+  // consumed here (for the overlap-warning .neq('id', meeting.id) at
+  // l.…208 below) and the whole row is spread into the response.
+  const insertResult = await supabase
     .from('meetings')
     .insert({
       workspace_id:  member.workspace_id,
@@ -143,9 +167,10 @@ export async function POST(request: Request) {
       notes:         notes         ?? null,
       prospect_id:   prospect_id   ?? null,
     })
-    .select().single()
+    .select(MEETING_LIST_COLUMNS).single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (insertResult.error) return NextResponse.json({ error: insertResult.error.message }, { status: 500 })
+  const meeting = insertResult.data as unknown as { id: string } & Record<string, unknown>
 
   // Auto-advance deal if meeting is linked to a prospect
   if (prospect_id) {
@@ -166,24 +191,44 @@ export async function POST(request: Request) {
   // hold). Warn but don't refuse : the client renders this as a "you
   // overlap X" banner on the created meeting toast.
   //
-  // Compare against SCHEDULED rows AND pending-still-active rows (same
-  // predicate as availability/route.ts), applying the workspace buffer.
-  // Query is intentionally narrow : same-day window in the workspace's TZ,
-  // so we don't scan the whole table. Uses the ADMIN client to see all
-  // rows in the workspace — the owner has no reason to be shown a
-  // filtered view of their own agenda for this warning.
+  // PREDICATE : isPendingStillVisible, not isPendingStillActive. The two
+  // retention windows in lib/meetings-retention.ts are DIFFERENT :
+  //   - isPendingStillActive (15 min) : governs which pending rows BLOCK
+  //     other prospects on the public booking page.
+  //   - isPendingStillVisible (24 h)  : governs which pending rows appear
+  //     on the OWNER's dashboard AND — the point here — which pending
+  //     rows we warn the owner about when they schedule over one.
+  //
+  // Using the 15-min predicate here would silently drop the warning for
+  // any pending row older than 15 min but younger than 24 h : the owner
+  // would schedule over a booking whose attendee can STILL confirm and
+  // will land on slot_taken with no prior signal — the exact scenario
+  // this PR closes. The visibility window is the right frame for an
+  // owner-facing warning.
+  //
+  // Query is intentionally narrow (±24 h UTC around the inserted slot —
+  // schema caps duration at 480 min, so ±24 h comfortably covers any
+  // legitimate meeting that starts before OR ends after this one, with
+  // buffer). This is NOT a "workspace-TZ same-day" window — it's a UTC
+  // symmetric envelope, wide enough to be TZ-agnostic without scanning
+  // the whole table.
+  //
+  // CLIENT vs ADMIN : we use the session-authenticated client. RLS on
+  // meetings is workspace-wide (001_meetings.sql:35-40 — any member sees
+  // any row in their workspace), so there's no visibility that admin
+  // would unlock. Session client keeps the audit trail attached to the
+  // caller and follows the same discipline as the read at l.126.
   //
   // Excludes the row we just inserted (`.neq('id', meeting.id)`) —
   // otherwise the meeting we JUST created would trivially self-overlap.
-  const admin = createAdminClient()
   const insertedStartMs = new Date(meeting_at_utc).getTime()
   const insertedEndMs   = insertedStartMs + durationMin * 60_000
   const dayStartUtc     = new Date(insertedStartMs - 24 * 60 * 60 * 1000).toISOString()
   const dayEndUtc       = new Date(insertedEndMs   + 24 * 60 * 60 * 1000).toISOString()
 
-  const { data: neighbours } = await admin
+  const { data: neighbours } = await supabase
     .from('meetings')
-    .select('id, title, meeting_at, duration_min, status, confirmation_sent_at')
+    .select('id, title, meeting_at, duration_min, status, expires_at')
     .eq('workspace_id', member.workspace_id)
     .neq('id', meeting.id)
     .in('status', ['scheduled', 'pending'])
@@ -192,20 +237,35 @@ export async function POST(request: Request) {
 
   const bufMs = bufMin * 60_000
   const overlapping = (neighbours ?? []).filter(row => {
-    if (row.status !== 'scheduled' && !isPendingStillActive({
+    if (row.status !== 'scheduled' && !isPendingStillVisible({
       status: row.status,
-      confirmation_sent_at: row.confirmation_sent_at ?? null,
+      expires_at: row.expires_at ?? null,
     })) return false
     const rowStart = new Date(row.meeting_at).getTime()
     const rowEnd   = rowStart + (row.duration_min ?? 30) * 60_000
     return insertedStartMs < rowEnd + bufMs && insertedEndMs > rowStart - bufMs
   })
 
+  // Warning shape : {id, title, status, meeting_at}.
+  //
+  // HONEST FRAMING — `title` carries the attendee email for any public
+  // booking row : book/[slug]/route.ts:317 sets `title = "Meeting with
+  // ${attendee_email}"`. The owner already sees that address through
+  // MEETING_LIST_COLUMNS.attendee_email, so this warning is not a new
+  // exposure. But this payload MUST NEVER be logged to analytics /
+  // observability, echoed to a webhook, or forwarded to a third party
+  // as-is : outside the owner's own session, an email in a warning
+  // string is a leak. If a future feature wants to persist this
+  // warning, strip title first (or replace it with a hash / a generic
+  // "another meeting" placeholder).
+  //
+  // No notes / attendee_name in the payload : those are strictly
+  // over-share for an "FYI you also have X" toast. Frontend renders
+  // localised text from the count only (createdOverlapWarning), so
+  // even the title never reaches the DOM today — the fields are here
+  // only if a future UI wants to render them.
   const warning = overlapping.length > 0
     ? {
-        // Shape kept minimal + client-audited : id + title + status +
-        // meeting_at. No attendee PII (that would be over-share for an
-        // "FYI you also have X" toast). Frontend renders localised text.
         overlaps: overlapping.map(o => ({
           id:         o.id,
           title:      o.title,
