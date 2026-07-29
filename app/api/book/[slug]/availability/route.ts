@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { bookingAvailabilitySchema, badRequest } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
+import { isPendingStillActive } from '@/lib/meetings-retention'
 
 function getTzOffset(tz: string, dateStr: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -52,16 +53,42 @@ export async function GET(
   const dayStart    = new Date(`${date}T00:00:00${queryOffset}`)
   const dayEnd      = new Date(`${date}T23:59:59.999${queryOffset}`)
 
+  // Read BOTH scheduled AND pending rows, then filter the pending set in JS
+  // to the retention window (isPendingStillActive from lib/meetings-retention).
+  //
+  // NOT `.or('status.eq.scheduled,and(status.eq.pending,confirmation_sent_at.gt.…)')`
+  // : PostgREST string filter chains (`.or`, `.filter`, `.not`) have a
+  // fallback overload typed `column: string`, so a typo in the filter
+  // expression passes tsc AND next build and only surfaces at runtime
+  // as "0 rows" (or worse, "all rows"). Same failure family as #333/#334.
+  //
+  // Projection widened to (status, confirmation_sent_at) — server-only ;
+  // this route's response is still just `{ busy }` (see l.79 below). No
+  // client field leak.
   const { data: meetings } = await admin
     .from('meetings')
-    .select('meeting_at, duration_min')
+    .select('meeting_at, duration_min, status, confirmation_sent_at')
     .eq('workspace_id', profile.workspace_id)
-    .eq('status', 'scheduled')
+    .in('status', ['scheduled', 'pending'])
     .gte('meeting_at', dayStart.toISOString())
     .lte('meeting_at', dayEnd.toISOString())
 
+  // Filter : (a) all scheduled rows keep blocking ; (b) pending rows only
+  // block while inside the retention window. isPendingStillActive returns
+  // FALSE when confirmation_sent_at is NULL — a defensively-shaped pending
+  // row cannot freeze a slot forever. Admin-created rows (POST
+  // /api/meetings) are status='scheduled', so they block via branch (a),
+  // never via the pending predicate.
+  const blocking = (meetings ?? []).filter(m => {
+    if (m.status === 'scheduled') return true
+    return isPendingStillActive({
+      status: m.status,
+      confirmation_sent_at: m.confirmation_sent_at ?? null,
+    })
+  })
+
   const bufMs = bufMin * 60_000
-  const busy  = (meetings ?? []).map(m => {
+  const busy  = blocking.map(m => {
     const startMs = new Date(m.meeting_at).getTime()
     const endMs   = startMs + (m.duration_min ?? 30) * 60_000
     return {

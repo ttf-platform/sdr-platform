@@ -9,6 +9,7 @@ import { Toggle } from '@/components/ui/Toggle'
 // is the CONSTANT 'UTC' below to keep SSR/hydration deterministic. The
 // sCfgTzOrigin state gates whether the value ever reaches the save payload.
 import { TIMEZONES } from '@/lib/timezones'
+import { RETENTION_MINUTES } from '@/lib/meetings-retention'
 
 const supabase = createClient()
 
@@ -62,10 +63,27 @@ const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday
 // Zurich…). See lib/timezones.ts for the invariant that keeps a
 // detected-but-out-of-list value selected instead of silently replacing it
 // with the first item.
-const STATUS_COLORS: Record<string,string> = { scheduled:'bg-blue-50 text-blue-700', completed:'bg-green-50 text-green-700', cancelled:'bg-red-50 text-red-600', no_show:'bg-orange-50 text-orange-600' }
+// STATUS_COLORS covers ALL statuses the /api/meetings response can now
+// carry — 'pending' surfaced in PR B and gets a muted neutral pill (not a
+// hero colour) so the eye can distinguish it from a confirmed booking at a
+// glance in both list + calendar-cell chips. 'expired' is filtered
+// server-side and does not need a colour.
+const STATUS_COLORS: Record<string,string> = {
+  scheduled: 'bg-blue-50 text-blue-700',
+  completed: 'bg-green-50 text-green-700',
+  cancelled: 'bg-red-50 text-red-600',
+  no_show:   'bg-orange-50 text-orange-600',
+  pending:   'bg-[#f5f2ee] text-[#8a7e6e] border border-[#e8e3dc]',
+}
 
 // Values only. Labels resolved at render via useTranslations().
 // Sujet grammatical rendez-vous (masc.) — LOCAL, no reuse from campaigns.list.statuses (fem.).
+//
+// 'pending' NOT included here : the <select> for owner-side status changes
+// must never let the owner flip pending → scheduled (that bypasses
+// confirm_booking's advisory-lock conflict check + notification path — see
+// api/meetings/[id]/route.ts NON_MUTABLE_STATUSES). Rendering discipline in
+// MeetingCard : if m.status === 'pending', no <select> is shown at all.
 const MEETING_STATUS_KEYS = ['scheduled', 'completed', 'cancelled', 'no_show'] as const
 type MeetingStatusKey = typeof MEETING_STATUS_KEYS[number]
 
@@ -151,7 +169,12 @@ export default function MeetingsPage() {
   const [cForm, setCForm] = useState({ title:'', meeting_at:'', duration_min:30, attendee_email:'', attendee_name:'', company_name:'', notes:'' })
   const [creating, setCreating]   = useState(false)
   const [createErr, setCreateErr] = useState('')
-  const [toast, setToast] = useState<{ msg: string; showBriefLink: boolean } | null>(null)
+  // Toast shape :
+  //   msg           — primary line (localised)
+  //   showBriefLink — Morning Brief CTA (same-day only)
+  //   warning       — optional secondary line ; set when POST /api/meetings
+  //                    returned a non-blocking overlap warning (E).
+  const [toast, setToast] = useState<{ msg: string; showBriefLink: boolean; warning?: string } | null>(null)
 
   useEffect(() => {
     if (!toast) return
@@ -248,9 +271,15 @@ export default function MeetingsPage() {
     const meetingDate = cForm.meeting_at.split('T')[0]
     const todayDate   = new Date().toLocaleDateString('en-CA')
     const isToday     = meetingDate === todayDate
+    // Non-blocking overlap warning (E). The 201 response carries a
+    // `warning.overlaps: [...]` array when the created meeting collides
+    // (with buffer) with an existing scheduled OR pending-still-visible
+    // row. We surface a count-only line ; owner remains in control.
+    const overlapsCount = Array.isArray(res?.warning?.overlaps) ? res.warning.overlaps.length : 0
     setToast({
       msg: isToday ? tToasts('createdWithBrief') : tToasts('createdSimple'),
       showBriefLink: isToday,
+      warning: overlapsCount > 0 ? tToasts('createdOverlapWarning', { count: overlapsCount }) : undefined,
     })
     setCForm({ title:'', meeting_at:'', duration_min:30, attendee_email:'', attendee_name:'', company_name:'', notes:'' })
     loadMeetings(); setCreating(false)
@@ -322,20 +351,51 @@ export default function MeetingsPage() {
   // Utilisé À DEUX endroits : la vue Liste + l'agenda du jour sélectionné dans
   // la vue Calendrier. Pas de duplication.
   function MeetingCard({ m }: { m: Meeting }) {
+    // 'pending' rows are read-only (B2). Rationale + the API guard that
+    // enforces this even against a hand-crafted PATCH/DELETE live in
+    // app/api/meetings/[id]/route.ts (NON_MUTABLE_STATUSES). The UI
+    // discipline here :
+    //   - no status <select>  (owner can't flip pending → scheduled, which
+    //     would bypass confirm_booking + advisory-lock conflict check)
+    //   - no ✕ delete button  (a hard DELETE erases a row that still counts
+    //     in the anti-abuse counters keyed on confirmation_sent_at)
+    //   - no ICS link         (the slot isn't reserved ; adding it to the
+    //     owner's calendar would be misleading, and the ICS route already
+    //     refuses pending — the button would 404)
+    // Visual treatment : the pending pill (grey, from STATUS_COLORS) + a
+    // muted card body + an explanatory hint. The eye must NOT confuse a
+    // pending row with a confirmed one — that's the whole point of PR B.
+    const isPending = m.status === 'pending'
     const statusLabel = (MEETING_STATUS_KEYS as readonly string[]).includes(m.status)
       ? tStatuses(m.status)
-      : m.status
+      : isPending
+        ? tStatuses('pending')
+        : m.status
     return (
-      <div className="bg-white border border-[#e8e3dc] rounded-xl p-4">
+      <div className={
+        'bg-white border rounded-xl p-4 ' +
+        (isPending ? 'border-[#e8e3dc] bg-[#faf7f2]' : 'border-[#e8e3dc]')
+      }>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-semibold text-[#1a1a2e] text-sm">{m.title}</span>
+              <span className={
+                'font-semibold text-sm ' +
+                (isPending ? 'text-[#6b5e4e]' : 'text-[#1a1a2e]')
+              }>{m.title}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{statusLabel}</span>
             </div>
-            <p className="text-xs text-[#8a7e6e]">{fmtDatetime(m.meeting_at, sCfg.timezone)} · {t('durationMinutes', { count: m.duration_min })}</p>
+            <p className={
+              'text-xs ' +
+              (isPending ? 'text-[#8a7e6e]' : 'text-[#8a7e6e]')
+            }>{fmtDatetime(m.meeting_at, sCfg.timezone)} · {t('durationMinutes', { count: m.duration_min })}</p>
             {(m.attendee_name || m.attendee_email) && (
               <p className="text-xs text-[#6b5e4e] mt-0.5">{m.attendee_name ?? m.attendee_email}{m.company_name ? ` · ${m.company_name}` : ''}</p>
+            )}
+            {isPending && (
+              <p className="text-xs text-[#8a7e6e] mt-1 italic">
+                {t('pending.cardHint', { minutes: RETENTION_MINUTES })}
+              </p>
             )}
             {m.notes && (
               <div className="mt-2 pt-2 border-t border-[#f0ece6]">
@@ -344,16 +404,18 @@ export default function MeetingsPage() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <a href={`/api/meetings/${m.id}/ics`} className="text-xs border border-[#e8e3dc] px-2 py-1 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee]">📅</a>
-            <select value={m.status} onChange={e => updateStatus(m.id, e.target.value)}
-              className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1 text-[#1a1a2e] bg-white focus:outline-none">
-              {(MEETING_STATUS_KEYS as readonly MeetingStatusKey[]).map(key => (
-                <option key={key} value={key}>{tStatuses(key)}</option>
-              ))}
-            </select>
-            <button onClick={() => deleteMeeting(m.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
-          </div>
+          {!isPending && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <a href={`/api/meetings/${m.id}/ics`} className="text-xs border border-[#e8e3dc] px-2 py-1 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee]">📅</a>
+              <select value={m.status} onChange={e => updateStatus(m.id, e.target.value)}
+                className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1 text-[#1a1a2e] bg-white focus:outline-none">
+                {(MEETING_STATUS_KEYS as readonly MeetingStatusKey[]).map(key => (
+                  <option key={key} value={key}>{tStatuses(key)}</option>
+                ))}
+              </select>
+              <button onClick={() => deleteMeeting(m.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -564,6 +626,7 @@ export default function MeetingsPage() {
                             hour: '2-digit', minute: '2-digit', timeZone: sCfg.timezone,
                           }).format(new Date(mtg.meeting_at))
                           const cancelled = mtg.status === 'cancelled'
+                          const pending   = mtg.status === 'pending'
                           return (
                             <span
                               key={mtg.id}
@@ -574,12 +637,19 @@ export default function MeetingsPage() {
                               // STATUS_COLORS suffit à identifier le statut ;
                               // pas de border (`border-current/20` était un
                               // invalide Tailwind qui tombait au default).
+                              //
+                              // Pending : italique + opacité réduite pour que
+                              // l'œil ne le confonde pas avec un rendez-vous
+                              // confirmé même dans les chips de la grille
+                              // (STATUS_COLORS.pending est déjà grisé, on
+                              // renforce ici pour la lecture rapide).
                               className={
                                 'block text-[10px] px-1 py-0.5 rounded truncate leading-tight ' +
                                 (STATUS_COLORS[mtg.status] ?? 'bg-white text-[#1a1a2e]') + ' ' +
-                                (cancelled ? 'line-through opacity-70' : '')
+                                (cancelled ? 'line-through opacity-70 ' : '') +
+                                (pending ? 'italic opacity-80' : '')
                               }
-                              title={`${timeStr} · ${mtg.title}`}
+                              title={`${timeStr} · ${mtg.title}${pending ? ` · ${tStatuses('pending')}` : ''}`}
                             >
                               {timeStr} {mtg.title}
                             </span>
@@ -685,12 +755,22 @@ export default function MeetingsPage() {
         </div>
       )}
 
-      {/* ── Toast ───────────────────────────────────────────────────────── */}
+      {/* ── Toast ─────────────────────────────────────────────────────────
+            Two-line layout when an overlap warning is attached (E) : the
+            main confirmation on the first line, the warning underneath so
+            the owner reads both without the CTA being pushed off. Warning
+            copy uses a muted amber to signal "read this" without alarming
+            like an error state. */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-sm">
-          <span className="text-sm text-[#1a1a2e] flex-1">{toast.msg}</span>
+        <div className="fixed top-4 right-4 z-50 bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 max-w-sm">
+          <div className="flex-1 flex flex-col gap-1">
+            <span className="text-sm text-[#1a1a2e]">{toast.msg}</span>
+            {toast.warning && (
+              <span className="text-xs text-[#a26b1f] bg-[#fdf6e3] border border-[#f5e1a3] rounded-md px-2 py-1">{toast.warning}</span>
+            )}
+          </div>
           {toast.showBriefLink && (
-            <Link href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline">{tToasts('briefLink')}</Link>
+            <Link href="/dashboard/morning-brief" className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline mt-0.5">{tToasts('briefLink')}</Link>
           )}
           <button onClick={() => setToast(null)} className="text-[#8a7e6e] hover:text-[#1a1a2e] flex-shrink-0 ml-1">✕</button>
         </div>

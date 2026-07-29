@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateICS } from '@/lib/ics'
+import { MEETING_ICS_COLUMNS } from '@/lib/meetings-columns'
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
@@ -8,8 +9,15 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Explicit allowlist — see lib/meetings-columns.ts::MEETING_ICS_COLUMNS.
+  // generateICS spreads the meeting object into an ICSMeeting shape ; the
+  // pre-allowlist .select('*') passed through confirmation_token +
+  // attendee_email_normalized + confirmation_sent_at + expires_at into the
+  // spread even though generateICS never renders them. Vendor-invisibility
+  // + defence-in-depth : keep secrets and anti-abuse internals out of the
+  // object graph, not just out of the rendered output.
   const { data: meeting, error } = await supabase
-    .from('meetings').select('*').eq('id', params.id).single()
+    .from('meetings').select(MEETING_ICS_COLUMNS).eq('id', params.id).single()
   if (error || !meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Never emit an ICS for an unconfirmed public booking : the slot isn't

@@ -1715,12 +1715,17 @@
         "scheduled": "Planifié",
         "completed": "Terminé",
         "cancelled": "Annulé",
-        "no_show": "Absence"
+        "no_show": "Absence",
+        "pending": "En attente de confirmation"
+      },
+      "pending": {
+        "cardHint": "Le participant n'a pas encore cliqué sur son lien de confirmation. Le créneau est réservé provisoirement pendant {minutes} minutes après l'envoi de l'invitation."
       },
       "toasts": {
         "createdSimple": "Rendez-vous créé.",
         "createdWithBrief": "Rendez-vous créé. Régénérez votre brief du matin pour l'inclure.",
-        "briefLink": "Aller au brief →"
+        "briefLink": "Aller au brief →",
+        "createdOverlapWarning": "{count, plural, one {Attention — chevauche # rendez-vous existant.} other {Attention — chevauche # rendez-vous existants.}}"
       },
       "confirmDelete": "Supprimer ce rendez-vous ?",
       "createModal": {

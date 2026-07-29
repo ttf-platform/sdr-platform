@@ -1715,12 +1715,17 @@
         "scheduled": "Scheduled",
         "completed": "Completed",
         "cancelled": "Cancelled",
-        "no_show": "No-show"
+        "no_show": "No-show",
+        "pending": "Awaiting confirmation"
+      },
+      "pending": {
+        "cardHint": "The attendee has not clicked their confirmation email yet. This slot is provisionally held for {minutes} minutes after the invite was sent."
       },
       "toasts": {
         "createdSimple": "Meeting created.",
         "createdWithBrief": "Meeting created. Regenerate your Morning Brief to include it.",
-        "briefLink": "Go to brief →"
+        "briefLink": "Go to brief →",
+        "createdOverlapWarning": "{count, plural, one {Heads up — this overlaps # existing meeting.} other {Heads up — this overlaps # existing meetings.}}"
       },
       "confirmDelete": "Delete this meeting?",
       "createModal": {
