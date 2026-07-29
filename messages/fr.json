@@ -1746,7 +1746,9 @@
           "description": "Les prospects peuvent réserver un rendez-vous via votre lien public"
         },
         "timezone": {
-          "label": "Fuseau horaire"
+          "label": "Fuseau horaire",
+          "notSet": "Non défini",
+          "placeholder": "Choisir un fuseau…"
         },
         "availability": {
           "label": "Disponibilités",

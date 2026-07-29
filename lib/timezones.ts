@@ -28,12 +28,26 @@
  *   first item). See TimezoneSelect callers for the enforcement.
  */
 
+// Every entry MUST equal `canonicalizeIanaTz(entry)` on the current runtime.
+// If it doesn't, the signup route stores one name ('Asia/Calcutta') while
+// the <select> renders another ('Asia/Kolkata'), and the out-of-list guard
+// then prepends the stored form as an extra <option> — two labels for the
+// same zone, per user. Enforced by lib/__tests__/timezones.test.ts. When
+// the ICU version drifts and the mapping changes, that test fails and the
+// list must be re-canonicalised in the same PR that bumps the runtime.
+//
+// Notable ICU-77-era canonicalisations we're pinned to :
+//   'America/Buenos_Aires' — Intl resolves 'America/Argentina/Buenos_Aires'
+//                            back to this shorter form.
+//   'Asia/Calcutta'        — Intl still uses the pre-2013 IANA link ; the
+//                            modern spelling 'Asia/Kolkata' resolves down
+//                            to this.
 export const TIMEZONES = [
   // Americas — north to south
   'America/Los_Angeles', 'America/Vancouver', 'America/Denver', 'America/Chicago',
   'America/New_York',    'America/Toronto',   'America/Halifax',
   'America/Mexico_City', 'America/Bogota',    'America/Lima',
-  'America/Santiago',    'America/Sao_Paulo', 'America/Argentina/Buenos_Aires',
+  'America/Santiago',    'America/Sao_Paulo', 'America/Buenos_Aires',
   // Europe — west to east
   'Europe/Lisbon',    'Europe/Dublin',   'Europe/London',
   'Europe/Madrid',    'Europe/Paris',    'Europe/Amsterdam',
@@ -45,7 +59,7 @@ export const TIMEZONES = [
   // Middle East
   'Asia/Jerusalem', 'Asia/Dubai',
   // South + SE Asia
-  'Asia/Kolkata', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Jakarta',
+  'Asia/Calcutta', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Jakarta',
   // East Asia
   'Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Seoul', 'Asia/Tokyo',
   // Oceania
@@ -57,11 +71,26 @@ export const TIMEZONES = [
 export type KnownTimezone = typeof TIMEZONES[number]
 
 /**
- * Normalise an IANA-shaped input to the canonical zone name.
- * Returns null when the input is not accepted by Intl.
+ * Normalise an IANA-shaped input to the canonical zone name via Intl.
+ * Returns null when Intl refuses the input outright ; otherwise returns
+ * whatever `.resolvedOptions().timeZone` yields on this runtime.
  *
- * Verified under Node 22 : 'utc' → 'UTC', 'Cuba' → 'America/Havana',
- * 'US/Pacific' → 'America/Los_Angeles', '+05:30' → null.
+ * WHAT IT DOES : resolves aliases + case ('utc' → 'UTC', 'US/Pacific' →
+ *   'America/Los_Angeles', 'Cuba' → 'America/Havana', 'Asia/Kolkata' →
+ *   'Asia/Calcutta' under Node 24 ICU 78).
+ *
+ * WHAT IT DOES NOT DO : force a canonical IANA name. Offset strings like
+ *   '+05:30' or '+0530' pass Intl AND come back UNCHANGED (well, '+0530'
+ *   → '+05:30' — punctuation normalised). 'GMT' comes back as 'UTC'.
+ *   Callers that need a canonical IANA zone name specifically must check
+ *   the return against a known set — this helper only guards against
+ *   Intl-refused garbage.
+ *
+ * Measured under Node 24.15 (ICU 78.2). The canonical mapping is ICU-
+ * version-dependent : bumping the runtime can change which alias resolves
+ * to which name (e.g. a future ICU could restore 'Asia/Kolkata' as the
+ * canonical). Test coverage in lib/__tests__/timezones.test.ts pins the
+ * current mapping so a runtime bump surfaces as a failure.
  */
 export function canonicalizeIanaTz(input: string | null | undefined): string | null {
   if (!input || typeof input !== 'string') return null

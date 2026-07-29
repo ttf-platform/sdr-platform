@@ -16,7 +16,11 @@ import { LanguageSection } from '@/components/settings/LanguageSection'
 // the local variable name. See lib/timezones.ts for the invariant that
 // keeps an out-of-list stored value selected instead of silently replacing
 // it with the first item.
-import { TIMEZONES as WORKSPACE_TIMEZONES, detectClientTimezone } from '@/lib/timezones'
+// detectClientTimezone deliberately NOT imported here — this page never
+// writes a browser-detected placeholder to the DB (see tzOrigin gating in
+// saveCompany). The <select> hides the 'UTC' constant behind a disabled
+// placeholder until origin flips to 'db' or 'user'.
+import { TIMEZONES as WORKSPACE_TIMEZONES } from '@/lib/timezones'
 
 const supabase = createClient()
 
@@ -87,12 +91,14 @@ const SNAP_DEFAULTS = {
   company_name:           '',
   sender_name:            '',
   company_website:        '',
-  // Snapshot default : browser IANA zone, never a hardcoded 'America/Toronto'.
-  // A user in Madrid loading settings for the first time would see Toronto
-  // for the ~200ms between mount and profile load, then see it snap to
-  // whatever's actually stored — hardcoded fallbacks create the exact
-  // "someone else's fuseau" perception this PR is fixing.
-  timezone:               detectClientTimezone(),
+  // Snapshot default : the neutral 'UTC' constant. The <select> hides
+  // this behind a disabled placeholder until origin flips to 'db' or
+  // 'user' (see tzOrigin). Was 'America/Toronto' pre-PR, briefly became
+  // detectClientTimezone() in the initial version of this PR — both were
+  // wrong for the same reason : a snapshot default doubles as a write
+  // seed (isDirtyCompany + saveCompany at l.166/314) and cannot be a
+  // guess.
+  timezone:               'UTC',
   user_industry:          '',
   user_company_size:      '',
   product_description:    '',
@@ -105,6 +111,10 @@ const SNAP_DEFAULTS = {
 export default function SettingsPage() {
   const t = useTranslations('dashboard.settings')
   const tCommon = useTranslations('dashboard.settings.common')
+  // Reuse the meetings scheduler placeholder key (`Choose a timezone…`) —
+  // same intent as the scheduler <select> in dashboard/meetings/page.tsx,
+  // one string to translate, one placeholder to see.
+  const tMeetingsTimezone = useTranslations('dashboard.meetings.scheduler.timezone')
   const locale = useLocale()
   // Session + workspace_members are owned by WorkspaceProvider.
   const { user, workspace } = useWorkspace()
@@ -117,6 +127,14 @@ export default function SettingsPage() {
   const [touched,       setTouched]       = useState<Set<string>>(new Set())
   const [toast,         setToast]         = useState<{ type: 'error' | 'info'; msg: string; link?: string; linkLabel?: string; persistent?: boolean } | null>(null)
   const [snapshot,      setSnapshot]      = useState(SNAP_DEFAULTS)
+  // Origin tracking for form.timezone — same discipline as
+  // meetings/page.tsx::sCfgTzOrigin. saveCompany omits workspace_timezone
+  // from the outgoing payload when origin is 'fallback', so a browser-
+  // detected placeholder never lands in booking_config.timezone through
+  // POST /api/workspace/profile:36-42 (which merges the raw value with
+  // no IANA validation nor canonicalisation, per lib/schemas/workspace-
+  // profile.ts:32 = z.record(z.string(), z.unknown())).
+  const [tzOrigin, setTzOrigin] = useState<'db' | 'user' | 'fallback'>('fallback')
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -132,8 +150,8 @@ export default function SettingsPage() {
     company_name:            '',
     sender_name:             '',
     company_website:         '',
-    // See SNAP_DEFAULTS note above — browser IANA zone, never hardcoded Toronto.
-    timezone:                detectClientTimezone(),
+    // See SNAP_DEFAULTS note above — 'UTC' constant, gated by tzOrigin.
+    timezone:                'UTC',
     user_industry:           '',
     user_company_size:       '',
     // Product
@@ -192,16 +210,26 @@ export default function SettingsPage() {
         setEmailCount(camps?.reduce((a, c) => a + (c.sent_count || 0), 0) || 0)
 
         if (p) {
+          // Loaded db timezone or null. `tzOrigin` (below) turns this null
+          // into a 'fallback' marker so the save path can drop the field
+          // from the outgoing payload — the placeholder is displayed in
+          // the <select>, and no browser-detected guess ever lands in
+          // booking_config.timezone through POST /api/workspace/profile.
+          const dbTz = typeof (p.booking_config as any)?.timezone === 'string'
+                        && (p.booking_config as any).timezone.length > 0
+            ? (p.booking_config as any).timezone as string
+            : null
           const loaded = {
             name:                   user!.user_metadata?.full_name || '',
             user_title:             p.user_title              || '',
             company_name:           p.company_name            || '',
             sender_name:            p.sender_name             || '',
             company_website:        p.company_website         || '',
-            // Fallback : browser IANA zone when the profile carries no
-            // booking_config.timezone (edge case for legacy accounts —
-            // post-PR signups always land with a stored value).
-            timezone:               (p.booking_config as any)?.timezone || detectClientTimezone(),
+            // Value stays 'UTC' when nothing is stored — a constant
+            // placeholder that the <select> hides behind the disabled
+            // "Choose a timezone" option. It is NEVER written to the DB
+            // in the 'fallback' branch.
+            timezone:               dbTz ?? 'UTC',
             user_industry:          p.user_industry           || '',
             user_company_size:      p.user_company_size       || '',
             product_description:    p.product_description     || '',
@@ -219,6 +247,7 @@ export default function SettingsPage() {
             signature_in_followups: p.signature_in_followups  ?? false,
           }
           setForm(loaded)
+          setTzOrigin(dbTz ? 'db' : 'fallback')
           setSnapshot({
             name:                   loaded.name,
             user_title:             loaded.user_title,
@@ -295,15 +324,25 @@ export default function SettingsPage() {
   async function saveCompany() {
     if (!form.company_name.trim()) return
     setSavingSection('company')
+    // Never write a fallback-origin timezone. POST /api/workspace/profile:
+    // 36-42 merges workspace_timezone into booking_config.timezone WITHOUT
+    // IANA validation nor canonicalisation ; sending a browser-detected
+    // placeholder here would land it in the DB as if the user had chosen
+    // it. Omitting the key means the stored value survives untouched
+    // (the route reads booking_config first, merges only the fields it
+    // received).
+    const payload: Record<string, unknown> = {
+      workspace_id: workspaceId,
+      company_name: form.company_name,
+      sender_name:  form.sender_name,
+    }
+    if (tzOrigin !== 'fallback') {
+      payload.workspace_timezone = form.timezone
+    }
     const res = await fetch('/api/workspace/profile', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        workspace_id:       workspaceId,
-        company_name:       form.company_name,
-        sender_name:        form.sender_name,
-        workspace_timezone: form.timezone,
-      }),
+      body:    JSON.stringify(payload),
     })
     setSavingSection(null)
     if (!res.ok) {
@@ -568,13 +607,27 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className={`${labelCls} mb-1 block`} htmlFor="set-workspace-timezone">{t('company.workspaceTimezone')}</label>
-              {/* Invariant : preserve an out-of-list stored value as a first
-                    option so the user sees + can save it back rather than have
-                    the <select> silently collapse to the first item. Same
-                    guard as dashboard/meetings/page.tsx scheduler modal. */}
-              <select id="set-workspace-timezone" value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
-                className={`${inputCls} bg-white`}>
-                {!(WORKSPACE_TIMEZONES as ReadonlyArray<string>).includes(form.timezone) && (
+              {/* Two invariants, mirroring meetings/page.tsx :
+                    (a) tzOrigin='fallback' → placeholder as the current
+                        <select> value ; saveCompany drops the field from
+                        the outgoing payload.
+                    (b) tzOrigin='db'|'user' with an out-of-list stored
+                        name → keep it selectable as a first option. */}
+              <select
+                id="set-workspace-timezone"
+                value={tzOrigin === 'fallback' ? '' : form.timezone}
+                onChange={e => {
+                  const tz = e.target.value
+                  if (!tz) return
+                  setForm({...form, timezone: tz})
+                  setTzOrigin('user')
+                }}
+                className={`${inputCls} bg-white`}
+              >
+                {tzOrigin === 'fallback' && (
+                  <option value="" disabled>{tMeetingsTimezone('placeholder')}</option>
+                )}
+                {tzOrigin !== 'fallback' && !(WORKSPACE_TIMEZONES as ReadonlyArray<string>).includes(form.timezone) && (
                   <option key={form.timezone} value={form.timezone}>{form.timezone}</option>
                 )}
                 {WORKSPACE_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}

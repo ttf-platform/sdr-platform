@@ -1746,7 +1746,9 @@
           "description": "Prospects can book meetings via your public link"
         },
         "timezone": {
-          "label": "Timezone"
+          "label": "Timezone",
+          "notSet": "Not set",
+          "placeholder": "Choose a timezone…"
         },
         "availability": {
           "label": "Availability",

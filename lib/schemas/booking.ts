@@ -2,12 +2,36 @@ import { z } from 'zod'
 
 // Exported so signupSchema (lib/schemas/auth.ts) + workspaceCreateSchema
 // (lib/schemas/workspace.ts) can reuse the same IANA validator instead of
-// reimplementing it. Verified accepts under Node 22 : 'UTC', 'Europe/Paris',
-// 'America/Toronto', 'Asia/Kolkata'. Also accepts (aliases resolved by
-// Intl) : 'utc', 'Cuba', 'US/Pacific'. Rejects : '+05:30', 'Foo/Bar'.
-// Non-canonical values that pass this validator are normalised by
-// lib/timezones.canonicalizeIanaTz on the server before write so the stored
-// value always matches a canonical IANA name.
+// reimplementing it.
+//
+// Measured under Node 24.15 (ICU 78.2) — see lib/__tests__/timezones.test.ts :
+//   Accepts (IANA canonical)     : 'UTC', 'Europe/Paris', 'America/Toronto'
+//   Accepts (link/alias resolved
+//     by Intl)                   : 'utc' → 'UTC', 'US/Pacific' → 'America/Los_Angeles',
+//                                  'Cuba' → 'America/Havana', 'Asia/Kolkata' → 'Asia/Calcutta'
+//   Accepts (offset strings — NOT
+//     canonical IANA zone names) : '+05:30', '+0530' → '+05:30', 'GMT' → 'UTC'
+//   Rejects                       : 'Foo/Bar', 'GMT+2', ''
+//
+// IMPORTANT — what this validator does NOT guarantee :
+//   (a) The stored value matches an IANA CANONICAL name. Offset strings
+//       ('+05:30') pass this validator AND survive
+//       lib/timezones.canonicalizeIanaTz, so they land in
+//       booking_config.timezone as an offset. UI <select> callers guard
+//       for out-of-list values ; see TIMEZONES consumers.
+//   (b) The stored form matches the <select> form for the same physical
+//       zone. The signup route canonicalises server-side ('Asia/Kolkata'
+//       → 'Asia/Calcutta'). POST /api/workspace/profile:36-42 and
+//       PUT /api/workspace-profile merge the raw <select> value ('Asia/
+//       Kolkata') without canonicalisation. Same physical zone, two stored
+//       spellings depending on the write path. Documented ; fixing this
+//       touches both preexisting routes and is out of scope of the signup
+//       PR that introduced this validator.
+//   (c) The canonical form is stable across runtimes. Intl canonical
+//       resolution depends on ICU version — a Node upgrade or a browser
+//       change could swap 'Asia/Calcutta' back to 'Asia/Kolkata'. The
+//       test in lib/__tests__/timezones.test.ts pins the current mapping
+//       so a runtime bump surfaces as a test failure.
 export const isValidIanaTz = (tz: string) => {
   try { Intl.DateTimeFormat(undefined, { timeZone: tz }); return true }
   catch { return false }
