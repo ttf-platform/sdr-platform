@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { workspaceCreateSchema, badRequest } from '@/lib/schemas'
+import { resolveToListTimezone, TIMEZONES } from '@/lib/timezones'
 
 export async function POST(request: Request) {
   const admin = createAdminClient()
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
   const parsed = workspaceCreateSchema.safeParse(rawBody)
   if (!parsed.success) return badRequest(parsed.error.issues)
-  const { workspaceName } = parsed.data
+  const { workspaceName, timezone: rawDetectedTz } = parsed.data
 
   const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).slice(2, 6)
 
@@ -71,6 +72,37 @@ export async function POST(request: Request) {
   })
   if (profileError) {
     console.error('[workspace/create] workspace_profiles insert failed (non-fatal):', profileError.message)
+  }
+
+  // Apply the client-detected timezone to booking_config.timezone. Same
+  // shape as app/api/auth/signup/route.ts::signup — INSERT with no
+  // booking_config so the JSONB DEFAULT lands intact, then SELECT + merge
+  // + UPDATE. See signup route for the full rationale (why not PostgREST
+  // jsonb_set, why the merge over the DEFAULT-populated object, why every
+  // failure branch is non-fatal, why resolveToListTimezone over
+  // canonicalizeIanaTz, and the DB DEFAULT edge case when detection
+  // fails outright).
+  if (!profileError && rawDetectedTz) {
+    const resolved = resolveToListTimezone(rawDetectedTz, TIMEZONES)
+    if (resolved) {
+      const { data: existing, error: readErr } = await admin
+        .from('workspace_profiles')
+        .select('booking_config')
+        .eq('workspace_id', workspace.id)
+        .single()
+      if (readErr) {
+        console.error('[workspace/create] booking_config re-read failed (non-fatal, keeping DEFAULT):', readErr.message)
+      } else {
+        const nextConfig = { ...(existing?.booking_config ?? {}), timezone: resolved }
+        const { error: updateErr } = await admin
+          .from('workspace_profiles')
+          .update({ booking_config: nextConfig })
+          .eq('workspace_id', workspace.id)
+        if (updateErr) {
+          console.error('[workspace/create] booking_config timezone merge failed (non-fatal, keeping DEFAULT):', updateErr.message)
+        }
+      }
+    }
   }
 
   return NextResponse.json({ workspace })

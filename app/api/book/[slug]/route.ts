@@ -70,7 +70,13 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
     owner_name:           ownerName,
     company_name:         (profile as any).company_name ?? '',
     workspace_name:       (profile.workspaces as any)?.name ?? '',
-    timezone:             cfg.timezone             ?? 'America/Toronto',
+    // Server fallback when the workspace has no booking_config.timezone
+    // stored (edge case for legacy accounts predating the signup TZ
+    // detection). UTC is the neutral choice — 'America/Toronto' here
+    // would silently anchor a random workspace's public page to a
+    // random-looking zone. Post-PR, signup + workspace/create set this
+    // value so this fallback should almost never fire.
+    timezone:             cfg.timezone             ?? 'UTC',
     meeting_durations:    cfg.meeting_durations    ?? [30],
     availability_windows: cfg.availability_windows ?? {},
     buffer_minutes:       cfg.buffer_minutes       ?? 15,

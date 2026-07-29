@@ -5,6 +5,10 @@ import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/ui/Spinner'
 import { Toggle } from '@/components/ui/Toggle'
+// detectClientTimezone deliberately NOT imported — DEFAULT_CONFIG.timezone
+// is the CONSTANT 'UTC' below to keep SSR/hydration deterministic. The
+// sCfgTzOrigin state gates whether the value ever reaches the save payload.
+import { TIMEZONES } from '@/lib/timezones'
 
 const supabase = createClient()
 
@@ -23,8 +27,26 @@ interface BookingConfig {
   video_meeting_url: string | null; welcome_message: string | null
 }
 
+// Pre-fetch shape/type reference for sCfg. The `timezone` field here is
+// intentionally the CONSTANT 'UTC', not a browser-detected value :
+//   (1) SSR-safety : this constant lives at module scope in a 'use client'
+//       file that Next also renders server-side. A browser-detected value
+//       there produces a hydration mismatch (server uses process TZ, client
+//       uses the browser TZ). 'UTC' matches on both sides.
+//   (2) Write-safety : sCfg is passed WHOLE to PUT /api/workspace-profile
+//       in saveScheduler (:222-235), which replaces booking_config entirely.
+//       A browser-detected value here becomes an unsollicited write-of-
+//       guess the moment the user opens the scheduler and clicks Save
+//       without touching the TZ field. `sCfgTzOrigin` (below) tracks
+//       whether the current value came from the DB, the user, or this
+//       fallback — the fallback is dropped from the outgoing payload so it
+//       cannot leak into storage.
+//   (3) Rendering-safety : the banner + scheduler read `sCfgTzOrigin` and
+//       render the placeholder t('timezone.placeholder') when it is
+//       'fallback', instead of showing 'UTC' as if it were a configured
+//       choice. Same discipline as the empty-state guidance in the brief.
 const DEFAULT_CONFIG: BookingConfig = {
-  enabled: true, timezone: 'America/Toronto',
+  enabled: true, timezone: 'UTC',
   availability_windows: {
     monday: [{start:'09:00',end:'17:00'}], tuesday: [{start:'09:00',end:'17:00'}],
     wednesday: [{start:'09:00',end:'17:00'}], thursday: [{start:'09:00',end:'17:00'}],
@@ -34,7 +56,12 @@ const DEFAULT_CONFIG: BookingConfig = {
   video_meeting_url: null, welcome_message: null,
 }
 const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-const TIMEZONES  = ['America/Toronto','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris','Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC']
+// TIMEZONES imported from lib/timezones — single source of truth shared with
+// dashboard/settings/page.tsx. The old 13-entry inline list is gone : it
+// missed common client zones (Madrid, São Paulo, Delhi, Lagos, Mexico,
+// Zurich…). See lib/timezones.ts for the invariant that keeps a
+// detected-but-out-of-list value selected instead of silently replacing it
+// with the first item.
 const STATUS_COLORS: Record<string,string> = { scheduled:'bg-blue-50 text-blue-700', completed:'bg-green-50 text-green-700', cancelled:'bg-red-50 text-red-600', no_show:'bg-orange-50 text-orange-600' }
 
 // Values only. Labels resolved at render via useTranslations().
@@ -135,6 +162,21 @@ export default function MeetingsPage() {
   // Scheduler settings
   const [sSlug, setSSlug]       = useState('')
   const [sCfg, setSCfg]         = useState<BookingConfig>(DEFAULT_CONFIG)
+  // Track WHERE sCfg.timezone came from, so saveScheduler can refuse to
+  // write a fallback into the DB. States :
+  //   'db'       — loaded from workspace_profiles.booking_config.timezone,
+  //                a real user-chosen value from a past save.
+  //   'user'     — the current session's <select> onChange fired ; the
+  //                user actively picked this value in the current UI.
+  //   'fallback' — nothing was stored AND nothing was picked this session.
+  //                sCfg.timezone equals the DEFAULT_CONFIG constant ('UTC')
+  //                only as a shape placeholder ; NEVER included in the
+  //                PUT payload.
+  // The pre-PR failure mode : the previous code loaded a browser-detected
+  // value into sCfg.timezone, saveScheduler PUT the whole sCfg, and PUT
+  // /api/workspace-profile:42 replaced booking_config wholesale — so the
+  // browser's guess landed in the DB as if the user had chosen it.
+  const [sCfgTzOrigin, setSCfgTzOrigin] = useState<'db' | 'user' | 'fallback'>('fallback')
   const [slugErr, setSlugErr]   = useState('')
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
@@ -160,9 +202,17 @@ export default function MeetingsPage() {
       if (!profile) return
       if (profile.booking_slug) setBookingSlug(profile.booking_slug)
       if (profile.booking_config) {
-        const merged = { ...DEFAULT_CONFIG, ...profile.booking_config }
-        if (!merged.timezone) merged.timezone = DEFAULT_CONFIG.timezone
+        const raw = profile.booking_config as Partial<BookingConfig>
+        const dbTz = typeof raw.timezone === 'string' && raw.timezone.length > 0
+          ? raw.timezone
+          : null
+        // The merge order matters : `...DEFAULT_CONFIG` first supplies the
+        // shape (all keys present with typed defaults), then `...raw`
+        // overlays whatever's stored. The timezone field is overridden
+        // AGAIN below so the origin state stays a single source of truth.
+        const merged = { ...DEFAULT_CONFIG, ...raw, timezone: dbTz ?? DEFAULT_CONFIG.timezone }
         setSCfg(merged)
+        setSCfgTzOrigin(dbTz ? 'db' : 'fallback')
       }
     })
   }, [])
@@ -208,9 +258,32 @@ export default function MeetingsPage() {
 
   async function saveScheduler() {
     setSaving(true); setSlugErr('')
+    // Never write a fallback-origin timezone. PUT /api/workspace-profile:42
+    // does `updates.booking_config = parsed.data.booking_config` — full
+    // REPLACEMENT of the JSONB column (not a merge). That means omitting
+    // the `timezone` key from `outgoingConfig` REMOVES it from the stored
+    // booking_config on disk ; it does NOT preserve a prior stored value.
+    // This is nevertheless the correct behaviour for the fallback case :
+    // origin='fallback' means the DB had no valid stored timezone in the
+    // first place (sCfgTzOrigin loader at :215 sets 'db' only when the
+    // read returned a non-empty string), so there is nothing worth
+    // preserving. Sending nothing is the same as leaving nothing.
+    // If origin is 'db' or 'user', we send the current value : 'user'
+    // means an explicit <select> pick, 'db' means we're faithfully
+    // echoing what was already stored.
+    //
+    // CONTRAST with the sibling write path : POST /api/workspace/profile
+    // (used by settings/page.tsx::saveCompany) reads booking_config first
+    // and merges only the fields it received. Two routes with almost
+    // identical names and OPPOSITE JSONB semantics — omitting the key
+    // there PRESERVES the stored value, omitting the key here REMOVES it.
+    // The same "don't write fallback" gate is correct for both, but for
+    // different reasons.
+    const outgoingConfig: Record<string, unknown> = { ...sCfg }
+    if (sCfgTzOrigin === 'fallback') delete outgoingConfig.timezone
     const res = await fetch('/api/workspace-profile', {
       method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ booking_slug: sSlug, booking_config: sCfg }),
+      body: JSON.stringify({ booking_slug: sSlug, booking_config: outgoingConfig }),
     }).then(r => r.json())
     if (res.error) {
       if (res.error.includes('taken')) setSlugErr(tSchBookingUrl('takenError'))
@@ -306,11 +379,27 @@ export default function MeetingsPage() {
         </div>
       </div>
 
-      {/* Booking link banner */}
+      {/* Booking link banner
+            Timezone label reads sCfg.timezone AND sCfgTzOrigin. When
+            origin is 'fallback' we render the "Not set" phrase instead
+            of the constant DEFAULT_CONFIG value ('UTC') — the visitor to
+            the public /book page WILL see slots in UTC when nothing is
+            stored (book/[slug]/route.ts:79 fallback), but pretending
+            'UTC' is a deliberate choice would be a lie by omission.
+            The empty-state label prompts the user to open Scheduler
+            settings and pick a zone.
+            SSR-safe : sCfg.timezone is 'UTC' at first client render (the
+            module-scope DEFAULT_CONFIG constant), the useEffect fetch
+            updates it after mount. No hydration mismatch. */}
       <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-5 flex items-center gap-3">
         <span className="text-xl flex-shrink-0">🔗</span>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-[#3b6bef] mb-0.5">{tBanner('yourBookingLink')}</p>
+          <p className="text-xs font-semibold text-[#3b6bef] mb-0.5">
+            {tBanner('yourBookingLink')}
+            <span className="ml-2 text-[#6b5e4e] font-normal" title={tSchTimezone('label')}>
+              · {sCfgTzOrigin === 'fallback' ? tSchTimezone('notSet') : sCfg.timezone}
+            </span>
+          </p>
           <p className="text-sm text-[#6b5e4e] truncate">{bookingLink}</p>
         </div>
         <button onClick={copyLink} className="bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex-shrink-0">
@@ -643,11 +732,38 @@ export default function MeetingsPage() {
                 />
               </div>
 
-              {/* Timezone */}
+              {/* Timezone
+                    Two invariants :
+                      (a) When origin is 'fallback' (nothing stored, nothing
+                          picked this session), the <select> shows a
+                          disabled placeholder as the current value. The
+                          user must actively pick a zone to enable the
+                          save-of-timezone. saveScheduler drops the
+                          timezone key from the outgoing payload while
+                          origin is 'fallback'.
+                      (b) When the stored zone isn't in TIMEZONES (a legacy
+                          workspace saved a rarer IANA name, or a runtime
+                          ICU change altered canonicalisation — see
+                          lib/timezones.ts comment), render it as a first
+                          option so the user can see + save it back.
+                          Never silently drop to the first list item. */}
               <div>
                 <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchTimezone('label')}</label>
-                <select value={sCfg.timezone} onChange={e => setSCfg({...sCfg, timezone: e.target.value})}
+                <select
+                  value={sCfgTzOrigin === 'fallback' ? '' : sCfg.timezone}
+                  onChange={e => {
+                    const tz = e.target.value
+                    if (!tz) return  // placeholder re-pick — no-op
+                    setSCfg({...sCfg, timezone: tz})
+                    setSCfgTzOrigin('user')
+                  }}
                   className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white">
+                  {sCfgTzOrigin === 'fallback' && (
+                    <option value="" disabled>{tSchTimezone('placeholder')}</option>
+                  )}
+                  {sCfgTzOrigin !== 'fallback' && !(TIMEZONES as ReadonlyArray<string>).includes(sCfg.timezone) && (
+                    <option key={sCfg.timezone} value={sCfg.timezone}>{sCfg.timezone}</option>
+                  )}
                   {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
                 </select>
               </div>

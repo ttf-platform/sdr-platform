@@ -42,10 +42,16 @@ export default function OnboardingPage() {
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { window.location.href = '/login'; return }
+    // Detect the browser's IANA timezone at submit — see /en/signup/page.tsx
+    // for the rationale. Absorbed by the schema's .optional().catch(undefined)
+    // if malformed.
+    const timezone = (typeof Intl !== 'undefined'
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : 'UTC') || 'UTC'
     const wsRes = await fetch('/api/workspace/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ workspaceName: data.workspaceName })
+      body: JSON.stringify({ workspaceName: data.workspaceName, timezone })
     }).then(r => r.json())
     if (wsRes.workspace) {
       await fetch('/api/workspace/profile', {

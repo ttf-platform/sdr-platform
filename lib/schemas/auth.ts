@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ianaSchema } from './booking'
 
 // First-touch acquisition record. Optional at the schema level (a signup
 // with cookies rejected or empty localStorage sends nothing), but when
@@ -28,6 +29,17 @@ export const signupSchema = z.object({
   // 'en'. Persisted to workspace_profiles.language + mirvo_dashboard_locale
   // cookie so a FR visitor lands on a FR dashboard post-signup.
   locale:        z.enum(['en', 'fr']).optional(),
+  // Detected IANA timezone from the browser (see lib/timezones.detectClientTimezone).
+  // .catch(undefined) is DELIBERATE and load-bearing : signup/route.ts:31-32
+  // runs safeParse and returns 400 on any zod failure. A tz value that
+  // reaches us malformed (spoofed body, stale localStorage, unusual browser)
+  // MUST NOT gate account creation — the whole flow is designed so the DB
+  // DEFAULT ('America/Toronto', 000_baseline.sql:1285) applies when nothing
+  // valid arrives. `.optional()` alone would only handle the ABSENT case ;
+  // a present-but-invalid value would still trip the refine + 400 the
+  // account. `.catch(undefined)` collapses BOTH cases to undefined, and
+  // the route treats undefined as "no override, keep DEFAULT".
+  timezone:      ianaSchema.optional().catch(undefined),
 })
 
 export const loginSchema = z.object({
