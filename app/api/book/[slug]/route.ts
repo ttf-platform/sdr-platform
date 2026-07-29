@@ -6,6 +6,7 @@ import { rateLimitByIp, rateLimitBySlug } from '@/lib/rate-limit'
 import { sendBookingConfirmationEmail } from '@/lib/email'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
 import { normalizeEmailForRateLimit, toPlainTextForEmail } from '@/lib/text-safety'
+import { isPendingStillActive } from '@/lib/meetings-retention'
 
 // Per-recipient / per-slug / platform caps for the confirmation-email path.
 // These live IN THE DB (COUNT before INSERT) rather than in Redis because
@@ -156,24 +157,48 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   })
   if (!slotInWindow) return NextResponse.json({ error: 'Selected slot is outside availability hours' }, { status: 400 })
 
-  // ── Conflict check: only SCHEDULED (confirmed) meetings reserve time ─────
-  // Pending rows do NOT block a slot — the whole point of the double opt-in
-  // is that an attacker filling the calendar with un-confirmed placeholders
-  // cannot deny service. The confirm_booking RPC re-runs the same check
-  // atomically under an advisory lock before it flips a row to scheduled.
+  // ── Conflict check: SCHEDULED + PENDING-WITHIN-RETENTION reserve time ────
+  // Pending rows now block for RETENTION_MINUTES after confirmation_sent_at
+  // (lib/meetings-retention.ts) — an attacker who reloads pending rows can
+  // still hold ONE band, but the anti-DoS story is documented in that file's
+  // header comment and bounded by CONF_SLUG_MAX_PER_24H = 100 above.
+  //
+  // Confirm-time reproof : confirm_booking (migration 087) still checks
+  // ONLY scheduled rows atomically under advisory lock, so two pending rows
+  // on the same slot don't mutually block ; the second to confirm sees the
+  // first's scheduled row and returns slot_taken. Correct pre-existing
+  // behavior — DO NOT touch that RPC.
+  //
+  // NOT `.or('status.eq.scheduled,and(status.eq.pending,confirmation_sent_at.gt.…)')`
+  // : PostgREST filter-string chains fall back to `column: string` overloads
+  // that skip type checking (see A1 comment in availability/route.ts).
+  // .in() + JS filter is the disciplined shape.
   const dayStartUTC = new Date(`${ownerDateStr}T00:00:00${ownerOffset}`)
   const dayEndUTC   = new Date(`${ownerDateStr}T23:59:59.999${ownerOffset}`)
 
   const { data: dayMeetings } = await admin
-    .from('meetings').select('meeting_at, duration_min')
-    .eq('workspace_id', profile.workspace_id).eq('status', 'scheduled')
+    .from('meetings').select('meeting_at, duration_min, status, confirmation_sent_at')
+    .eq('workspace_id', profile.workspace_id)
+    .in('status', ['scheduled', 'pending'])
     .gte('meeting_at', dayStartUTC.toISOString())
     .lt('meeting_at',  dayEndUTC.toISOString())
+
+  const blocking = (dayMeetings ?? []).filter(m => {
+    if (m.status === 'scheduled') return true
+    // Pending row : blocks only if inside the retention window. NULL
+    // confirmation_sent_at → fail open (does not block) ; admin-created
+    // rows are already status='scheduled' so this branch is defence in
+    // depth, not the primary discriminator.
+    return isPendingStillActive({
+      status: m.status,
+      confirmation_sent_at: m.confirmation_sent_at ?? null,
+    })
+  })
 
   const bufMs = (cfg.buffer_minutes ?? 15) * 60_000
   const ns    = slotStartUTC.getTime()
   const ne    = slotEndUTC.getTime()
-  const conflict = (dayMeetings ?? []).some(m => {
+  const conflict = blocking.some(m => {
     const ms = new Date(m.meeting_at).getTime()
     const me = ms + m.duration_min * 60_000
     return ns < me + bufMs && ne > ms - bufMs
@@ -303,7 +328,17 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       confirmation_sent_at:        nowISO,
       expires_at:                  expiresAtISO,
     })
-    .select().single()
+    // .select('id') : the response body at l.…399-403 is
+    // `{pending, email, expires_in_hours}` — the meeting row is NEVER
+    // shipped to the public caller. But this INSERT sets a live
+    // confirmation_token + a public attendee_email_normalized ; the
+    // pre-fix `.select()` pulled the entire row into `meeting` on the
+    // server (harmless today, harmful the moment someone widens the
+    // response by mistake). The only downstream consumer is `meeting.id`
+    // (rollback DELETE at l.…387 on email failure) — everything else on
+    // the row is either already in scope from the INSERT payload above
+    // or unused. Same defence-in-depth as the sibling routes.
+    .select('id').single()
 
   if (insErr || !meeting) {
     console.error('[book:create] pending insert failed', insErr)
