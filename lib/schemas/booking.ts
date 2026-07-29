@@ -8,7 +8,10 @@ import { z } from 'zod'
 //   Accepts (IANA canonical)     : 'UTC', 'Europe/Paris', 'America/Toronto'
 //   Accepts (link/alias resolved
 //     by Intl)                   : 'utc' → 'UTC', 'US/Pacific' → 'America/Los_Angeles',
-//                                  'Cuba' → 'America/Havana', 'Asia/Kolkata' → 'Asia/Calcutta'
+//                                  'Cuba' → 'America/Havana'. The Kolkata /
+//                                  Calcutta pair collapses to one of the two
+//                                  spellings depending on ICU version — do
+//                                  NOT hard-code either as "the" canonical.
 //   Accepts (offset strings — NOT
 //     canonical IANA zone names) : '+05:30', '+0530' → '+05:30', 'GMT' → 'UTC'
 //   Rejects                       : 'Foo/Bar', 'GMT+2', ''
@@ -16,22 +19,27 @@ import { z } from 'zod'
 // IMPORTANT — what this validator does NOT guarantee :
 //   (a) The stored value matches an IANA CANONICAL name. Offset strings
 //       ('+05:30') pass this validator AND survive
-//       lib/timezones.canonicalizeIanaTz, so they land in
-//       booking_config.timezone as an offset. UI <select> callers guard
-//       for out-of-list values ; see TIMEZONES consumers.
-//   (b) The stored form matches the <select> form for the same physical
-//       zone. The signup route canonicalises server-side ('Asia/Kolkata'
-//       → 'Asia/Calcutta'). POST /api/workspace/profile:36-42 and
-//       PUT /api/workspace-profile merge the raw <select> value ('Asia/
-//       Kolkata') without canonicalisation. Same physical zone, two stored
-//       spellings depending on the write path. Documented ; fixing this
-//       touches both preexisting routes and is out of scope of the signup
-//       PR that introduced this validator.
+//       lib/timezones.canonicalizeIanaTz, so they'd land in
+//       booking_config.timezone as an offset if written raw. UI <select>
+//       callers guard for out-of-list values ; see TIMEZONES consumers.
+//   (b) That the two workspace-timezone write paths land the same string
+//       for the same physical zone. The signup route + workspace/create
+//       route use lib/timezones.resolveToListTimezone, which returns the
+//       LIST NAME (the spelling from TIMEZONES the user sees in
+//       <select>) whenever the input matches a list entry. POST
+//       /api/workspace/profile:36-42 (real merge) and PUT
+//       /api/workspace-profile (replacement) forward the raw <select>
+//       value — which is ALREADY a list name because the <select>'s
+//       options come from the same TIMEZONES constant. Net effect : all
+//       four in-list paths converge on the exact same string, regardless
+//       of the ICU version rendering "canonical" one way or the other.
 //   (c) The canonical form is stable across runtimes. Intl canonical
 //       resolution depends on ICU version — a Node upgrade or a browser
-//       change could swap 'Asia/Calcutta' back to 'Asia/Kolkata'. The
-//       test in lib/__tests__/timezones.test.ts pins the current mapping
-//       so a runtime bump surfaces as a test failure.
+//       change could swap which spelling of a link-pair ICU calls
+//       canonical. The list-name storage strategy at
+//       lib/timezones.resolveToListTimezone insulates the DB from that
+//       drift ; the tests in lib/__tests__/timezones.test.ts assert the
+//       resolve-to-list invariants without pinning a specific ICU output.
 export const isValidIanaTz = (tz: string) => {
   try { Intl.DateTimeFormat(undefined, { timeZone: tz }); return true }
   catch { return false }

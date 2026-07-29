@@ -4,7 +4,7 @@
  * Consumed by :
  *   - app/(dashboard)/dashboard/meetings/page.tsx     (Scheduler settings <select>)
  *   - app/(dashboard)/dashboard/settings/page.tsx     (Company timezone <select>)
- *   - app/api/auth/signup/route.ts                   (canonicalize before write)
+ *   - app/api/auth/signup/route.ts                   (resolve to list before write)
  *   - app/api/workspace/create/route.ts              (recovery / onboarding path)
  *   - app/[locale]/(auth)/signup/page.tsx            (client-side detection)
  *
@@ -28,26 +28,31 @@
  *   first item). See TimezoneSelect callers for the enforcement.
  */
 
-// Every entry MUST equal `canonicalizeIanaTz(entry)` on the current runtime.
-// If it doesn't, the signup route stores one name ('Asia/Calcutta') while
-// the <select> renders another ('Asia/Kolkata'), and the out-of-list guard
-// then prepends the stored form as an extra <option> — two labels for the
-// same zone, per user. Enforced by lib/__tests__/timezones.test.ts. When
-// the ICU version drifts and the mapping changes, that test fails and the
-// list must be re-canonicalised in the same PR that bumps the runtime.
+// The list carries MODERN IANA names — the spellings a user reads in the
+// <select> and the ones we want to persist. 'Asia/Kolkata' (post-2013 IANA
+// rename) and 'America/Argentina/Buenos_Aires' (post-2000 sub-zone form)
+// are the current canonical IANA names ; older short forms ('Asia/Calcutta',
+// 'America/Buenos_Aires') remain as IANA link aliases only.
 //
-// Notable ICU-77-era canonicalisations we're pinned to :
-//   'America/Buenos_Aires' — Intl resolves 'America/Argentina/Buenos_Aires'
-//                            back to this shorter form.
-//   'Asia/Calcutta'        — Intl still uses the pre-2013 IANA link ; the
-//                            modern spelling 'Asia/Kolkata' resolves down
-//                            to this.
+// STORAGE INVARIANT (see resolveToListTimezone below) : we NEVER persist
+// the ICU-rendered canonical form. We persist THE LIST NAME (the exact
+// string shown in the <select>) when the input canonicalises to the same
+// zone as a list entry. This decouples what lands in the DB from the
+// runtime ICU version : both sides of the "same zone?" comparison are
+// computed against the same Intl at write time, so a Node / ICU bump that
+// swaps which spelling ICU calls "canonical" does not change what the DB
+// stores. The user sees, and the DB holds, the same string.
+//
+// For out-of-list zones (not in TIMEZONES on either side of the compare),
+// resolveToListTimezone falls back to the ICU-rendered canonical form and
+// the <select>'s out-of-list guard prepends it as an extra <option> so it
+// stays visible + savable.
 export const TIMEZONES = [
   // Americas — north to south
   'America/Los_Angeles', 'America/Vancouver', 'America/Denver', 'America/Chicago',
   'America/New_York',    'America/Toronto',   'America/Halifax',
   'America/Mexico_City', 'America/Bogota',    'America/Lima',
-  'America/Santiago',    'America/Sao_Paulo', 'America/Buenos_Aires',
+  'America/Santiago',    'America/Sao_Paulo', 'America/Argentina/Buenos_Aires',
   // Europe — west to east
   'Europe/Lisbon',    'Europe/Dublin',   'Europe/London',
   'Europe/Madrid',    'Europe/Paris',    'Europe/Amsterdam',
@@ -59,7 +64,7 @@ export const TIMEZONES = [
   // Middle East
   'Asia/Jerusalem', 'Asia/Dubai',
   // South + SE Asia
-  'Asia/Calcutta', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Jakarta',
+  'Asia/Kolkata', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Jakarta',
   // East Asia
   'Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Seoul', 'Asia/Tokyo',
   // Oceania
@@ -76,8 +81,9 @@ export type KnownTimezone = typeof TIMEZONES[number]
  * whatever `.resolvedOptions().timeZone` yields on this runtime.
  *
  * WHAT IT DOES : resolves aliases + case ('utc' → 'UTC', 'US/Pacific' →
- *   'America/Los_Angeles', 'Cuba' → 'America/Havana', 'Asia/Kolkata' →
- *   'Asia/Calcutta' under Node 24 ICU 78).
+ *   'America/Los_Angeles', 'Cuba' → 'America/Havana', and — depending on
+ *   the ICU version — either 'Asia/Kolkata' or 'Asia/Calcutta' rendered as
+ *   the "canonical" of that pair).
  *
  * WHAT IT DOES NOT DO : force a canonical IANA name. Offset strings like
  *   '+05:30' or '+0530' pass Intl AND come back UNCHANGED (well, '+0530'
@@ -86,11 +92,11 @@ export type KnownTimezone = typeof TIMEZONES[number]
  *   the return against a known set — this helper only guards against
  *   Intl-refused garbage.
  *
- * Measured under Node 24.15 (ICU 78.2). The canonical mapping is ICU-
- * version-dependent : bumping the runtime can change which alias resolves
- * to which name (e.g. a future ICU could restore 'Asia/Kolkata' as the
- * canonical). Test coverage in lib/__tests__/timezones.test.ts pins the
- * current mapping so a runtime bump surfaces as a failure.
+ * Which spelling of a link-pair ICU calls "canonical" is ICU-version-
+ * dependent (Node 24.15 / ICU 78.2 renders 'Asia/Calcutta' as canonical
+ * for the Kolkata/Calcutta pair ; a future ICU could swap this back).
+ * This is exactly why write paths use resolveToListTimezone below instead
+ * of storing the raw output of this function.
  */
 export function canonicalizeIanaTz(input: string | null | undefined): string | null {
   if (!input || typeof input !== 'string') return null
@@ -99,6 +105,67 @@ export function canonicalizeIanaTz(input: string | null | undefined): string | n
   } catch {
     return null
   }
+}
+
+// Memoised at module init : for each list entry, its ICU-rendered canonical
+// form on the current runtime. Rebuilt once per process, then read O(1) per
+// write. Order preserved so the first matching list entry wins when two
+// entries would canonicalise to the same zone (which the pairwise-distinct
+// test in lib/__tests__/timezones.test.ts asserts they don't — this is a
+// defence in depth against a future ICU regression that would silently
+// collapse two entries onto the same physical zone).
+const LIST_CANONICALS: ReadonlyArray<readonly [string, string | null]> =
+  TIMEZONES.map((entry) => [entry, canonicalizeIanaTz(entry)] as const)
+
+/**
+ * Resolve an input timezone to the exact string held in `list` — the
+ * spelling the user sees in the <select> — when the input names the same
+ * physical zone as one of the entries. Otherwise return the ICU-rendered
+ * canonical form (or null if Intl refuses the input outright).
+ *
+ * WHY : the storage layer must output the LIST NAME (visible to the user
+ * in <select>) rather than the ICU-canonical form, so a Node / ICU bump
+ * that swaps which spelling ICU calls "canonical" for a link-pair (e.g.
+ * Kolkata ↔ Calcutta) does NOT change what the DB stores. Both sides of
+ * the comparison are canonicalised through the SAME Intl at write time,
+ * so they move together.
+ *
+ * Behaviour :
+ *   resolveToListTimezone('Asia/Kolkata',  TIMEZONES) → 'Asia/Kolkata'
+ *   resolveToListTimezone('Asia/Calcutta', TIMEZONES) → 'Asia/Kolkata'
+ *   resolveToListTimezone('UTC',           TIMEZONES) → 'UTC'
+ *   resolveToListTimezone('US/Pacific',    TIMEZONES) → 'America/Los_Angeles'
+ *   resolveToListTimezone('Cuba',          TIMEZONES) → 'America/Havana'    (canonical, not in list)
+ *   resolveToListTimezone('Foo/Bar',       TIMEZONES) → null                 (Intl refuses)
+ *
+ * The out-of-list case ('Cuba' above) returns the ICU canonical form —
+ * the <select> guard `!TIMEZONES.includes(current)` prepends it as an
+ * extra <option> so a rare zone stays visible + savable ; see
+ * meetings/page.tsx + settings/page.tsx callers.
+ *
+ * Uses the memoised LIST_CANONICALS map when `list === TIMEZONES` (the
+ * common case) ; falls back to per-call canonicalisation of `list` when a
+ * caller passes a custom list (currently none — signature kept explicit
+ * for readability at call sites).
+ */
+export function resolveToListTimezone(
+  input: string | null | undefined,
+  list: ReadonlyArray<string>,
+): string | null {
+  const canonical = canonicalizeIanaTz(input)
+  if (canonical === null) return null
+  const useMemo = list === (TIMEZONES as unknown as ReadonlyArray<string>)
+  if (useMemo) {
+    for (const [entry, entryCanonical] of LIST_CANONICALS) {
+      if (entryCanonical !== null && entryCanonical === canonical) return entry
+    }
+    return canonical
+  }
+  for (const entry of list) {
+    const entryCanonical = canonicalizeIanaTz(entry)
+    if (entryCanonical !== null && entryCanonical === canonical) return entry
+  }
+  return canonical
 }
 
 /**

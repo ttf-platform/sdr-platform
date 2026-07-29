@@ -258,12 +258,27 @@ export default function MeetingsPage() {
 
   async function saveScheduler() {
     setSaving(true); setSlugErr('')
-    // Never write a fallback-origin timezone. PUT /api/workspace-profile
-    // replaces booking_config wholesale, so omitting the key means the
-    // stored value (whatever it was, including null) survives untouched.
-    // If origin is 'db' or 'user', we send the current value ; a 'user'
-    // origin means an explicit <select> pick, a 'db' origin means we're
-    // faithfully echoing what was already stored.
+    // Never write a fallback-origin timezone. PUT /api/workspace-profile:42
+    // does `updates.booking_config = parsed.data.booking_config` — full
+    // REPLACEMENT of the JSONB column (not a merge). That means omitting
+    // the `timezone` key from `outgoingConfig` REMOVES it from the stored
+    // booking_config on disk ; it does NOT preserve a prior stored value.
+    // This is nevertheless the correct behaviour for the fallback case :
+    // origin='fallback' means the DB had no valid stored timezone in the
+    // first place (sCfgTzOrigin loader at :215 sets 'db' only when the
+    // read returned a non-empty string), so there is nothing worth
+    // preserving. Sending nothing is the same as leaving nothing.
+    // If origin is 'db' or 'user', we send the current value : 'user'
+    // means an explicit <select> pick, 'db' means we're faithfully
+    // echoing what was already stored.
+    //
+    // CONTRAST with the sibling write path : POST /api/workspace/profile
+    // (used by settings/page.tsx::saveCompany) reads booking_config first
+    // and merges only the fields it received. Two routes with almost
+    // identical names and OPPOSITE JSONB semantics — omitting the key
+    // there PRESERVES the stored value, omitting the key here REMOVES it.
+    // The same "don't write fallback" gate is correct for both, but for
+    // different reasons.
     const outgoingConfig: Record<string, unknown> = { ...sCfg }
     if (sCfgTzOrigin === 'fallback') delete outgoingConfig.timezone
     const res = await fetch('/api/workspace-profile', {

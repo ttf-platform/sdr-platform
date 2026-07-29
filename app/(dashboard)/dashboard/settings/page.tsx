@@ -329,8 +329,15 @@ export default function SettingsPage() {
     // IANA validation nor canonicalisation ; sending a browser-detected
     // placeholder here would land it in the DB as if the user had chosen
     // it. Omitting the key means the stored value survives untouched
-    // (the route reads booking_config first, merges only the fields it
-    // received).
+    // (the route reads booking_config first, then spreads only the fields
+    // it received — a REAL partial merge).
+    //
+    // CONTRAST with the sibling write path : PUT /api/workspace-profile
+    // (used by meetings/page.tsx::saveScheduler) REPLACES booking_config
+    // wholesale. Two routes with almost identical names and OPPOSITE
+    // JSONB semantics — omitting the key here PRESERVES the stored
+    // value, omitting the key there REMOVES it. The same "don't write
+    // fallback" gate is correct for both, but for different reasons.
     const payload: Record<string, unknown> = {
       workspace_id: workspaceId,
       company_name: form.company_name,

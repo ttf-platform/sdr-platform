@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { workspaceCreateSchema, badRequest } from '@/lib/schemas'
-import { canonicalizeIanaTz } from '@/lib/timezones'
+import { resolveToListTimezone, TIMEZONES } from '@/lib/timezones'
 
 export async function POST(request: Request) {
   const admin = createAdminClient()
@@ -79,10 +79,12 @@ export async function POST(request: Request) {
   // booking_config so the JSONB DEFAULT lands intact, then SELECT + merge
   // + UPDATE. See signup route for the full rationale (why not PostgREST
   // jsonb_set, why the merge over the DEFAULT-populated object, why every
-  // failure branch is non-fatal).
+  // failure branch is non-fatal, why resolveToListTimezone over
+  // canonicalizeIanaTz, and the DB DEFAULT edge case when detection
+  // fails outright).
   if (!profileError && rawDetectedTz) {
-    const canonical = canonicalizeIanaTz(rawDetectedTz)
-    if (canonical) {
+    const resolved = resolveToListTimezone(rawDetectedTz, TIMEZONES)
+    if (resolved) {
       const { data: existing, error: readErr } = await admin
         .from('workspace_profiles')
         .select('booking_config')
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
       if (readErr) {
         console.error('[workspace/create] booking_config re-read failed (non-fatal, keeping DEFAULT):', readErr.message)
       } else {
-        const nextConfig = { ...(existing?.booking_config ?? {}), timezone: canonical }
+        const nextConfig = { ...(existing?.booking_config ?? {}), timezone: resolved }
         const { error: updateErr } = await admin
           .from('workspace_profiles')
           .update({ booking_config: nextConfig })

@@ -6,7 +6,7 @@ import { rateLimitByIp } from '@/lib/rate-limit'
 import { verifyTurnstile } from '@/lib/turnstile'
 import { getAdminSetting } from '@/lib/admin-settings'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
-import { canonicalizeIanaTz } from '@/lib/timezones'
+import { resolveToListTimezone, TIMEZONES } from '@/lib/timezones'
 
 export async function POST(request: NextRequest) {
   const rl = await rateLimitByIp(request, { limit: 5, window: '10 m', prefix: 'auth-signup' })
@@ -219,21 +219,42 @@ export async function POST(request: NextRequest) {
   // shape MUST be : (1) INSERT with no booking_config so the JSONB DEFAULT
   // from 000_baseline.sql:1285 lands intact (enabled + buffer_minutes +
   // meeting_durations + availability_windows all present) ; (2) SELECT it
-  // back ; (3) merge `{ ...booking_config, timezone: canonical }` and
+  // back ; (3) merge `{ ...booking_config, timezone: resolved }` and
   // UPDATE. Any other shape either replaces the DEFAULT object wholesale
   // (page-blank on booking) or requires SQL PostgREST does not expose
   // (jsonb_set). Mirror of the pattern at app/api/workspace/profile/
   // route.ts:36-41.
+  //
+  // WHY resolveToListTimezone AND NOT canonicalizeIanaTz : we want to
+  // persist the exact spelling the user sees in the /dashboard/settings
+  // and /dashboard/meetings <select>, not the raw ICU-canonical form. A
+  // client that reports 'Asia/Calcutta' (or a runtime whose ICU renders
+  // 'Asia/Kolkata' as 'Asia/Calcutta') lands as 'Asia/Kolkata' in the DB
+  // because 'Asia/Kolkata' is the list entry. Both the input side and
+  // each list entry are canonicalised through the SAME Intl at call time,
+  // so what the DB holds always matches what the <select> renders — even
+  // across a Node / ICU version bump.
   //
   // Everything below is NON-FATAL — the whole reason `profileError` above
   // is non-fatal (comment l.192-202) applies here doubly : a missing
   // timezone override degrades to the DEFAULT ('America/Toronto'), which
   // is exactly the pre-PR behaviour, so a broken client-detected value
   // must NEVER gate account creation.
+  //
+  // EDGE CASE — DB DEFAULT edge : when the browser detection fails
+  // outright (Intl missing, exotic input, feature flag) we skip the merge
+  // and the DEFAULT ('America/Toronto') lands on the row. The settings /
+  // meetings pages will then re-read that value with origin='db' — i.e.
+  // treat it as if the user had picked Toronto — because the DB has no
+  // way to signal "this is a fallback, not an explicit pick". This is
+  // acceptable for this PR's scope (worst case : an EU user sees Toronto
+  // in the <select> until they change it once) ; a follow-up would need a
+  // sentinel column to distinguish default-from-migration vs
+  // default-from-failed-detection.
   const rawDetectedTz = parsed.data.timezone
   if (!profileError && rawDetectedTz) {
-    const canonical = canonicalizeIanaTz(rawDetectedTz)
-    if (canonical) {
+    const resolved = resolveToListTimezone(rawDetectedTz, TIMEZONES)
+    if (resolved) {
       const { data: existing, error: readErr } = await admin
         .from('workspace_profiles')
         .select('booking_config')
@@ -245,7 +266,7 @@ export async function POST(request: NextRequest) {
         // `?? {}` is not decorative — booking_config CAN be NULL if a
         // future migration ever drops the DEFAULT or a repair script
         // clears it. The spread absorbs both null and empty.
-        const nextConfig = { ...(existing?.booking_config ?? {}), timezone: canonical }
+        const nextConfig = { ...(existing?.booking_config ?? {}), timezone: resolved }
         const { error: updateErr } = await admin
           .from('workspace_profiles')
           .update({ booking_config: nextConfig })
@@ -255,10 +276,11 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    // canonical === null (rawDetectedTz not accepted by Intl) → silently
+    // resolved === null (rawDetectedTz not accepted by Intl) → silently
     // drop, DEFAULT applies. This is the third failure branch the
     // `.optional().catch(undefined)` in the schema hardening is designed
-    // to serve : garbage never gates the account.
+    // to serve : garbage never gates the account. See the DB DEFAULT
+    // edge-case note above for what the user will see when this fires.
   }
 
   // Admin alert (best-effort — never blocks signup response). Routed through
