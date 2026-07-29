@@ -1,6 +1,14 @@
 import { z } from 'zod'
 
-const isValidIanaTz = (tz: string) => {
+// Exported so signupSchema (lib/schemas/auth.ts) + workspaceCreateSchema
+// (lib/schemas/workspace.ts) can reuse the same IANA validator instead of
+// reimplementing it. Verified accepts under Node 22 : 'UTC', 'Europe/Paris',
+// 'America/Toronto', 'Asia/Kolkata'. Also accepts (aliases resolved by
+// Intl) : 'utc', 'Cuba', 'US/Pacific'. Rejects : '+05:30', 'Foo/Bar'.
+// Non-canonical values that pass this validator are normalised by
+// lib/timezones.canonicalizeIanaTz on the server before write so the stored
+// value always matches a canonical IANA name.
+export const isValidIanaTz = (tz: string) => {
   try { Intl.DateTimeFormat(undefined, { timeZone: tz }); return true }
   catch { return false }
 }
@@ -14,7 +22,7 @@ const dateSchema = z
     return new Date(parsed).toISOString().startsWith(s.slice(0, 10))
   }, 'invalid_date_value')
 
-const ianaSchema = z.string().min(1).max(100).refine(isValidIanaTz, 'invalid_timezone')
+export const ianaSchema = z.string().min(1).max(100).refine(isValidIanaTz, 'invalid_timezone')
 
 export const bookingCreateSchema = z.object({
   date:               dateSchema,

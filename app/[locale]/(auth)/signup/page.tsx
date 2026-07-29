@@ -6,6 +6,7 @@ import { Link } from '@/i18n/routing'
 import { track } from '@/lib/track'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { isAnalyticsAllowed } from '@/lib/cookie-consent'
+import { detectClientTimezone } from '@/lib/timezones'
 
 // Keys we read from the sentra_utm localStorage record and forward to the
 // signup API. Kept in sync with lib/schemas/auth.ts::acquisitionSchema —
@@ -84,6 +85,16 @@ function SignupForm() {
     setLoading(true)
     setError('')
     const acquisition = readAcquisition()
+    // Detect the browser's IANA timezone at submit time. Same pattern as
+    // app/[locale]/book/[slug]/page.tsx:122-124 : typeof Intl guard,
+    // 'UTC' fallback. The server canonicalises + persists this into
+    // workspace_profiles.booking_config.timezone at signup so the fresh
+    // workspace's booking page is not silently pinned to the DB DEFAULT
+    // (America/Toronto per 000_baseline.sql:1285). A missing / invalid
+    // value on the wire is absorbed by ianaSchema.optional().catch(undefined)
+    // in lib/schemas/auth.ts — the DEFAULT applies and the account still
+    // creates.
+    const timezone = detectClientTimezone()
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -93,6 +104,7 @@ function SignupForm() {
         plan_tier: plan,
         captchaToken,
         locale: signupLocale,
+        timezone,
         ...(acquisition ? { acquisition } : {}),
       })
     }).then(r => r.json())

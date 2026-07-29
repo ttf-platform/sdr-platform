@@ -6,6 +6,7 @@ import { rateLimitByIp } from '@/lib/rate-limit'
 import { verifyTurnstile } from '@/lib/turnstile'
 import { getAdminSetting } from '@/lib/admin-settings'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
+import { canonicalizeIanaTz } from '@/lib/timezones'
 
 export async function POST(request: NextRequest) {
   const rl = await rateLimitByIp(request, { limit: 5, window: '10 m', prefix: 'auth-signup' })
@@ -212,6 +213,52 @@ export async function POST(request: NextRequest) {
   })
   if (profileError) {
     console.error('[signup] workspace_profiles insert failed (non-fatal, profile can be created later):', profileError.message)
+  }
+
+  // Apply the client-detected timezone to booking_config.timezone. The
+  // shape MUST be : (1) INSERT with no booking_config so the JSONB DEFAULT
+  // from 000_baseline.sql:1285 lands intact (enabled + buffer_minutes +
+  // meeting_durations + availability_windows all present) ; (2) SELECT it
+  // back ; (3) merge `{ ...booking_config, timezone: canonical }` and
+  // UPDATE. Any other shape either replaces the DEFAULT object wholesale
+  // (page-blank on booking) or requires SQL PostgREST does not expose
+  // (jsonb_set). Mirror of the pattern at app/api/workspace/profile/
+  // route.ts:36-41.
+  //
+  // Everything below is NON-FATAL — the whole reason `profileError` above
+  // is non-fatal (comment l.192-202) applies here doubly : a missing
+  // timezone override degrades to the DEFAULT ('America/Toronto'), which
+  // is exactly the pre-PR behaviour, so a broken client-detected value
+  // must NEVER gate account creation.
+  const rawDetectedTz = parsed.data.timezone
+  if (!profileError && rawDetectedTz) {
+    const canonical = canonicalizeIanaTz(rawDetectedTz)
+    if (canonical) {
+      const { data: existing, error: readErr } = await admin
+        .from('workspace_profiles')
+        .select('booking_config')
+        .eq('workspace_id', workspace.id)
+        .single()
+      if (readErr) {
+        console.error('[signup] booking_config re-read failed (non-fatal, keeping DEFAULT):', readErr.message)
+      } else {
+        // `?? {}` is not decorative — booking_config CAN be NULL if a
+        // future migration ever drops the DEFAULT or a repair script
+        // clears it. The spread absorbs both null and empty.
+        const nextConfig = { ...(existing?.booking_config ?? {}), timezone: canonical }
+        const { error: updateErr } = await admin
+          .from('workspace_profiles')
+          .update({ booking_config: nextConfig })
+          .eq('workspace_id', workspace.id)
+        if (updateErr) {
+          console.error('[signup] booking_config timezone merge failed (non-fatal, keeping DEFAULT):', updateErr.message)
+        }
+      }
+    }
+    // canonical === null (rawDetectedTz not accepted by Intl) → silently
+    // drop, DEFAULT applies. This is the third failure branch the
+    // `.optional().catch(undefined)` in the schema hardening is designed
+    // to serve : garbage never gates the account.
   }
 
   // Admin alert (best-effort — never blocks signup response). Routed through

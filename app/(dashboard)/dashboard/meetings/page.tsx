@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/ui/Spinner'
 import { Toggle } from '@/components/ui/Toggle'
+import { TIMEZONES, detectClientTimezone } from '@/lib/timezones'
 
 const supabase = createClient()
 
@@ -23,8 +24,15 @@ interface BookingConfig {
   video_meeting_url: string | null; welcome_message: string | null
 }
 
+// Pre-fetch shape/type reference for sCfg. The `timezone` field here is
+// what renders during the ~200ms between mount and the workspace_profiles
+// fetch resolving. `detectClientTimezone()` matches the invariant applied
+// in the PR that added tz detection at signup : if we cannot yet read the
+// stored value, default to the browser's IANA zone rather than a
+// hardcoded 'America/Toronto'. The fetched value overrides this the
+// moment loadConfig completes.
 const DEFAULT_CONFIG: BookingConfig = {
-  enabled: true, timezone: 'America/Toronto',
+  enabled: true, timezone: detectClientTimezone(),
   availability_windows: {
     monday: [{start:'09:00',end:'17:00'}], tuesday: [{start:'09:00',end:'17:00'}],
     wednesday: [{start:'09:00',end:'17:00'}], thursday: [{start:'09:00',end:'17:00'}],
@@ -34,7 +42,12 @@ const DEFAULT_CONFIG: BookingConfig = {
   video_meeting_url: null, welcome_message: null,
 }
 const DAYS_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-const TIMEZONES  = ['America/Toronto','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris','Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC']
+// TIMEZONES imported from lib/timezones — single source of truth shared with
+// dashboard/settings/page.tsx. The old 13-entry inline list is gone : it
+// missed common client zones (Madrid, São Paulo, Delhi, Lagos, Mexico,
+// Zurich…). See lib/timezones.ts for the invariant that keeps a
+// detected-but-out-of-list value selected instead of silently replacing it
+// with the first item.
 const STATUS_COLORS: Record<string,string> = { scheduled:'bg-blue-50 text-blue-700', completed:'bg-green-50 text-green-700', cancelled:'bg-red-50 text-red-600', no_show:'bg-orange-50 text-orange-600' }
 
 // Values only. Labels resolved at render via useTranslations().
@@ -306,11 +319,25 @@ export default function MeetingsPage() {
         </div>
       </div>
 
-      {/* Booking link banner */}
+      {/* Booking link banner
+            Timezone label surfaces sCfg.timezone (the SAME state the
+            Scheduler settings modal edits — read/write share this object,
+            no separate fetch). Without this label the user had no way to
+            see in which zone their public booking page publishes slots
+            without opening the modal ; a workspace neuf now defaults to
+            the user's browser zone at signup (see /en/signup + workspace/
+            create routes), so surfacing it here makes that choice
+            legible. Clicking ⚙ Scheduler settings jumps straight to the
+            editor. */}
       <div className="bg-[#eef1fd] border border-[#dde6fd] rounded-xl p-4 mb-5 flex items-center gap-3">
         <span className="text-xl flex-shrink-0">🔗</span>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-[#3b6bef] mb-0.5">{tBanner('yourBookingLink')}</p>
+          <p className="text-xs font-semibold text-[#3b6bef] mb-0.5">
+            {tBanner('yourBookingLink')}
+            <span className="ml-2 text-[#6b5e4e] font-normal" title={tSchTimezone('label')}>
+              · {sCfg.timezone}
+            </span>
+          </p>
           <p className="text-sm text-[#6b5e4e] truncate">{bookingLink}</p>
         </div>
         <button onClick={copyLink} className="bg-[#3b6bef] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex-shrink-0">
@@ -643,11 +670,20 @@ export default function MeetingsPage() {
                 />
               </div>
 
-              {/* Timezone */}
+              {/* Timezone
+                    Invariant : if the stored zone isn't in TIMEZONES (a legacy
+                    workspace saved a rarer IANA name, or a future PR narrows
+                    the list), render it as a first option so the user can
+                    see + save it back. Never silently drop to the first list
+                    item — that would replace their setting on the first
+                    interaction with the modal. */}
               <div>
                 <label className="block text-sm font-semibold text-[#1a1a2e] mb-1.5">{tSchTimezone('label')}</label>
                 <select value={sCfg.timezone} onChange={e => setSCfg({...sCfg, timezone: e.target.value})}
                   className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef] bg-white">
+                  {!(TIMEZONES as ReadonlyArray<string>).includes(sCfg.timezone) && (
+                    <option key={sCfg.timezone} value={sCfg.timezone}>{sCfg.timezone}</option>
+                  )}
                   {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
                 </select>
               </div>

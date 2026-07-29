@@ -12,15 +12,15 @@ import { renderSignature } from '@/lib/signature'
 import { useWorkspace } from '@/lib/hooks/useWorkspace'
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection'
 import { LanguageSection } from '@/components/settings/LanguageSection'
+// Single source of truth for the workspace TZ list — aliased to preserve
+// the local variable name. See lib/timezones.ts for the invariant that
+// keeps an out-of-list stored value selected instead of silently replacing
+// it with the first item.
+import { TIMEZONES as WORKSPACE_TIMEZONES, detectClientTimezone } from '@/lib/timezones'
 
 const supabase = createClient()
 
-const COMPANY_SIZES      = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
-const WORKSPACE_TIMEZONES = [
-  'America/Toronto','America/New_York','America/Chicago','America/Denver',
-  'America/Los_Angeles','America/Vancouver','Europe/London','Europe/Paris',
-  'Europe/Berlin','Asia/Tokyo','Asia/Singapore','Australia/Sydney','UTC',
-]
+const COMPANY_SIZES = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000+']
 
 const DEFAULT_SIGNATURE = '--\n{{user_name}} · {{user_title}}, {{company}}\n{{company_website}}'
 
@@ -87,7 +87,12 @@ const SNAP_DEFAULTS = {
   company_name:           '',
   sender_name:            '',
   company_website:        '',
-  timezone:               'America/Toronto',
+  // Snapshot default : browser IANA zone, never a hardcoded 'America/Toronto'.
+  // A user in Madrid loading settings for the first time would see Toronto
+  // for the ~200ms between mount and profile load, then see it snap to
+  // whatever's actually stored — hardcoded fallbacks create the exact
+  // "someone else's fuseau" perception this PR is fixing.
+  timezone:               detectClientTimezone(),
   user_industry:          '',
   user_company_size:      '',
   product_description:    '',
@@ -127,7 +132,8 @@ export default function SettingsPage() {
     company_name:            '',
     sender_name:             '',
     company_website:         '',
-    timezone:                'America/Toronto',
+    // See SNAP_DEFAULTS note above — browser IANA zone, never hardcoded Toronto.
+    timezone:                detectClientTimezone(),
     user_industry:           '',
     user_company_size:       '',
     // Product
@@ -192,7 +198,10 @@ export default function SettingsPage() {
             company_name:           p.company_name            || '',
             sender_name:            p.sender_name             || '',
             company_website:        p.company_website         || '',
-            timezone:               (p.booking_config as any)?.timezone || 'America/Toronto',
+            // Fallback : browser IANA zone when the profile carries no
+            // booking_config.timezone (edge case for legacy accounts —
+            // post-PR signups always land with a stored value).
+            timezone:               (p.booking_config as any)?.timezone || detectClientTimezone(),
             user_industry:          p.user_industry           || '',
             user_company_size:      p.user_company_size       || '',
             product_description:    p.product_description     || '',
@@ -559,8 +568,15 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className={`${labelCls} mb-1 block`} htmlFor="set-workspace-timezone">{t('company.workspaceTimezone')}</label>
+              {/* Invariant : preserve an out-of-list stored value as a first
+                    option so the user sees + can save it back rather than have
+                    the <select> silently collapse to the first item. Same
+                    guard as dashboard/meetings/page.tsx scheduler modal. */}
               <select id="set-workspace-timezone" value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})}
                 className={`${inputCls} bg-white`}>
+                {!(WORKSPACE_TIMEZONES as ReadonlyArray<string>).includes(form.timezone) && (
+                  <option key={form.timezone} value={form.timezone}>{form.timezone}</option>
+                )}
                 {WORKSPACE_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
               </select>
               <p className="text-xs text-[#b0a898] mt-1">{t('company.timezoneHint')}</p>

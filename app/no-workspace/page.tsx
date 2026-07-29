@@ -53,10 +53,19 @@ function NoWorkspaceForm() {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) { window.location.href = '/login'; return }
+      // Detect the browser's IANA timezone at submit — same pattern as
+      // /en/signup/page.tsx. Server-side merged into
+      // workspace_profiles.booking_config.timezone so the recovery path
+      // does not silently pin the fresh workspace to the JSONB DEFAULT
+      // ('America/Toronto', 000_baseline.sql:1285). Absorbed by the
+      // schema's .optional().catch(undefined) if malformed.
+      const timezone = (typeof Intl !== 'undefined'
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : 'UTC') || 'UTC'
       const res = await fetch('/api/workspace/create', {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ workspaceName: name }),
+        body:    JSON.stringify({ workspaceName: name, timezone }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
