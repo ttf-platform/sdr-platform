@@ -65,10 +65,13 @@ export type WorkspaceDetailData = {
   };
   recent: {
     emails: Array<{
-      id:          string;
-      status:      string;
-      sent_at:     string | null;
-      created_at:  string;
+      id:            string;
+      status:        string;
+      sent_at:       string | null;
+      // prospect_emails uses `generated_at` (row-creation timestamp) —
+      // not `created_at`, which does not exist on this table. Renamed
+      // together with the server select in app/admin/workspaces/[id]/page.tsx.
+      generated_at:  string;
     }>;
     inbox: Array<{
       id:          string;
@@ -416,8 +419,8 @@ export function WorkspaceDetailClient({ data }: { data: WorkspaceDetailData }) {
                 {data.recent.emails.map((e) => (
                   <li key={e.id} className="flex items-center justify-between gap-2 text-xs">
                     <StatusBadge variant={EMAIL_STATUS_VARIANT[e.status] ?? 'gray'}>{e.status}</StatusBadge>
-                    <span className="text-[#4a4a5a]" title={e.sent_at ?? e.created_at}>
-                      {e.sent_at ? formatRelative(e.sent_at) : `draft ${formatRelative(e.created_at)}`}
+                    <span className="text-[#4a4a5a]" title={e.sent_at ?? e.generated_at}>
+                      {e.sent_at ? formatRelative(e.sent_at) : `draft ${formatRelative(e.generated_at)}`}
                     </span>
                   </li>
                 ))}

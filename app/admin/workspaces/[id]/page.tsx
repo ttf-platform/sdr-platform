@@ -82,12 +82,18 @@ export default async function WorkspaceDeepDivePage(
       .order('sent_at', { ascending: false })
       .limit(1),
 
-    // Recent activity timelines — METADATA ONLY, no body/subject leaked
+    // Recent activity timelines — METADATA ONLY, no body/subject leaked.
+    // The timestamp field on prospect_emails is `generated_at` (set at row
+    // creation in draft-generation.ts + reply/route.ts and NOT NULL per
+    // baseline 000). `created_at` does not exist on this table — a prior
+    // reference here silently produced a 42703 that was swallowed by the
+    // cast at ~l.195, rendering an empty admin timeline. Same fix contract
+    // as PRs #333/#334.
     admin
       .from('prospect_emails')
-      .select('id, status, sent_at, created_at')
+      .select('id, status, sent_at, generated_at')
       .eq('workspace_id', id)
-      .order('created_at', { ascending: false })
+      .order('generated_at', { ascending: false })
       .limit(RECENT_LIMIT),
 
     admin

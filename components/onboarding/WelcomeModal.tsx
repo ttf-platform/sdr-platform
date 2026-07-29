@@ -54,7 +54,24 @@ export function WelcomeModal({ onDismissTemporary, onDismissPermanent, onLetsGo,
   const [loadingSample,   setLoadingSample]    = useState(false)
   const [confirmingNever, setConfirmingNever]  = useState(false)
 
+  // handleClose : "close" semantics ONLY — wired to Modal.onClose which
+  // fires on Escape (Modal.tsx:129) and on the built-in ✕ (Modal.tsx:180).
+  // Both are user gestures that mean "get me out", NOT "start the tour".
+  // The pre-fix version fused close with onLetsGo() → router.push('/dashboard/
+  // profile#icp'), so pressing Escape or ✕ silently deep-linked the user
+  // into step 1 of the tour they were trying to skip. Same intent as the
+  // contract documented at l.32-34 (four gestures dismiss the modal for the
+  // session), which stays true : the four still call onDismissTemporary().
   async function handleClose() {
+    setSubmitting(true)
+    await onDismissTemporary()
+    setIsOpen(false)
+  }
+
+  // handleLetsGo : "close + navigate to the tour". Wired to the "Let's go"
+  // button ONLY, never to Modal.onClose. Same steps as handleClose plus
+  // onLetsGo?.() so the intent to start the tour is explicit.
+  async function handleLetsGo() {
     setSubmitting(true)
     await onDismissTemporary()
     setIsOpen(false)
@@ -95,7 +112,7 @@ export function WelcomeModal({ onDismissTemporary, onDismissPermanent, onLetsGo,
       footer={
         <div className="flex flex-col gap-2 w-full">
           <button
-            onClick={handleClose}
+            onClick={handleLetsGo}
             disabled={submitting || loadingSample || confirmingNever}
             className="w-full bg-[#1a1a2e] hover:bg-[#2a2a3e] text-white font-semibold py-3 px-6 rounded-lg text-sm transition-colors disabled:opacity-50"
           >

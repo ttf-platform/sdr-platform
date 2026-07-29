@@ -51,12 +51,21 @@ export async function POST(
     )
   }
 
-  // Fetch prospect for sender info
+  // Fetch prospect for sender info.
+  //
+  // first_name and last_name live on `contacts` since migration 013 —
+  // embedded via the contacts!contact_id to-one join, matching the
+  // canonical pattern used by approve/route.ts:194 and
+  // approval-queue/route.ts:53. `company_name` is dropped : it does not
+  // exist on `prospects` nor on `contacts` (contacts carries `company` ;
+  // `company_name` lives on `meetings` and `workspace_profiles`), and it
+  // was never consumed in this file anyway. Only first_name / last_name
+  // (l.71 fromName) and email (l.84) are actually used.
   const { data: prospect } = await admin
     .from('prospects')
-    .select('email, first_name, last_name, company_name')
+    .select('email, contacts!contact_id(first_name, last_name)')
     .eq('id', pe.prospect_id)
-    .single()
+    .single<{ email: string | null; contacts: { first_name: string | null; last_name: string | null } | null }>()
 
   // Fetch workspace sending mailbox for to_email
   const { data: emailAccount } = await admin
@@ -68,7 +77,7 @@ export async function POST(
     .maybeSingle()
 
   const replyBody = MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)]
-  const fromName = [prospect?.first_name, prospect?.last_name].filter(Boolean).join(' ') || 'Prospect'
+  const fromName = [prospect?.contacts?.first_name, prospect?.contacts?.last_name].filter(Boolean).join(' ') || 'Prospect'
   const subject = `Re: ${pe.subject}`
   const now = new Date().toISOString()
 

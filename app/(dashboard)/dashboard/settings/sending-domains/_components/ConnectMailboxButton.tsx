@@ -195,15 +195,43 @@ export function ConnectMailboxButton() {
         return
       }
 
-      // Open the provider's hosted auth page in a popup. `noopener` prevents
-      // the popup from reaching back into the opener via window.opener.
-      const features = 'width=500,height=600,resizable=yes,scrollbars=yes,status=yes,noopener'
+      // Open the provider's hosted auth page in a popup.
+      //
+      // Two-step severance of window.opener, both necessary :
+      //
+      //   (1) `noopener` is DELIBERATELY NOT in the features string. Per HTML
+      //       spec, `noopener` in `window.open`'s features makes the call
+      //       return null — the popup still opens, but our handle is null,
+      //       so the branch at l.202 fires "popup blocked" and the polling
+      //       (which is the sole writer of email_accounts on this path via
+      //       /api/email-accounts/oauth/status/<sessionId>) never starts.
+      //       No mailbox can be connected. Measured in Chromium :
+      //         features with noopener        → handle null, popup blind to opener, close() impossible
+      //         features without noopener     → handle OK,   popup SEES opener,     close() OK
+      //         above + popup.opener = null   → handle OK,   popup blind to opener, close() OK
+      //       Only the third gives us both properties.
+      //
+      //   (2) Right after open, sever the opener link explicitly. The
+      //       assignment is same-origin at this instant (the popup is still
+      //       about:blank), so it never throws ; the null persists across
+      //       the subsequent cross-origin navigation to the provider's
+      //       hosted auth page. This is what actually protects us from
+      //       reverse-tabnabbing, NOT `isAuthUrlSafe()` above — that helper
+      //       validates the INITIAL URL only, not the OAuth redirect chain
+      //       that follows.
+      //
+      // We still need the popup handle to close it in stopPolling()
+      // (l.127-129) and in the useEffect cleanup (l.86-88) when the parent
+      // unmounts mid-flow. Without a handle, both leak an open window and
+      // orphan the poller.
+      const features = 'width=500,height=600,resizable=yes,scrollbars=yes,status=yes'
       const popup = window.open(body.authUrl, 'oauth-connect-mailbox', features)
       if (!popup) {
         toast.error('Your browser blocked the popup. Please allow it and try again.')
         setBusy(null)
         return
       }
+      try { popup.opener = null } catch { /* browser hardening : opener may be read-only ; the popup then still cannot use it as a foothold, we're not worse off */ }
       popupRef.current   = popup
       sessionRef.current = body.sessionId as string
       deadline.current   = Date.now() + SESSION_TTL_MS
