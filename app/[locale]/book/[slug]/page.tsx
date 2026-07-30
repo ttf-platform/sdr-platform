@@ -343,12 +343,21 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   value={tzOverride}
                   onChange={e => { setTzOverride(e.target.value); setSelSlot('') }}
                   aria-label={t('tzSelectLabel')}
-                  // max-w-xs (Tailwind 320px, not a custom `max-w-[N]`) —
-                  // sentra-design-system rule "Pas de largeur custom …
-                  // sauf justification explicite". Justification here : the
-                  // FIRST option is the default-selected value for every
-                  // prospect (t('tzAutoDetected', { tz: detectedTz })), and
-                  // its worst case is "Détecté : America/Argentina/
+                  // max-w-xs (Tailwind 320px). What sentra-design-system
+                  // says about widths, verbatim :
+                  //   SKILL.md:45 — "Pas de largeur custom (max-w-[840px]
+                  //     etc.) sauf justification explicite" : the
+                  //     justification below satisfies this rule.
+                  //   SKILL.md:32-40 — "Trois largeurs uniquement"
+                  //     (max-w-2xl / max-w-3xl / max-w-7xl, toujours en
+                  //     mx-auto) = largeurs de CONTENEUR DE PAGE. This
+                  //     rule does not govern an inline <select> ; the
+                  //     three-widths list does not include max-w-xs and
+                  //     is not meant to.
+                  // Justification of the choice : the FIRST option is the
+                  // default-selected value for every prospect
+                  // (t('tzAutoDetected', { tz: detectedTz })), and its
+                  // worst case is "Détecté : America/Argentina/
                   // Buenos_Aires" — 39 chars, ~250px at text-xs, plus
                   // padding + caret. The pre-fix max-w-[200px] truncated
                   // this into "Détecté : America/Argentina/B…" on the
@@ -356,10 +365,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   // bare `{tz}`) creates two visually-identical <option>s
                   // in the list — the auto one and the same IANA name
                   // rendered by TIMEZONES.map — no way for the user to
-                  // tell them apart. Mobile flex-wrap unchanged : the h2
-                  // already forced the <select> to row 2 on 375px with
-                  // the pre-fix width, so widening does not break the
-                  // small-viewport layout.
+                  // tell them apart.
+                  // Small-viewport behaviour NOT verified : no dev server
+                  // (interdit), no Playwright, no staging deploy yet.
+                  // max-w-xs is a MAX not a fixed width, so the flex-wrap
+                  // row (:317-341) will constrain the <select> below
+                  // 320px on narrow screens. Verification is the N3 pass
+                  // post-merge on mirvo-staging via /impeccable.
                   className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-[#4a3f32] focus:outline-none focus:border-[#3b6bef] bg-white max-w-xs"
                 >
                   {/* First option = "Detected: <tz>" — value="" is what
