@@ -603,7 +603,13 @@
     "yahooCalendar": "Yahoo Agenda",
     "downloadICS": "Télécharger .ics",
     "allSet": "Tout est prêt ! Vous pouvez fermer cette fenêtre. Nous avons envoyé l'invitation à votre email.",
-    "poweredBy": "Propulsé par"
+    "poweredBy": "Propulsé par",
+    "tzSelectLabel": "Votre fuseau horaire",
+    "tzAutoDetected": "Détecté : {tz}",
+    "subjectWithCompany": "Échange découverte avec {firstName} de {companyName}",
+    "subjectWithName": "Réserver un créneau avec {firstName}",
+    "subjectNoName": "Réserver un créneau",
+    "dateAtTime": "{date} à {time}"
   },
   "legal": {
     "eyebrow": "Juridique",

@@ -108,7 +108,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   try { rawBody = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
   const parsed = bookingCreateSchema.safeParse(rawBody)
   if (!parsed.success) return badRequest(parsed.error.issues)
-  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes } = parsed.data
+  const { date, time, prospect_timezone, duration_min, attendee_email, attendee_name, company_name, notes, locale } = parsed.data
 
   const { data: profile, error: pErr } = await getProfile(params.slug)
   if (pErr || !profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -362,9 +362,20 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   // Server-side date/time formatting so the confirmation email doesn't
   // need any client-side rendering. Uses the prospect's stated tz for the
   // legibility, tzLabel is the raw IANA name for auditability.
-  const localeLocale = prospect_timezone.startsWith('Europe/') && prospect_timezone !== 'Europe/London'
-    ? 'fr-FR'
-    : 'en-US'
+  // Email language : the CLIENT tells us, via `locale`, which language the
+  // prospect just read the page in. That's the language the confirmation
+  // email lands in. If the field is missing (older client, direct API
+  // caller, or bookingCreateSchema.catch(undefined) swallowed a bad
+  // value), we fall back to 'en'.
+  //
+  // Pre-fix, this was derived from prospect_timezone : Europe/* except
+  // London → 'fr-FR', else 'en-US'. That meant a Berlin browser in EN
+  // got a French email, and a Madrid/Rome/Warsaw/Athens/Istanbul/…
+  // browser in EN got the same. This heuristic is retired ; do not
+  // reintroduce it, even as a "fallback when locale is missing" —
+  // 'en' is the correct fallback (the app's default locale).
+  const emailLocale  = locale ?? 'en'
+  const localeLocale = emailLocale === 'fr' ? 'fr-FR' : 'en-US'
   const dateFmt = new Intl.DateTimeFormat(localeLocale, {
     timeZone: prospect_timezone,
     weekday:  'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -375,7 +386,6 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   })
   const dateStr = dateFmt.format(slotStartUTC)
   const timeStr = timeFmt.format(slotStartUTC)
-  const emailLocale = localeLocale === 'fr-FR' ? 'fr' : 'en'
 
   const emailResult = await sendBookingConfirmationEmail({
     to:             attendeeEmailLc,

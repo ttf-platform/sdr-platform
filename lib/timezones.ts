@@ -4,6 +4,7 @@
  * Consumed by :
  *   - app/(dashboard)/dashboard/meetings/page.tsx     (Scheduler settings <select>)
  *   - app/(dashboard)/dashboard/settings/page.tsx     (Company timezone <select>)
+ *   - app/[locale]/book/[slug]/page.tsx               (public booking <select>)
  *   - app/api/auth/signup/route.ts                   (resolve to list before write)
  *   - app/api/workspace/create/route.ts              (recovery / onboarding path)
  *   - app/[locale]/(auth)/signup/page.tsx            (client-side detection)
@@ -25,7 +26,14 @@
  *   MENA, Africa, South & SE Asia, plus the previously-missing NZ/Perth.
  *   The invariant : if a stored / detected zone is NOT in this list, UI
  *   MUST keep it selected and display it verbatim (never replace with the
- *   first item). See TimezoneSelect callers for the enforcement.
+ *   first item). The out-of-list guard is inlined at the two DASHBOARD
+ *   consumers only (meetings/page.tsx and settings/page.tsx) because those
+ *   re-read a value STORED in booking_config.timezone that can predate
+ *   this list. The PUBLIC booking page has no such guard by design : its
+ *   value can only be '' (auto-detected) or an entry from TIMEZONES, so
+ *   there is nothing to preserve. No shared TimezoneSelect component
+ *   exists ; there was one referenced in an older version of this
+ *   comment, then never written.
  */
 
 // The list carries MODERN IANA names — the spellings a user reads in the

@@ -1,9 +1,23 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateICS } from '@/lib/ics'
 import { MEETING_ICS_COLUMNS } from '@/lib/meetings-columns'
+import { DASHBOARD_LOCALE_COOKIE, DEFAULT_DASHBOARD_LOCALE, type DashboardLocale } from '@/lib/locale'
 
-export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
+// Owner-side locale resolution — mirrors middleware.ts:24-30 EXACTLY.
+// Priority : bespoke dashboard cookie (set at login) → next-intl cookie
+// → 'en'. Client-side readDashboardLocaleSync at lib/locale.ts:52 is
+// guarded by `typeof document` and would return the default in a server
+// bundle, hence the direct cookie parse here.
+function resolveOwnerLocale(request: NextRequest): DashboardLocale {
+  const dashboard = request.cookies.get(DASHBOARD_LOCALE_COOKIE)?.value
+  if (dashboard === 'en' || dashboard === 'fr') return dashboard
+  const nextLocale = request.cookies.get('NEXT_LOCALE')?.value
+  if (nextLocale === 'en' || nextLocale === 'fr') return nextLocale
+  return DEFAULT_DASHBOARD_LOCALE
+}
+
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -32,6 +46,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     organizer_email: user.email                    ?? '',
     organizer_name:  user.user_metadata?.full_name ?? '',
     perspective:     'organizer',
+    locale:          resolveOwnerLocale(request),
   })
   return new NextResponse(ics, {
     headers: {

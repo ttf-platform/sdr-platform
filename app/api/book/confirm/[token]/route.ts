@@ -3,8 +3,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimitByIp } from '@/lib/rate-limit'
 import { ensureDealAtMeetingBooked } from '@/lib/deals'
 import { notifyWorkspaceOwner } from '@/lib/notifications'
-import { generateICS } from '@/lib/ics'
+import { generateICS, buildSummary, buildDescription } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
+
+// The client sends `?locale=en|fr` on both GET and POST — see
+// app/[locale]/book/confirm/[token]/page.tsx. We validate that against the
+// hardcoded pair and fall back to 'en'. FALLBACK IS OBLIGATOIRE, NOT
+// DEFENSIVE : the GET is also hit by link-preview fetchers, spam-gateway
+// sandboxes and corporate URL scanners (documented at page.tsx:11), and
+// none of those send a locale query param. A bare landing MUST resolve
+// to 'en' without erroring.
+function parseLocaleQP(request: Request): 'en' | 'fr' {
+  const v = new URL(request.url).searchParams.get('locale')
+  return v === 'fr' ? 'fr' : 'en'
+}
 
 // GET  /api/book/confirm/[token]   — READ-ONLY peek : returns the current
 //                                    outcome + minimal meeting summary the
@@ -72,7 +84,7 @@ export async function GET(
   // "pending" here is fine ; the POST resolves conflicts atomically).
   const nowMs = Date.now()
   if (meeting.status === 'scheduled' && meeting.confirmed_at) {
-    return NextResponse.json(await peekConfirmed(admin, meeting.id, 'already_confirmed'))
+    return NextResponse.json(await peekConfirmed(admin, meeting.id, 'already_confirmed', parseLocaleQP(request)))
   }
   if (meeting.status === 'expired' || (meeting.expires_at && new Date(meeting.expires_at).getTime() <= nowMs)) {
     return NextResponse.json({ outcome: 'expired' })
@@ -127,11 +139,12 @@ export async function POST(
   if (outcome === 'slot_taken')  return NextResponse.json({ outcome: 'slot_taken'  }, { status: 409 })
   if (outcome === 'slot_passed') return NextResponse.json({ outcome: 'slot_passed' }, { status: 410 })
 
+  const locale = parseLocaleQP(request)
   if (outcome === 'already_confirmed') {
-    return NextResponse.json(await respondConfirmed(admin, meetingId, /* fireSideEffects */ false))
+    return NextResponse.json(await respondConfirmed(admin, meetingId, /* fireSideEffects */ false, locale))
   }
   if (outcome === 'confirmed') {
-    return NextResponse.json(await respondConfirmed(admin, meetingId, /* fireSideEffects */ true))
+    return NextResponse.json(await respondConfirmed(admin, meetingId, /* fireSideEffects */ true, locale))
   }
 
   console.error('[book:confirm] unexpected outcome', { outcome, data })
@@ -146,14 +159,16 @@ async function peekConfirmed(
   admin:      ReturnType<typeof createAdminClient>,
   meetingId:  string,
   outcome:    'already_confirmed' | 'confirmed',
+  locale:     'en' | 'fr',
 ) {
-  return respondConfirmed(admin, meetingId, /* fireSideEffects */ false, outcome)
+  return respondConfirmed(admin, meetingId, /* fireSideEffects */ false, locale, outcome)
 }
 
 async function respondConfirmed(
   admin:            ReturnType<typeof createAdminClient>,
   meetingId:        string | null,
   fireSideEffects:  boolean,
+  locale:           'en' | 'fr',
   overrideOutcome?: 'already_confirmed' | 'confirmed',
 ) {
   if (!meetingId) return { outcome: 'db_error' as const }
@@ -190,21 +205,24 @@ async function respondConfirmed(
     welcome_message:   (cfg as { welcome_message?:   string | null }).welcome_message   ?? null,
     booking_page_url:  bookingPageUrl,
     perspective:       'attendee' as const,
+    locale,
   }
 
-  const ics        = generateICS(icsData)
-  const eventTitle = icsData.organizer_company && icsData.attendee_company
-    ? `${icsData.organizer_company} × ${icsData.attendee_company} — Discovery call`
-    : meeting.title
-
-  const descLines: string[] = []
-  if (icsData.welcome_message)   descLines.push(icsData.welcome_message)
-  if (icsData.video_meeting_url) descLines.push(`Video meeting: ${icsData.video_meeting_url}`)
-  descLines.push(`Need to reschedule? ${bookingPageUrl}`)
+  // One canonical composition for both the .ics SUMMARY and the "Add to
+  // Google Calendar / Outlook" links. Pre-PR the two paths built different
+  // strings inline — an attendee who clicked Google Calendar saw
+  // "A × B — Discovery call" while the .ics from the same screen said
+  // "Call with X from B", two titles for one event. Same for the
+  // description : the inline composition here didn't include m.notes,
+  // buildDescription does — that's an intentional improvement,
+  // documented in the ics.ts header comment on buildDescription.
+  const ics            = generateICS(icsData)
+  const eventTitle     = buildSummary(icsData)
+  const eventDesc      = buildDescription(icsData)
 
   const calendar_links = generateCalendarLinks({
     title:       eventTitle,
-    description: descLines.join('\n'),
+    description: eventDesc,
     location:    icsData.video_meeting_url ?? '',
     startISO:    new Date(meeting.meeting_at).toISOString(),
     durationMin: meeting.duration_min,

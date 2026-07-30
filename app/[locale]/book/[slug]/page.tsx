@@ -2,23 +2,9 @@
 import { use, useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { safeExternalHref } from '@/lib/url-safety'
+import { TIMEZONES } from '@/lib/timezones'
 
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
-
-const TZ_OPTIONS = [
-  { label: 'Detected: [auto]',          value: '' },
-  { label: 'Pacific Time',              value: 'America/Los_Angeles' },
-  { label: 'Mountain Time',             value: 'America/Denver' },
-  { label: 'Central Time',              value: 'America/Chicago' },
-  { label: 'Eastern Time',              value: 'America/New_York' },
-  { label: 'Western European Time',     value: 'Europe/London' },
-  { label: 'Central European Time',     value: 'Europe/Paris' },
-  { label: 'Eastern European Time',     value: 'Europe/Istanbul' },
-  { label: 'India Standard Time',       value: 'Asia/Kolkata' },
-  { label: 'Singapore Time',            value: 'Asia/Singapore' },
-  { label: 'Japan Time',                value: 'Asia/Tokyo' },
-  { label: 'Australia Eastern',         value: 'Australia/Sydney' },
-]
 
 interface AvailWindow { start: string; end: string }
 interface PageData {
@@ -85,17 +71,22 @@ function getSlotsForProspectDate(
   return allSlots.filter(utcIso => fmt.format(new Date(utcIso)) === prospectDateStr)
 }
 
-// Display a UTC ISO slot in a given TZ
-function fmtSlot(utcIso: string, tz: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true,
-  }).format(new Date(utcIso))
-}
-
 export default function BookPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const t = useTranslations('book')
   const locale = useLocale()
+
+  // fmtSlot / fmtDateStr both live INSIDE the component so they close over
+  // `locale` without threading it through a parameter — same symmetry as
+  // dayAbbrevs below and as the confirm page (confirm/[token]/page.tsx:122
+  // uses the identical hour12 expression). Moving fmtSlot from module scope
+  // (where it was hard-coded 'en-US' + hour12:true) is what unlocks 24 h
+  // display on the FR locale.
+  function fmtSlot(utcIso: string, tz: string): string {
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: locale.startsWith('en'),
+    }).format(new Date(utcIso))
+  }
 
   function fmtDateStr(dateStr: string): string {
     return new Intl.DateTimeFormat(locale, {
@@ -211,6 +202,15 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         attendee_name: form.name || undefined,
         company_name:  form.company || undefined,
         notes:         form.notes   || undefined,
+        // `locale` retires the prospect_timezone → email-language heuristic
+        // at api/book/[slug]/route.ts (pre-PR: Europe/* except London → fr,
+        // else en — a Berlin browser in EN got a FR email). The page runs
+        // under next-intl's [locale] segment so useLocale() is authoritative
+        // — that's the language the prospect just READ, so that's the
+        // language they should be emailed in. Server-side is
+        // .optional().catch(undefined), so an older client that omits this
+        // field degrades to 'en' rather than breaking.
+        locale,
       }),
     }).then(r => r.json())
 
@@ -237,10 +237,18 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const initials    = data?.owner_name?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || '?'
   const firstName   = data?.owner_name?.split(' ')[0] || ''
   const companyName = data?.company_name || ''
+  // welcome_message is owner-authored (booking_config.welcome_message) —
+  // whatever language they wrote it in is what the prospect reads. If it's
+  // empty we localise the generated title. Three keys because 'me' is a
+  // WORD, not an interpolable value : "Réserver un créneau avec moi" reads
+  // oddly in FR, so the no-owner-name branch becomes a clean "Réserver un
+  // créneau" (change of copy documented in PR body).
   const subjectLine = data?.welcome_message
     || (firstName && companyName
-      ? `Discovery call with ${firstName} from ${companyName}`
-      : `Book a meeting with ${firstName || 'me'}`)
+      ? t('subjectWithCompany', { firstName, companyName })
+      : firstName
+        ? t('subjectWithName', { firstName })
+        : t('subjectNoName'))
 
   if (notFound) return (
     <div className="min-h-screen bg-[#f5f2ee] flex items-center justify-center px-4">
@@ -309,13 +317,30 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 <h2 className="font-semibold text-[#1a1a2e]">
                   {t('dateTimeTitle')} <span className="text-xs font-normal text-[#8a7e6e]">({duration} min)</span>
                 </h2>
+                {/* aria-label instead of a visible <label> : the row header
+                    (:317) already renders the section title and there is no
+                    room in this flex layout for another visible label. The
+                    two dashboard <select>s use a visible <label> above the
+                    field ; this one is inline and cannot afford one. */}
                 <select
                   value={tzOverride}
                   onChange={e => { setTzOverride(e.target.value); setSelSlot('') }}
+                  aria-label={t('tzSelectLabel')}
                   className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-[#4a3f32] focus:outline-none focus:border-[#3b6bef] bg-white max-w-[200px]"
                 >
-                  {TZ_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {/* First option = "Detected: <tz>" — value="" is what
+                      keeps auto-detection alive for any prospect whose tz
+                      is NOT in TIMEZONES (e.g. Asia/Almaty). Do NOT drop
+                      this option, and do NOT give it a non-empty value. */}
+                  <option value="">{t('tzAutoDetected', { tz: detectedTz })}</option>
+                  {/* Raw IANA names — same decision as the two dashboard
+                      <select>s (meetings/page.tsx, settings/page.tsx). Also
+                      matches the "Times shown in <prospectTz>" line below,
+                      which already renders the raw IANA string. Translating
+                      44 zones × 2 langues = 88 strings for zero information
+                      gain vs the raw name. */}
+                  {TIMEZONES.map(tz => (
+                    <option key={tz} value={tz}>{tz}</option>
                   ))}
                 </select>
               </div>
@@ -390,7 +415,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               <h2 className="font-semibold text-[#1a1a2e] mb-3">{t('confirmTitle')}</h2>
 
               <div className="bg-[#f5f2ee] rounded-lg p-3 mb-4 text-sm">
-                <p className="font-medium text-[#1a1a2e]">{fmtDateStr(selDateStr)} at {fmtSlot(selSlot, prospectTz)}</p>
+                <p className="font-medium text-[#1a1a2e]">{t('dateAtTime', { date: fmtDateStr(selDateStr), time: fmtSlot(selSlot, prospectTz) })}</p>
                 <p className="text-[#8a7e6e]">{duration} min · {prospectTz}
                   {data.video_meeting_url && (() => {
                     const safe = safeExternalHref(data.video_meeting_url);
