@@ -397,16 +397,28 @@ export default function MeetingsPage() {
     const displayTitle = isGeneratedBookingTitle(m)
       ? t('meetingWithEmail', { email: m.attendee_email })
       : m.title
-    // Palette discipline (v2 sentra-design-system audit) : pending card
-    // background reuses `#f5f2ee` — the canonical app-fond color from the
-    // palette — rather than the v1 custom `#faf7f2`. Result : the pending
-    // card visually SINKS into the page background (owner reads it as
-    // "muted") while the confirmed cards float on `#ffffff`. No custom
-    // hex, still visually distinct at first glance.
+    // ONE bg-* class per branch — never two. Emitting both `bg-white` (in
+    // the base) and `bg-[#f5f2ee]` (in the pending branch) would put both
+    // rules in the DOM ; the CSS cascade decides by ORDER-IN-STYLESHEET,
+    // and Tailwind's output order is not a contract. A className that
+    // declares one colour and renders another misleads the next PR — this
+    // is a discipline concern, not a visual one.
+    //
+    // Measured contrast in the sentra-design-system palette (§49-59) :
+    //   confirmed card (#ffffff) vs page (#f5f2ee) ....... 1.12:1
+    //   pending card   (#f5f2ee) vs page (#f5f2ee) ....... 1.00:1
+    //   border         (#e8e3dc) vs page (#f5f2ee) ....... 1.14:1
+    //   WCAG 1.4.11 non-text UI threshold ................ 3.00:1
+    // No card-background choice in this palette carries a perceptible
+    // distinction against the page. What actually differentiates a pending
+    // row is the amber pastille (§69-98 pill spec, mesured amber-50 /
+    // amber-700 / amber-200) and the italic hint below it. The background
+    // choice here is a semantic marker for future code, not a visual cue
+    // for the user.
     return (
       <div className={
-        'bg-white border rounded-xl p-4 ' +
-        (isPending ? 'border-[#e8e3dc] bg-[#f5f2ee]' : 'border-[#e8e3dc]')
+        'border rounded-xl p-4 border-[#e8e3dc] ' +
+        (isPending ? 'bg-[#f5f2ee]' : 'bg-white')
       }>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
