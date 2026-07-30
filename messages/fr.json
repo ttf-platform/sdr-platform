@@ -1724,6 +1724,7 @@
         "no_show": "Absence",
         "pending": "En attente de confirmation"
       },
+      "meetingWithEmail": "Rendez-vous avec {email}",
       "pending": {
         "cardHintWithDeadline": "Le participant n'a pas encore cliqué sur son lien de confirmation — il peut le faire jusqu'au {deadline}. D'ici là, le créneau peut encore lui revenir. Évitez de réserver par-dessus.",
         "cardHintNoDeadline": "Le participant n'a pas encore cliqué sur son lien de confirmation. D'ici là, le créneau peut encore lui revenir. Évitez de réserver par-dessus."

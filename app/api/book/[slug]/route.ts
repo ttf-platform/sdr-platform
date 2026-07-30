@@ -7,6 +7,7 @@ import { sendBookingConfirmationEmail } from '@/lib/email'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
 import { normalizeEmailForRateLimit, toPlainTextForEmail } from '@/lib/text-safety'
 import { isPendingStillActive } from '@/lib/meetings-retention'
+import { generatedBookingTitle } from '@/lib/meeting-title'
 
 // Per-recipient / per-slug / platform caps for the confirmation-email path.
 // These live IN THE DB (COUNT before INSERT) rather than in Redis because
@@ -314,7 +315,18 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       // the owner's dashboard and in the ICS ; keeping it PII-typed avoids
       // XSS + phishing-in-title vectors and matches the same discipline
       // applied to the confirmation email body.
-      title:                `Meeting with ${attendee_email}`,
+      //
+      // generatedBookingTitle(attendeeEmailLc) NOT (attendee_email) : this
+      // aligns the title with what the attendee_email column stores on
+      // the .insert() below (attendeeEmailLc, the lowercased email
+      // declared just above). Pre-fix, this line composed on the raw
+      // email while the column stored the lowercase — a
+      // `John.Doe@acme.com` autofill produced diverging strings, and the
+      // dashboard read-time i18n substitution (isGeneratedBookingTitle in
+      // lib/meeting-title.ts) then couldn't recognise the row as
+      // generated. The case-insensitive compare over there catches
+      // historical rows ; this normalisation catches every future one.
+      title:                generatedBookingTitle(attendeeEmailLc),
       meeting_at:           slotStartUTC.toISOString(),
       duration_min,
       attendee_email:              attendeeEmailLc,

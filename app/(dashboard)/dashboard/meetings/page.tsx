@@ -9,6 +9,7 @@ import { Toggle } from '@/components/ui/Toggle'
 // is the CONSTANT 'UTC' below to keep SSR/hydration deterministic. The
 // sCfgTzOrigin state gates whether the value ever reaches the save payload.
 import { TIMEZONES } from '@/lib/timezones'
+import { isGeneratedBookingTitle } from '@/lib/meeting-title'
 
 const supabase = createClient()
 
@@ -24,6 +25,14 @@ interface Meeting {
   // and doesn't confuse the 15-min blocking window (which does NOT
   // concern them) with the 24-h visibility / confirmation window.
   expires_at: string | null
+  // Non-null on public-booking rows (POST /api/book/[slug] sets it) ; null
+  // on owner-created rows (POST /api/meetings does not set it, per
+  // lib/meetings-columns.ts). Used by isGeneratedBookingTitle
+  // (lib/meeting-title.ts) to decide whether to substitute a localised
+  // label at render time — a null slug means the owner wrote the title
+  // themselves and it must be rendered verbatim regardless of shape.
+  // Server sends this field via MEETING_LIST_COLUMNS.
+  booking_slug: string | null
 }
 interface AvailWindow { start: string; end: string }
 interface BookingConfig {
@@ -377,6 +386,17 @@ export default function MeetingsPage() {
       : isPending
         ? tStatuses('pending')
         : m.status
+    // Read-time i18n of the auto-generated title from public bookings
+    // (book/[slug]/route.ts writes "Meeting with <email>" in English at
+    // creation ; we substitute a localised label here). Local variable so
+    // the predicate runs once per row, not once per render site. See
+    // lib/meeting-title.ts for the shape + case-insensitive rationale.
+    // Rendered ONCE here — MeetingCard is rendered from both the list
+    // map and the selected-day agenda map, so fixing this one site
+    // covers both.
+    const displayTitle = isGeneratedBookingTitle(m)
+      ? t('meetingWithEmail', { email: m.attendee_email })
+      : m.title
     // Palette discipline (v2 sentra-design-system audit) : pending card
     // background reuses `#f5f2ee` — the canonical app-fond color from the
     // palette — rather than the v1 custom `#faf7f2`. Result : the pending
@@ -394,7 +414,7 @@ export default function MeetingsPage() {
               <span className={
                 'font-semibold text-sm ' +
                 (isPending ? 'text-[#6b5e4e]' : 'text-[#1a1a2e]')
-              }>{m.title}</span>
+              }>{displayTitle}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status] ?? ''}`}>{statusLabel}</span>
             </div>
             <p className={
@@ -665,6 +685,14 @@ export default function MeetingsPage() {
                           }).format(new Date(mtg.meeting_at))
                           const cancelled = mtg.status === 'cancelled'
                           const pending   = mtg.status === 'pending'
+                          // Same read-time substitution as `displayTitle`
+                          // in MeetingCard. ONE local var serves BOTH the
+                          // `title=` attribute (hover tooltip) AND the chip
+                          // text. Fixing one without the other leaves the
+                          // defect visible in either the hover or the cell.
+                          const chipTitle = isGeneratedBookingTitle(mtg)
+                            ? t('meetingWithEmail', { email: mtg.attendee_email })
+                            : mtg.title
                           return (
                             <span
                               key={mtg.id}
@@ -687,9 +715,9 @@ export default function MeetingsPage() {
                                 (cancelled ? 'line-through opacity-70 ' : '') +
                                 (pending ? 'italic opacity-80' : '')
                               }
-                              title={`${timeStr} · ${mtg.title}${pending ? ` · ${tStatuses('pending')}` : ''}`}
+                              title={`${timeStr} · ${chipTitle}${pending ? ` · ${tStatuses('pending')}` : ''}`}
                             >
-                              {timeStr} {mtg.title}
+                              {timeStr} {chipTitle}
                             </span>
                           )
                         })}

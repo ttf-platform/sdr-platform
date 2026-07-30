@@ -1724,6 +1724,7 @@
         "no_show": "No-show",
         "pending": "Awaiting confirmation"
       },
+      "meetingWithEmail": "Meeting with {email}",
       "pending": {
         "cardHintWithDeadline": "The attendee has not clicked their confirmation email yet — they can confirm until {deadline}. Until then, this slot may still become theirs. Avoid double-booking over it.",
         "cardHintNoDeadline": "The attendee has not clicked their confirmation email yet. Until they do, this slot may still become theirs. Avoid double-booking over it."
