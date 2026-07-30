@@ -317,15 +317,15 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       // applied to the confirmation email body.
       //
       // generatedBookingTitle(attendeeEmailLc) NOT (attendee_email) : this
-      // aligns the title with what the attendee_email column will store on
-      // the very next line (attendeeEmailLc, defined :237). Pre-fix, this
-      // line composed on the raw email while the column stored the
-      // lowercase — a `John.Doe@acme.com` autofill produced diverging
-      // strings, and the dashboard read-time i18n substitution
-      // (isGeneratedBookingTitle in lib/meeting-title.ts) then couldn't
-      // recognise the row as generated. The case-insensitive compare over
-      // there catches historical rows ; this normalisation catches every
-      // future one.
+      // aligns the title with what the attendee_email column stores on
+      // the .insert() below (attendeeEmailLc, the lowercased email
+      // declared just above). Pre-fix, this line composed on the raw
+      // email while the column stored the lowercase — a
+      // `John.Doe@acme.com` autofill produced diverging strings, and the
+      // dashboard read-time i18n substitution (isGeneratedBookingTitle in
+      // lib/meeting-title.ts) then couldn't recognise the row as
+      // generated. The case-insensitive compare over there catches
+      // historical rows ; this normalisation catches every future one.
       title:                generatedBookingTitle(attendeeEmailLc),
       meeting_at:           slotStartUTC.toISOString(),
       duration_min,

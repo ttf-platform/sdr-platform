@@ -21,10 +21,10 @@
  *     A strict `===` returns false and the owner keeps reading English.
  *     Every row created before this correction has that shape — the case-
  *     insensitive compare is what catches them without a migration.
- *   - PATCH /api/meetings/[id] passes attendee_email raw through
- *     (:98-99), no toLowerCase() there either. Fixing that is out of
- *     scope of this PR (widening the mutation surface pulls a security
- *     review that we don't want on this diff), so the column can keep
+ *   - PATCH /api/meetings/[id] passes attendee_email straight through
+ *     to .update() with no toLowerCase(). Fixing that is out of scope
+ *     of this PR (widening the mutation surface pulls a security review
+ *     that we don't want on this diff), so the column can keep
  *     acquiring mixed-case values via that path — the case-insensitive
  *     compare accommodates them too.
  */
