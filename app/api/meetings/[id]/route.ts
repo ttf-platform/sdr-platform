@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { meetingUpdateSchema, badRequest } from '@/lib/schemas'
 import { convertNaiveLocalToUtc } from '@/lib/meeting-tz'
 import { MEETING_LIST_COLUMNS } from '@/lib/meetings-columns'
+import { generatedBookingTitle, isGeneratedBookingTitle } from '@/lib/meeting-title'
 
 // Guard : mutating a 'pending' or 'expired' row bypasses invariants owned
 // by the public booking flow.
@@ -42,11 +43,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!parsed.success) return badRequest(parsed.error.issues)
 
   // Read the row FIRST — RLS scopes to the caller's workspace. We need
-  // both the current status (guard) and the workspace_id (to resolve the
-  // workspace TZ for the naïve-datetime → UTC conversion below).
+  // the current status (guard), the workspace_id (to resolve the workspace
+  // TZ for the naïve-datetime → UTC conversion below), and — new for
+  // PR i18n-meeting-title — title / attendee_email / booking_slug so we
+  // can decide whether an attendee_email change on a still-generated
+  // title should propagate to the title too (trap 3, block below).
   const { data: existing, error: readErr } = await supabase
     .from('meetings')
-    .select('id, workspace_id, status')
+    .select('id, workspace_id, status, title, attendee_email, booking_slug')
     .eq('id', params.id)
     .single()
   if (readErr || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -74,6 +78,47 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .from('workspace_profiles').select('booking_config').eq('workspace_id', existing.workspace_id).single()
     const wpTz = (wpProfile?.booking_config as any)?.timezone ?? 'UTC'
     updates.meeting_at = convertNaiveLocalToUtc(parsed.data.meeting_at, wpTz)
+  }
+
+  // Trap 3 — attendee_email changed on a still-generated title.
+  //
+  // meetingUpdateSchema (lib/schemas/meetings.ts) exposes `title` AND
+  // `attendee_email` INDEPENDENTLY. An owner correcting a typo in the
+  // attendee's email on a public-booking row (booking_slug non-null)
+  // that STILL carries the auto-generated title would end up with
+  //     title          = "Meeting with old@x.com"    (unchanged)
+  //     attendee_email = "new@y.com"
+  // — the dashboard read-time i18n substitution
+  // (isGeneratedBookingTitle) then no longer recognises the row, so
+  // the OLD email keeps showing in the title, in English, on the FR
+  // dashboard.
+  //
+  // We regenerate the title only when ALL of :
+  //   - the payload does NOT explicitly override `title`   (owner
+  //     intent to rename wins over regeneration, unconditionally)
+  //   - the payload changes `attendee_email`
+  //   - the CURRENT stored row is a generated-shape title on a
+  //     public-booking row (isGeneratedBookingTitle covers the
+  //     booking_slug guard + the case-insensitive shape match)
+  //
+  // NOT reachable via the current UI (meetings/page.tsx only PATCHes
+  // {status}), same discipline as the TZ conversion block above :
+  // disarm the trap before the first UI PR that opens the mutation
+  // surface arms it. See lib/meeting-title.ts for the rationale on the
+  // case-insensitive compare.
+  //
+  // DELIBERATELY NOT touched here : (a) missing .toLowerCase() on the
+  // incoming attendee_email — pre-existing behaviour, out of scope,
+  // widening it pulls a security-review surface we don't want on this
+  // diff ; (b) attendee_email_normalized — anti-abuse counter, out of
+  // scope. The regenerated title matches whatever casing the PATCH
+  // writes, and the read-time compare is case-insensitive anyway.
+  if (
+    parsed.data.attendee_email !== undefined
+    && parsed.data.title === undefined
+    && isGeneratedBookingTitle(existing)
+  ) {
+    updates.title = generatedBookingTitle(parsed.data.attendee_email)
   }
 
   // .select(MEETING_LIST_COLUMNS) — NOT .select() : the returned row is
