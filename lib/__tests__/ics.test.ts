@@ -137,12 +137,46 @@ describe('buildDescription — localised strings + ordering + notes', () => {
     expect(r).toBe('')
   })
 
-  it('notes are INCLUDED — regression guard for the pre-refactor inline shape that omitted them', () => {
-    // Pre-refactor, api/book/confirm/[token]/route.ts composed a parallel
-    // description inline for the calendar-link buttons and did NOT push
-    // m.notes into it. This unifies on buildDescription which does include
-    // them. Fails if a future refactor drops the notes line.
+  it('default includeNotes = true : notes appear (used by generateICS)', () => {
+    // .ics is a file, not a URL — notes ride along there. Fails if
+    // someone flips the default or drops the branch.
     const r = buildDescription({ ...baseAttendee, locale: 'en', notes: 'RSVP with dietary constraints' })
     expect(r).toBe('RSVP with dietary constraints')
+  })
+
+  it('includeNotes:false : notes omitted (used by the calendar-link URL sink)', () => {
+    // Symmetric guard for the split : app/api/book/confirm/[token]/route.ts
+    // passes { includeNotes: false } to keep prospect notes out of the
+    // Google/Outlook/Yahoo URL query string, which has no practical bound
+    // for `body`/`details`/`desc`. Notes are z.string().max(5000) at the
+    // schema layer, so an unbounded pass-through here would break the
+    // Add-to-Calendar buttons on any prospect who pastes a long agenda.
+    const r = buildDescription(
+      { ...baseAttendee, locale: 'en', notes: 'RSVP with dietary constraints' },
+      { includeNotes: false },
+    )
+    expect(r).toBe('')
+  })
+
+  it('includeNotes:false with other lines : no trailing newline / no orphan \\n', () => {
+    // The line-joining shape (lines.push then join('\n')) means dropping a
+    // line MUST NOT leave a dangling separator. This pins that behaviour
+    // — an implementation that always pushes m.notes ('' when excluded)
+    // would fail here with a trailing '\n'.
+    const r = buildDescription(
+      {
+        ...baseAttendee,
+        locale:            'en',
+        video_meeting_url: 'https://meet.example/xyz',
+        booking_page_url:  'https://www.mirvo.ai/book/max',
+        notes:             'RSVP with dietary constraints',
+      },
+      { includeNotes: false },
+    )
+    expect(r).toBe([
+      'Video meeting: https://meet.example/xyz',
+      'Need to reschedule? https://www.mirvo.ai/book/max',
+    ].join('\n'))
+    expect(r.endsWith('\n')).toBe(false)
   })
 })

@@ -82,9 +82,26 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   // uses the identical hour12 expression). Moving fmtSlot from module scope
   // (where it was hard-coded 'en-US' + hour12:true) is what unlocks 24 h
   // display on the FR locale.
+  //
+  // `hour` is EN-vs-FR-asymmetric on purpose — one setting does not serve
+  // both conventions. Measured Node 22.22.2 / ICU 78.2, Europe/Paris :
+  //   fr, hour12:false, hour:'numeric' → "9:00"    (chiffres désalignés
+  //                                                 dans la grille de
+  //                                                 boutons grid-cols-3
+  //                                                 sm:grid-cols-4)
+  //   fr, hour12:false, hour:'2-digit' → "09:00"   ← convention FR
+  //   en, hour12:true,  hour:'2-digit' → "09:00 AM" (padding non-standard
+  //                                                  en anglais 12h)
+  //   en, hour12:true,  hour:'numeric' → "9:00 AM"  ← convention EN
+  // So : numeric on EN (no pad, "9:00 AM"), 2-digit on FR (padded,
+  // "09:00"). Do NOT pin either output in a test — no Node version is
+  // pinned in this repo, an ICU bump would redden CI without a PR.
   function fmtSlot(utcIso: string, tz: string): string {
     return new Intl.DateTimeFormat(locale, {
-      timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: locale.startsWith('en'),
+      timeZone: tz,
+      hour:     locale.startsWith('en') ? 'numeric' : '2-digit',
+      minute:   '2-digit',
+      hour12:   locale.startsWith('en'),
     }).format(new Date(utcIso))
   }
 
@@ -326,7 +343,24 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   value={tzOverride}
                   onChange={e => { setTzOverride(e.target.value); setSelSlot('') }}
                   aria-label={t('tzSelectLabel')}
-                  className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-[#4a3f32] focus:outline-none focus:border-[#3b6bef] bg-white max-w-[200px]"
+                  // max-w-xs (Tailwind 320px, not a custom `max-w-[N]`) —
+                  // sentra-design-system rule "Pas de largeur custom …
+                  // sauf justification explicite". Justification here : the
+                  // FIRST option is the default-selected value for every
+                  // prospect (t('tzAutoDetected', { tz: detectedTz })), and
+                  // its worst case is "Détecté : America/Argentina/
+                  // Buenos_Aires" — 39 chars, ~250px at text-xs, plus
+                  // padding + caret. The pre-fix max-w-[200px] truncated
+                  // this into "Détecté : America/Argentina/B…" on the
+                  // default landing. Alternative (drop the prefix, keep
+                  // bare `{tz}`) creates two visually-identical <option>s
+                  // in the list — the auto one and the same IANA name
+                  // rendered by TIMEZONES.map — no way for the user to
+                  // tell them apart. Mobile flex-wrap unchanged : the h2
+                  // already forced the <select> to row 2 on 375px with
+                  // the pre-fix width, so widening does not break the
+                  // small-viewport layout.
+                  className="text-xs border border-[#e8e3dc] rounded-lg px-2 py-1.5 text-[#4a3f32] focus:outline-none focus:border-[#3b6bef] bg-white max-w-xs"
                 >
                   {/* First option = "Detected: <tz>" — value="" is what
                       keeps auto-detection alive for any prospect whose tz

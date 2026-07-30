@@ -209,16 +209,16 @@ async function respondConfirmed(
   }
 
   // One canonical composition for both the .ics SUMMARY and the "Add to
-  // Google Calendar / Outlook" links. Pre-PR the two paths built different
-  // strings inline — an attendee who clicked Google Calendar saw
-  // "A × B — Discovery call" while the .ics from the same screen said
-  // "Call with X from B", two titles for one event. Same for the
-  // description : the inline composition here didn't include m.notes,
-  // buildDescription does — that's an intentional improvement,
-  // documented in the ics.ts header comment on buildDescription.
+  // Google Calendar / Outlook" links (pre-PR the two composed different
+  // strings inline — attendee saw "A × B — Discovery call" via the
+  // button and "Call with X from B" via the .ics, two titles for one
+  // event). Notes are DELIBERATELY EXCLUDED from the calendar-link
+  // description — see lib/ics.ts::buildDescription for the rationale
+  // (raw URL sink in generateCalendarLinks, prospect notes are
+  // .max(5000)). Notes still ride in the .ics attachment.
   const ics            = generateICS(icsData)
   const eventTitle     = buildSummary(icsData)
-  const eventDesc      = buildDescription(icsData)
+  const eventDesc      = buildDescription(icsData, { includeNotes: false })
 
   const calendar_links = generateCalendarLinks({
     title:       eventTitle,

@@ -93,22 +93,35 @@ export function buildSummary(m: ICSMeeting): string {
 // previously composed a parallel description inline ("Video meeting: …",
 // "Need to reschedule? …") for the Add-to-Calendar links. Sharing the
 // implementation guarantees the .ics DESCRIPTION and the calendar-link
-// description carry the identical text, in the identical order, in the
-// identical language.
+// description carry the identical text (excluding notes — see below),
+// in the identical order, in the identical language.
 //
-// Behavioural note : this function includes m.notes (prospect free-text
-// notes at booking). The old inline composition in confirm/route.ts did
-// NOT include them — an intentional-looking omission that in practice
-// meant prospect notes never made it into the calendar link, only into
-// the .ics. This PR unifies on the .ics behaviour (notes ARE included) ;
-// document that shift in the PR body.
-export function buildDescription(m: ICSMeeting): string {
+// NOTES ARE .ics-ONLY, controlled by opts.includeNotes (default true).
+// Why : the calendar-link sink (lib/calendar-links.ts) inlines
+// `description` raw into URL query strings for Google/Outlook/Yahoo.
+// Prospect notes are z.string().max(5000) at the schema layer — a long
+// agenda produces a URL that exceeds the practical URL limits of those
+// endpoints, and truncation-vs-broken behaviour is per-provider. The
+// .ics file has no such limit (it's an attachment, not a URL), so the
+// notes ride along there.
+//
+// This is INTENTIONAL, and it is the ONLY difference between the two
+// consumers of this function. The unification the PR ships is on the
+// TITLE (buildSummary) and on the WELCOME / VIDEO / RESCHEDULE lines
+// here — everything a human reads in both surfaces reads identically.
+// Notes never appeared in the pre-PR calendar-link path either ; we
+// preserve that.
+export function buildDescription(
+  m: ICSMeeting,
+  opts: { includeNotes?: boolean } = {},
+): string {
+  const { includeNotes = true } = opts
   const s = STRINGS[m.locale]
   const lines: string[] = []
-  if (m.welcome_message)   lines.push(m.welcome_message)
-  if (m.video_meeting_url) lines.push(s.videoMeeting(m.video_meeting_url))
-  if (m.booking_page_url)  lines.push(s.needToReschedule(m.booking_page_url))
-  if (m.notes)             lines.push(m.notes)
+  if (m.welcome_message)     lines.push(m.welcome_message)
+  if (m.video_meeting_url)   lines.push(s.videoMeeting(m.video_meeting_url))
+  if (m.booking_page_url)    lines.push(s.needToReschedule(m.booking_page_url))
+  if (includeNotes && m.notes) lines.push(m.notes)
   return lines.join('\n')
 }
 
