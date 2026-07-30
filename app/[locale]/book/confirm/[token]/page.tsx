@@ -75,7 +75,14 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
       try { window.history.replaceState(null, '', '/book/confirm/redacted') } catch { /* ignore */ }
     }
 
-    fetch(`/api/book/confirm/${token}`, { method: 'GET' })
+    // ?locale=<locale> on BOTH GET + POST : the route uses this to pick
+    // the language of the .ics SUMMARY and the "Add to Google Calendar /
+    // Outlook" link title / description, so both the calendar-link
+    // buttons and the .ics file the visitor downloads from this screen
+    // read in the same language they're reading right now.
+    // Link-preview fetchers / spam sandboxes DON'T send this param — the
+    // route falls back to 'en', see parseLocaleQP in the route.
+    fetch(`/api/book/confirm/${token}?locale=${locale}`, { method: 'GET' })
       .then(async r => {
         const body = await r.json().catch(() => ({ outcome: 'db_error' as const }))
         return body as PeekResponse
@@ -89,11 +96,11 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
         setPeek({ status: 'done', response: { outcome: 'db_error' } })
       })
     return () => { cancelled = true }
-  }, [token])
+  }, [token, locale])
 
   async function onConfirmClick() {
     setConfirming(true)
-    const res = await fetch(`/api/book/confirm/${token}`, { method: 'POST' })
+    const res = await fetch(`/api/book/confirm/${token}?locale=${locale}`, { method: 'POST' })
       .then(async r => {
         const body = await r.json().catch(() => ({ outcome: 'db_error' as const }))
         return body as PeekResponse

@@ -603,7 +603,13 @@
     "yahooCalendar": "Yahoo Calendar",
     "downloadICS": "Download .ics",
     "allSet": "You're all set! You can safely close this window. We've sent the invite to your email.",
-    "poweredBy": "Powered by"
+    "poweredBy": "Powered by",
+    "tzSelectLabel": "Your timezone",
+    "tzAutoDetected": "Detected: {tz}",
+    "subjectWithCompany": "Discovery call with {firstName} from {companyName}",
+    "subjectWithName": "Book a meeting with {firstName}",
+    "subjectNoName": "Book a meeting",
+    "dateAtTime": "{date} at {time}"
   },
   "legal": {
     "eyebrow": "Legal",

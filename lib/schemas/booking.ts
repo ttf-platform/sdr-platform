@@ -65,6 +65,17 @@ export const bookingCreateSchema = z.object({
   attendee_name:      z.string().max(200).optional(),
   company_name:       z.string().max(200).optional(),
   notes:              z.string().max(5000).optional(),
+  // `.optional().catch(undefined)` (matches the ianaSchema + auth.ts
+  // pattern) : the client sends the locale it just rendered the page in
+  // so the confirmation email lands in the SAME language ; a stale
+  // client that omits the field, or sends garbage, degrades to 'en' on
+  // the server rather than 400-ing a legitimate booking. This is the
+  // schema half of retiring the prospect_timezone → email-language
+  // heuristic in app/api/book/[slug]/route.ts. Because the schema is
+  // .strict() (below), the field MUST be declared here for a fresh
+  // client to be accepted — do NOT split the schema change from the
+  // client change.
+  locale:             z.enum(['en', 'fr']).optional().catch(undefined),
 }).strict()
 
 export const bookingAvailabilitySchema = z.object({
