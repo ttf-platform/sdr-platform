@@ -391,8 +391,9 @@ export default function MeetingsPage() {
     // creation ; we substitute a localised label here). Local variable so
     // the predicate runs once per row, not once per render site. See
     // lib/meeting-title.ts for the shape + case-insensitive rationale.
-    // Rendered ONCE here — MeetingCard is used at both :754 (list) and
-    // :729 (calendar day agenda), so fixing this one site covers both.
+    // Rendered ONCE here — MeetingCard is rendered from both the list
+    // map and the selected-day agenda map, so fixing this one site
+    // covers both.
     const displayTitle = isGeneratedBookingTitle(m)
       ? t('meetingWithEmail', { email: m.attendee_email })
       : m.title
@@ -684,11 +685,11 @@ export default function MeetingsPage() {
                           }).format(new Date(mtg.meeting_at))
                           const cancelled = mtg.status === 'cancelled'
                           const pending   = mtg.status === 'pending'
-                          // Same read-time i18n as in MeetingCard (:390-…) —
-                          // ONE local var serves BOTH the title= attribute
-                          // (:709, tooltip on hover) AND the chip text (:711).
-                          // Corriger un sans l'autre laisse le défaut visible
-                          // dans l'un ou l'autre survol.
+                          // Same read-time substitution as `displayTitle`
+                          // in MeetingCard. ONE local var serves BOTH the
+                          // `title=` attribute (hover tooltip) AND the chip
+                          // text. Fixing one without the other leaves the
+                          // defect visible in either the hover or the cell.
                           const chipTitle = isGeneratedBookingTitle(mtg)
                             ? t('meetingWithEmail', { email: mtg.attendee_email })
                             : mtg.title
