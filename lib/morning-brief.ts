@@ -31,11 +31,27 @@ export type MorningBriefResult =
 
 // ── UTC bounds of "today" in an IANA timezone ────────────────────────────
 //
-// ⚠️ DÉFAUT CONNU, non corrigé ici : le décalage est échantillonné à
-// `now` (l'instant présent), pas à minuit local dans `tz`. Un jour de
-// bascule DST, les bornes de la journée glissent d'une heure — voir le
-// test « DST fall-back day » dans morning-brief.test.ts qui pointe l'écart
-// sans le corriger. À corriger au lot 2 bis (Morning Brief).
+// Renvoie l'instant UTC du premier tick de la journée locale dans `tz`,
+// l'instant du dernier tick, et la date locale en « YYYY-MM-DD ».
+//
+// Le décalage n'est PAS échantillonné à `now` mais à l'instant estimé de
+// minuit local, en deux passes : une graine (décalage à midi UTC de la date
+// locale, jamais un résultat, seulement un point d'ancrage), puis un second
+// tir à l'instant que la graine désigne. Les jours de bascule DST, minuit
+// local et l'heure d'échantillonnage vivent souvent de part et d'autre de
+// la transition — l'ancien code (échantillon unique à `now`) glissait alors
+// d'une heure sur les deux bornes.
+//
+// La fin de journée se calcule comme « premier tick du lendemain − 1 ms »,
+// jamais en construisant « 23 h 59 min 59 s » avec un décalage : les jours
+// de bascule d'automne où l'heure recule pile à minuit (mesuré : Santiago,
+// 4 avril 2026), la journée locale dure 25 heures et « 23 h 59 min 59 s »
+// existe deux fois. Toute formulation partant de la fin de journée tombe
+// sur la première occurrence et ampute une heure réelle.
+//
+// Propriété : le résultat ne dépend de `now` que par la date locale qu'il
+// désigne. Deux `now` du même jour local rendent exactement les mêmes
+// bornes — anti-régression garantie par les tests dédiés.
 //
 // `now` est un paramètre optionnel pour rendre la fonction testable de
 // manière déterministe : le repo n'utilise nulle part de fausses horloges
@@ -47,14 +63,30 @@ export function todayBoundsUTC(
 ): { start: Date; end: Date; dateStr: string } {
   const dateStr = now.toLocaleDateString('en-CA', { timeZone: tz }) // "YYYY-MM-DD"
 
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(now)
-  const offsetPart = parts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
-  const m = offsetPart.match(/GMT([+-]\d{2}:\d{2})/)
-  const offset = m ? m[1] : '+00:00'
+  const offsetAt = (instant: Date): string => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' })
+      .formatToParts(instant)
+    const raw = parts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+    const m = raw.match(/GMT([+-]\d{2}:\d{2})/)
+    return m ? m[1] : '+00:00'
+  }
 
-  const start = new Date(`${dateStr}T00:00:00${offset}`)
-  const end   = new Date(`${dateStr}T23:59:59.999${offset}`)
-  return { start, end, dateStr }
+  // Premier instant du jour local `d`, en deux passes : une GRAINE (le décalage
+  // à midi UTC, qui place l'instant dans le bon voisinage, jamais un résultat),
+  // puis le décalage redemandé À l'instant estimé.
+  const startOfLocalDay = (d: string): Date => {
+    const seed = offsetAt(new Date(`${d}T12:00:00Z`))
+    return new Date(`${d}T00:00:00${offsetAt(new Date(`${d}T00:00:00${seed}`))}`)
+  }
+
+  const nextDateStr = new Date(Date.parse(`${dateStr}T00:00:00Z`) + 86_400_000)
+    .toISOString().slice(0, 10)
+
+  return {
+    start:   startOfLocalDay(dateStr),
+    end:     new Date(startOfLocalDay(nextDateStr).getTime() - 1),
+    dateStr,
+  }
 }
 
 // ── Slice the first {...} block out of a model reply ─────────────────────

@@ -72,19 +72,76 @@ describe('todayBoundsUTC — bornes UTC de la journée locale', () => {
     expect(end.getTime()).toBe(new Date('2026-07-15T23:59:59.999Z').getTime())
   })
 
-  it("DOCUMENTE le défaut DST — America/Toronto, jour de bascule automne, start décalé de +1h", () => {
+  it("America/Toronto, jour de bascule automne : start tombe sur le VRAI minuit local (EDT), plus aucun décalage", () => {
     // Le 1er novembre 2026 à Toronto, DST se termine à 2 AM EDT (les horloges
-    // reculent d'une heure vers 1 AM EST). On échantillonne un instant en
-    // milieu de matinée locale (donc APRÈS la bascule, décalage EST/GMT moins
-    // cinq). todayBoundsUTC prend ce décalage pour construire minuit local du
-    // jour — sauf que le vrai minuit local était encore EDT (GMT moins quatre,
-    // avant 2 AM). Résultat : dayStart est UNE HEURE APRÈS le vrai minuit
-    // local. Ce test PIN le comportement défectueux actuel ; le lot 2 bis
-    // (Morning Brief) renversera explicitement l'assertion.
+    // reculent d'une heure vers 1 AM EST). L'ancien code échantillonnait le
+    // décalage à `now` — en milieu de matinée post-bascule, il capturait EST
+    // (GMT moins cinq) et construisait « minuit local » avec ce décalage,
+    // décalé d'une heure par rapport au vrai minuit qui vivait encore en EDT.
+    // Le nouveau code échantillonne le décalage à l'instant estimé de minuit
+    // local, en deux passes → start tombe sur le vrai minuit local EDT.
+    // Ce test remplace celui qui épinglait le défaut au lot 2.
     const now              = new Date('2026-11-01T15:00:00Z')
     const { start }        = todayBoundsUTC('America/Toronto', now)
     const trueMidnightEdtZ = new Date('2026-11-01T04:00:00Z').getTime()
-    expect(start.getTime() - trueMidnightEdtZ).toBe(60 * 60 * 1000)
+    expect(start.getTime() - trueMidnightEdtZ).toBe(0)
+  })
+
+  // ─── Cas neufs du lot 2 bis : valeurs mesurées, à recopier telles quelles ─
+  // Chaque cas correspond à une transition DST réelle ou à une contrainte que
+  // l'ancien code ne satisfaisait pas. Ne pas recalculer : ces attendus ont
+  // été mesurés puis inscrits dans le brief du lot.
+
+  it("America/Toronto, bascule PRINTEMPS 2026 (spring-forward, 2 AM → 3 AM) : start = 05h UTC", () => {
+    const now       = new Date('2026-03-08T15:00:00Z')
+    const { start } = todayBoundsUTC('America/Toronto', now)
+    expect(start.getTime()).toBe(new Date('2026-03-08T05:00:00.000Z').getTime())
+  })
+
+  it("Europe/Paris, bascule PRINTEMPS 2026 (CET → CEST) : start = 23h UTC la veille", () => {
+    const now       = new Date('2026-03-29T10:00:00Z')
+    const { start } = todayBoundsUTC('Europe/Paris', now)
+    expect(start.getTime()).toBe(new Date('2026-03-28T23:00:00.000Z').getTime())
+  })
+
+  it("Pacific/Auckland, bascule PRINTEMPS 2026 hémisphère sud (NZST +12 → NZDT +13) : start ET end aux valeurs mesurées", () => {
+    const now              = new Date('2026-09-27T05:00:00Z')
+    const { start, end }   = todayBoundsUTC('Pacific/Auckland', now)
+    expect(start.getTime()).toBe(new Date('2026-09-26T12:00:00.000Z').getTime())
+    expect(end.getTime()).toBe(new Date('2026-09-27T10:59:59.999Z').getTime())
+  })
+
+  it("America/Santiago, bascule PRINTEMPS 2026 où minuit local N'EXISTE PAS ce jour : start tombe sur le premier instant réel", () => {
+    // Cette nuit-là l'horloge saute directement de 23 h 59 min 59 s à 1 h.
+    // Minuit local n'existe donc pas — startOfLocalDay(d) doit rendre le
+    // premier tick RÉEL de la journée, pas une valeur fantôme.
+    const now       = new Date('2026-09-06T15:00:00Z')
+    const { start } = todayBoundsUTC('America/Santiago', now)
+    expect(start.getTime()).toBe(new Date('2026-09-06T04:00:00.000Z').getTime())
+  })
+
+  it("🔴 TEST-CLÉ du lot — America/Santiago, bascule AUTOMNE 2026 où l'heure recule à minuit : end au VRAI dernier tick de la journée (25h locales)", () => {
+    // Le 4 avril 2026 à Santiago l'horloge recule d'une heure PILE à minuit,
+    // donc 23 h 59 min 59 s existe DEUX fois et la journée locale dure 25 heures.
+    // Toute formulation partant de « 23 h 59 min 59 s » construit la PREMIÈRE
+    // occurrence et ampute une heure réelle : un rendez-vous à 23 h 30 ce
+    // soir-là serait absent du brief. La formulation « début du lendemain − 1 ms »
+    // capture le VRAI dernier tick.
+    // C'est LE test qui distingue la bonne implémentation de celle qui paraît
+    // naturelle.
+    const now     = new Date('2026-04-04T15:00:00Z')
+    const { end } = todayBoundsUTC('America/Santiago', now)
+    expect(end.getTime()).toBe(new Date('2026-04-05T03:59:59.999Z').getTime())
+  })
+
+  it("America/Toronto, bascule PRINTEMPS 2026, `now` échantillonné AVANT la bascule (1 h locale) : mêmes bornes qu'à midi post-bascule — indépendance à `now`", () => {
+    // Prouve la propriété acquise : deux `now` du même jour local rendent
+    // exactement les mêmes bornes. L'ancien code fabriquait des bornes qui
+    // dépendaient de l'heure de la journée à laquelle on l'appelait.
+    const now            = new Date('2026-03-08T06:00:00Z')
+    const { start, end } = todayBoundsUTC('America/Toronto', now)
+    expect(start.getTime()).toBe(new Date('2026-03-08T05:00:00.000Z').getTime())
+    expect(end.getTime()).toBe(new Date('2026-03-09T03:59:59.999Z').getTime())
   })
 })
 
