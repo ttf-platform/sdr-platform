@@ -250,12 +250,30 @@ export type OnboardingDayOffset = 0 | 2 | 4 | 7;
 // default in `interpolate` (lib/email-render.ts), which strips markdown
 // tokens `[ ] ( ) *` and ASCII control characters, then escapeHtml runs on
 // the rendered markdown. Callers MUST NOT pre-escape here : an
-// escapeHtml() would double-encode. The helpers below either return
-// server-constructed markdown intentionally left intact
-// (invoiceLineFor's `[pay this invoice directly](<url>)`) or return a
-// bare phrase mid-sentence with a leading space (planPhraseFor,
-// amountPhraseFor) — the four are on the sanitiser allowlist next to
-// `interpolate`, so their content survives verbatim.
+// escapeHtml() would double-encode.
+//
+// The helpers below split into two groups against that pipeline :
+//
+//   Produce ALLOWLISTED values (survive verbatim, sanitiser skipped) :
+//     invoiceLineFor   -> {{invoiceLine}}  — whole server-constructed
+//                                             markdown line, the URL half
+//                                             has already gone through
+//                                             safeExternalHref.
+//     planPhraseFor    -> {{planPhrase}}   — leading-space mid-word phrase,
+//     amountPhraseFor  -> {{amountPhrase}}   trim() in the sanitiser would
+//                                             collapse "Mirvo Pro" to
+//                                             "MirvoPro" and "a payment of"
+//                                             to "a paymentof".
+//
+//   Produce SANITISED values (default pipeline, brackets/parens/asterisks
+//   and control characters stripped, whitespace collapsed, truncated to
+//   EMAIL_TEXT_MAX_LEN) :
+//     greetingFor      -> {{greeting}}     — free-form, includes firstName.
+//     planLabelFor     -> {{planLabel}}    — plan_tier is enum-shaped, but
+//                                             the sanitiser is a no-op on
+//                                             enum values so this is safe
+//                                             defence in depth.
+//     cap              -> internal helper, feeds both groups.
 
 function cap(s: string): string {
   return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);

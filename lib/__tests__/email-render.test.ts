@@ -385,12 +385,21 @@ describe('B7 — placeholder value cannot smuggle a phishing link', () => {
   it('T5 — matchList : a poisoned campaign name (already sanitised at construction) opens no anchor and the list keeps 3 <li>', () => {
     // matchList itself is allowlisted (its "\n" separators would collapse
     // if we sanitised the whole string). The sanitisation lives at the
-    // construction site (app/api/cron/auto-scan-signals/route.ts), where
-    // each campaign name is routed through toPlainTextForEmail BEFORE the
-    // "- " prefix is added. This test mirrors that shape : simulate an
-    // attacker-controlled campaign name pre-sanitised, then confirm no
-    // anchor is emitted and the three list items survive.
-    const poisoned = ' Verify your account  (https://evil.example) ' // toPlainTextForEmail output shape
+    // construction site (buildSignalDigestList in lib/signal-digest.ts,
+    // invoked by the auto-scan-signals cron), where each campaign name is
+    // routed through toPlainTextForEmail BEFORE the "- " prefix is added.
+    // This test mirrors that shape : simulate an attacker-controlled
+    // campaign name pre-sanitised, then confirm no anchor is emitted and
+    // the three list items survive. The end-to-end construction path is
+    // exercised by lib/__tests__/signal-digest.test.ts, which is the
+    // canonical proof — this T5 is the render-layer non-regression.
+    //
+    // The `poisoned` value is EXACTLY what
+    // toPlainTextForEmail('[Verify your account](https://evil.example)')
+    // returns : "Verify your account https://evil.example" — brackets AND
+    // parens stripped, whitespace collapsed, trimmed. Measured, not
+    // guessed.
+    const poisoned = 'Verify your account https://evil.example'
     const matchList = [
       `- ${poisoned}: 3 new matches`,
       '- Beta Inc: 1 new match',
@@ -401,8 +410,9 @@ describe('B7 — placeholder value cannot smuggle a phishing link', () => {
       { greeting: 'Hi Alex,', matchCount: '6', matchList, baseUrl },
       'en',
     )
-    // No anchor with the evil host — the parens survive but the brackets
-    // are gone, so renderInline's `[label](url)` regex never matches.
+    // Both brackets AND parens are stripped by toPlainTextForEmail, so
+    // renderInline's `[label](url)` regex never matches — the URL survives
+    // as inert text with no anchor emitted.
     expect(out.html).not.toContain('<a href="https://evil.example')
     // The list still renders three <li> items — proof matchList's
     // "\n" separators survived because the sanitiser is NOT run on the

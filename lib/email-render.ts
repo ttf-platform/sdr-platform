@@ -317,8 +317,10 @@ const INTERPOLATION_ALLOWLIST: ReadonlySet<string> = new Set([
  *
  * The default sanitisation is idempotent : passing an already-sanitised
  * value through a second time is a no-op. This is on purpose so that
- * upstream sanitisation (e.g. book/[slug]/route.ts's toPlainTextForEmail
- * on hostName) is not doubled-up in a surprising way.
+ * upstream sanitisation (e.g. app/api/book/[slug]/route.ts's
+ * toPlainTextForEmail on hostName — not to be confused with the client
+ * page at app/[locale]/book/[slug]/page.tsx) is not doubled-up in a
+ * surprising way.
  *
  * NOTE on double-escape : `renderEmailMarkdown` re-runs escapeHtml over
  * the interpolated string, which would double-encode `&` sequences
