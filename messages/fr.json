@@ -2830,43 +2830,5 @@
       "nudgeBody": "Un lien dans un e-mail de premier contact peut nuire à la délivrabilité et au taux de réponse. Mieux vaut l’envoyer sur une relance ou une fois qu’ils ont répondu.",
       "triggerAddAll": "Joindre à tous les brouillons"
     }
-  },
-  "onboarding": {
-    "setup": {
-      "steps": {
-        "workspace": "Workspace",
-        "company": "Entreprise",
-        "icp": "ICP"
-      },
-      "workspace": {
-        "title": "Nommez votre workspace",
-        "hint": "En général, le nom de votre entreprise.",
-        "placeholder": "Acme Corp"
-      },
-      "company": {
-        "title": "Que vendez-vous ?",
-        "namePlaceholder": "Nom de l'entreprise",
-        "websitePlaceholder": "votreentreprise.com (optionnel)",
-        "autofillHint": "Nous analysons votre site pour pré-remplir les champs ci-dessous.",
-        "productPlaceholder": "Nous aidons les entreprises SaaS à automatiser leur prospection..."
-      },
-      "icp": {
-        "title": "Qui ciblez-vous ?",
-        "placeholder": "VP Sales en SaaS B2B, 50-500 employés, Series A à C..."
-      },
-      "common": {
-        "continue": "Continuer →",
-        "back": "← Retour",
-        "launching": "Configuration...",
-        "launch": "Lancer Mirvo →"
-      },
-      "tones": {
-        "professional": "Professionnel",
-        "casual": "Décontracté",
-        "direct": "Direct",
-        "friendly": "Amical",
-        "witty": "Percutant"
-      }
-    }
   }
 }
