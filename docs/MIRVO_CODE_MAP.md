@@ -23,7 +23,6 @@
 - `/[locale]/about/page.tsx` — About
 - `/[locale]/pricing/page.tsx` — Pricing plans
 - `/[locale]/contact/page.tsx` — Contact / support form
-- `/[locale]/onboarding/page.tsx` — Onboarding flow entry point
 - `/[locale]/book/[slug]/page.tsx` — Public meeting booking (calendar, form)
 - `/[locale]/legal/privacy` — Privacy policy
 - `/[locale]/legal/terms` — Terms of service
