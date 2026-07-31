@@ -259,6 +259,169 @@ describe('PR4a — dunning_j3 / dunning_j7 render', () => {
   })
 })
 
+// B7 — placeholder values cannot smuggle markdown links into a DKIM-signed
+// email. `interpolate` (lib/email-render.ts) routes every placeholder value
+// through `toPlainTextForEmail` by default, except a hand-picked allowlist
+// of server-constructed / intentionally-markdown values. These tests pin
+// the invariant on both sides : (T1/T2) user-supplied values cannot open a
+// link ; (T3/T4) allowlisted values (invoice payment link, plan / amount
+// mid-word phrases) survive verbatim.
+
+describe('B7 — placeholder value cannot smuggle a phishing link', () => {
+  const payload = '[Verify your account](https://evil.example)'
+  const baseUrl = 'https://app.mirvo.ai'
+
+  it('T1 — workspaceName carrying [label](url) does NOT open an <a href>', () => {
+    // The classic vector : companyName is z.string().min(1).max(200) with
+    // no character restriction, so anything the user types at signup lands
+    // here. Before B7, interpolate injected it raw and renderInline turned
+    // the value into a real anchor signed by the Mirvo domain. Now
+    // toPlainTextForEmail strips `[ ] ( )` before the value hits the
+    // template, so no anchor is ever emitted with the evil host.
+    const fields = EMAIL_TEMPLATE_DEFAULTS.onboarding_d0.en
+    const out = renderTemplate(
+      fields,
+      { greeting: 'Hi Alex,', workspaceName: payload, baseUrl },
+      'en',
+    )
+    // Neither the html nor the plaintext form of a `<a href>` may carry
+    // the evil host.
+    expect(out.html).not.toContain('<a href="https://evil.example')
+    // NOTE : we deliberately do NOT assert absence of the substring
+    // `https://evil.example` itself — toPlainTextForEmail does not strip
+    // `:` / `/` / `.`, so the URL survives as inert text (same accepted
+    // behaviour as hostName). Asserting its absence would be a red-forever
+    // test that would tempt a next PR to widen the sanitiser out of scope.
+    expect(out.text).not.toContain('Verify your account (https://evil.example')
+  })
+
+  it('T2 — greeting carrying [label](url) does NOT open an <a href>', () => {
+    // greetingFor (lib/email.ts) builds this from firstName which comes
+    // from auth.users.user_metadata — free text.
+    const fields = EMAIL_TEMPLATE_DEFAULTS.onboarding_d0.en
+    const out = renderTemplate(
+      fields,
+      { greeting: `Hi ${payload},`, workspaceName: 'Acme', baseUrl },
+      'en',
+    )
+    expect(out.html).not.toContain('<a href="https://evil.example')
+    expect(out.text).not.toContain('Verify your account (https://evil.example')
+  })
+
+  it('T3 — invoiceLine (allowlisted) still opens the Stripe payment anchor', () => {
+    // Non-regression : invoiceLineFor constructs the whole
+    // `[pay this invoice directly](https://pay.stripe.com/...)` string
+    // server-side, having passed the URL through safeExternalHref. Sanitising
+    // it would strip the brackets and kill the payment link. This test is
+    // the guard that PROVES the allowlist keeps working. The literal
+    // string mirrors what invoiceLineFor produces (that helper is
+    // module-private so we construct it inline, same discipline as the
+    // existing tests in this file).
+    const fields = EMAIL_TEMPLATE_DEFAULTS.dunning_j3.en
+    const invoiceLine = 'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/invoice-xyz).'
+    const out = renderTemplate(
+      fields,
+      {
+        greeting: 'Hi Alex,',
+        workspaceName: 'Acme Co',
+        planPhrase:    ' Pro',
+        amountPhrase:  ' of $49.00',
+        invoiceLine,
+        baseUrl,
+      },
+      'en',
+    )
+    expect(out.html).toContain('<a href="https://pay.stripe.com/invoice-xyz"')
+    expect(out.html).toContain('>pay this invoice directly</a>')
+  })
+
+  it('T4 EN — planPhrase / amountPhrase (allowlisted) interpolate mid-word without trim()-collapsing spaces', () => {
+    // planPhrase = " Pro" (leading space, intentional) inside "Mirvo{{planPhrase}}
+    // subscription" must produce "Mirvo Pro subscription". Same for amountPhrase
+    // in "a payment{{amountPhrase}}". If toPlainTextForEmail ran on these two,
+    // its trim() would eat the leading space and produce "MirvoPro" / "a paymentof".
+    // The existing lib/__tests__/email-parity-en.test.ts does NOT compare body
+    // paragraphs, so a corruption would go through all other tests green.
+    const out = renderTemplate(
+      EMAIL_TEMPLATE_DEFAULTS.dunning.en,
+      {
+        greeting: 'Hi Alex,',
+        workspaceName: 'Acme Co',
+        planPhrase:    ' Pro',
+        amountPhrase:  ' of $49.00',
+        invoiceLine:   '',
+        baseUrl,
+      },
+      'en',
+    )
+    expect(out.html).toContain('Mirvo Pro subscription')
+    expect(out.html).toContain('a payment of $49.00')
+    expect(out.html).not.toContain('MirvoPro')
+    expect(out.html).not.toContain('paymentof')
+  })
+
+  it('T4 FR — même chose sur les templates FR ("Mirvo Pro" / "un paiement de $49.00")', () => {
+    // The FR body reads "Votre abonnement Mirvo{{planPhrase}} …" and
+    // "un paiement{{amountPhrase}} …" — same failure mode as EN if
+    // planPhrase / amountPhrase were routed through toPlainTextForEmail.
+    const out = renderTemplate(
+      EMAIL_TEMPLATE_DEFAULTS.dunning.fr,
+      {
+        greeting: 'Bonjour Alex,',
+        workspaceName: 'Acme Co',
+        planPhrase:    ' Pro',
+        amountPhrase:  ' de $49.00',
+        invoiceLine:   '',
+        baseUrl,
+      },
+      'fr',
+    )
+    expect(out.html).toContain('Mirvo Pro')
+    expect(out.html).toContain('un paiement de $49.00')
+    expect(out.html).not.toContain('MirvoPro')
+    expect(out.html).not.toContain('paiementde')
+  })
+
+  it('T5 — matchList : a poisoned campaign name (already sanitised at construction) opens no anchor and the list keeps 3 <li>', () => {
+    // matchList itself is allowlisted (its "\n" separators would collapse
+    // if we sanitised the whole string). The sanitisation lives at the
+    // construction site (buildSignalDigestList in lib/signal-digest.ts,
+    // invoked by the auto-scan-signals cron), where each campaign name is
+    // routed through toPlainTextForEmail BEFORE the "- " prefix is added.
+    // This test mirrors that shape : simulate an attacker-controlled
+    // campaign name pre-sanitised, then confirm no anchor is emitted and
+    // the three list items survive. The end-to-end construction path is
+    // exercised by lib/__tests__/signal-digest.test.ts, which is the
+    // canonical proof — this T5 is the render-layer non-regression.
+    //
+    // The `poisoned` value is EXACTLY what
+    // toPlainTextForEmail('[Verify your account](https://evil.example)')
+    // returns : "Verify your account https://evil.example" — brackets AND
+    // parens stripped, whitespace collapsed, trimmed. Measured, not
+    // guessed.
+    const poisoned = 'Verify your account https://evil.example'
+    const matchList = [
+      `- ${poisoned}: 3 new matches`,
+      '- Beta Inc: 1 new match',
+      '- Gamma Ltd: 2 new matches',
+    ].join('\n')
+    const out = renderTemplate(
+      EMAIL_TEMPLATE_DEFAULTS.signal_digest.en,
+      { greeting: 'Hi Alex,', matchCount: '6', matchList, baseUrl },
+      'en',
+    )
+    // Both brackets AND parens are stripped by toPlainTextForEmail, so
+    // renderInline's `[label](url)` regex never matches — the URL survives
+    // as inert text with no anchor emitted.
+    expect(out.html).not.toContain('<a href="https://evil.example')
+    // The list still renders three <li> items — proof matchList's
+    // "\n" separators survived because the sanitiser is NOT run on the
+    // assembled string (only per-item at the call site).
+    const liCount = (out.html.match(/<li>/g) ?? []).length
+    expect(liCount).toBe(3)
+  })
+})
+
 describe('PR4a — dunning (J0) phrase edit', () => {
   const VARS = {
     greeting:      'Hi Alex,',
