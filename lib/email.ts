@@ -246,9 +246,16 @@ export function buildAdminHealthAlertEmail(params: {
 export type OnboardingDayOffset = 0 | 2 | 4 | 7;
 
 // ─── Localised phrase helpers ───────────────────────────────────────────────
-// Vars passed to renderTemplate are RAW : the renderer runs escapeHtml on
-// every value before injecting it into the DOM, so callers MUST NOT
-// pre-escape. Any escapeHtml() here would produce `&amp;#39;` double-encoding.
+// Vars passed to renderTemplate are routed through toPlainTextForEmail by
+// default in `interpolate` (lib/email-render.ts), which strips markdown
+// tokens `[ ] ( ) *` and ASCII control characters, then escapeHtml runs on
+// the rendered markdown. Callers MUST NOT pre-escape here : an
+// escapeHtml() would double-encode. The helpers below either return
+// server-constructed markdown intentionally left intact
+// (invoiceLineFor's `[pay this invoice directly](<url>)`) or return a
+// bare phrase mid-sentence with a leading space (planPhraseFor,
+// amountPhraseFor) — the four are on the sanitiser allowlist next to
+// `interpolate`, so their content survives verbatim.
 
 function cap(s: string): string {
   return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);

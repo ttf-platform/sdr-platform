@@ -5,6 +5,7 @@ import { scanSignalOnCampaign } from '@/lib/signal-scanner'
 import { getResendClient, FROM_ADDRESS } from '@/lib/email'
 import { getEmailTemplate, getEmailLocale } from '@/lib/email-templates'
 import { renderTemplate } from '@/lib/email-render'
+import { toPlainTextForEmail } from '@/lib/text-safety'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -142,15 +143,25 @@ export async function GET(request: Request) {
               const locale = await getEmailLocale(workspace.id)
               const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.mirvo.ai'
               // Localized digest lines : `- <name>: <n> new match(es)` (EN) /
-              // `- <name> : <n> nouveau(x) match(es)` (FR). RAW — renderer
-              // escapes on output ; no pre-escape here.
+              // `- <name> : <n> nouveau(x) match(es)` (FR).
+              //
+              // matchList is on the interpolate() allowlist in
+              // lib/email-render.ts because sanitising the assembled
+              // string would collapse the "\n" separators and destroy the
+              // list structure. Instead we sanitise EACH campaign name at
+              // its own construction step here : toPlainTextForEmail strips
+              // `[ ] ( ) *` and CR/LF, so a campaign name of
+              // `[click](https://evil.example)` cannot open a phishing link
+              // in the digest email. The list structure ("- " prefix, "\n"
+              // separator) is added AFTER sanitisation and stays intact.
               const matchList = [...matchesByCampaign.values()]
                 .map(c => {
                   const n = c.count
+                  const safeName = toPlainTextForEmail(c.name)
                   if (locale === 'fr') {
-                    return `- ${c.name} : ${n} nouveau${n > 1 ? 'x' : ''} match${n > 1 ? 'es' : ''}`
+                    return `- ${safeName} : ${n} nouveau${n > 1 ? 'x' : ''} match${n > 1 ? 'es' : ''}`
                   }
-                  return `- ${c.name}: ${n} new match${n > 1 ? 'es' : ''}`
+                  return `- ${safeName}: ${n} new match${n > 1 ? 'es' : ''}`
                 })
                 .join('\n')
               const greeting = locale === 'fr'
