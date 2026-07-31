@@ -8,11 +8,9 @@
  * file.
  *
  * What still lives as literals inside the template :
- *   - Team plans (Team Starter/Growth/Scale) — not in the plans table.
- *   - Corporate — not in the plans table.
  *   - LAUNCH50 promo prices ($129/$249/$349) — promo layer, not in the
  *     plans table (yet). Known drift documented ; out of PR4a scope.
- *   - Trial numbers (14/30 days, anti-abuse 50 emails/day) — trial policy,
+ *   - Trial numbers (14 days, anti-abuse 50 emails/day) — trial policy,
  *     not per-tier caps.
  *   - Overage policy ($0.50/lead, $10 increments) — pricing policy, not caps.
  *
@@ -164,22 +162,14 @@ To configure a sending domain: Settings → Sending domains → Configure → Ad
 - Pro: $${fmt(p.monthly_price_usd)}/mo regular, $249/mo with LAUNCH50. ${fmt(p.inboxes)} inboxes, ${fmt(p.emails_per_month)} emails/mo, ${fmt(p.prospects_sourced_per_month)} Prospect Credits/mo, ${fmt(p.total_prospects)} prospects lifetime cap.
 - Power: $${fmt(w.monthly_price_usd)}/mo regular, $349/mo with LAUNCH50. ${fmt(w.inboxes)} inboxes, ${fmt(w.emails_per_month)} emails/mo, ${fmt(w.prospects_sourced_per_month)} Prospect Credits/mo, ${fmt(w.total_prospects)} prospects lifetime cap.
 
-## Team plans
-- Team Starter: $599/mo, 5 seats × Pro features.
-- Team Growth: $899/mo, 10 seats × Pro features.
-- Team Scale: $1,399/mo, 20 seats × Power features.
-
-## Corporate plan
-- Corporate: starts at $1,800/mo, custom pricing. 30+ seats, SSO, priority support, DPA, negotiable.
-
 ## Free trial
-- 14 days for solo plans, 30 days for team plans.
+- 14 days.
 - No credit card required at signup.
 - Trial = full plan chosen (not a degraded version).
-- Anti-abuse: 1 inbox (shared pool only), 50 emails/day, 100 prospects total. No access to Call Recording, AI Proposal, LinkedIn automation, or Corporate features.
+- Anti-abuse: 1 inbox (shared pool only), 50 emails/day, 100 prospects total.
 
 ## Annual discount
-${discountPct}% off if paid annually (all solo and team tiers).
+${discountPct}% off if paid annually (all tiers).
 
 ## Credit system — three caps explained
 1. Total prospects (lifetime, anti-abuse, rarely hit) — Starter ${fmt(s.total_prospects)} / Pro ${fmt(p.total_prospects)} / Power ${fmt(w.total_prospects)}. CSV/manual imports don't count against monthly limits, only this lifetime cap.
@@ -190,7 +180,7 @@ ${discountPct}% off if paid annually (all solo and team tiers).
 Hard block on emails and lifetime prospects. Overage available only on Prospect Credits if user enables it: $0.50/lead, billed in $10 increments (every 20 enrichments). If a payment fails, overage is automatically disabled.
 
 ## Mailbox quota by tier
-Trial 1 / Starter ${fmt(s.inboxes)} / Pro ${fmt(p.inboxes)} / Power ${fmt(w.inboxes)} / Team Starter 5 / Team Growth 10 / Corporate unlimited.
+Trial 1 / Starter ${fmt(s.inboxes)} / Pro ${fmt(p.inboxes)} / Power ${fmt(w.inboxes)}.
 
 # COMMON USER QUESTIONS — REFERENCE ANSWERS
 
@@ -249,7 +239,6 @@ You can report it directly here — open the Help widget (bottom-right), click "
 - Anything involving another user's account or data
 - Critical bugs with urgency ("nothing works", "I lost data") — escalate immediately, don't troubleshoot
 - Pricing negotiations or custom plans (route to sales)
-- SSO setup for Corporate plans (route to onboarding team)
 
 # FINAL NOTES
 

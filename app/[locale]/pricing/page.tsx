@@ -181,27 +181,6 @@ export default async function PricingPage({
         </div>
       </section>
 
-      {/* Team / Corporate */}
-      <section className="pb-16 px-6">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-bold text-[#8a7e6e] uppercase tracking-wider text-center mb-6">{t('teamsLabel')}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            {[
-              { name: t('teamName'), desc: t('teamDesc') },
-              { name: t('corporateName'), desc: t('corporateDesc') },
-            ].map(plan => (
-              <div key={plan.name} className="bg-white border border-[#e8e3dc] rounded-2xl p-6 text-center">
-                <div className="text-sm font-bold text-[#8a7e6e] uppercase tracking-wider mb-2">{plan.name}</div>
-                <p className="text-sm text-[#4a4a5a] mb-6 leading-relaxed">{plan.desc}</p>
-                <span className="inline-block border border-[#e8e3dc] text-[#6b5e4e] rounded-xl px-4 py-2 text-sm font-medium">
-                  {t('contactSales')}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Comparison table note */}
       <section className="pb-10 px-6">
         <div className="max-w-3xl mx-auto bg-white border border-[#e8e3dc] rounded-xl p-5">

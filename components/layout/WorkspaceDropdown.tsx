@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BarChart2, Sun, Globe, Users, CreditCard, ChevronDown, Shield } from 'lucide-react'
+import { BarChart2, Sun, Globe, CreditCard, ChevronDown, Shield } from 'lucide-react'
 
 type Props = {
-  planTier: string
   isMirvoAdmin: boolean
   hasLinkedIn: boolean
   pathname: string
@@ -46,7 +45,7 @@ function NavItem({ href, icon: Icon, label, color = '#1a1a1a', active, onClose }
   )
 }
 
-export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasLinkedIn, pathname }: Props) {
+export function WorkspaceDropdown({ isMirvoAdmin, hasLinkedIn, pathname }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -105,9 +104,6 @@ export function WorkspaceDropdown({ planTier, isMirvoAdmin, hasLinkedIn, pathnam
 
           <Divider />
           <SectionHeader label="Workspace" />
-          {planTier === 'team' && (
-            <NavItem href="/dashboard/team" icon={Users} label="Team" active={isActive('/dashboard/team')} onClose={close} />
-          )}
           <NavItem href="/dashboard/billing" icon={CreditCard} label="Billing" active={isActive('/dashboard/billing')} onClose={close} />
 
           {isMirvoAdmin && (
