@@ -3,8 +3,10 @@
 /**
  * <NotificationPreferencesSection />
  *
- * Section « Notifications » de la page Settings. Rend 6 lignes (une par
- * catégorie de notification) avec 2 toggles : in-app + email.
+ * Section « Notifications » de la page Settings. Rend une ligne par
+ * catégorie exposée par NOTIFICATION_CATEGORIES (la liste rétrécit
+ * automatiquement quand une catégorie sort côté source), avec 2 toggles
+ * par ligne : in-app + email.
  *
  * - GET  /api/notifications/preferences   → charge défauts virtuels
  * - PATCH /api/notifications/preferences   → upsert lot (envoi debounced ~400 ms)
@@ -14,8 +16,8 @@
  * fausse promesse. Le toggle reste actif — l'utilisateur peut préparer ses
  * préférences en avance.
  *
- * Pattern visuel repris du reste de settings/page.tsx (cardCls + sectionHd,
- * cf. lignes 27-28) — pas d'ajout de couleur en dehors des tokens shell.
+ * Pattern visuel repris du reste de settings/page.tsx (cardCls + sectionHd) —
+ * pas d'ajout de couleur en dehors des tokens shell.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'

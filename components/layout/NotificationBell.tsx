@@ -3,60 +3,33 @@
 /**
  * <NotificationBell />
  *
- * Cluster droite du DashboardShell : icône Bell + badge count.
- * Poll /api/notifications/unread-count toutes les 30 s (calqué sur
- * InboxUnreadBadge : `cache: 'no-store'`, flag `cancelled`, cleanup interval).
+ * Cluster droite du DashboardShell : icône Bell + badge count. Le
+ * compte et la boucle de rafraîchissement 30 s vivent dans
+ * UnreadCountsProvider — ce composant est un consommateur pur (ni
+ * fetch, ni timer, ni notification popup).
  *
- * PAS de toast au delta ↑ : l'InboxUnreadBadge gère déjà les nouveaux replies
- * via Sonner et un doublon serait bruyant. Le badge suffit ici.
+ * Le shell monte la cloche DEUX fois (desktop + mobile drawer) parce
+ * que Tailwind `hidden` / `md:hidden` masque sans démonter. Chaque
+ * cloche garde son état `open` local et sa détection click-outside /
+ * Esc — deux dropdowns indépendants, une seule cloche visible à la
+ * fois. Conséquence VOULUE : lire une notif depuis la cloche desktop
+ * met aussi à jour la cloche mobile (source de vérité partagée).
  *
- * Le NotificationCenter est monté inline (même wrapper ref) pour partager la
- * détection click-outside et la fermeture Esc.
+ * Le NotificationCenter est monté inline (même wrapper ref) pour
+ * partager la détection click-outside et la fermeture Esc.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Bell } from 'lucide-react'
 import { NotificationCenter } from './NotificationCenter'
-
-const REFRESH_INTERVAL_MS = 30_000
+import { useUnreadCounts } from '@/lib/hooks/useUnreadCounts'
 
 export function NotificationBell() {
   const t = useTranslations('dashboard.notifications')
-  const [count, setCount] = useState<number | null>(null)
+  const { notifCount, setNotifCount } = useUnreadCounts()
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
-
-  const refreshCount = useCallback(async (opts?: { silent?: boolean }) => {
-    try {
-      const res = await fetch('/api/notifications/unread-count', { cache: 'no-store' })
-      if (!res.ok) return
-      const json = await res.json() as { count?: unknown }
-      const next = typeof json.count === 'number' && json.count >= 0 ? Math.floor(json.count) : 0
-      setCount(next)
-    } catch {
-      // Silent — the badge just doesn't refresh this tick.
-      if (!opts?.silent) {
-        // no-op : on ne veut pas polluer la console user
-      }
-    }
-  }, [])
-
-  // Polling 30 s (indépendant de open — le badge doit rester à jour même quand
-  // le dropdown est fermé).
-  useEffect(() => {
-    let cancelled = false
-    async function loop() {
-      if (cancelled) return
-      await refreshCount({ silent: true })
-    }
-    loop()
-    const interval = setInterval(loop, REFRESH_INTERVAL_MS)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [refreshCount])
 
   // Click outside + Esc → close
   useEffect(() => {
@@ -77,7 +50,7 @@ export function NotificationBell() {
     }
   }, [open])
 
-  const shown = count ?? 0
+  const shown = notifCount ?? 0
   const label = shown > 99 ? '99+' : String(shown)
   const ariaLabel = shown > 0
     ? t('bellAriaWithCount', { count: shown })
@@ -106,7 +79,7 @@ export function NotificationBell() {
       {open && (
         <NotificationCenter
           onClose={() => setOpen(false)}
-          onCountChange={setCount}
+          onCountChange={setNotifCount}
         />
       )}
     </div>

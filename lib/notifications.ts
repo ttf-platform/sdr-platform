@@ -5,7 +5,6 @@ export const NOTIFICATION_CATEGORIES = [
   'billing',
   'deliverability',
   'campaign',
-  'team',
   'product',
 ] as const
 

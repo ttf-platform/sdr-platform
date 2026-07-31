@@ -9,18 +9,28 @@
  *
  * Contenu :
  *   - Header : titre + bouton "Tout marquer lu" (POST /read-all)
- *   - Filtre par catégorie (all + 6 catégories)
+ *   - Filtre par catégorie (all + les catégories exposées par
+ *     NOTIFICATION_CATEGORIES) — la liste est dérivée, elle rétrécit
+ *     automatiquement quand on retire une catégorie côté source.
  *   - Liste GET /api/notifications (pagination cursor "voir plus")
  *   - Ligne : titre, body, timestamp relatif, pill catégorie ; fond
  *     #eef1fd léger quand non-lue. Clic → mark-read + router.push(link).
  *   - États : skeleton (loading initial), vide (message neutre), erreur silencieuse.
  *   - Footer : lien vers /dashboard/settings#notifications.
  *
+ * Le compte du badge cloche est possédé par UnreadCountsProvider. Ce
+ * composant reçoit le dispatch useState brut via `onCountChange` et fait
+ * uniquement des ajustements OPTIMISTES (décrément fonctionnel clampé sur
+ * un mark-read, remise à zéro sur mark-all-read) — plus jamais de
+ * recomptage sur la seule page ouverte, qui écrasait à PAGE_SIZE le
+ * compte exact rendu par la route (défaut S26).
+ *
  * Design tokens ancrés dans les couleurs du shell (#3b6bef load-bearing —
  * incident #204, ne pas repeindre).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -58,7 +68,6 @@ const CATEGORY_BADGE_VARIANT: Record<NotificationCategory | 'admin', BadgeVarian
   billing:        'amber',
   deliverability: 'red',
   campaign:       'green',
-  team:           'purple',
   product:        'gray',
   admin:          'red',
 }
@@ -150,7 +159,7 @@ export function NotificationCenter({
   onClose, onCountChange,
 }: {
   onClose:        () => void
-  onCountChange:  (n: number) => void
+  onCountChange:  Dispatch<SetStateAction<number | null>>
 }) {
   const t     = useTranslations('dashboard.notifications')
   const tCat  = useTranslations('dashboard.notifications.categories')
@@ -181,11 +190,15 @@ export function NotificationCenter({
         if (cancelled || !data) return
         setItems(data.items)
         setNextCursor(data.nextCursor)
-        onCountChange(data.items.filter((n) => !n.is_read).length)
+        // Do NOT call onCountChange here : the count is an EXACT server
+        // total owned by UnreadCountsProvider ; recomputing from the
+        // first page would clamp it to PAGE_SIZE and shrink the badge
+        // (defect S26). Optimistic adjustments happen only on user
+        // action below (handleOpen decrement, markAllRead reset).
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [fetchPage, onCountChange])
+  }, [fetchPage])
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return
@@ -202,7 +215,12 @@ export function NotificationCenter({
     if (!n.is_read) {
       // Optimistic UI ; on ignore le résultat (fail-silent).
       setItems((prev) => prev.map((x) => x.id === n.id ? { ...x, is_read: true, read_at: new Date().toISOString() } : x))
-      onCountChange(items.filter((x) => !x.is_read && x.id !== n.id).length)
+      // Functional decrement clamped at 0. Do NOT recount from the open
+      // page (would clamp the badge to PAGE_SIZE, defect S26). The `?? 1`
+      // covers the rare case where the badge was already null / stale at 0
+      // while an unread row is still on screen : decrementing to -1 would
+      // hide the badge but leave the source of truth ahead.
+      onCountChange((c) => Math.max(0, (c ?? 1) - 1))
       try {
         await fetch(`/api/notifications/${n.id}/read`, { method: 'POST' })
       } catch {
@@ -217,7 +235,7 @@ export function NotificationCenter({
     // traiterait un `javascript:` comme externe et window.location.assign
     // exécuterait le scheme).
     if (n.link && n.link.startsWith('/')) router.push(n.link as never)
-  }, [items, onClose, onCountChange, router])
+  }, [onClose, onCountChange, router])
 
   const markAllRead = useCallback(async () => {
     if (markAllBusy) return

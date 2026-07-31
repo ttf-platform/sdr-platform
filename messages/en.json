@@ -2241,7 +2241,6 @@
           "billing": "Trial ending, payment failed, invoice issues.",
           "deliverability": "A sending domain or mailbox needs attention.",
           "campaign": "A campaign finishes or requires action.",
-          "team": "Someone joins your workspace or accepts an invite.",
           "product": "New features and important product updates."
         }
       }
@@ -2267,7 +2266,6 @@
         "billing": "Billing",
         "deliverability": "Deliverability",
         "campaign": "Campaigns",
-        "team": "Team",
         "product": "Product",
         "admin": "Admin"
       }
