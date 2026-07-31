@@ -6,7 +6,7 @@ import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { readDashboardLocaleSync, writeDashboardLocale } from '@/lib/locale'
-import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, UserPlus, CreditCard, BarChart2, Globe, Shield, Radio, ListChecks, Target } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Users, Mail, Calendar, TrendingUp, Settings, Sun, CreditCard, BarChart2, Globe, Shield, Radio, ListChecks, Target } from 'lucide-react'
 import TrialBadge from '@/components/TrialBadge'
 import { getTrialStatus } from '@/lib/trial-status'
 import { FloatingHelpButton } from '@/components/help-widget/FloatingHelpButton'
@@ -121,7 +121,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href)
   const ws = (workspace?.workspaces as any)
-  const planTier = ws?.plan_tier ?? 'starter'
   const hasLinkedIn = !!ws?.has_linkedin
   const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || ''
   const initials = firstName?.[0]?.toUpperCase() || '?'
@@ -189,7 +188,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Desktop right side */}
           <div className="hidden md:flex items-center gap-2 ml-auto flex-shrink-0">
             <WorkspaceDropdown
-              planTier={planTier}
               isMirvoAdmin={isSentraAdmin}
               hasLinkedIn={hasLinkedIn}
               pathname={pathname}
@@ -349,11 +347,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link href="/dashboard/settings" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
                 <Settings size={16} /> {tShell('settings')}
               </Link>
-              {planTier === 'team' && (
-                <Link href="/dashboard/team" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
-                  <UserPlus size={16} /> {tShell('team')}
-                </Link>
-              )}
               <Link href="/dashboard/billing" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-[#1a1a1a] hover:bg-[#f5f2ee]">
                 <CreditCard size={16} /> {tShell('billing')}
               </Link>
