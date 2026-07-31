@@ -2241,7 +2241,6 @@
           "billing": "Fin d’essai, paiement échoué, problème de facture.",
           "deliverability": "Un domaine ou une boîte a besoin d’attention.",
           "campaign": "Une campagne se termine ou requiert une action.",
-          "team": "Quelqu’un rejoint votre workspace ou accepte une invitation.",
           "product": "Nouvelles fonctionnalités et annonces importantes."
         }
       }
@@ -2267,7 +2266,6 @@
         "billing": "Facturation",
         "deliverability": "Délivrabilité",
         "campaign": "Campagnes",
-        "team": "Équipe",
         "product": "Produit",
         "admin": "Admin"
       }

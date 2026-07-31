@@ -16,6 +16,7 @@ import { InboxUnreadBadge } from '@/components/layout/InboxUnreadBadge'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { Toaster } from 'sonner'
 import { OnboardingProgressProvider, useOnboardingProgress } from '@/lib/hooks/useOnboardingProgress'
+import { UnreadCountsProvider } from '@/lib/hooks/useUnreadCounts'
 import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider'
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 import { ResumeOnboardingButton } from '@/components/onboarding/ResumeOnboardingButton'
@@ -156,6 +157,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <OnboardingProgressProvider>
+    <UnreadCountsProvider>
     <div className="min-h-screen bg-[#f5f2ee]">
       <PostHogIdentify />
 
@@ -412,6 +414,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         }}
       />
     </div>
+    </UnreadCountsProvider>
     </OnboardingProgressProvider>
   )
 }
