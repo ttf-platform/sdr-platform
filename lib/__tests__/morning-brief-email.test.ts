@@ -466,3 +466,90 @@ describe('T9 — CTA and unsubscribe are two distinct destinations', () => {
     })
   }
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Correctif du "Unknown" du dossier de rendez-vous (petite PR hors chantier)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Le modèle inscrit « Unknown » (ou ses cousins) dans attendee_name /
+// company_name quand il n'a pas la valeur. Le lot 3 les insérait tels quels
+// dans le dossier. Ce filtre les écarte sur la valeur ENTIÈRE, insensible à
+// la casse — « Unknown Corp » reste un nom légitime.
+
+describe("Filtre des stand-ins « Unknown » sur attendee_name et company_name", () => {
+  function meetingContent(m: Record<string, unknown>) {
+    return { mode: 'meetings_today', meetings: [m] }
+  }
+
+  it("'Unknown' / 'Unknown' / a@b.c → bloc SANS 'Unknown', avec l'e-mail", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingContent({
+        attendee_name: 'Unknown', company_name: 'Unknown', attendee_email: 'a@b.c',
+      }),
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).not.toContain('Unknown')
+    expect(out.blockMd).toContain('a@b.c')
+  })
+
+  it("insensible à la casse : 'unknown' / 'N/A' / 'Inconnu' → tous écartés", () => {
+    for (const stand of ['unknown', 'N/A', 'Inconnu']) {
+      const out = composeMorningBriefBlock({
+        content: meetingContent({
+          attendee_name: stand, company_name: stand, attendee_email: 'a@b.c',
+        }),
+        locale: 'en', timeZone: 'UTC',
+      })
+      expect(out).not.toBeNull()
+      if (!out) return
+      // Casse insensible : la comparaison porte sur la valeur.toLowerCase().
+      // On vérifie qu'aucune des trois variantes n'apparaît dans le bloc.
+      expect(out.blockMd).not.toContain(stand)
+    }
+  })
+
+  it("'Unknown Corp' est CONSERVÉ — la comparaison est sur la valeur entière, pas une sous-chaîne", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingContent({
+        attendee_name: 'Bob', company_name: 'Unknown Corp', attendee_email: 'b@u.co',
+      }),
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain('Unknown Corp')
+  })
+
+  it("un rendez-vous à Unknown/Unknown SANS e-mail, aperçu, ni liste, ET SANS market_trends_brief → null (aucun e-mail ne part)", () => {
+    // Comportement voulu et à assumer : un dossier de préparation vide de
+    // toute information ne vaut pas un e-mail. sendMorningBriefEmail rend
+    // alors 'empty_content' — c'est le cas que le cron du lot 4 lit pour
+    // sauter le workspace sans payer Resend.
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today',
+        meetings: [{
+          attendee_name: 'Unknown', company_name: 'Unknown',
+          // aucune adresse, aucun aperçu, aucune liste
+        }],
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).toBeNull()
+  })
+
+  it("non-régression : un vrai nom et une vraie société sont TOUJOURS rendus", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingContent({
+        attendee_name: 'Alice Real', company_name: 'Acme Inc', attendee_email: 'alice@acme.co',
+      }),
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain('Alice Real')
+    expect(out.blockMd).toContain('Acme Inc')
+  })
+})

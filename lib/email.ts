@@ -676,8 +676,26 @@ export async function sendPreBakedAdminEmail(to: string, subject: string, html: 
   }
 }
 
-export function wrapEmail(inner: string): string {
-  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a1a;">${inner}<p style="color: #9a9a9a; font-size: 12px; margin: 32px 0 0 0; border-top: 1px solid #e8e3dc; padding-top: 16px;">Mirvo &middot; <a href="https://www.mirvo.ai" style="color: #9a9a9a; text-decoration: none;">mirvo.ai</a></p></div>`;
+// Enveloppe HTML des e-mails Mirvo. Document complet (DOCTYPE + <html> +
+// <body>) et table centree — les <div style="max-width"> partent en 930 px
+// sur certains webmails qui reecrivent ou suppriment le CSS conteneur,
+// alors que l attribut HTML `width="560"` sur une <table> tient (constate en
+// reception le 01/08). Le style CSS `max-width:560px; width:100%` garde le
+// gabarit mobile qui fonctionne aujourd hui — un `width:560px` CSS fixe
+// ferait deborder sur un ecran de 375 px, on ne repare pas le desktop en
+// cassant le mobile. Fond blanc, pas de carte, pas de bordure : le rendu
+// doit rester visuellement celui d aujourd hui.
+//
+// `locale` est optionnel et retro-compatible (defaut 'en') : il sert
+// uniquement a poser `lang` sur <html>. Les 7 appels de fixtures continuent
+// de marcher sans etre modifies.
+//
+// Pied de page : meme texte, meme lien https://www.mirvo.ai (une seule
+// ancre — assertion de tests), mais en #4a4a5a (contraste 8,68:1 sur blanc,
+// AA) au lieu du gris a 2,81:1 sous AA qu il portait.
+export function wrapEmail(inner: string, locale: 'en' | 'fr' = 'en'): string {
+  const font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  return `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;"><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="width:100%;max-width:560px;"><tr><td style="font-family: ${font}; color: #1a1a1a; padding: 24px;">${inner}<p style="color: #4a4a5a; font-size: 12px; margin: 32px 0 0 0; border-top: 1px solid #e8e3dc; padding-top: 16px;">Mirvo &middot; <a href="https://www.mirvo.ai" style="color: #4a4a5a; text-decoration: none;">mirvo.ai</a></p></td></tr></table></td></tr></table></body></html>`;
 }
 
 export function escapeHtml(str: string): string {

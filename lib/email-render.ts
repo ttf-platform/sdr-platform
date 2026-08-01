@@ -111,7 +111,7 @@ export function renderTemplate(
   )
 
   const inner = parts.join('\n')
-  const html  = wrapEmail(inner)
+  const html  = wrapEmail(inner, locale)
   const text  = templateToText(fields, vars, locale)
 
   return { subject, html, text }
