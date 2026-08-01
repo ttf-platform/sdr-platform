@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
-import { calculateProfileScore } from '@/lib/profile-quality'
+import { calculateProfileScore, PROFILE_SCORE_COLUMNS } from '@/lib/profile-quality'
 import type { ProfileForScore } from '@/lib/profile-quality'
 // lot 5a — module PUR (aucun import) : jamais de code serveur ni de
 // consignes de modèle (qui nomment des fournisseurs interdits) dans ce bundle
@@ -377,12 +377,32 @@ export default function MorningBriefPage() {
       if (!member) return
       setWorkspaceId(member.workspace_id)
 
-      const [{ data: wp }, { data: briefList }] = await Promise.all([
-        supabase.from('workspace_profiles').select('product_description, icp_description, sender_name, value_proposition, icp_industries, icp_company_size, pain_points, booking_config, morning_brief_enabled, morning_brief_time').eq('workspace_id', member.workspace_id).single(),
+      // Le score est calcule par calculateProfileScore, qui lit
+      // PROFILE_SCORE_COLUMNS. On construit le select a partir de la
+      // constante partagee — sinon une colonne oubliee produit un score
+      // silencieusement trop bas (les champs de ProfileForScore sont
+      // optionnels, tsc ne detecte rien). Colonnes non-scorees conservees :
+      // sender_name (autres usages), booking_config, morning_brief_enabled,
+      // morning_brief_time (persistance du lot 5a).
+      const profileSelect = [
+        ...PROFILE_SCORE_COLUMNS,
+        'sender_name',
+        'booking_config',
+        'morning_brief_enabled',
+        'morning_brief_time',
+      ].join(', ')
+      const [{ data: wp, error: wpErr }, { data: briefList }] = await Promise.all([
+        supabase.from('workspace_profiles').select(profileSelect).eq('workspace_id', member.workspace_id).single(),
         supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false }).order('created_at', { ascending: false }),
       ])
 
-      setProfile(wp ?? null)
+      // Sans ce guard, un select elargi qui casse (colonne renommee, RLS
+      // durcie) se presenterait a l'utilisateur comme un profil incomplet
+      // — bandeau gating + bouton bloque + badge masque, sans le moindre
+      // message. La cle traduite existe en EN et FR (verifie).
+      if (wpErr) setGenerateError(tErrors('generateFailed'))
+
+      setProfile((wp as unknown as ProfileForScore | null) ?? null)
       setProfileLoaded(true)
       setBriefs(briefList || [])
       if (briefList && briefList.length > 0) setSelected(briefList[0])
@@ -506,7 +526,8 @@ export default function MorningBriefPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {profileLoaded && <ProfileQualityBadge profile={profile} className="mb-4" />}
+      {/* Lot 5b (§1.3) : le badge etait rendu sans `dismissible` ni `sticky` — permanent, sans ✕. Avec le §2.1 un profil complet monte a 100 et affichait un bandeau vert permanent, non refermable, au-dessus du <h1>. `dismissible` donne un ✕ des le seuil de 30 ; `sticky` fait disparaitre le badge des 100. Les trois etats jamais rendus (bandeau vert permanent, zero pastille, non refermable) sont ainsi traites. */}
+      {profileLoaded && <ProfileQualityBadge profile={profile} className="mb-4" dismissible sticky />}
       {(generateError || saveError) && (
         <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
           <span className="flex-shrink-0">⚠</span>
@@ -572,7 +593,7 @@ export default function MorningBriefPage() {
       {profileLoaded && profileGated && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm text-amber-800">
           {tGating('message')}{' '}
-          <Link href="/dashboard/settings" className="font-semibold underline">{tGating('editLink')}</Link>
+          <Link href="/dashboard/profile" className="font-semibold underline">{tGating('editLink')}</Link>
         </div>
       )}
 

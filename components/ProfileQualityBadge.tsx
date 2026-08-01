@@ -76,7 +76,7 @@ export default function ProfileQualityBadge({
         <span className="flex-1 text-sm text-[#6b5e4e] min-w-0 leading-snug">{subtext}</span>
         {!hideEditLink && (
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/profile"
             className="whitespace-nowrap text-xs font-semibold text-[#3b6bef] hover:underline flex-shrink-0"
             aria-label={t('editProfileAriaLabel')}
           >

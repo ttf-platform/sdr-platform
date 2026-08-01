@@ -10,6 +10,7 @@ import { Toggle } from '@/components/ui/Toggle'
 // sCfgTzOrigin state gates whether the value ever reaches the save payload.
 import { TIMEZONES } from '@/lib/timezones'
 import { isGeneratedBookingTitle } from '@/lib/meeting-title'
+import { todayBoundsUTC } from '@/lib/local-day'
 
 const supabase = createClient()
 
@@ -193,6 +194,12 @@ export default function MeetingsPage() {
 
   useEffect(() => {
     if (!toast) return
+    // Lot 5b §2.4(b) : le rappel « regenere ton brief » (showBriefLink) est
+    // PERSISTANT. Un rappel qui s efface en 8 s peut etre rate ; le toast
+    // conserve son ✕ existant (ligne :858) pour se fermer. Les autres cas
+    // (rendez-vous d un autre jour, avertissement de chevauchement)
+    // continuent de s effacer normalement.
+    if (toast.showBriefLink) return
     const t = setTimeout(() => setToast(null), 8000)
     return () => clearTimeout(t)
   }, [toast])
@@ -284,7 +291,16 @@ export default function MeetingsPage() {
     if (res.error) { setCreateErr(res.error); setCreating(false); return }
     setShowCreate(false)
     const meetingDate = cForm.meeting_at.split('T')[0]
-    const todayDate   = new Date().toLocaleDateString('en-CA')
+    // Lot 5b §2.4(a) : la date « aujourd hui » est calculee dans le fuseau
+    // du workspace, pas celui du navigateur. Le reste de la page consomme
+    // deja sCfg.timezone (voir fmtDatetime et dayKey), l API convertit la
+    // date saisie via booking_config.timezone — un `new Date().toLocale
+    // DateString('en-CA')` faisait diverger le rappel « regenere ton brief »
+    // du fuseau du brief lui-meme. Reserve : `sCfg.timezone` vaut 'UTC' tant
+    // que sCfgTzOrigin === 'fallback' (base ne portant pas de fuseau) — meme
+    // repli que le reste de la page, strictement meilleur que le fuseau du
+    // navigateur.
+    const todayDate   = todayBoundsUTC(sCfg.timezone).dateStr
     const isToday     = meetingDate === todayDate
     // Non-blocking overlap warning (E). The 201 response carries a
     // `warning.overlaps: [...]` array when the created meeting collides
@@ -840,7 +856,14 @@ export default function MeetingsPage() {
             copy uses a muted amber to signal "read this" without alarming
             like an error state. */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 max-w-sm">
+        // Lot 5b §2.4(c) : role="status" — un toast qui persiste (showBriefLink)
+        // et qui n a personne pour l annoncer aux technologies d assistance ne
+        // sert pas les utilisateurs concernes ; role=status suffit (pas d
+        // alerte, priorite polite). z-[60] au lieu de z-50 pour que le ✕ du
+        // toast reste cliquable quand la modale « parametres du planificateur »
+        // (z-50) s ouvre par-dessus — la modale « nouveau rendez-vous » est
+        // deja fermee (setShowCreate(false)) au moment ou le toast apparait.
+        <div role="status" className="fixed top-4 right-4 z-[60] bg-white border border-[#e8e3dc] rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 max-w-sm">
           <div className="flex-1 flex flex-col gap-1">
             <span className="text-sm text-[#1a1a2e]">{toast.msg}</span>
             {toast.warning && (

@@ -76,7 +76,7 @@ export default async function PricingPage({
         t('featProspects',   { count: cfg.pro.prospects_sourced_per_month }),
         t('featEnrichments', { count: cfg.pro.enrichments_per_month }),
         t('featInboxes',     { count: cfg.pro.inboxes }),
-        t('proF3'), t('proF4'), t('proF5'),
+        t('proF3'), t('proF4'),
       ],
       inherits: t('starterName'),
     },
