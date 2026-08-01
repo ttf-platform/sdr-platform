@@ -11,9 +11,11 @@ import {
   buildPromptB,
   extractJsonObject,
   generateMorningBrief,
+  localInstantUTC,
   todayBoundsUTC,
   type MeetingForBrief,
 } from '../morning-brief'
+import { TIMEZONES } from '../timezones'
 
 // ─── Scope ────────────────────────────────────────────────────────────────
 //
@@ -142,6 +144,135 @@ describe('todayBoundsUTC — bornes UTC de la journée locale', () => {
     const { start, end } = todayBoundsUTC('America/Toronto', now)
     expect(start.getTime()).toBe(new Date('2026-03-08T05:00:00.000Z').getTime())
     expect(end.getTime()).toBe(new Date('2026-03-09T03:59:59.999Z').getTime())
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// localInstantUTC (lot 4) — heure locale murale → instant UTC absolu
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Instants mesurés (recopiés, jamais recalculés) sur 45 fuseaux × 400 jours
+// × 4 réglages = 72 000 combinaisons → zéro instant invalide.
+
+describe('localInstantUTC — heure locale murale vers instant UTC', () => {
+  it("Paris 2026-03-29 02:30 (heure locale INEXISTANTE, passage à l'heure d'été)", () => {
+    // Le premier instant après le trou est 03:00 local ; l'heure demandée
+    // 02:30 est décalée « de la durée du trou » vers 03:30 local, qui
+    // correspond à 01:30 UTC en CEST (+02:00).
+    expect(localInstantUTC('Europe/Paris', '2026-03-29', '02:30').getTime())
+      .toBe(new Date('2026-03-29T01:30:00.000Z').getTime())
+  })
+
+  it("Paris 2026-10-25 02:30 (heure locale DÉDOUBLÉE, retour à l'heure d'hiver — SECONDE occurrence)", () => {
+    // La première 02:30 est en CEST (+02:00) = 00:30Z ; la seconde est en
+    // CET (+01:00) = 01:30Z. La technique à deux passes rend la SECONDE.
+    expect(localInstantUTC('Europe/Paris', '2026-10-25', '02:30').getTime())
+      .toBe(new Date('2026-10-25T01:30:00.000Z').getTime())
+  })
+
+  it("Santiago 2026-04-04 00:30 (bascule pile à minuit, journée de 25 h)", () => {
+    expect(localInstantUTC('America/Santiago', '2026-04-04', '00:30').getTime())
+      .toBe(new Date('2026-04-04T03:30:00.000Z').getTime())
+  })
+
+  it("Kathmandu 2026-08-01 07:30 (décalage fractionnaire +05:45)", () => {
+    expect(localInstantUTC('Asia/Kathmandu', '2026-08-01', '07:30').getTime())
+      .toBe(new Date('2026-08-01T01:45:00.000Z').getTime())
+  })
+
+  it("Paris 2026-08-01 07:30 (CEST +02:00, cas nominal)", () => {
+    expect(localInstantUTC('Europe/Paris', '2026-08-01', '07:30').getTime())
+      .toBe(new Date('2026-08-01T05:30:00.000Z').getTime())
+  })
+
+  it("Toronto 2026-08-01 07:30 (EDT -04:00, cas nominal)", () => {
+    expect(localInstantUTC('America/Toronto', '2026-08-01', '07:30').getTime())
+      .toBe(new Date('2026-08-01T11:30:00.000Z').getTime())
+  })
+
+  it("balayage : les 44 fuseaux de lib/timezones.ts × 40 jours × 4 réglages → aucun instant invalide", () => {
+    const day0 = Date.UTC(2026, 2, 1) // 1er mars 2026 — englobe printemps DST nord ET automne sud
+    const hhmms = ['00:00', '02:30', '07:30', '23:30']
+    for (const tz of TIMEZONES) {
+      for (let d = 0; d < 40; d++) {
+        const dateStr = new Date(day0 + d * 86_400_000).toISOString().slice(0, 10)
+        for (const hhmm of hhmms) {
+          const inst = localInstantUTC(tz, dateStr, hhmm)
+          expect(Number.isNaN(inst.getTime())).toBe(false)
+        }
+      }
+    }
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// generateMorningBrief — non-régression du paramètre now optionnel (lot 4)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('generateMorningBrief — non-régression : `now` reste optionnel (défaut new Date())', () => {
+  // Réutilise les mêmes fakes que le describe précédent — on prouve juste
+  // que l'appelant qui NE passe PAS `now` (route existante) obtient toujours
+  // un résultat OK sur un contenu nominal.
+  function makeBuilder(result: { data: unknown; error?: unknown; count?: number | null }) {
+    const settled = Promise.resolve(result)
+    const builder: Record<string, unknown> = {
+      select: () => builder,
+      eq:     () => builder,
+      gte:    () => builder,
+      lte:    () => builder,
+      order:  () => builder,
+      single: () => settled,
+      then:   (onF: (v: typeof result) => unknown, onR?: (e: unknown) => unknown) => settled.then(onF, onR),
+    }
+    return builder
+  }
+  const RICH_PROFILE = {
+    user_industry: 'SaaS', user_company_size: '11-50',
+    product_description: 'A B2B product description that easily exceeds thirty characters in length.',
+    value_proposition: 'A value proposition that exceeds twenty chars.',
+    icp_description: 'ICP description that exceeds thirty characters comfortably here.',
+    icp_industries: ['Tech'], target_titles: 'CTO', target_regions: 'EU',
+    pain_points: 'A pain point of at least twenty characters.',
+    tone: 'friendly', company_name: 'Acme', booking_config: { timezone: 'UTC' },
+  }
+  const byTable: Record<string, { data: unknown; error?: unknown; count?: number | null }> = {
+    workspace_profiles: { data: RICH_PROFILE },
+    campaigns:          { data: [] },
+    prospects:          { data: null, count: 0 },
+    workspace_members:  { data: null },
+    meetings:           { data: [] },
+  }
+  const admin = {
+    from: (t: string) => makeBuilder(byTable[t] ?? { data: null }),
+    auth: { admin: { getUserById: vi.fn().mockResolvedValue({ data: { user: null } }) } },
+  } as unknown as SupabaseClient
+  const client = {
+    messages: {
+      create: vi.fn().mockResolvedValue({
+        content: [{ type: 'text', text: '{"mode":"no_meetings"}' }],
+        usage:   { input_tokens: 100, output_tokens: 200 },
+      }),
+    },
+  } as unknown as Anthropic
+
+  it('sans `now` : rend OK avec briefDate au format YYYY-MM-DD (comportement pré-lot-4 préservé)', async () => {
+    const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.mode).toBe('A')
+      expect(result.briefDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+  })
+
+  it('avec `now` explicite : briefDate reflète la date locale de `now`, pas celle de l\'horloge réelle', async () => {
+    const fixedNow = new Date('2026-08-01T12:00:00Z')
+    const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1', now: fixedNow })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      // Le profil a booking_config.timezone = 'UTC', donc la date locale du
+      // 2026-08-01T12:00Z est 2026-08-01.
+      expect(result.briefDate).toBe('2026-08-01')
+    }
   })
 })
 

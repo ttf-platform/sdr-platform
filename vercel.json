@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/expire-pending-bookings",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/morning-brief",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
