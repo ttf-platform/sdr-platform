@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues)
   const body = parsed.data
 
-  const FIELDS = ['company_name','sender_name','user_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size','user_title','company_website','email_signature','signature_in_initial','signature_in_followups'] as const
+  const FIELDS = ['company_name','sender_name','user_name','product_description','icp_description','value_proposition','tone','icp_company_size','icp_company_sizes','icp_industries','pain_points','target_titles','target_regions','target_company_revenue','user_industry','user_company_size','user_title','company_website','email_signature','signature_in_initial','signature_in_followups','morning_brief_enabled','morning_brief_time'] as const
   const updates: Record<string, unknown> = {}
   for (const key of FIELDS) {
     if (key in body) updates[key] = body[key as keyof typeof body]

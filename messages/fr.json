@@ -1922,7 +1922,9 @@
       },
       "errors": {
         "generateFailed": "Impossible de générer le brief. Veuillez réessayer.",
-        "network": "Erreur réseau. Vérifiez votre connexion et réessayez."
+        "network": "Erreur réseau. Vérifiez votre connexion et réessayez.",
+        "saveFailed": "Impossible d'enregistrer. Veuillez réessayer.",
+        "saveNetwork": "Erreur réseau à l'enregistrement. Vérifiez votre connexion."
       },
       "archive": {
         "title": "Briefs passés",

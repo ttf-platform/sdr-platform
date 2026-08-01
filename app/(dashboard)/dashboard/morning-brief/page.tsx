@@ -1,11 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import ProfileQualityBadge from '@/components/ProfileQualityBadge'
 import { calculateProfileScore } from '@/lib/profile-quality'
 import type { ProfileForScore } from '@/lib/profile-quality'
+// lot 5a — module PUR (aucun import) : jamais de code serveur ni de
+// consignes de modèle (qui nomment des fournisseurs interdits) dans ce bundle
+// client. Y consommer todayBoundsUTC coupe aussi la copie inline du calcul
+// de bornes qui vivait ici, avec son défaut DST déjà corrigé au lot 2 bis.
+import { todayBoundsUTC } from '@/lib/local-day'
+import { normalizeHalfHour, toInputTime } from '@/lib/morning-brief-time'
 
 const supabase = createClient()
 
@@ -352,9 +358,16 @@ export default function MorningBriefPage() {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [todayMeetingsMeta, setTodayMeetingsMeta] = useState<{ count: number; latestAt: string | null }>({ count: 0, latestAt: null })
 
-  // Morning Brief delivery settings (UI-only until Sprint 4 persistence)
-  const [briefEnabled, setBriefEnabled] = useState(true)
-  const [briefTime, setBriefTime]       = useState('07:30')
+  // Morning Brief delivery settings — persistés depuis le lot 5a. Initialisés
+  // à false / '07:30' (les 4 workspaces prod sont à false) puis remplacés par
+  // la valeur en base. Effet visuel assumé : l'interrupteur n'apparaît plus
+  // allumé par défaut, il reflète la réalité.
+  const [briefEnabled, setBriefEnabled] = useState(false)
+  const [briefTime,    setBriefTime]    = useState('07:30')
+  const lastSavedTimeRef                = useRef('07:30')
+  const [savingEnabled, setSavingEnabled] = useState(false)
+  const [savingTime,    setSavingTime]    = useState(false)
+  const [saveError,     setSaveError]     = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -365,8 +378,8 @@ export default function MorningBriefPage() {
       setWorkspaceId(member.workspace_id)
 
       const [{ data: wp }, { data: briefList }] = await Promise.all([
-        supabase.from('workspace_profiles').select('product_description, icp_description, sender_name, value_proposition, icp_industries, icp_company_size, pain_points, booking_config').eq('workspace_id', member.workspace_id).single(),
-        supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false }),
+        supabase.from('workspace_profiles').select('product_description, icp_description, sender_name, value_proposition, icp_industries, icp_company_size, pain_points, booking_config, morning_brief_enabled, morning_brief_time').eq('workspace_id', member.workspace_id).single(),
+        supabase.from('morning_briefs').select('*').eq('workspace_id', member.workspace_id).order('brief_date', { ascending: false }).order('created_at', { ascending: false }),
       ])
 
       setProfile(wp ?? null)
@@ -374,22 +387,27 @@ export default function MorningBriefPage() {
       setBriefs(briefList || [])
       if (briefList && briefList.length > 0) setSelected(briefList[0])
 
-      // Query today's meetings for regenerate banner
+      // Charger les réglages de livraison depuis la base (lot 5a).
+      setBriefEnabled(Boolean((wp as any)?.morning_brief_enabled))
+      const dbTime = toInputTime((wp as any)?.morning_brief_time ?? '')
+      setBriefTime(dbTime)
+      lastSavedTimeRef.current = dbTime
+
+      // Bornes UTC de la journée locale via todayBoundsUTC pur ; fuseau
+      // invalide retombe silencieusement sur UTC (le rendu au bas de la page
+      // consomme la MÊME valeur via resolveTodayStr — un seul point qui casse
+      // ou pas).
       const tz = (wp as any)?.booking_config?.timezone ?? 'UTC'
-      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz })
-      const tzParts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(new Date())
-      const offsetPart = tzParts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
-      const offsetMatch = offsetPart.match(/GMT([+-]\d{2}:\d{2})/)
-      const offset = offsetMatch ? offsetMatch[1] : '+00:00'
-      const dayStart = new Date(`${todayStr}T00:00:00${offset}`)
-      const dayEnd   = new Date(`${todayStr}T23:59:59.999${offset}`)
+      let bounds: { start: Date; end: Date; dateStr: string }
+      try   { bounds = todayBoundsUTC(tz) }
+      catch { bounds = todayBoundsUTC('UTC') }
       const { data: mtgs } = await supabase
         .from('meetings')
         .select('created_at')
         .eq('workspace_id', member.workspace_id)
         .eq('status', 'scheduled')
-        .gte('meeting_at', dayStart.toISOString())
-        .lte('meeting_at', dayEnd.toISOString())
+        .gte('meeting_at', bounds.start.toISOString())
+        .lte('meeting_at', bounds.end.toISOString())
         .order('created_at', { ascending: false })
       setTodayMeetingsMeta({ count: mtgs?.length ?? 0, latestAt: mtgs?.[0]?.created_at ?? null })
     })
@@ -397,11 +415,62 @@ export default function MorningBriefPage() {
 
   const profileGated = !profileLoaded || profile === null || calculateProfileScore(profile) < MIN_PROFILE_SCORE
 
-  // Today's brief detection + regenerate logic
-  const tz       = (profile as any)?.booking_config?.timezone ?? 'UTC'
-  const todayStr = profileLoaded ? new Date().toLocaleDateString('en-CA', { timeZone: tz }) : ''
+  // Today's brief detection + regenerate logic. Fuseau invalide : retombée
+  // silencieuse sur UTC via todayBoundsUTC pur — le rendu ne peut plus
+  // jeter (l'ancien toLocaleDateString({ timeZone }) inline le pouvait).
+  const tz = (profile as any)?.booking_config?.timezone ?? 'UTC'
+  const todayStr = profileLoaded
+    ? (() => { try { return todayBoundsUTC(tz).dateStr } catch { return todayBoundsUTC('UTC').dateStr } })()
+    : ''
   const todayBrief    = todayStr ? (briefs.find(b => b.brief_date === todayStr) ?? null) : null
   const briefOutdated = todayMeetingsMeta.count > 0 && (!todayBrief || (todayMeetingsMeta.latestAt !== null && todayBrief.created_at < todayMeetingsMeta.latestAt))
+
+  // ── Persistance des réglages (lot 5a). Sérialisation par contrôle : le
+  // contrôle concerné est désactivé pendant sa requête, sinon deux bascules
+  // rapides produiraient deux requêtes concurrentes et une restauration
+  // d'erreur pourrait ressusciter un état périmé. Bannière `role="alert"`
+  // réutilisée (état saveError dédié — jamais generateError).
+  async function saveEnabled(next: boolean) {
+    if (savingEnabled) return
+    const prev = briefEnabled
+    setBriefEnabled(next)
+    setSaveError(null)
+    setSavingEnabled(true)
+    try {
+      const r = await fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ morning_brief_enabled: next }),
+      })
+      if (!r.ok) { setBriefEnabled(prev); setSaveError(tErrors('saveFailed')) }
+    } catch { setBriefEnabled(prev); setSaveError(tErrors('saveNetwork')) }
+    finally { setSavingEnabled(false) }
+  }
+  async function saveTime(next: string) {
+    if (savingTime) return
+    const prev = lastSavedTimeRef.current
+    setSaveError(null)
+    setSavingTime(true)
+    try {
+      const r = await fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ morning_brief_time: next }),
+      })
+      if (!r.ok) { setBriefTime(prev); lastSavedTimeRef.current = prev; setSaveError(tErrors('saveFailed')) }
+      else       { lastSavedTimeRef.current = next }
+    } catch { setBriefTime(prev); lastSavedTimeRef.current = prev; setSaveError(tErrors('saveNetwork')) }
+    finally { setSavingTime(false) }
+  }
+  // onBlur : normalise, réinjecte pour que écran et base ne divergent jamais,
+  // envoie ; vide → restaure la dernière valeur enregistrée sans requête (sinon
+  // un blur sur un champ vidé écrirait '07:30' invisible à l'utilisateur).
+  function handleTimeBlur() {
+    if (briefTime === '') { setBriefTime(lastSavedTimeRef.current); return }
+    const normalized = normalizeHalfHour(briefTime)
+    setBriefTime(normalized)
+    if (normalized !== lastSavedTimeRef.current) saveTime(normalized)
+  }
 
   const headerBtnLabel = generating ? tBtn('generating')
     : briefOutdated   ? tBtn('regenerateWithNewMeeting')
@@ -438,10 +507,10 @@ export default function MorningBriefPage() {
   return (
     <div className="max-w-2xl mx-auto">
       {profileLoaded && <ProfileQualityBadge profile={profile} className="mb-4" />}
-      {generateError && (
+      {(generateError || saveError) && (
         <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
           <span className="flex-shrink-0">⚠</span>
-          <span>{generateError}</span>
+          <span>{generateError || saveError}</span>
         </div>
       )}
       <div className="flex items-start justify-between mb-6">
@@ -476,14 +545,14 @@ export default function MorningBriefPage() {
             <div className="text-sm font-semibold text-[#1a1a2e]">{tDelivery('enableTitle')}</div>
             <div className="text-xs text-[#8a7e6e]">{tDelivery('enableSubtitle')}</div>
           </div>
-          <button onClick={() => setBriefEnabled(!briefEnabled)}
+          <button onClick={() => saveEnabled(!briefEnabled)} disabled={!profileLoaded || savingEnabled}
             className={`w-11 h-6 rounded-full transition-colors relative ${briefEnabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
             <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${briefEnabled ? 'right-0.5' : 'left-0.5'}`} />
           </button>
         </div>
         <div className="mb-4">
           <label className="text-xs font-semibold text-[#6b5e4e] uppercase tracking-wider mb-1 block">{tDelivery('timeLabel')}</label>
-          <input type="time" value={briefTime} onChange={e => setBriefTime(e.target.value)}
+          <input type="time" step={1800} value={briefTime} onChange={e => setBriefTime(e.target.value)} onBlur={handleTimeBlur} disabled={!profileLoaded || savingTime}
             className="w-full border border-[#e8e3dc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#3b6bef]" />
           <p className="text-xs text-[#b0a898] mt-1">{tDelivery('timezoneNote')} <Link href="/dashboard/settings" className="text-[#3b6bef] hover:underline">{tDelivery('timezoneLink')}</Link></p>
         </div>

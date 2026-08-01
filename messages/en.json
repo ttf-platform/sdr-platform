@@ -1922,7 +1922,9 @@
       },
       "errors": {
         "generateFailed": "Unable to generate brief. Please try again.",
-        "network": "Network error. Please check your connection and try again."
+        "network": "Network error. Please check your connection and try again.",
+        "saveFailed": "We couldn't save that. Please try again.",
+        "saveNetwork": "Network error while saving. Please check your connection."
       },
       "archive": {
         "title": "Past Briefs",

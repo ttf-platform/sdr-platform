@@ -23,6 +23,16 @@ export const workspaceProfileUpdateSchema = z.object({
   signature_in_initial:   z.boolean().optional(),
   signature_in_followups: z.boolean().optional(),
   workspace_timezone:     z.string().max(100).optional(),
+  // Lot 5a Morning Brief. La regex reproduit EXACTEMENT la contrainte CHECK
+  // workspace_profiles_morning_brief_time_half_hour (migration 090) : 48
+  // valeurs légales. Sert à rendre un 400 propre au lieu d'un 500 avec un
+  // message Postgres brut. La contrainte en base reste la source de vérité.
+  // AUCUNE valeur par défaut — Zod injecte la valeur même clé absente ;
+  // couplé au pattern de la route (écrit tout champ présent dans
+  // parsed.data), une valeur par défaut à vrai activerait la fonctionnalité
+  // à chaque sauvegarde de profil, depuis n'importe quel écran.
+  morning_brief_enabled:  z.boolean().optional(),
+  morning_brief_time:     z.string().regex(/^([01]\d|2[0-3]):(00|30)$/).optional(),
 })
 
 export const morningBriefGenerateSchema = z.object({
