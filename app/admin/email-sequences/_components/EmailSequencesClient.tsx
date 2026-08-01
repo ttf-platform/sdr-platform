@@ -80,6 +80,7 @@ const KEY_LABEL: Record<EmailTemplateKey, string> = {
   cancellation:           'Résiliation confirmée',
   winback:                'Win-back (relance résiliation)',
   signal_digest:          'Digest quotidien de signaux',
+  morning_brief:          'Morning Coffee Brief (quotidien)',
   booking_confirmation:   'Confirmation de rendez-vous (public)',
 }
 

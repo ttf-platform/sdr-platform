@@ -34,9 +34,20 @@
 // escapeHtml + renderEmailMarkdown's block whitelist. Both must stay in
 // place — remove one and the other's coverage gaps become exploitable.
 
-const EMAIL_TEXT_MAX_LEN = 120
+// Default cap for inline / one-line placeholders (subject, greeting,
+// workspace name, campaign name). Exported so tests can pin the value.
+export const EMAIL_TEXT_MAX_LEN = 120
 
-export function toPlainTextForEmail(input: string | null | undefined): string {
+// Cap for placeholders that carry a WHOLE composed block of the email
+// (typically a markdown fragment built by a construction helper). At the
+// morning-brief scale the model output is plafonnée à 2 500 tokens en
+// mode B et 3 000 en mode A — soit de l'ordre de 10 000 à 12 000
+// caractères tous champs confondus. Un champ isolé qui atteint
+// 2 000 caractères est donc déjà anormal : la borne ne peut pas tronquer
+// un contenu légitime, et borne quand même un contenu pathologique.
+export const EMAIL_BLOCK_TEXT_MAX_LEN = 2000
+
+export function toPlainTextForEmail(input: string | null | undefined, maxLen: number = EMAIL_TEXT_MAX_LEN): string {
   if (input == null) return ''
   let out = String(input)
   // Markdown whitelist tokens : `[label](url)`, `**bold**`, `- item`,
@@ -53,9 +64,11 @@ export function toPlainTextForEmail(input: string | null | undefined): string {
   out = out.replace(/[\x00-\x1F\x7F]/g, ' ')
   // Collapse consecutive whitespace to keep readable output.
   out = out.replace(/\s+/g, ' ').trim()
-  // Bound.
-  if (out.length > EMAIL_TEXT_MAX_LEN) {
-    out = out.slice(0, EMAIL_TEXT_MAX_LEN - 1) + '…'
+  // Bound. `maxLen` is caller-tunable ; callers building a whole markdown
+  // block (composeMorningBriefBlock) pass EMAIL_BLOCK_TEXT_MAX_LEN so a
+  // legitimate 300-char paragraph is not mutilated at 120.
+  if (out.length > maxLen) {
+    out = out.slice(0, maxLen - 1) + '…'
   }
   return out
 }

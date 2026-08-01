@@ -34,6 +34,7 @@ export type EmailTemplateKey =
   | 'cancellation'
   | 'winback'
   | 'signal_digest'
+  | 'morning_brief'
   | 'booking_confirmation'
 
 export type EmailTemplateLocale = 'en' | 'fr'
@@ -160,6 +161,14 @@ export const EMAIL_TEMPLATE_META: ReadonlyArray<EmailTemplateMeta> = [
     defaultCtaPath: '/dashboard',
     // Flipped in PR1b : auto-scan-signals now sends via renderTemplate,
     // which unconditionally wraps in wrapEmail chrome (Mirvo footer + link).
+    hasChrome:      true,
+  },
+  {
+    key:            'morning_brief',
+    category:       'product',
+    trigger:        'Daily morning brief delivery (cron) — one send per day per workspace',
+    placeholders:   ['greeting', 'briefDate', 'briefBlock', 'baseUrl'],
+    defaultCtaPath: '/dashboard',
     hasChrome:      true,
   },
   {
@@ -426,6 +435,40 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, Record<EmailTempl
       bodyMd:    "Vous avez choisi ce créneau pour rencontrer **{{hostName}}** :\n\n- Date : **{{dateStr}}**\n- Heure : **{{timeStr}} ({{tzLabel}})**\n- Durée : **{{durationMin}} minutes**\n\nAucun rendez-vous n'est encore pris. Cliquez sur le lien ci-dessous pour bloquer le créneau — ce lien expire dans {{expiresInHours}} heures.\n\n[Confirmer votre rendez-vous]({{confirmUrl}})\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet email — aucun rendez-vous n'a été pris et la demande expirera d'elle-même.",
       ctaLabel:  null,
       ctaPath:   null,
+    },
+  },
+
+  // ─── morning_brief (daily delivery — lot 3 Morning Coffee Brief) ──────────
+  // The whole substance of the email lives inside {{briefBlock}}, assembled
+  // by composeMorningBriefBlock (lib/morning-brief-email.ts) — allowlisted
+  // in email-render.ts so the multi-paragraph markdown structure survives
+  // interpolation. Every terminal value inside briefBlock is sanitised at
+  // its construction site.
+  //
+  // Two distinct destinations, on purpose : the CTA opens the dashboard
+  // (the daily habit hook), the in-body link opens the morning-brief
+  // settings page so an unsubscribe / time-change is one click away and
+  // never buried in a footer.
+  //
+  // The heading uses the product name "Morning Coffee Brief" in BOTH
+  // locales — that's how the FR app labels this feature already
+  // (messages/fr.json → dashboard.morningBrief.heroTitle).
+  morning_brief: {
+    en: {
+      subject:   'Your morning brief — {{briefDate}}',
+      preheader: 'Your daily brief: what to focus on today, and what changed in your market.',
+      heading:   'Morning Coffee Brief',
+      bodyMd:    "{{greeting}}\n\n{{briefBlock}}\n\nYou're receiving this because your morning brief is switched on. [Turn it off or change the time]({{baseUrl}}/dashboard/morning-brief).",
+      ctaLabel:  'Open Mirvo',
+      ctaPath:   '/dashboard',
+    },
+    fr: {
+      subject:   'Votre brief du matin — {{briefDate}}',
+      preheader: "Votre brief quotidien : sur quoi vous concentrer aujourd'hui, et ce qui bouge sur votre marché.",
+      heading:   'Morning Coffee Brief',
+      bodyMd:    "{{greeting}}\n\n{{briefBlock}}\n\nVous recevez cet e-mail parce que votre brief du matin est activé. [Le désactiver ou changer l'heure]({{baseUrl}}/dashboard/morning-brief).",
+      ctaLabel:  'Ouvrir Mirvo',
+      ctaPath:   '/dashboard',
     },
   },
 

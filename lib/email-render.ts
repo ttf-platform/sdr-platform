@@ -66,7 +66,15 @@ export function renderTemplate(
   vars:   EmailVars,
   locale: 'en' | 'fr',
 ): RenderResult {
-  const subject   = interpolate(fields.subject, vars)
+  // Neutralise CR/LF in the assembled subject BEFORE handing it to Resend :
+  // interpolate strips CR/LF from unallowlisted values via toPlainTextForEmail,
+  // but ALLOWLISTED values (matchList, briefBlock, invoiceLine, …) can carry
+  // newlines by design — and the admin editor inserts placeholders into the
+  // focused field, subject included. A newline in the subject would let the
+  // upstream provider parse a second header line ; this replace closes the
+  // vector for all seven allowlist entries in one line, and no legitimate
+  // subject in the repo contains a newline.
+  const subject   = interpolate(fields.subject, vars).replace(/[\r\n]+/g, ' ')
   const bodyMd    = interpolate(fields.bodyMd,  vars)
   const preheader = fields.preheader ? interpolate(fields.preheader, vars) : null
   const heading   = fields.heading   ? interpolate(fields.heading,   vars) : null
@@ -292,6 +300,14 @@ function htmlEntityDecode(s: string): string {
  *                 a template's [label]({{...}}) construct, so sanitising
  *                 would break the link. safeExternalHref guards them at
  *                 the anchor-emission site.
+ *
+ *   briefBlock    Multi-paragraph markdown assembled by
+ *                 composeMorningBriefBlock (lib/morning-brief-email.ts).
+ *                 Same reason as matchList : the default sanitiser would
+ *                 collapse `\n` and destroy list structure ; sanitisation
+ *                 is applied per terminal value at the construction site.
+ *                 briefDate stays OUT of the allowlist so it keeps the
+ *                 default sanitisation.
  */
 const INTERPOLATION_ALLOWLIST: ReadonlySet<string> = new Set([
   'invoiceLine',
@@ -300,6 +316,7 @@ const INTERPOLATION_ALLOWLIST: ReadonlySet<string> = new Set([
   'amountPhrase',
   'baseUrl',
   'confirmUrl',
+  'briefBlock',
 ])
 
 /**
