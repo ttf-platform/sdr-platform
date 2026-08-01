@@ -47,7 +47,7 @@ const SUBSCRIPTION_STATUS_KEYS = ['trialing', 'active', 'past_due', 'canceled', 
 // featEnrichments/featInboxes) fed the live cap ; .3+ stay per-tier static.
 const PLANS = [
   { id: 'starter', name: 'Starter', inherits: null,      featureCount: 5 },
-  { id: 'pro',     name: 'Pro',     inherits: 'Starter', featureCount: 6 },
+  { id: 'pro',     name: 'Pro',     inherits: 'Starter', featureCount: 5 },
   { id: 'power',   name: 'Power',   inherits: 'Pro',     featureCount: 5 },
 ]
 

@@ -510,8 +510,7 @@
     "starterF4": "Morning Brief",
     "starterF5": "Basic AI emails",
     "proF3": "Advanced AI",
-    "proF4": "Morning Brief Mode B",
-    "proF5": "Priority support",
+    "proF4": "Priority support",
     "powerF3": "Premium AI + caching",
     "powerF4": "Full pipeline + analytics",
     "allF0": "14-day free trial",
@@ -1846,8 +1845,7 @@
           },
           "pro": {
             "3": "Advanced AI",
-            "4": "Morning Brief Mode B",
-            "5": "Priority support"
+            "4": "Priority support"
           },
           "power": {
             "3": "Premium AI + caching",

@@ -36,6 +36,32 @@ export interface MissingCriterion {
   href:   string
 }
 
+// Colonnes que `calculateProfileScore` lit. Toute requete qui alimente
+// `ProfileForScore` DOIT les charger toutes : les champs du type sont
+// optionnels, donc une colonne oubliee ne produit aucune erreur de type,
+// seulement un score silencieusement trop bas. Le patron `satisfies` fait
+// attraper par tsc toute faute de frappe dans la constante, qu un test
+// unitaire ne verrait pas et qui produirait un 400 PostgREST au runtime.
+//
+// 12 entrees = les 11 cles de CRITERIA + `icp_company_size` (singulier),
+// lu en repli par le critere `icp_company_sizes` pour les lignes heritees
+// d avant la migration 007 (le produit ecrit uniquement le pluriel depuis).
+// Ni `sender_name` ni `target_company_revenue` : non scores.
+export const PROFILE_SCORE_COLUMNS = [
+  'user_industry',
+  'user_company_size',
+  'product_description',
+  'value_proposition',
+  'icp_description',
+  'icp_industries',
+  'target_titles',
+  'target_regions',
+  'icp_company_sizes',
+  'icp_company_size',
+  'pain_points',
+  'tone',
+] as const satisfies readonly (keyof ProfileForScore)[]
+
 // Total = 100. target_company_revenue + sender_name intentionally excluded from scoring.
 export const CRITERIA: Criterion[] = [
   { key: 'user_industry',       label: 'Your industry',       points: 10, href: '/dashboard/profile#offre', passes: p => !!p.user_industry?.trim() },

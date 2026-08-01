@@ -510,8 +510,7 @@
     "starterF4": "Morning Brief",
     "starterF5": "Emails IA de base",
     "proF3": "IA avancée",
-    "proF4": "Morning Brief Mode B",
-    "proF5": "Support prioritaire",
+    "proF4": "Support prioritaire",
     "powerF3": "IA premium + cache",
     "powerF4": "Pipeline complet + analytics",
     "allF0": "14 jours d'essai gratuit",
@@ -1846,8 +1845,7 @@
           },
           "pro": {
             "3": "IA avancée",
-            "4": "Brief du matin Mode B",
-            "5": "Support prioritaire"
+            "4": "Support prioritaire"
           },
           "power": {
             "3": "IA premium + mise en cache",
