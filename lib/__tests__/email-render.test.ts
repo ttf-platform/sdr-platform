@@ -85,6 +85,10 @@ describe('renderTemplate — every registry key × 2 locales', () => {
     signal_digest: { greeting: 'Hi Alex,',    matchCount: '3',
                      matchList: '- Acme Co (hiring SDRs)\n- Beta Inc (raised Series A)\n- Gamma Ltd (new tool stack)',
                      baseUrl: 'https://app.mirvo.ai' },
+    morning_brief: { greeting:   'Hi Alex,',
+                     briefDate:  'Saturday, August 1, 2026',
+                     briefBlock: 'Focus today: two market signals to act on.\n\n**Market trends**\n\n- **SDR hiring** — Three key prospects opened SDR roles this week.\n- **New tool stack** — Two targets rolled out a competitor tool.',
+                     baseUrl:    'https://app.mirvo.ai' },
     booking_confirmation: {
       hostName:       'Alex Founder',
       dateStr:        'Wednesday, June 4, 2026',
@@ -419,6 +423,34 @@ describe('B7 — placeholder value cannot smuggle a phishing link', () => {
     // assembled string (only per-item at the call site).
     const liCount = (out.html.match(/<li>/g) ?? []).length
     expect(liCount).toBe(3)
+  })
+})
+
+describe('Lot 3 — subject CRLF strip (guards allowlist entries that carry newlines)', () => {
+  it('a template subject that interpolates a multiline allowlisted value renders WITHOUT CR/LF', () => {
+    // The admin editor inserts placeholders into the focused field, subject
+    // included. `briefBlock` is allowlisted (its `\n` are load-bearing for
+    // the body layout). If it landed in the subject, upstream mailers could
+    // parse a second header line. renderTemplate strips CR/LF from the
+    // interpolated subject in one line, closing the vector for all seven
+    // allowlist entries at once.
+    const fields = {
+      subject:   'Injected: {{briefBlock}}',
+      preheader: null,
+      heading:   'Test',
+      bodyMd:    '{{briefBlock}}',
+      ctaLabel:  null,
+      ctaPath:   null,
+    }
+    const vars = {
+      briefBlock: 'line one\nline two\r\nline three',
+      baseUrl:    'https://app.mirvo.ai',
+    }
+    const out = renderTemplate(fields, vars, 'en')
+    expect(out.subject).not.toMatch(/[\r\n]/)
+    expect(out.subject).toContain('line one')
+    expect(out.subject).toContain('line two')
+    expect(out.subject).toContain('line three')
   })
 })
 

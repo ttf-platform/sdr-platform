@@ -58,6 +58,8 @@ function sampleVars(locale: EmailTemplateLocale, baseUrl: string): Record<string
       invoiceLine:   'Pressé ? Vous pouvez aussi [régler cette facture directement](https://pay.stripe.com/inv_demo).',
       matchCount:    '3',
       matchList:     '- Acme Co : 2 nouveaux matches\n- Beta Inc : 1 nouveau match',
+      briefDate:     'samedi 1 août 2026',
+      briefBlock:    "Sur quoi vous concentrer aujourd'hui : trois signaux qui bougent sur votre marché.\n\n**Tendances du marché**\n\n- **Recrutements SDR** — Trois de vos prospects clés ont ouvert un poste de SDR cette semaine.\n- **Nouveaux stacks outils** — Deux cibles ont récemment adopté un outil concurrent : bon moment pour un angle de comparaison.",
       baseUrl,
     }
   }
@@ -70,6 +72,8 @@ function sampleVars(locale: EmailTemplateLocale, baseUrl: string): Record<string
     invoiceLine:   'In a hurry? You can also [pay this invoice directly](https://pay.stripe.com/inv_demo).',
     matchCount:    '3',
     matchList:     '- Acme Co: 2 new matches\n- Beta Inc: 1 new match',
+    briefDate:     'Saturday, August 1, 2026',
+    briefBlock:    "What to focus on today: three signals moving on your market.\n\n**Market trends**\n\n- **SDR hiring** — Three of your key prospects opened SDR roles this week.\n- **New tool stacks** — Two targets recently adopted a competitor's tool: good moment for a comparison angle.",
     baseUrl,
   }
 }

@@ -4,6 +4,7 @@ import { safeExternalHref } from './url-safety';
 import { getEmailTemplate } from './email-templates';
 import { renderTemplate, type EmailVars } from './email-render';
 import type { EmailTemplateLocale } from './email-templates-registry';
+import { composeMorningBriefBlock } from './morning-brief-email';
 
 export const FROM_ADDRESS = 'Mirvo <hello@mirvo.ai>';
 
@@ -466,6 +467,70 @@ export async function sendWinbackEmail(params: {
       baseUrl:       appBaseUrl,
     },
     logTag: 'sendWinbackEmail',
+  });
+}
+
+/**
+ * Morning Coffee Brief — daily delivery (lot 3/7).
+ *
+ * Same pattern as sendWinbackEmail : build vars, delegate to sendTemplate,
+ * return `{ ok, messageId?, error? }`.
+ *
+ * The whole substance of the email lives inside `briefBlock`, assembled
+ * by composeMorningBriefBlock which is a TOTAL function (never throws) and
+ * returns null when nothing survives sanitisation. Testing that null
+ * BEFORE reading blockMd yields `{ ok: false, error: 'empty_content' }` :
+ * the value the Lot 4 cron will read to skip a workspace without paying
+ * the Resend call.
+ *
+ * NOTE — `briefDate` is formatted in `timeZone: 'UTC'`, NOT in
+ * `params.timeZone`. `briefDate` is already the LOCAL civil day computed
+ * by `todayBoundsUTC`, so re-projecting it into a timezone shifts it
+ * (measured : new Date('2026-08-01T12:00:00Z') rendered in
+ * Pacific/Auckland = 'Sunday, August 2, 2026'; in UTC = 'Saturday,
+ * August 1, 2026'). params.timeZone is used ONLY for meeting times inside
+ * briefBlock (composeMorningBriefBlock's own concern).
+ *
+ * At the end of lot 3 this function has ZERO production callers — its
+ * consumer is the lot 4 cron, its first callers are its own tests. Named,
+ * dated technical debt that resolves next lot.
+ */
+export async function sendMorningBriefEmail(params: {
+  to:          string;
+  firstName:   string | null;
+  content:     unknown;
+  briefDate:   string;
+  timeZone:    string;
+  appBaseUrl:  string;
+  locale:      EmailTemplateLocale;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const { to, firstName, content, briefDate, timeZone, appBaseUrl, locale } = params;
+
+  const block = composeMorningBriefBlock({ content, locale, timeZone });
+  if (!block) return { ok: false, error: 'empty_content' };
+
+  const localeIntl = locale === 'fr' ? 'fr-FR' : 'en-US';
+  let formattedDate = briefDate;
+  try {
+    formattedDate = new Intl.DateTimeFormat(localeIntl, {
+      timeZone: 'UTC',
+      dateStyle: 'full',
+    }).format(new Date(`${briefDate}T12:00:00Z`));
+  } catch {
+    // Non-fatal : fall back to the raw briefDate string.
+  }
+
+  return sendTemplate({
+    to,
+    key:    'morning_brief',
+    locale,
+    vars: {
+      greeting:   greetingFor(firstName, locale),
+      briefDate:  formattedDate,
+      briefBlock: block.blockMd,
+      baseUrl:    appBaseUrl,
+    },
+    logTag: 'sendMorningBriefEmail',
   });
 }
 
