@@ -106,6 +106,7 @@ export async function GET(request: Request) {
       skipped_no_owner:      0,
       skipped_bad_timezone:  0,
       skipped_bad_time:      0,
+      skipped_bad_status:    0,
       conflict_23505:        0,
       empty_content:         0,
       ai_failed:             0,
@@ -162,6 +163,18 @@ export async function GET(request: Request) {
       const briefTime  = row.morning_brief_time
 
       try {
+        // Lot 5a A2 — filet côté JS derrière .in() sur colonne imbriquée.
+        // Le filtre PostgREST est la première utilisation de cette forme
+        // dans le repo ; si un jour il ne mordait pas comme attendu, un
+        // workspace hors « active » / « trialing » recevrait un brief —
+        // appel modèle payé pour rien. Ce compteur non nul serait le signal
+        // que le filtre PostgREST ne filtre pas.
+        const status = row.workspaces?.subscription_status
+        if (status !== 'active' && status !== 'trialing') {
+          summary.skipped_bad_status++
+          continue
+        }
+
         // 3. Due ?
         const verdict = dueBriefDate({ timeZone, briefTime, now })
         if (!verdict.due) {
