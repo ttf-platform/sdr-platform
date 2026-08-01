@@ -268,6 +268,24 @@ function ideasBullets(raw: unknown, max: number, l: Locale): string[] {
 
 // ─── Mode B builder ──────────────────────────────────────────────────────
 
+// Écarte les stand-in génériques que le modèle inscrit quand il n'a pas la
+// valeur : « Unknown » et ses cousins. Comparaison sur la valeur ENTIÈRE,
+// insensible à la casse — « Unknown Corp » est un nom légitime et survit.
+// Correctif d'affichage du dossier de rendez-vous UNIQUEMENT ; les autres
+// champs ne sont pas filtrés. Ne pas toucher à buildPromptB (§2).
+//
+// Conséquence assumée : si un rendez-vous se réduit à Unknown/Unknown sans
+// e-mail, sans aperçu et sans aucune liste, il n'a plus rien qui survive et
+// le dossier est supprimé. Si c'est le seul rendez-vous et qu'il n'y a pas
+// de signal marché, composeMorningBriefBlock rend null et aucun e-mail ne
+// part (là où auparavant partait un e-mail avec « Meeting 1 · Unknown ·
+// Unknown »). C'est le comportement voulu — un dossier de préparation vide
+// de toute information ne vaut pas un e-mail.
+const UNKNOWN_STAND_INS: ReadonlySet<string> = new Set(['unknown', 'n/a', 'inconnu', ''])
+function isUnknownStandIn(v: string): boolean {
+  return UNKNOWN_STAND_INS.has(v.trim().toLowerCase())
+}
+
 function meetingBlock(m: unknown, index: number, l: Locale, timeZone: string): string {
   if (m == null || typeof m !== 'object') return ''
   const rec = m as Record<string, unknown>
@@ -275,8 +293,10 @@ function meetingBlock(m: unknown, index: number, l: Locale, timeZone: string): s
   const time     = formatMeetingTime(rec.meeting_at, timeZone, l)
   const dur      = (typeof rec.duration_min === 'number' && Number.isFinite(rec.duration_min))
     ? `${rec.duration_min} ${LABELS[l].min}` : ''
-  const name     = s(rec.attendee_name)
-  const company  = s(rec.company_name)
+  const rawName    = s(rec.attendee_name)
+  const rawCompany = s(rec.company_name)
+  const name     = isUnknownStandIn(rawName)    ? '' : rawName
+  const company  = isUnknownStandIn(rawCompany) ? '' : rawCompany
   const email    = s(rec.attendee_email)
   const overview = s(rec.company_overview)
   const pains    = arrBullets(rec.likely_pain_points,  8)
