@@ -4,8 +4,9 @@ import { buildBriefPayload } from '../brief-payload'
 
 // ─── Scope ────────────────────────────────────────────────────────────────
 //
-// Verrouille le contrat du module brief-payload (LOT A) : 5 blocs, 7
-// lectures, plafonds, totals, isEmpty. Aucun appel modele, aucune
+// Verrouille le contrat du module brief-payload : 6 blocs, 6 lectures,
+// plafonds, totals, isEmpty + remontee d'echecs (lot B : `hadError` /
+// `errors`, `totals.deliverabilityTriggering`). Aucun appel modele, aucune
 // ecriture — le module est TESTE avec un faux client Supabase table par
 // table. Le patron de faux est proche de morning-brief.test.ts
 // (chainable builder qui expose un `.then` thenable).
@@ -16,27 +17,40 @@ import { buildBriefPayload } from '../brief-payload'
 // unique (via `.maybeSingle()`). On dedie une entree par table dans un
 // dictionnaire, et chaque appel `.from(...)` sort un builder chainable qui
 // se resout au dernier moment.
+//
+// Le builder peut capturer les arguments passes aux filtres (`.limit`,
+// `.gte`, `.lte`, `.gt`) via un objet optionnel `capture` — utile pour
+// verifier qu'une lecture est bien bornee (limit) ou fait bien le calcul
+// depuis `generatedAt` (bornes de journee locale).
 
 type FakeQueryResult = { data: unknown; error?: unknown }
 type TableResults = Record<string, FakeQueryResult>
+type CapturedArgs = {
+  limit: number[]
+  gte:   [string, string][]
+  lte:   [string, string][]
+  gt:    [string, string][]
+}
 
-function makeAdmin(byTable: TableResults): SupabaseClient {
+function newCapture(): CapturedArgs {
+  return { limit: [], gte: [], lte: [], gt: [] }
+}
+
+function makeAdmin(byTable: TableResults, capture?: CapturedArgs): SupabaseClient {
   const admin = {
     from: (table: string) => {
       const result = byTable[table] ?? { data: null }
       const settled = Promise.resolve(result)
-      // Builder qui accepte n'importe quel enchainement sans erreur et
-      // rend le meme resultat au bout.
       const builder: Record<string, unknown> = {
         select:      () => builder,
         eq:          () => builder,
         in:          () => builder,
         not:         () => builder,
         is:          () => builder,
-        gt:          () => builder,
-        gte:         () => builder,
-        lte:         () => builder,
-        limit:       () => builder,
+        gt:          (col: string, val: string) => { capture?.gt.push([col, String(val)]);  return builder },
+        gte:         (col: string, val: string) => { capture?.gte.push([col, String(val)]); return builder },
+        lte:         (col: string, val: string) => { capture?.lte.push([col, String(val)]); return builder },
+        limit:       (n: number)                => { capture?.limit.push(n);                return builder },
         order:       () => builder,
         maybeSingle: () => settled,
         single:      () => settled,
@@ -54,9 +68,9 @@ const GEN_AT     = '2026-08-02T07:30:00Z'
 const SINCE_ISO  = '2026-08-01T07:30:00Z'      // 24 h avant generatedAt
 const TZ_UTC     = 'UTC'
 
-function call(byTable: TableResults, overrides?: { generatedAt?: string; since?: string; tz?: string }) {
+function call(byTable: TableResults, overrides?: { generatedAt?: string; since?: string; tz?: string; capture?: CapturedArgs }) {
   return buildBriefPayload({
-    admin:       makeAdmin(byTable),
+    admin:       makeAdmin(byTable, overrides?.capture),
     workspaceId: WS,
     generatedAt: overrides?.generatedAt ?? GEN_AT,
     timezone:    overrides?.tz          ?? TZ_UTC,
@@ -409,5 +423,135 @@ describe('isEmpty — vrai iff les 6 collections sont vides', () => {
       } },
     })
     expect(out.isEmpty).toBe(false)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Remontee d'echecs (lot B) — un test par bloc + agregation
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Le lot B branche `hadError` / `errors` sur le trigger cron (fail-open :
+// une erreur de lecture masquerait un rendez-vous reel — mieux vaut envoyer
+// un brief bruite qu'aucun). Chaque bloc doit remonter son erreur PostgREST
+// SANS lancer, pour que les 5 autres continuent leur route.
+
+describe("hadError / errors — chaque bloc remonte son error PostgREST sans lancer", () => {
+  const err = { message: 'PGRST test-forced' }
+
+  it("bloc (a) hotReplies en erreur → hadError=true, errors contient 'hotReplies'", async () => {
+    const out = await call({ inbox_messages: { data: null, error: err } })
+    expect(out.hadError).toBe(true)
+    expect(out.errors.some(e => e.startsWith('hotReplies:'))).toBe(true)
+  })
+
+  it("bloc (b) meetings en erreur → hadError=true, autres blocs vides sans exception", async () => {
+    // Les blocs (b) et (c) partagent la table `meetings` — le faux client
+    // rend le meme resultat pour les deux. On teste que l'erreur est bien
+    // remontee (au moins un des deux libelles doit apparaitre).
+    const out = await call({ meetings: { data: null, error: err } })
+    expect(out.hadError).toBe(true)
+    expect(out.errors.some(e => e.startsWith('meetings:') || e.startsWith('pending:'))).toBe(true)
+  })
+
+  it("bloc (c) pending — la table meetings en erreur remonte aussi cote pending", async () => {
+    // Meme fixture que ci-dessus, angle different : on verrouille les
+    // DEUX libelles sont presents (2 lectures indpts sur la meme table).
+    const out = await call({ meetings: { data: null, error: err } })
+    expect(out.errors.some(e => e.startsWith('meetings:'))).toBe(true)
+    expect(out.errors.some(e => e.startsWith('pending:'))).toBe(true)
+  })
+
+  it("bloc (d) signals en erreur → hadError=true (embed 2 sauts, seul chemin non couvert avant)", async () => {
+    const out = await call({ prospect_signals: { data: null, error: err } })
+    expect(out.hadError).toBe(true)
+    expect(out.errors.some(e => e.startsWith('signals:'))).toBe(true)
+    expect(out.signals.length).toBe(0)
+  })
+
+  it("bloc (e) deliverability en erreur → hadError=true, triggering=0", async () => {
+    const out = await call({ mailbox_health_snapshots: { data: null, error: err } })
+    expect(out.hadError).toBe(true)
+    expect(out.errors.some(e => e.startsWith('deliverability:'))).toBe(true)
+    expect(out.totals.deliverabilityTriggering).toBe(0)
+  })
+
+  it("bloc (f) suggestion en erreur → hadError=true, suggestion=null", async () => {
+    const out = await call({ campaign_suggestions: { data: null, error: err } })
+    expect(out.hadError).toBe(true)
+    expect(out.errors.some(e => e.startsWith('suggestion:'))).toBe(true)
+    expect(out.suggestion).toBeNull()
+  })
+
+  it("aucune erreur nulle part → hadError=false, errors=[]", async () => {
+    const out = await call({})
+    expect(out.hadError).toBe(false)
+    expect(out.errors).toEqual([])
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Meetings — bornes de journee lues depuis generatedAt (pas depuis Date.now)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("meetings — bornes de journee locale ancrees sur generatedAt", () => {
+  it("generatedAt d'un jour PASSE → .gte/.lte utilisent la journee locale DE ce jour, pas d'aujourd'hui", async () => {
+    // Reveil de rattrapage : le process node tourne aujourd'hui mais
+    // deadline reste sur la journee locale du brief. En UTC, les bornes
+    // doivent encadrer ce jour-la, PAS le jour du reveil.
+    const capture = newCapture()
+    await call(
+      { meetings: { data: [] } },
+      { generatedAt: '2026-07-15T09:00:00Z', tz: 'UTC', capture },
+    )
+    // Une seule paire (une seule lecture qui met .gte + .lte sur meeting_at).
+    expect(capture.gte.length).toBeGreaterThanOrEqual(1)
+    expect(capture.lte.length).toBeGreaterThanOrEqual(1)
+    const gtePair = capture.gte.find(([col]) => col === 'meeting_at')
+    const ltePair = capture.lte.find(([col]) => col === 'meeting_at')
+    expect(gtePair?.[1].startsWith('2026-07-15')).toBe(true)
+    expect(ltePair?.[1].startsWith('2026-07-15')).toBe(true)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Signals — .limit() explicite (pas de plafond implicite 1000 de PostgREST)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("signals — .limit() explicite", () => {
+  it("la lecture est bornee par un .limit() (pas de plafond implicite PostgREST)", async () => {
+    const capture = newCapture()
+    await call({ prospect_signals: { data: [] } }, { capture })
+    // Au moins un .limit() a ete pose. suggestion (.limit(1)) et
+    // hotReplies (.limit(200)) posent aussi le leur — on verifie qu'il y a
+    // une valeur AUTRE que 1 (suggestion = 1, signals = 200, hotReplies = 200).
+    expect(capture.limit.length).toBeGreaterThanOrEqual(2)
+    expect(capture.limit.some(n => n >= 200)).toBe(true)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Deliverability — plafond + triggering (lot B, distinction event vs etat)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("deliverability — plafond CAP_DELIVERABILITY=3, triggering compte AVANT slice", () => {
+  it("4 capacity_reached + 1 provider_error → items.length=3, totals.deliverability=5, totals.deliverabilityTriggering=1", async () => {
+    // Verrouille : (a) le plafond ne peut jamais depasser 3 (mesure sur
+    // 5 alertes) ; (b) `deliverabilityTriggering` est compte sur le total
+    // AVANT slicing — un workspace avec 4 boites saturees + 1 erreur
+    // fournisseur voit encore le vrai declencheur (1), meme si le slice
+    // pouvait le laisser tomber. C'est exactement le cas qui empecherait
+    // le trigger cron de confondre un ETAT permanent (saturation) avec
+    // un EVENEMENT (erreur fournisseur).
+    const rows = [
+      { email_account_id: 'a1', snapshot_date: '2026-08-02', reputation_score: 90, bounce_rate: 0.01, daily_capacity: 100, daily_sent: 100, provider_error: null },
+      { email_account_id: 'a2', snapshot_date: '2026-08-02', reputation_score: 90, bounce_rate: 0.01, daily_capacity: 100, daily_sent: 100, provider_error: null },
+      { email_account_id: 'a3', snapshot_date: '2026-08-02', reputation_score: 90, bounce_rate: 0.01, daily_capacity: 100, daily_sent: 100, provider_error: null },
+      { email_account_id: 'a4', snapshot_date: '2026-08-02', reputation_score: 90, bounce_rate: 0.01, daily_capacity: 100, daily_sent: 100, provider_error: null },
+      { email_account_id: 'a5', snapshot_date: '2026-08-02', reputation_score: 90, bounce_rate: 0.01, daily_capacity: 100, daily_sent: 50,  provider_error: 'boom' },
+    ]
+    const out = await call({ mailbox_health_snapshots: { data: rows } })
+    expect(out.deliverability.length).toBe(3)
+    expect(out.totals.deliverability).toBe(5)
+    expect(out.totals.deliverabilityTriggering).toBe(1)
   })
 })

@@ -10,6 +10,8 @@ import { getEmailLocale } from '@/lib/email-templates'
 import { calculateProfileScore } from '@/lib/profile-quality'
 import { dueBriefDate, isWeekendDate, isInactive } from '@/lib/morning-brief-schedule'
 import { buildUnsubscribeUrl, getOrCreateUnsubscribeToken } from '@/lib/unsubscribe-token'
+import { buildBriefPayload } from '@/lib/brief-payload'
+import { shouldSendBrief } from '@/lib/brief-trigger'
 
 export const runtime = 'nodejs'
 // Lot 5c-0 : max_tokens du Mode B a 8000 + timeout par appel a 240 s. Une
@@ -54,6 +56,15 @@ const BUDGET_MS = 45_000
  *   7. propriétaire + email + last_sign_in (auth.admin.getUserById,
  *                                          rend l'e-mail ET l'inactivité)
  *   8. isInactive                         (pur, à partir du (7))
+ *  8.5. shouldSendBrief (lot B)           (2 SQL — payload + anchor. N'envoyer
+ *                                          QUE si quelque chose de NEUF : rdv
+ *                                          du jour, pending qui expire, nouveau
+ *                                          signal, alerte non-`capacity_reached`,
+ *                                          premier envoi. hotReplies + suggestion
+ *                                          + `capacity_reached` sont des ETATS
+ *                                          permanents, pas des evenements. FAIL-
+ *                                          OPEN sur `hadError`. Chemin generateur
+ *                                          uniquement — pas au renvoi.)
  *   9. generateMorningBrief               (appel modèle — le plus cher)
  *  10. composeMorningBriefBlock non null  (vérif AVANT insert : sans elle un
  *                                          contenu difforme mais parsable
@@ -132,6 +143,14 @@ export async function GET(request: Request) {
       // exactement une fois. Les deux canaux sont separes dans le
       // console.warn ci-dessous ; ce compteur les cumule.
       meetings_dropped:      0,
+      // Lot B — garde de trigger. Le brief ne part QUE si quelque chose de
+      // neuf le justifie (rendez-vous du jour, pending qui expire, nouveaux
+      // signaux, alerte deliverability non-`capacity_reached`, premier envoi
+      // ou erreur de lecture — FAIL-OPEN). Sinon `skipped_nothing_new`.
+      // `payload_read_error` compte les briefs partis PAR FAIL-OPEN sur
+      // erreur de lecture (a distinguer d'un envoi sur evenement reel).
+      skipped_nothing_new:   0,
+      payload_read_error:    0,
       truncated:             false,
       untreated_count:       0,
       errors:                [] as string[],
@@ -288,6 +307,126 @@ export async function GET(request: Request) {
         if (isInactive(lastSignInAt, now)) {
           summary.skipped_inactive++
           continue
+        }
+
+        // 8.5. GARDE DE TRIGGER (lot B). N'envoyer que si quelque chose de
+        //      NEUF le justifie. `capacity_reached` et hotReplies/suggestion
+        //      sont des ETATS permanents — pas des evenements. Voir
+        //      lib/brief-trigger.ts pour la table de decision.
+        //
+        //      UNIQUEMENT sur le chemin generateur : un `resendRow` est un
+        //      brief deja INSCRIT qui a rate son envoi (crash entre INSERT
+        //      et emailed_at). La ligne existe, le contenu existe, la
+        //      decision d'envoyer a deja ete prise a l'insert — pas la peine
+        //      de relire un payload potentiellement different (2 h plus tard,
+        //      un rendez-vous a pu bouger, un signal apparaitre) juste pour
+        //      arbitrer une deuxieme fois.
+        //
+        //      Enveloppe try/catch : une exception au build du payload
+        //      (chargement d'un module Supabase qui jette, quelconque bug)
+        //      NE DOIT PAS bloquer un envoi legitime — FAIL-OPEN, on continue
+        //      vers la generation.
+        if (!resendRow) {
+          try {
+            // Ancre des signaux : `emailed_at` du dernier brief cron
+            // reellement ENVOYE (pas juste inscrit), tous jours confondus.
+            // `.maybeSingle()` obligatoire : sans lui supabase-js rend
+            // `data: []` et `[] != null` vaut TRUE — on croirait avoir une
+            // ancre alors qu'on n'en a aucune.
+            const { data: anchorRow, error: anchorErr } = await admin
+              .from('morning_briefs')
+              .select('emailed_at, brief_date')
+              .eq('workspace_id', workspaceId)
+              .eq('source', 'cron')
+              .not('emailed_at', 'is', null)
+              .order('emailed_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+
+            let anchorFailed = false
+            if (anchorErr) {
+              summary.errors.push(`ws=${workspaceId} anchor lookup failed: ${anchorErr.message}`)
+              anchorFailed = true
+            }
+
+            // `hasEverSent` = un brief cron a deja ete envoye A UN MOMENT.
+            // C'est le seul usage de `anchorRow` pour la decision `first_brief` ;
+            // si la lecture a echoue, on ne peut pas conclure — on assume
+            // « oui, on a deja envoye » pour eviter de spammer un `first_brief`
+            // faux (le fail-open sur read_error prendra le relais si vraiment
+            // premiere fois).
+            const hasEverSent = anchorFailed ? true : !!anchorRow
+
+            // sinceISO = min(deadline - 7j, dernier emailed_at). Repli
+            // ARRIERE de 7 jours (pas 24 h) : au lundi matin, un envoi
+            // vendredi soir laisse une ancre samedi qui masquerait tout
+            // signal du weekend — repli plus large pour couvrir un long
+            // gap. `Math.min` sur des NOMBRES uniquement (mixer Date/ISO
+            // rend NaN silencieux).
+            const fallbackMs = deadline.getTime() - 7 * 86_400_000
+            let sinceISO: string
+            try {
+              const anchorMs = anchorRow?.emailed_at ? Date.parse(anchorRow.emailed_at) : NaN
+              const chosenMs = Number.isFinite(anchorMs)
+                ? Math.min(fallbackMs, anchorMs)
+                : fallbackMs
+              sinceISO = new Date(chosenMs).toISOString()
+            } catch {
+              sinceISO = new Date(fallbackMs).toISOString()
+            }
+
+            const payload = await buildBriefPayload({
+              admin,
+              workspaceId,
+              generatedAt: deadline.toISOString(),
+              timezone:    timeZone,
+              sinceISO,
+            })
+
+            const triggerVerdict = shouldSendBrief({
+              ...payload,
+              hadError:    payload.hadError || anchorFailed,
+              hasEverSent,
+            })
+
+            // Trace observabilite (BOTH branches) : sans le log sur pass,
+            // impossible de savoir a posteriori POURQUOI un workspace a
+            // envoye tel matin (evenement decisif, motif du fail-open).
+            console.log('[cron/morning-brief] trigger', {
+              workspace_id:              workspaceId,
+              send:                      triggerVerdict.send,
+              reason:                    triggerVerdict.reason,
+              totals_hotReplies:         payload.totals.hotReplies,
+              totals_meetings:           payload.totals.meetings,
+              totals_pending:            payload.totals.pending,
+              totals_signals:            payload.totals.signals,
+              totals_deliverability:     payload.totals.deliverability,
+              totals_deliverability_triggering: payload.totals.deliverabilityTriggering,
+              hadError:                  payload.hadError || anchorFailed,
+              errors:                    payload.errors,
+            })
+
+            if (!triggerVerdict.send) {
+              summary.skipped_nothing_new++
+              continue
+            }
+            if (triggerVerdict.reason === 'read_error') {
+              summary.payload_read_error++
+            }
+          } catch (err) {
+            // FAIL-OPEN sur exception : une lecture qui jette n'a pas le
+            // droit de faire disparaitre un envoi. On trace et on continue
+            // vers la generation.
+            const msg = `ws=${workspaceId} trigger guard exception: ${err instanceof Error ? err.message : 'unknown'}`
+            summary.errors.push(msg)
+            summary.payload_read_error++
+            console.log('[cron/morning-brief] trigger', {
+              workspace_id: workspaceId,
+              send:         true,
+              reason:       'read_error',
+              exception:    err instanceof Error ? err.message : 'unknown',
+            })
+          }
         }
 
         // 9. Générer si pas de resend ; sinon sauter à l'envoi (Q8).
