@@ -34,9 +34,22 @@ import { toPlainTextForEmail, EMAIL_BLOCK_TEXT_MAX_LEN } from './text-safety'
 
 // Lot 5b-bis : `mode` etendu a 'C' pour la forme meetings_prep (rendez-vous
 // seulement, sans veille marche). Meme convention que MorningBriefResult.mode.
+//
+// Lot « longueur » : `meetingsRendered` et `meetingsExpected` exposent
+// combien de blocs de rendez-vous ont REELLEMENT ete pousses, et combien
+// avaient ete demandes au modele. Nourrissent le compteur cron
+// summary.meetings_dropped et le console.warn qui separe les deux canaux
+// (modele qui desobeit vs. dossier vide a l'assainissement).
+// - Mode A : toujours { meetingsRendered: 0, meetingsExpected: null } —
+//   pas de dossiers.
+// - Modes B/C : meetingsRendered = compte reel des blocs pousses ;
+//   meetingsExpected = content.meetings_expected s'il est un entier fini
+//   >= 0, sinon null (brief archive ecrit avant ce lot, champ corrompu).
 export type MorningBriefEmailBlock = {
-  blockMd: string
-  mode:    'A' | 'B' | 'C'
+  blockMd:          string
+  mode:             'A' | 'B' | 'C'
+  meetingsRendered: number
+  meetingsExpected: number | null
 }
 
 // Plafond produit : un brief prepare au maximum 12 rendez-vous. Au-dela,
@@ -54,11 +67,17 @@ type Locale = 'en' | 'fr'
 // Three labels — Angle, contacts, min — are intentionally identical in
 // both locales ; test T7 excludes them from the cross-language assertion.
 // No emojis (no email template in this repo carries one).
-// Notes de choix, lot 5c-0 :
-//   1. `truncationNotice` est une FONCTION (n: number) => string au lieu d une
-//      chaine plate a interpoler : la valeur doit varier avec N, et une
-//      fonction est plus lisible et plus safe qu un .replace('{n}', N)
-//      (aucun risque de laisser la sequence brute dans l e-mail si N est 0).
+// Notes de choix :
+//   1. `meetingsShortfallNotice` est une FONCTION au lieu d une chaine
+//      plate a interpoler : lisible, safe (aucun risque de laisser une
+//      sequence de substitution brute dans l e-mail).
+//   2. Lot « longueur » : cette fonction remplace l ancienne ligne
+//      d avertissement du lot 5c-0. Une SEULE regle « X sur Y » couvre
+//      trois canaux :
+//        (a) 5c-0 : total du jour > MORNING_BRIEF_MAX_MEETINGS
+//        (b) canal 1 : modele qui rend N-k dossiers sur N demandes
+//        (c) canal 2 : dossier vide a l'assainissement
+//      Le choix de Y (dayTotal) est arbitre par composeMorningBriefBlock.
 const LABELS: Record<Locale, {
   focus:            string
   trends:           string
@@ -76,7 +95,7 @@ const LABELS: Record<Locale, {
   signal:           string
   opportunity:      string
   min:              string
-  truncationNotice: (total: number, shown: number) => string
+  meetingsShortfallNotice: (rendered: number, dayTotal: number) => string
   // Lot 5b-bis : en-tete de la forme C (meetings_prep). Placee sur son
   // propre bloc en tete du briefBlock quand le mode est 'C' — rend le
   // document explicitement « prep du jour, pas le brief du matin ».
@@ -99,8 +118,8 @@ const LABELS: Record<Locale, {
     signal:      'Quick market signal',
     opportunity: 'Opportunity',
     min:         'min',
-    truncationNotice: (total, shown) =>
-      `The first ${shown} meetings are prepared here; you have ${total} in total today.`,
+    meetingsShortfallNotice: (rendered, dayTotal) =>
+      `${rendered} of your ${dayTotal} meetings today are prepared here.`,
     meetingsPrepHeader: "Updated meeting prep for today",
   },
   fr: {
@@ -120,8 +139,8 @@ const LABELS: Record<Locale, {
     signal:      'Signal marché rapide',
     opportunity: 'Opportunité',
     min:         'min',
-    truncationNotice: (total, shown) =>
-      `Les ${shown} premiers rendez-vous sont préparés ici ; vous en avez ${total} au total aujourd'hui.`,
+    meetingsShortfallNotice: (rendered, dayTotal) =>
+      `${rendered} de vos ${dayTotal} rendez-vous du jour sont préparés ici.`,
     meetingsPrepHeader: "Préparation des rendez-vous du jour, mise à jour",
   },
 }
@@ -372,6 +391,12 @@ export function composeMorningBriefBlock(args: {
   // (§2.6 : « vide = null, et null n'est pas une erreur »).
   const sections: string[] = []
 
+  // Lot « longueur » : COMPTEUR REEL des blocs de rendez-vous pousses.
+  // JAMAIS derive de sections.length — cette pile contient aussi l'en-tete
+  // du Mode C et la section signal marche du Mode B. En Mode A, `rendered`
+  // reste a 0 (pas de dossiers).
+  let rendered = 0
+
   if (mode === 'A') {
     const focus = todayFocus(rec.today_focus, l)
     if (focus) sections.push(focus)
@@ -396,7 +421,10 @@ export function composeMorningBriefBlock(args: {
     const meetings = Array.isArray(rec.meetings) ? rec.meetings.slice(0, MORNING_BRIEF_MAX_MEETINGS) : []
     for (let i = 0; i < meetings.length; i++) {
       const mBlock = meetingBlock(meetings[i], i + 1, l, timeZone)
-      if (mBlock) sections.push(mBlock)
+      if (mBlock) {
+        sections.push(mBlock)
+        rendered++
+      }
     }
     // Mode C : content.market_trends_brief est absent (SCHEMA_C n'a pas ce
     // champ), marketTrendsBullets rend [] et section() rend '' — pas de
@@ -405,18 +433,28 @@ export function composeMorningBriefBlock(args: {
     const mtbSection = section(LABELS[l].signal, mtb)
     if (mtbSection) sections.push(mtbSection)
 
-    // Ligne d avertissement de troncature — Modes B et C (les deux plafonnent
-    // a MORNING_BRIEF_MAX_MEETINGS et posent total_meetings_today). Seulement
-    // si au moins une autre section survit (sinon un content degenere
-    // produirait un e-mail reduit a son avertissement). Un brief archive
-    // sans le champ ne rend rien — borne stricte a 13.
-    const totalMeetings = typeof rec.total_meetings_today === 'number'
+    // Lot « longueur » : UNE SEULE regle « X sur Y » remplace l ancienne
+    // ligne d avertissement du lot 5c-0. Couvre trois canaux d'un coup :
+    //   - canal 5c-0 : le total du jour depasse MORNING_BRIEF_MAX_MEETINGS
+    //     -> Y = total du jour, X = rendered (souvent 12)
+    //   - canal 1 (modele qui rend N-k dossiers sur N) : rendered < expected
+    //     -> Y = expected, X = rendered
+    //   - canal 2 (dossier vide a l'assainissement) : rendered < expected
+    //     alors meme que content.meetings.length == expected
+    //     -> meme regle, Y = expected, X = rendered
+    // Un total non plafonnant garde la semantique 5c-0 (cas 11 du brief :
+    // 9/12/10 -> Y=12, pas 10) d'ou le filtre `> MAX` avant d'accepter
+    // `total` comme Y. Garde `sections.length > 0` conservee : un content
+    // degenere ne doit pas produire un e-mail reduit a son avertissement.
+    const expected = readNonNegativeInt(rec.meetings_expected)
+    const totalAboveCap = typeof rec.total_meetings_today === 'number'
       && Number.isFinite(rec.total_meetings_today)
       && rec.total_meetings_today > MORNING_BRIEF_MAX_MEETINGS
       ? rec.total_meetings_today
       : null
-    if (totalMeetings !== null && sections.length > 0) {
-      sections.push(LABELS[l].truncationNotice(totalMeetings, MORNING_BRIEF_MAX_MEETINGS))
+    const dayTotal = totalAboveCap ?? expected ?? rendered
+    if (rendered < dayTotal && sections.length > 0) {
+      sections.push(LABELS[l].meetingsShortfallNotice(rendered, dayTotal))
     }
   }
 
@@ -425,5 +463,24 @@ export function composeMorningBriefBlock(args: {
   const parts: string[] = []
   if (introLine) parts.push(introLine)
   parts.push(...sections)
-  return { blockMd: parts.join('\n\n'), mode }
+  const meetingsExpected = mode === 'A' ? null : readNonNegativeInt(rec.meetings_expected)
+  return {
+    blockMd:          parts.join('\n\n'),
+    mode,
+    meetingsRendered: rendered,
+    meetingsExpected,
+  }
+}
+
+// Lot « longueur » : coerce un champ inconnu vers un entier fini >= 0, ou
+// null. Filtre briefs archives avant le champ, champs corrompus
+// (`"douze"`), valeurs absurdes (-1) — sans jamais laisser un NaN fuir
+// dans le libelle de l'e-mail (Number(v) sur une chaine puis interpolation
+// aurait rendu « 9 of your NaN meetings today are prepared here. »).
+function readNonNegativeInt(v: unknown): number | null {
+  if (typeof v !== 'number') return null
+  if (!Number.isFinite(v)) return null
+  if (!Number.isInteger(v)) return null
+  if (v < 0) return null
+  return v
 }

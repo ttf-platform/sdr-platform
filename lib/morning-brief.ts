@@ -461,8 +461,13 @@ export async function generateMorningBrief(args: {
     try { contentC = JSON.parse(rawC) }
     catch { return { ok: false, reason: 'ai_unparseable' } }
 
-    if (totalMeetingsC > MORNING_BRIEF_MAX_MEETINGS && contentC && typeof contentC === 'object') {
-      (contentC as Record<string, unknown>).total_meetings_today = totalMeetingsC
+    if (contentC && typeof contentC === 'object') {
+      if (totalMeetingsC > MORNING_BRIEF_MAX_MEETINGS) {
+        (contentC as Record<string, unknown>).total_meetings_today = totalMeetingsC
+      }
+      // Lot « longueur » — meme raison que Mode B : meetings_expected
+      // toujours pose pour rendre le manque detectable.
+      (contentC as Record<string, unknown>).meetings_expected = meetingsForPromptC.length
     }
 
     return { ok: true, content: contentC, mode: 'C', briefDate: today }
@@ -549,8 +554,15 @@ export async function generateMorningBrief(args: {
     // voyage DANS content pour survivre a l INSERT et au renvoi (l e-mail
     // recompose depuis content). Le champ n existe que quand il est
     // load-bearing — un brief non tronque n a pas la ligne.
-    if (totalMeetings > MORNING_BRIEF_MAX_MEETINGS && content && typeof content === 'object') {
-      (content as Record<string, unknown>).total_meetings_today = totalMeetings
+    if (content && typeof content === 'object') {
+      if (totalMeetings > MORNING_BRIEF_MAX_MEETINGS) {
+        (content as Record<string, unknown>).total_meetings_today = totalMeetings
+      }
+      // Lot « longueur » — POSER TOUJOURS meetings_expected (le nombre
+      // demande au modele). C'est le caractere systematique qui rend le
+      // manque detectable au rendu (canal 1 : modele qui rend N-k dossiers
+      // sur N demandes) et cote cron (compteur meetings_dropped).
+      (content as Record<string, unknown>).meetings_expected = meetingsForPrompt.length
     }
 
     return { ok: true, content, mode: 'B', briefDate: today }
