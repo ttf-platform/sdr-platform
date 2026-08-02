@@ -33,6 +33,11 @@ export const workspaceProfileUpdateSchema = z.object({
   // à chaque sauvegarde de profil, depuis n'importe quel écran.
   morning_brief_enabled:  z.boolean().optional(),
   morning_brief_time:     z.string().regex(/^([01]\d|2[0-3]):(00|30)$/).optional(),
+  // L9 : opt-out des e-mails de cycle de vie (onboarding, winback, upgrade).
+  // Meme raison qu au-dessus pour ne pas poser de valeur par defaut : Zod
+  // injecterait la valeur cle absente et une sauvegarde de profil eteindrait
+  // les e-mails par erreur.
+  lifecycle_emails_enabled: z.boolean().optional(),
 })
 
 export const morningBriefGenerateSchema = z.object({

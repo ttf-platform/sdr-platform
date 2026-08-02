@@ -604,6 +604,21 @@
     "subjectNoName": "Réserver un créneau",
     "dateAtTime": "{date} à {time}"
   },
+  "unsubscribe": {
+    "briefTitle": "Désactiver votre brief du matin ?",
+    "briefBody": "Vous ne recevrez plus le Morning Coffee Brief quotidien. Vous pouvez le réactiver à tout moment depuis les réglages du brief du matin.",
+    "lifecycleTitle": "Se désinscrire des e-mails de cycle de vie ?",
+    "lifecycleBody": "Vous ne recevrez plus les conseils d'onboarding, rappels de réactivation ni confirmations d'upgrade. Vous pouvez les réactiver à tout moment depuis les réglages.",
+    "confirmButton": "Se désinscrire",
+    "submitting": "Mise à jour de votre préférence...",
+    "doneTitle": "Vous êtes désinscrit",
+    "doneBody": "Votre préférence a été enregistrée. Comptez une minute pour la prise d'effet.",
+    "errorTitle": "Quelque chose n'a pas fonctionné",
+    "errorBody": "Impossible de mettre à jour votre préférence. Réessayez dans un instant.",
+    "retry": "Réessayer",
+    "badLinkTitle": "Ce lien n'est pas valide",
+    "badLinkBody": "Le lien de désinscription est mal formé ou a expiré."
+  },
   "legal": {
     "eyebrow": "Juridique",
     "lastUpdated": "Dernière mise à jour : 19 mai 2026 · Version 1.0",
@@ -1901,6 +1916,8 @@
         "description": "Recevez chaque jour un e-mail préparé par l'IA, avec votre préparation de rendez-vous ou votre veille marché.",
         "enableTitle": "Activer le Morning Brief",
         "enableSubtitle": "Brief quotidien propulsé par l'IA, livré dans votre boîte de réception chaque jour de semaine",
+        "lifecycleTitle": "E-mails de cycle de vie",
+        "lifecycleSubtitle": "Conseils d'onboarding, confirmations d'upgrade et rappels de réactivation.",
         "timeLabel": "Heure de livraison",
         "timezoneNote": "Fuseau horaire défini dans",
         "timezoneLink": "Réglages → Entreprise",

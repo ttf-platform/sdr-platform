@@ -4,6 +4,7 @@ import { cronComplete } from '@/lib/cron-log'
 import { sendOnboardingEmail, type OnboardingDayOffset } from '@/lib/email'
 import { getEmailLocale } from '@/lib/email-templates'
 import { shouldSendOnboarding } from '@/lib/onboarding-gating'
+import { buildUnsubscribeUrl, getOrCreateUnsubscribeToken } from '@/lib/unsubscribe-token'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -36,6 +37,10 @@ export async function GET(request: Request) {
       processed: 0,
       sent: 0,
       skipped: 0,
+      // L9 : compteur dedie du saut « le workspace a coupe les e-mails de
+      // cycle de vie via unsubscribe » — distinct de skipped, sinon la
+      // suppression d'un envoi devient invisible.
+      skipped_unsubscribed: 0,
       errors: [] as string[],
     }
 
@@ -130,6 +135,24 @@ export async function GET(request: Request) {
       (campRows ?? []).map((r: { workspace_id: string }) => r.workspace_id),
     )
 
+    // L9 — Bulk SELECT des workspaces qui ont explicitement coupe les
+    // e-mails de cycle de vie via unsubscribe. Patron bulk-Set (deja
+    // employe pour signals + campagnes ci-dessus) et NON un !inner :
+    // ce cron ne lit pas workspace_profiles autrement, et un !inner
+    // exclurait silencieusement tout workspace SANS ligne de profil
+    // — exactement la population dont l'insert de profil a echoue au
+    // signup, et le contraire de la semantique `DEFAULT true`. Un
+    // continue compte est necessaire pour que la suppression ne soit
+    // pas invisible.
+    const { data: optOutRows, error: optOutErr } = await supa
+      .from('workspace_profiles')
+      .select('workspace_id')
+      .eq('lifecycle_emails_enabled', false)
+    if (optOutErr) console.warn('[cron/onboarding-emails] lifecycle opt-out fetch failed (non-fatal)', optOutErr.message)
+    const unsubscribedWs = new Set<string>(
+      (optOutRows ?? []).map((r: { workspace_id: string }) => r.workspace_id),
+    )
+
     const now = Date.now()
 
     for (const ws of workspaces) {
@@ -138,6 +161,14 @@ export async function GET(request: Request) {
       if (!ownerUserId) continue
       const user = userMap.get(ownerUserId)
       if (!user?.email) continue
+
+      // L9 : garde d'opt-out APRES la resolution du destinataire (pour
+      // qu'un workspace sans owner reste compte comme skipped generique
+      // et non comme unsubscribed).
+      if (unsubscribedWs.has(ws.id)) {
+        summary.skipped_unsubscribed++
+        continue
+      }
 
       const daysSinceSignup = Math.floor((now - user.createdAt.getTime()) / (86_400 * 1_000))
       summary.processed++
@@ -170,6 +201,8 @@ export async function GET(request: Request) {
         }
 
         const locale = await getEmailLocale(ws.id)
+        const unsubToken = await getOrCreateUnsubscribeToken(supa, ws.id)
+        const unsubscribeUrl = unsubToken ? buildUnsubscribeUrl(appBaseUrl, unsubToken, 'lifecycle') : undefined
         const result = await sendOnboardingEmail({
           to: user.email,
           firstName: user.firstName,
@@ -177,6 +210,7 @@ export async function GET(request: Request) {
           dayOffset: offset,
           appBaseUrl,
           locale,
+          unsubscribeUrl,
         })
 
         if (result.ok) {
