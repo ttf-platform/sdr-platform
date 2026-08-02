@@ -1,6 +1,7 @@
 'use client';
 
 import { StatusBadge } from '@/components/StatusBadge';
+import { BOUNCE_CRITICAL_THRESHOLD } from '@/lib/deliverability-thresholds';
 
 export type LimitsData = {
   aiCost: {
@@ -86,8 +87,6 @@ const WARMUP_VARIANT: Record<string, 'gray' | 'green' | 'amber' | 'red' | 'blue'
   paused:    'amber',
   failed:    'red',
 };
-
-const BOUNCE_CRITICAL_THRESHOLD = 0.03; // 3% — flagged red in the deliverability table
 
 export function LimitsClient({ data }: { data: LimitsData }) {
   return (
