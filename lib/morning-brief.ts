@@ -3,6 +3,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 import { calculateProfileScore } from '@/lib/profile-quality'
 import { logAiCall } from '@/lib/ai-cost'
 import { localInstantUTC, todayBoundsUTC } from './local-day'
+import { MORNING_BRIEF_MAX_MEETINGS } from './morning-brief-email'
 
 // L'arithmétique de journée locale (localInstantUTC, todayBoundsUTC) est
 // déplacée dans lib/local-day.ts (lot 5a) — module strictement pur pour être
@@ -32,6 +33,13 @@ export type MorningBriefFailure =
   | { ok: false; reason: 'profile_score_too_low' }
   | { ok: false; reason: 'ai_unavailable'; detail: string }
   | { ok: false; reason: 'ai_unparseable' }
+  // Lot 5c-0 : 4e variante, nommee au lieu d etre confondue avec une reponse
+  // illisible. Le modele a rendu stop_reason='max_tokens' — le JSON est
+  // tronque a mi-chaine, le brief n a rien produit d exploitable. Message
+  // utilisateur distinct, compteur cron distinct. QUASI INATTEIGNABLE apres
+  // le plafond de 12 rendez-vous + max_tokens 8000 + timeout 240 s : c est
+  // un filet de diagnostic, pas un correctif utilisateur.
+  | { ok: false; reason: 'ai_truncated' }
 
 export type MorningBriefResult =
   | { ok: true; content: unknown; mode: 'A' | 'B'; briefDate: string }
@@ -287,32 +295,71 @@ export async function generateMorningBrief(args: {
   const hasMeetings = (todayMeetings?.length ?? 0) > 0
 
   if (hasMeetings) {
+    // Plafonner l ENTREE : on ne paie pas ce qu on va jeter au rendu, et
+    // la sortie du modele ne peut pas croitre au-dela de ~500 tokens x 12
+    // rendez-vous (mesure), soit un pire cas de ~6 150 tokens couvert par
+    // max_tokens: 8000 (30 % de marge). Les six interpolations de
+    // meetings.length dans buildPromptB voient le nombre PLAFONNE — donc
+    // le modele n a plus a « faire tenir » 15 dossiers dans un slice de 12.
+    const allMeetings = (todayMeetings ?? []) as MeetingForBrief[]
+    const totalMeetings = allMeetings.length
+    const meetingsForPrompt = allMeetings.slice(0, MORNING_BRIEF_MAX_MEETINGS)
+
     const promptB = buildPromptB({
       firstName,
       today,
       profile: profile as ProfileForPrompt,
-      meetings: todayMeetings as MeetingForBrief[],
+      meetings: meetingsForPrompt,
     })
 
     let msgB: Awaited<ReturnType<typeof client.messages.create>>
     try {
+      // Surcharges par APPEL, jamais sur le singleton (lib/anthropic.ts est
+      // partage par le chatbot, draft-generation, ai-suggestions, etc.).
+      // - max_tokens: 8000 — pire cas mesure a 12 rendez-vous ~6 150 tokens,
+      //   30 % de marge. Le cout ne change pas : on paie les tokens produits,
+      //   pas le plafond.
+      // - timeout: 240_000 — 8 000 tokens depassent largement 60 s (defaut
+      //   singleton). maxDuration=300 des routes couvre 240 s + envoi.
+      // - maxRetries: 0 — le defaut du singleton est 2, donc jusqu a 3
+      //   generations facturees pour une tentative logique, dont aucune n
+      //   est enregistree si le timeout tombe. Le cron reessaie deja quatre
+      //   fois (fenetre CATCH_UP_MS de 2 h).
       msgB = await client.messages.create({
         model:      'claude-sonnet-4-6',
-        max_tokens: 2500,
+        max_tokens: 8000,
         messages:   [{ role: 'user', content: promptB }],
-      })
+      }, { timeout: 240_000, maxRetries: 0 })
       void logAiCall({
         source:        'morning_brief',
         workspace_id:  workspaceId,
         model:         'claude-sonnet-4-6',
         input_tokens:  msgB.usage?.input_tokens  ?? 0,
         output_tokens: msgB.usage?.output_tokens ?? 0,
-        metadata:      { mode: 'B' },
+        metadata:      { mode: 'B', stop_reason: msgB.stop_reason ?? null },
       })
     } catch (err: unknown) {
       const detail = err instanceof Error ? err.message : String(err)
       console.error('[morning-brief] Anthropic call failed (Mode B):', detail)
+      // Un appel avorte est facture et n etait enregistre NULLE PART sans ce
+      // logAiCall dans le catch. Fire-and-forget (void) : un journal qui
+      // casse la generation serait pire que pas de journal.
+      void logAiCall({
+        source:        'morning_brief',
+        workspace_id:  workspaceId,
+        model:         'claude-sonnet-4-6',
+        input_tokens:  0,
+        output_tokens: 0,
+        metadata:      { mode: 'B', failed: true, detail },
+      })
       return { ok: false, reason: 'ai_unavailable', detail }
+    }
+
+    // Detecter la troncature AVANT le JSON.parse : un stop_reason='max_tokens'
+    // rend un JSON tronque a mi-chaine qui echouerait en 'ai_unparseable', un
+    // message trompeur (le contenu n est pas illisible, il est incomplet).
+    if (msgB.stop_reason === 'max_tokens') {
+      return { ok: false, reason: 'ai_truncated' }
     }
 
     const text = msgB.content[0].type === 'text' ? msgB.content[0].text : '{}'
@@ -321,6 +368,16 @@ export async function generateMorningBrief(args: {
     let content: unknown
     try { content = JSON.parse(raw) }
     catch { return { ok: false, reason: 'ai_unparseable' } }
+
+    // Porter le nombre TOTAL de rendez-vous dans le content, uniquement
+    // quand il depasse le plafond, pour que composeMorningBriefBlock puisse
+    // afficher « les 12 premiers ; il y en a N au total ». L information
+    // voyage DANS content pour survivre a l INSERT et au renvoi (l e-mail
+    // recompose depuis content). Le champ n existe que quand il est
+    // load-bearing — un brief non tronque n a pas la ligne.
+    if (totalMeetings > MORNING_BRIEF_MAX_MEETINGS && content && typeof content === 'object') {
+      (content as Record<string, unknown>).total_meetings_today = totalMeetings
+    }
 
     return { ok: true, content, mode: 'B', briefDate: today }
   }
@@ -353,6 +410,15 @@ export async function generateMorningBrief(args: {
   } catch (err: unknown) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[morning-brief] Anthropic call failed (Mode A):', detail)
+    // Meme raison qu au Mode B : un appel avorte etait facture, non trace.
+    void logAiCall({
+      source:        'morning_brief',
+      workspace_id:  workspaceId,
+      model:         'claude-sonnet-4-6',
+      input_tokens:  0,
+      output_tokens: 0,
+      metadata:      { mode: 'A', failed: true, detail },
+    })
     return { ok: false, reason: 'ai_unavailable', detail }
   }
 

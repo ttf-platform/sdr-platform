@@ -553,3 +553,77 @@ describe("Filtre des stand-ins « Unknown » sur attendee_name et company_name",
     expect(out.blockMd).toContain('Acme Inc')
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Lot 5c-0 : plafond de 12 rendez-vous + avertissement de troncature
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('MORNING_BRIEF_MAX_MEETINGS + truncation notice — bornes strictes', () => {
+  function meetingsContent(count: number, extras: Record<string, unknown> = {}) {
+    const meetings = Array.from({ length: count }, (_, i) => ({
+      attendee_email: `bob${i + 1}@example.com`,
+      attendee_name:  `Bob ${i + 1}`,
+    }))
+    return { mode: 'meetings_today', meetings, ...extras }
+  }
+
+  it("12 rendez-vous (limite exacte) SANS total_meetings_today → aucune ligne d'avertissement", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingsContent(12),
+      locale:  'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    // Ni EN ni FR — la ligne n'est jamais posee sans le champ.
+    expect(out.blockMd).not.toContain('The first 12 meetings')
+    expect(out.blockMd).not.toContain('premiers rendez-vous')
+  })
+
+  it("13 rendez-vous : au rendu, seuls les 12 premiers sont composes (Bob 13 absent), et total_meetings_today=13 → ligne d'avertissement PRESENTE en EN", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingsContent(13, { total_meetings_today: 13 }),
+      locale:  'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    // 12 dossiers rendus, le 13e coupe :
+    expect(out.blockMd).toContain('Meeting 12')
+    expect(out.blockMd).not.toContain('Meeting 13')
+    // Ligne d'avertissement, en EN :
+    expect(out.blockMd).toContain('The first 12 meetings are prepared here; you have 13 in total today.')
+  })
+
+  it("13 rendez-vous, locale FR : la ligne s'affiche en francais", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingsContent(13, { total_meetings_today: 13 }),
+      locale:  'fr', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain("Les 12 premiers rendez-vous sont préparés ici ; vous en avez 13 au total aujourd'hui.")
+  })
+
+  it("un content SANS total_meetings_today (brief archive ecrit avant ce lot) → aucune ligne, pas d'exception", () => {
+    // 15 rendez-vous mais champ absent : le compose plafonne toujours a 12,
+    // et n'affiche PAS la ligne (le champ dirige la ligne, pas la longueur
+    // du tableau).
+    const out = composeMorningBriefBlock({
+      content: meetingsContent(15),
+      locale:  'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).not.toContain('The first 12 meetings')
+    expect(out.blockMd).not.toContain('premiers rendez-vous')
+  })
+
+  it("total_meetings_today <= 12 : borne STRICTE, aucune ligne (ligne apparait a 13, pas a 12)", () => {
+    const out = composeMorningBriefBlock({
+      content: meetingsContent(10, { total_meetings_today: 12 }),
+      locale:  'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).not.toContain('The first 12 meetings')
+  })
+})

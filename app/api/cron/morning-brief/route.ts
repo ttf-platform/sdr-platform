@@ -11,15 +11,25 @@ import { calculateProfileScore } from '@/lib/profile-quality'
 import { dueBriefDate, isWeekendDate, isInactive } from '@/lib/morning-brief-schedule'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+// Lot 5c-0 : max_tokens du Mode B a 8000 + timeout par appel a 240 s. Une
+// enveloppe a 60 s tuerait la fonction avant l ecriture. Le repo utilise
+// deja 300 s pour les crons lourds (auto-scan-signals, reputation-snapshot).
+export const maxDuration = 300
 
 const CRON_NAME = 'morning-brief'
 
-// Budget de temps par exécution. Aucun autre cron du repo n'a de garde de
-// budget ; le seul bornage existant est un plafond dur d'items
-// (reputation-snapshot, 100 boîtes). Patron neuf, pas copié : à la production
-// actuelle (deux comptes actifs) cette borne ne se déclenchera jamais, mais
-// un compteur muet ne prévient de rien.
+// Budget de temps teste EN TETE DE BOUCLE. Un compte charge peut consommer
+// jusqu au timeout de l appel modele (240 s) plus l envoi de l e-mail —
+// donc BUDGET_MS + pire_cas < maxDuration : 45 + ~250 = ~295 < 300. Relever
+// BUDGET_MS casserait cet invariant. C est la valeur MAXIMALE SURE.
+//
+// Deux reserves.
+//   (a) BORNE MOLLE : seuls les appels au modele sont bornes par le timeout
+//       par appel. Un envoi Resend qui pend peut encore crever les 300 s.
+//   (b) DEBIT : un compte charge epuise le budget de son reveil. La fenetre
+//       de rattrapage de 2 h absorbe ~4 comptes charges simultanes ; au-dela
+//       un compte passerait `too_late` EN SILENCE. A quatre comptes ca tient
+//       — a re-mesurer avant toute croissance.
 const BUDGET_MS = 45_000
 
 /**
@@ -58,7 +68,7 @@ const BUDGET_MS = 45_000
  * lot 5 une règle masquant les lignes `cron` à `emailed_at` nul — ligne
  * fantôme visible comme un brief vide dans l'archive. Le seul bénéfice
  * serait d'éviter de payer le modèle deux fois si deux exécutions se
- * chevauchaient : elles ne peuvent pas (maxDuration = 60 s, réveil `*​/30`).
+ * chevauchaient : elles ne peuvent pas (maxDuration = 300 s, réveil `*​/30`).
  *
  * 🔴 Un `result.ok === false` (AI en panne, contenu illisible) → aucune
  * ligne écrite → le réveil suivant réessaie tout seul, et la fenêtre de 2 h
@@ -110,6 +120,7 @@ export async function GET(request: Request) {
       conflict_23505:        0,
       empty_content:         0,
       ai_failed:             0,
+      ai_truncated:          0,
       truncated:             false,
       untreated_count:       0,
       errors:                [] as string[],
@@ -284,7 +295,12 @@ export async function GET(request: Request) {
             now: deadline,
           })
           if (!result.ok) {
-            summary.ai_failed++
+            // Lot 5c-0 : ai_truncated distinct de ai_failed. Compteur
+            // dedie pour distinguer une reponse coupee (max_tokens
+            // insuffisant sur un cas non prevu) d une panne d appel
+            // (ai_unavailable) ou d un JSON illisible (ai_unparseable).
+            if (result.reason === 'ai_truncated') summary.ai_truncated++
+            else                                  summary.ai_failed++
             // Pas d'écriture : le réveil suivant réessaiera, la fenêtre
             // s'arrête d'elle-même au bout de 4 tentatives (CATCH_UP_MS).
             continue
