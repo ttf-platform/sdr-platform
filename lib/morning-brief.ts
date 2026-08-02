@@ -40,9 +40,18 @@ export type MorningBriefFailure =
   // le plafond de 12 rendez-vous + max_tokens 8000 + timeout 240 s : c est
   // un filet de diagnostic, pas un correctif utilisateur.
   | { ok: false; reason: 'ai_truncated' }
+  // Lot 5b-bis : etat impossible en pratique — le predicat decideRegen ne
+  // peut pas rendre `meetings_only` sans qu'il y ait au moins un nouveau
+  // rendez-vous. Rendu par un `reason` d echec explicite (pas un repli
+  // silencieux sur le Mode A) pour tracer si un jour la route recoit
+  // `kind='meetings_only'` sans avoir la donnee correspondante.
+  | { ok: false; reason: 'no_meetings_for_prep' }
 
+// Lot 5b-bis : `mode` etendu a 'C' pour la 3e forme (« meetings_prep »).
+// Le contenu porte `mode: 'meetings_prep'` cote JSON, `MorningBriefResult
+// .mode` = 'C' cote sortie du module — meme convention que 'A' / 'B'.
 export type MorningBriefResult =
-  | { ok: true; content: unknown; mode: 'A' | 'B'; briefDate: string }
+  | { ok: true; content: unknown; mode: 'A' | 'B' | 'C'; briefDate: string }
   | MorningBriefFailure
 
 // ── Slice the first {...} block out of a model reply ─────────────────────
@@ -175,6 +184,81 @@ Rules:
 Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
 }
 
+// ── Prompt C — meetings-only regen (lot 5b-bis) ──────────────────────────
+//
+// Derive de buildPromptB SANS la ligne de consigne « veille marche » et
+// SANS `market_trends_brief` dans SCHEMA_C. La sortie est un sous-ensemble
+// STRICT de la sortie B — on ne peut pas depasser 8000 tokens (max_tokens
+// inchange, garanti par le plafond de 12 rendez-vous du lot 5c-0).
+// content porte `mode: 'meetings_prep'` cote JSON ; le module rend `'C'`
+// cote sortie.
+export function buildPromptC(input: BuildPromptBInput): string {
+  const { firstName, today, profile, meetings } = input
+
+  const meetingsList = meetings.map((m, i) => {
+    const time = new Date(m.meeting_at).toISOString()
+    return `Meeting ${i + 1}:
+  - Time: ${time} (${m.duration_min} min)
+  - Attendee: ${m.attendee_name || 'Unknown'} (${m.attendee_email})
+  - Company: ${m.company_name || 'Unknown'}${m.notes ? `\n  - Notes from user: ${m.notes}` : ''}`
+  }).join('\n\n')
+
+  const SCHEMA_C = `{
+  "mode": "meetings_prep",
+  "date": "${today}",
+  "greeting": "Good morning, ${firstName}!",
+  "intro": "You have ${meetings.length} meeting${meetings.length > 1 ? 's' : ''} today. Here's your prep dossier for each.",
+  "meetings": [
+    {
+      "meeting_at": "ISO timestamp",
+      "duration_min": 30,
+      "attendee_name": "...",
+      "attendee_email": "...",
+      "company_name": "...",
+      "company_overview": "2-3 sentences using industry-typical patterns, not fabricated facts",
+      "likely_pain_points": ["...", "...", "..."],
+      "talking_points": ["...", "...", "..."],
+      "discovery_questions": ["...", "...", "..."]
+    }
+  ]
+}`
+
+  return `CRITICAL: Do NOT invent specific facts about any company. No fake fundraising amounts. No fake employee counts. No fake founding dates. No fake locations. No fake customer names. No fake news. If you don't have a specific fact, use industry-typical patterns and qualifying language ("companies at this stage typically...", "in this segment, common challenges include..."). The user will be in these meetings — any fabricated specific they mention based on your dossier will destroy their credibility.
+
+VENDOR NAMES: Never name specific software vendors, tools, or platforms (e.g. no "Salesforce", "HubSpot", "Clay", "Apollo", "ChatGPT", "OpenAI", or any others). Use generic category language instead ("CRM", "outbound tooling", "AI assistant", "enrichment platform"). This applies to all sections of the brief.
+
+You are an expert outbound sales strategist preparing a daily Morning Brief for a B2B SDR.
+
+Company: ${profile?.company_name || 'their company'}
+Product: ${profile?.product_description || 'B2B product'}
+ICP: ${profile?.icp_description || 'B2B buyers'}
+Tone: ${profile?.tone || 'professional'}
+User first name: ${firstName}
+Today's date: ${today}
+
+They have ${meetings.length} meeting${meetings.length > 1 ? 's' : ''} scheduled today:
+
+${meetingsList}
+
+For each meeting, produce:
+1. company_overview: 2-3 sentences. Use what's plausible based on company name and context. No fabricated specifics.
+2. likely_pain_points: exactly 3 bullets, specific to this company's likely situation given the user's product
+3. talking_points: exactly 3 bullets, angles that connect the user's product to the prospect's likely needs
+4. discovery_questions: exactly 3 open-ended questions to drive the conversation
+
+Return ONLY valid JSON matching EXACTLY this structure:
+${SCHEMA_C}
+
+Rules:
+- greeting must use "${firstName}" by name
+- date must be "${today}"
+- meetings array must contain exactly ${meetings.length} item${meetings.length > 1 ? 's' : ''}, in the same order as provided
+- each meeting_at and attendee fields must match the input exactly
+- Be specific and actionable. No fluff.
+
+Return ONLY valid JSON. No markdown fences, no preamble, no trailing text.`
+}
+
 // ── Prompt A — no meetings today ─────────────────────────────────────────
 export function buildPromptA(input: BuildPromptAInput): string {
   const { firstName, today, profile, campaignsCount, totalSent, replyRate, prospectCount } = input
@@ -255,8 +339,17 @@ export async function generateMorningBrief(args: {
    * `brief_date = hier`.
    */
   now?:        Date
+  /**
+   * Lot 5b-bis : `full` produit le brief entier (Mode A ou B selon la
+   * presence de rendez-vous). `meetings_only` produit la 3e forme (Mode C),
+   * dossier de rendez-vous SANS veille marche ni suggestions de campagnes.
+   * Defaut `'full'` — le cron n'est pas modifie. La route recalcule la
+   * decision cote serveur (§1.4) et transmet le kind resolu.
+   */
+  kind?:       'full' | 'meetings_only'
 }): Promise<MorningBriefResult> {
   const { admin, client, workspaceId, now } = args
+  const kind = args.kind ?? 'full'
 
   const [{ data: profile }, { data: campaigns }, { count: prospectCount }, { data: ownerMember }] = await Promise.all([
     admin.from('workspace_profiles').select('*').eq('workspace_id', workspaceId).single(),
@@ -293,6 +386,87 @@ export async function generateMorningBrief(args: {
   const replyRate    = totalSent > 0 ? ((totalReplies / totalSent) * 100).toFixed(1) : '0'
 
   const hasMeetings = (todayMeetings?.length ?? 0) > 0
+
+  // ── Chemin C — meetings_only (lot 5b-bis) ─────────────────────────────
+  // Insere AVANT le `if (hasMeetings)` pour ne pas re-indenter la queue de
+  // fonction (Mode A). Etat impossible : `meetings_only` sans rendez-vous —
+  // le predicat decideRegen ne peut pas le produire, mais on trace via
+  // `no_meetings_for_prep` plutot que de retomber silencieusement sur
+  // le Mode A.
+  if (kind === 'meetings_only') {
+    if (!hasMeetings) {
+      return { ok: false, reason: 'no_meetings_for_prep' }
+    }
+
+    // Meme plafonnement et conservation du total qu'au Mode B.
+    // ⚠️ Consequence connue et acceptee : a plus de 12 rendez-vous, le slice
+    // trie par meeting_at peut exclure precisement le NOUVEAU rendez-vous
+    // qui a rallume le bouton. A quatre comptes internes, on l'accepte —
+    // pas corrige dans ce lot.
+    const allMeetingsC = (todayMeetings ?? []) as MeetingForBrief[]
+    const totalMeetingsC = allMeetingsC.length
+    const meetingsForPromptC = allMeetingsC.slice(0, MORNING_BRIEF_MAX_MEETINGS)
+
+    const promptC = buildPromptC({
+      firstName,
+      today,
+      profile: profile as ProfileForPrompt,
+      meetings: meetingsForPromptC,
+    })
+
+    let msgC: Awaited<ReturnType<typeof client.messages.create>>
+    try {
+      // max_tokens INCHANGE (8000) : la sortie de C est un sous-ensemble
+      // strict de B (schema sans market_trends_brief). Meme surcharge par
+      // appel que B, meme journal, meme filet stop_reason.
+      msgC = await client.messages.create({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 8000,
+        messages:   [{ role: 'user', content: promptC }],
+      }, { timeout: 240_000, maxRetries: 0 })
+      void logAiCall({
+        source:        'morning_brief',
+        workspace_id:  workspaceId,
+        model:         'claude-sonnet-4-6',
+        input_tokens:  msgC.usage?.input_tokens  ?? 0,
+        output_tokens: msgC.usage?.output_tokens ?? 0,
+        // 🔴 metadata.mode = 'C' (pas 'B') — sinon le journal de cout ment
+        // sur chaque appel meetings_only.
+        metadata:      { mode: 'C', stop_reason: msgC.stop_reason ?? null },
+      })
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err)
+      console.error('[morning-brief] Anthropic call failed (Mode C):', detail)
+      void logAiCall({
+        source:        'morning_brief',
+        workspace_id:  workspaceId,
+        model:         'claude-sonnet-4-6',
+        input_tokens:  0,
+        output_tokens: 0,
+        metadata:      { mode: 'C', failed: true, detail },
+      })
+      return { ok: false, reason: 'ai_unavailable', detail }
+    }
+
+    // Meme filet que Mode B : reprise du patron du lot 5c-0. Sans lui, un
+    // chemin de generation neuf reintroduit exactement le defaut corrige.
+    if (msgC.stop_reason === 'max_tokens') {
+      return { ok: false, reason: 'ai_truncated' }
+    }
+
+    const textC = msgC.content[0].type === 'text' ? msgC.content[0].text : '{}'
+    const rawC  = extractJsonObject(textC)
+
+    let contentC: unknown
+    try { contentC = JSON.parse(rawC) }
+    catch { return { ok: false, reason: 'ai_unparseable' } }
+
+    if (totalMeetingsC > MORNING_BRIEF_MAX_MEETINGS && contentC && typeof contentC === 'object') {
+      (contentC as Record<string, unknown>).total_meetings_today = totalMeetingsC
+    }
+
+    return { ok: true, content: contentC, mode: 'C', briefDate: today }
+  }
 
   if (hasMeetings) {
     // Plafonner l ENTREE : on ne paie pas ce qu on va jeter au rendu, et

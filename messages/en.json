@@ -1891,9 +1891,9 @@
       "headerBtn": {
         "generating": "Generating…",
         "regenerateWithNewMeeting": "⟳ Regenerate with new meeting",
-        "regenerateTodaysBrief": "⟳ Regenerate today's brief",
         "generateTodaysBrief": "Generate today's brief",
         "generateFirstBrief": "Generate first brief",
+        "noNewMeetingTooltip": "No new meetings to prepare. Come back after booking a new one today.",
         "meetingsBanner": "{count, plural, one {# meeting today since your last brief} other {# meetings today since your last brief}}"
       },
       "delivery": {
@@ -1930,6 +1930,7 @@
         "view": "View",
         "badge": {
           "meetingsDay": "Meetings Day",
+          "meetingsPrep": "Meetings Prep",
           "marketIntel": "Market Intel",
           "brief": "Brief"
         }

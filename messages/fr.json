@@ -1891,9 +1891,9 @@
       "headerBtn": {
         "generating": "Génération…",
         "regenerateWithNewMeeting": "⟳ Régénérer avec le nouveau rendez-vous",
-        "regenerateTodaysBrief": "⟳ Régénérer le brief du jour",
         "generateTodaysBrief": "Générer le brief du jour",
         "generateFirstBrief": "Générer le premier brief",
+        "noNewMeetingTooltip": "Aucun nouveau rendez-vous à préparer. Revenez après avoir booké un nouveau rendez-vous aujourd'hui.",
         "meetingsBanner": "{count, plural, one {# rendez-vous aujourd'hui depuis votre dernier brief} other {# rendez-vous aujourd'hui depuis votre dernier brief}}"
       },
       "delivery": {
@@ -1930,6 +1930,7 @@
         "view": "Voir",
         "badge": {
           "meetingsDay": "Jour de rendez-vous",
+          "meetingsPrep": "Préparation rendez-vous",
           "marketIntel": "Veille marché",
           "brief": "Brief"
         }

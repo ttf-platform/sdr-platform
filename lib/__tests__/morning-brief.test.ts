@@ -690,4 +690,57 @@ describe('generateMorningBrief — orchestration complète', () => {
     const prompt = create.mock.calls[0][0].messages[0].content as string
     expect(prompt).toContain('User first name: Alice')
   })
+
+  // Lot 5b-bis : Mode C (kind='meetings_only') ────────────────────────────
+
+  it("kind='meetings_only' avec un rendez-vous : rend mode 'C', content.mode='meetings_prep', promptC SANS 'market_trends_brief'", async () => {
+    const meetings = [{
+      meeting_at:     new Date().toISOString(),
+      duration_min:   30,
+      attendee_name:  'Bob',
+      attendee_email: 'bob@example.com',
+      company_name:   'Co',
+      notes:          null,
+    }]
+    const admin = makeAdmin({
+      profile:  { data: RICH_PROFILE },
+      meetings: { data: meetings },
+    })
+    const { client, create } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_prep","meetings":[]}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+
+    const result = await generateMorningBrief({
+      admin, client, workspaceId: 'ws-1', kind: 'meetings_only',
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.mode).toBe('C')
+      expect((result.content as Record<string, unknown>).mode).toBe('meetings_prep')
+    }
+    // Le prompt C n'inclut pas market_trends_brief.
+    const prompt = create.mock.calls[0][0].messages[0].content as string
+    expect(prompt).not.toContain('market_trends_brief')
+    expect(prompt).not.toContain('Then add market_trends_brief')
+  })
+
+  it("kind='meetings_only' SANS aucun rendez-vous : rend 'no_meetings_for_prep' (etat impossible, jamais un repli silencieux sur Mode A)", async () => {
+    const admin = makeAdmin({
+      profile:  { data: RICH_PROFILE },
+      meetings: { data: [] },
+    })
+    const { client, create } = makeClient({
+      content: [{ type: 'text', text: '{}' }],
+      usage:   { input_tokens: 0, output_tokens: 0 },
+    })
+
+    const result = await generateMorningBrief({
+      admin, client, workspaceId: 'ws-1', kind: 'meetings_only',
+    })
+
+    expect(result).toEqual({ ok: false, reason: 'no_meetings_for_prep' })
+    expect(create).not.toHaveBeenCalled()
+  })
 })

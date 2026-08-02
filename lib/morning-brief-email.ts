@@ -32,9 +32,11 @@ import { toPlainTextForEmail, EMAIL_BLOCK_TEXT_MAX_LEN } from './text-safety'
 // that renderEmailMarkdown recognises. briefBlock is on the interpolation
 // allowlist in lib/email-render.ts for exactly this reason.
 
+// Lot 5b-bis : `mode` etendu a 'C' pour la forme meetings_prep (rendez-vous
+// seulement, sans veille marche). Meme convention que MorningBriefResult.mode.
 export type MorningBriefEmailBlock = {
   blockMd: string
-  mode:    'A' | 'B'
+  mode:    'A' | 'B' | 'C'
 }
 
 // Plafond produit : un brief prepare au maximum 12 rendez-vous. Au-dela,
@@ -75,6 +77,10 @@ const LABELS: Record<Locale, {
   opportunity:      string
   min:              string
   truncationNotice: (total: number, shown: number) => string
+  // Lot 5b-bis : en-tete de la forme C (meetings_prep). Placee sur son
+  // propre bloc en tete du briefBlock quand le mode est 'C' — rend le
+  // document explicitement « prep du jour, pas le brief du matin ».
+  meetingsPrepHeader: string
 }> = {
   en: {
     focus:       "Today's focus",
@@ -95,6 +101,7 @@ const LABELS: Record<Locale, {
     min:         'min',
     truncationNotice: (total, shown) =>
       `The first ${shown} meetings are prepared here; you have ${total} in total today.`,
+    meetingsPrepHeader: "Updated meeting prep for today",
   },
   fr: {
     focus:       'Priorité du jour',
@@ -115,6 +122,7 @@ const LABELS: Record<Locale, {
     min:         'min',
     truncationNotice: (total, shown) =>
       `Les ${shown} premiers rendez-vous sont préparés ici ; vous en avez ${total} au total aujourd'hui.`,
+    meetingsPrepHeader: "Préparation des rendez-vous du jour, mise à jour",
   },
 }
 
@@ -162,9 +170,10 @@ function formatMeetingTime(meetingAt: unknown, timeZone: string, l: Locale): str
 // Discriminate mode. `mode` present + valid wins ; otherwise fall back on
 // the presence of a non-empty meetings array. A third form added by a
 // later lot slots in as another `if (rec.mode === '…')` branch.
-function pickMode(content: unknown): 'A' | 'B' {
+function pickMode(content: unknown): 'A' | 'B' | 'C' {
   if (content != null && typeof content === 'object') {
     const rec = content as Record<string, unknown>
+    if (rec.mode === 'meetings_prep')  return 'C'
     if (rec.mode === 'meetings_today') return 'B'
     if (rec.mode === 'no_meetings')    return 'A'
     if (Array.isArray(rec.meetings) && rec.meetings.length > 0) return 'B'
@@ -379,22 +388,28 @@ export function composeMorningBriefBlock(args: {
     const ideasSection = section(LABELS[l].ideas, ideas)
     if (ideasSection) sections.push(ideasSection)
   } else {
+    // Lot 5b-bis : en-tete distinct pour le Mode C (meetings_prep), pose en
+    // premier pour rendre le document explicitement « prep mise a jour »
+    // plutot que « brief du matin ».
+    if (mode === 'C') sections.push(`**${LABELS[l].meetingsPrepHeader}**`)
+
     const meetings = Array.isArray(rec.meetings) ? rec.meetings.slice(0, MORNING_BRIEF_MAX_MEETINGS) : []
     for (let i = 0; i < meetings.length; i++) {
       const mBlock = meetingBlock(meetings[i], i + 1, l, timeZone)
       if (mBlock) sections.push(mBlock)
     }
+    // Mode C : content.market_trends_brief est absent (SCHEMA_C n'a pas ce
+    // champ), marketTrendsBullets rend [] et section() rend '' — pas de
+    // signal marche dans le rendu C.
     const mtb = marketTrendsBullets(rec.market_trends_brief, 3)
     const mtbSection = section(LABELS[l].signal, mtb)
     if (mtbSection) sections.push(mtbSection)
 
-    // Ligne d avertissement de troncature — Mode B UNIQUEMENT, et seulement
-    // si au moins une autre section survit (§1.2(c) point 2). Sinon un
-    // content degenere produirait un e-mail reduit a son avertissement.
-    // Le champ total_meetings_today est ajoute par generateMorningBrief
-    // uniquement quand totalMeetings > MORNING_BRIEF_MAX_MEETINGS. Un
-    // brief archive sans le champ (ecrit avant ce lot) ne rend rien —
-    // borne stricte a 13 : a 12 aucune ligne, a 13 la ligne apparait.
+    // Ligne d avertissement de troncature — Modes B et C (les deux plafonnent
+    // a MORNING_BRIEF_MAX_MEETINGS et posent total_meetings_today). Seulement
+    // si au moins une autre section survit (sinon un content degenere
+    // produirait un e-mail reduit a son avertissement). Un brief archive
+    // sans le champ ne rend rien — borne stricte a 13.
     const totalMeetings = typeof rec.total_meetings_today === 'number'
       && Number.isFinite(rec.total_meetings_today)
       && rec.total_meetings_today > MORNING_BRIEF_MAX_MEETINGS
