@@ -604,6 +604,21 @@
     "subjectNoName": "Book a meeting",
     "dateAtTime": "{date} at {time}"
   },
+  "unsubscribe": {
+    "briefTitle": "Turn off your morning brief?",
+    "briefBody": "You will no longer receive the daily Morning Coffee Brief. You can turn it back on any time from your Morning Brief settings.",
+    "lifecycleTitle": "Unsubscribe from lifecycle emails?",
+    "lifecycleBody": "You will no longer receive onboarding tips, win-back reminders, or upgrade confirmations. You can re-enable them any time from your settings.",
+    "confirmButton": "Unsubscribe",
+    "submitting": "Updating your preference...",
+    "doneTitle": "You're unsubscribed",
+    "doneBody": "Your preference has been saved. Give it a minute to take effect.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "We couldn't update your preference. Please try again in a moment.",
+    "retry": "Try again",
+    "badLinkTitle": "This link is not valid",
+    "badLinkBody": "The unsubscribe link is malformed or has expired."
+  },
   "legal": {
     "eyebrow": "Legal",
     "lastUpdated": "Last updated: May 19, 2026 · Version 1.0",
@@ -1901,6 +1916,8 @@
         "description": "Receive a daily AI-researched email with meeting prep or market intelligence.",
         "enableTitle": "Enable Morning Brief",
         "enableSubtitle": "Daily AI brief delivered to your inbox each weekday",
+        "lifecycleTitle": "Lifecycle emails",
+        "lifecycleSubtitle": "Onboarding tips, upgrade confirmations, and win-back reminders.",
         "timeLabel": "Delivery Time",
         "timezoneNote": "Timezone set in",
         "timezoneLink": "Settings → Company",

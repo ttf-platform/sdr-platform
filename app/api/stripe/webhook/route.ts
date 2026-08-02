@@ -9,6 +9,7 @@ import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { sendCancellationEmail, sendDunningEmail, sendUpgradeEmail } from '@/lib/email'
 import { getEmailLocale } from '@/lib/email-templates'
 import { dispatchAdminAlert } from '@/lib/admin-alerts'
+import { buildUnsubscribeUrl, getOrCreateUnsubscribeToken } from '@/lib/unsubscribe-token'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -224,6 +225,23 @@ export async function POST(request: Request) {
         metadata: { workspaceId, plan_tier: planTier },
       })
 
+      // L9 — Garde d'opt-out APRES dispatchAdminAlert (chaque vraie conversion
+      // reste visible pour l'admin, meme si l'utilisateur a coupe les e-mails
+      // de cycle de vie) et AVANT sendUpgradeEmail (on ne paie pas l'envoi
+      // Resend d'un e-mail dont on sait qu'il est refuse). Un early-return en
+      // tete de la fonction rendrait la conversion invisible pour l'admin.
+      const { data: profile } = await admin
+        .from('workspace_profiles')
+        .select('lifecycle_emails_enabled')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
+      if (profile?.lifecycle_emails_enabled === false) {
+        console.log(JSON.stringify({
+          event: 'upgrade_email_skipped', reason: 'unsubscribed_lifecycle', workspace_id: workspaceId,
+        }))
+        return
+      }
+
       // 2. Resolve recipient context. All lookups are best-effort.
       const { data: member } = await admin
         .from('workspace_members')
@@ -257,6 +275,8 @@ export async function POST(request: Request) {
       //    intentional: avoiding doublons matters more than guaranteed
       //    delivery for this notification.
       const locale = await getEmailLocale(workspaceId)
+      const unsubToken = await getOrCreateUnsubscribeToken(admin, workspaceId)
+      const unsubscribeUrl = unsubToken ? buildUnsubscribeUrl(appBaseUrl, unsubToken, 'lifecycle') : undefined
       const result = await sendUpgradeEmail({
         to: email,
         firstName,
@@ -264,6 +284,7 @@ export async function POST(request: Request) {
         planTier,
         appBaseUrl,
         locale,
+        unsubscribeUrl,
       })
 
       if (result.ok && result.messageId) {

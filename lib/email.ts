@@ -313,18 +313,37 @@ async function sendTemplate(params: {
   locale:  EmailTemplateLocale;
   vars:    EmailVars;
   logTag:  string;
+  /**
+   * L9 — URL de desinscription (RFC 8058). Quand fournie, les DEUX en-tetes
+   * sont poses. Absent : aucun en-tete (les 8 senders transactionnels
+   * — dunning, cancellation, booking confirmation, admin* — restent
+   * inchanges, par decision produit).
+   */
+  unsubscribeUrl?: string;
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const { to, key, locale, vars, logTag } = params;
+  const { to, key, locale, vars, logTag, unsubscribeUrl } = params;
   try {
     const fields = await getEmailTemplate(key, locale);
     const { subject, html, text } = renderTemplate(fields, vars, locale);
     const resend = getResendClient();
+    // L9 — RFC 8058 : les DEUX en-tetes sont necessaires. `List-Unsubscribe`
+    // seul est l'ancien usage (RFC 2369) et Gmail n'affiche PAS le bouton
+    // un-clic. La variante `mailto:` n'est PAS posee : rien dans le repo
+    // ne lit le courrier entrant, les desinscriptions y tomberaient dans
+    // le vide.
+    const headers = unsubscribeUrl
+      ? {
+          'List-Unsubscribe':      `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        }
+      : undefined;
     const result = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
       subject,
       html,
       text,
+      ...(headers ? { headers } : {}),
     });
     return { ok: true, messageId: result.data?.id };
   } catch (err) {
@@ -343,8 +362,9 @@ export async function sendOnboardingEmail(params: {
   dayOffset: OnboardingDayOffset;
   appBaseUrl: string;
   locale: EmailTemplateLocale;
+  unsubscribeUrl?: string;
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const { to, firstName, workspaceName, dayOffset, appBaseUrl, locale } = params;
+  const { to, firstName, workspaceName, dayOffset, appBaseUrl, locale, unsubscribeUrl } = params;
   const key = `onboarding_d${dayOffset}` as const;
   return sendTemplate({
     to,
@@ -356,6 +376,7 @@ export async function sendOnboardingEmail(params: {
       baseUrl:       appBaseUrl,
     },
     logTag: `sendOnboardingEmail day=${dayOffset}`,
+    unsubscribeUrl,
   });
 }
 
@@ -366,8 +387,9 @@ export async function sendUpgradeEmail(params: {
   planTier:      string;
   appBaseUrl:    string;
   locale:        EmailTemplateLocale;
+  unsubscribeUrl?: string;
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const { to, firstName, workspaceName, planTier, appBaseUrl, locale } = params;
+  const { to, firstName, workspaceName, planTier, appBaseUrl, locale, unsubscribeUrl } = params;
   return sendTemplate({
     to,
     key:    'upgrade',
@@ -379,6 +401,7 @@ export async function sendUpgradeEmail(params: {
       baseUrl:       appBaseUrl,
     },
     logTag: 'sendUpgradeEmail',
+    unsubscribeUrl,
   });
 }
 
@@ -455,8 +478,9 @@ export async function sendWinbackEmail(params: {
   workspaceName: string;
   appBaseUrl:    string;
   locale:        EmailTemplateLocale;
+  unsubscribeUrl?: string;
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const { to, firstName, workspaceName, appBaseUrl, locale } = params;
+  const { to, firstName, workspaceName, appBaseUrl, locale, unsubscribeUrl } = params;
   return sendTemplate({
     to,
     key:    'winback',
@@ -467,6 +491,7 @@ export async function sendWinbackEmail(params: {
       baseUrl:       appBaseUrl,
     },
     logTag: 'sendWinbackEmail',
+    unsubscribeUrl,
   });
 }
 
@@ -503,8 +528,9 @@ export async function sendMorningBriefEmail(params: {
   timeZone:    string;
   appBaseUrl:  string;
   locale:      EmailTemplateLocale;
+  unsubscribeUrl?: string;
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const { to, firstName, content, briefDate, timeZone, appBaseUrl, locale } = params;
+  const { to, firstName, content, briefDate, timeZone, appBaseUrl, locale, unsubscribeUrl } = params;
 
   const block = composeMorningBriefBlock({ content, locale, timeZone });
   if (!block) return { ok: false, error: 'empty_content' };
@@ -531,6 +557,7 @@ export async function sendMorningBriefEmail(params: {
       baseUrl:    appBaseUrl,
     },
     logTag: 'sendMorningBriefEmail',
+    unsubscribeUrl,
   });
 }
 

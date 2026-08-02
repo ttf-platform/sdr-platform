@@ -9,6 +9,7 @@ import { sendMorningBriefEmail } from '@/lib/email'
 import { getEmailLocale } from '@/lib/email-templates'
 import { calculateProfileScore } from '@/lib/profile-quality'
 import { dueBriefDate, isWeekendDate, isInactive } from '@/lib/morning-brief-schedule'
+import { buildUnsubscribeUrl, getOrCreateUnsubscribeToken } from '@/lib/unsubscribe-token'
 
 export const runtime = 'nodejs'
 // Lot 5c-0 : max_tokens du Mode B a 8000 + timeout par appel a 240 s. Une
@@ -355,6 +356,8 @@ export async function GET(request: Request) {
         }
 
         // 12. Envoyer.
+        const unsubToken = await getOrCreateUnsubscribeToken(admin, workspaceId)
+        const unsubscribeUrl = unsubToken ? buildUnsubscribeUrl(appBaseUrl, unsubToken, 'brief') : undefined
         const sendResult = await sendMorningBriefEmail({
           to:         email,
           firstName,
@@ -363,6 +366,7 @@ export async function GET(request: Request) {
           timeZone,
           appBaseUrl,
           locale,
+          unsubscribeUrl,
         })
         if (!sendResult.ok) {
           summary.errors.push(`ws=${workspaceId} send failed: ${sendResult.error ?? 'unknown'}`)

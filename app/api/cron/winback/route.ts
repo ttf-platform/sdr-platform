@@ -4,6 +4,7 @@ import { cronComplete } from '@/lib/cron-log'
 import { sendWinbackEmail } from '@/lib/email'
 import { getEmailLocale } from '@/lib/email-templates'
 import { winbackCutoffIso } from '@/lib/winback'
+import { buildUnsubscribeUrl, getOrCreateUnsubscribeToken } from '@/lib/unsubscribe-token'
 import { timingSafeEqual } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -63,6 +64,10 @@ export async function GET(request: Request) {
       scanned: 0,
       sent:    0,
       skipped: 0,
+      // L9 : compteur dedie du saut « le workspace a coupe les e-mails de
+      // cycle de vie via unsubscribe » — distinct de skipped, sinon la
+      // suppression d'un envoi devient invisible.
+      skipped_unsubscribed: 0,
       errors:  [] as string[],
     }
 
@@ -86,8 +91,29 @@ export async function GET(request: Request) {
       })
     }
 
+    // L9 — Bulk SELECT des workspaces qui ont explicitement coupe les
+    // e-mails de cycle de vie via unsubscribe. Patron bulk-Set + continue
+    // compte (NON un !inner qui exclurait les workspaces sans profil).
+    const { data: optOutRows, error: optOutErr } = await admin
+      .from('workspace_profiles')
+      .select('workspace_id')
+      .eq('lifecycle_emails_enabled', false)
+    if (optOutErr) console.warn('[cron/winback] lifecycle opt-out fetch failed (non-fatal)', optOutErr.message)
+    const unsubscribedWs = new Set<string>(
+      (optOutRows ?? []).map((r: { workspace_id: string }) => r.workspace_id),
+    )
+
     for (const ws of (workspaces ?? []) as CanceledWorkspaceRow[]) {
       summary.scanned++
+      // L9 : garde d'opt-out AVANT la reservation lifecycle_emails, pour ne
+      // pas bruler la fenetre unique du winback sur un workspace qui ne
+      // recevra pas l'e-mail. Un compte re-abonnable peut se re-opt-in via
+      // les reglages ; la reservation garde alors sa semantique « at-most-
+      // once par workspace ».
+      if (unsubscribedWs.has(ws.id)) {
+        summary.skipped_unsubscribed++
+        continue
+      }
       try {
         // 1. Reserve the slot. A prior 'winback' row triggers 23505 (unique
         //    violation) and we silently skip — the workspace has already
@@ -163,12 +189,15 @@ export async function GET(request: Request) {
         //    subsequent cron run doesn't re-fire the same email — mirrors
         //    the dunning-escalation trade-off : preventing doublons matters
         //    more than a retry on Resend hiccup.
+        const unsubToken = await getOrCreateUnsubscribeToken(admin, ws.id)
+        const unsubscribeUrl = unsubToken ? buildUnsubscribeUrl(appBaseUrl, unsubToken, 'lifecycle') : undefined
         const result = await sendWinbackEmail({
           to:            email,
           firstName,
           workspaceName: ws.name ?? 'your workspace',
           appBaseUrl,
           locale,
+          unsubscribeUrl,
         })
 
         if (result.ok) {

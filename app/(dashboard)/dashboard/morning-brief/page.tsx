@@ -374,6 +374,12 @@ export default function MorningBriefPage() {
   const [savingEnabled, setSavingEnabled] = useState(false)
   const [savingTime,    setSavingTime]    = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
+  // L9 : opt-in aux e-mails de cycle de vie. Initialise a true (DEFAULT
+  // en base), remplace par la valeur reelle apres chargement. Un workspace
+  // sans ligne workspace_profiles se lit `true` — meme semantique que la
+  // garde cote crons.
+  const [lifecycleEnabled, setLifecycleEnabled] = useState(true)
+  const [savingLifecycle, setSavingLifecycle]   = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -396,6 +402,8 @@ export default function MorningBriefPage() {
         'booking_config',
         'morning_brief_enabled',
         'morning_brief_time',
+        // L9 : opt-out des e-mails de cycle de vie (onboarding, winback, upgrade).
+        'lifecycle_emails_enabled',
       ].join(', ')
       const [{ data: wp, error: wpErr }, { data: briefList }] = await Promise.all([
         supabase.from('workspace_profiles').select(profileSelect).eq('workspace_id', member.workspace_id).single(),
@@ -418,6 +426,10 @@ export default function MorningBriefPage() {
       const dbTime = toInputTime((wp as any)?.morning_brief_time ?? '')
       setBriefTime(dbTime)
       lastSavedTimeRef.current = dbTime
+      // L9 : `lifecycle_emails_enabled` — DEFAULT true, un profil manquant
+      // (`wp` null) se lit egalement true.
+      const dbLifecycle = (wp as any)?.lifecycle_emails_enabled
+      setLifecycleEnabled(dbLifecycle === false ? false : true)
 
       // Bornes UTC de la journée locale via todayBoundsUTC pur ; fuseau
       // invalide retombe silencieusement sur UTC (le rendu au bas de la page
@@ -488,6 +500,24 @@ export default function MorningBriefPage() {
       if (!r.ok) { setBriefEnabled(prev); setSaveError(tErrors('saveFailed')) }
     } catch { setBriefEnabled(prev); setSaveError(tErrors('saveNetwork')) }
     finally { setSavingEnabled(false) }
+  }
+  // L9 : meme patron de persistance que saveEnabled (optimiste + rollback,
+  // banniere role="alert" via saveError, serialisation par controle).
+  async function saveLifecycle(next: boolean) {
+    if (savingLifecycle) return
+    const prev = lifecycleEnabled
+    setLifecycleEnabled(next)
+    setSaveError(null)
+    setSavingLifecycle(true)
+    try {
+      const r = await fetch('/api/workspace/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lifecycle_emails_enabled: next }),
+      })
+      if (!r.ok) { setLifecycleEnabled(prev); setSaveError(tErrors('saveFailed')) }
+    } catch { setLifecycleEnabled(prev); setSaveError(tErrors('saveNetwork')) }
+    finally { setSavingLifecycle(false) }
   }
   async function saveTime(next: string) {
     if (savingTime) return
@@ -625,6 +655,18 @@ export default function MorningBriefPage() {
           <button onClick={() => saveEnabled(!briefEnabled)} disabled={!profileLoaded || savingEnabled}
             className={`w-11 h-6 rounded-full transition-colors relative ${briefEnabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
             <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${briefEnabled ? 'right-0.5' : 'left-0.5'}`} />
+          </button>
+        </div>
+        {/* L9 : chemin de retour pour la desinscription lifecycle. Meme patron
+            visuel que le toggle brief au-dessus, meme patron de persistance. */}
+        <div className="flex items-center justify-between mb-4 p-3 border border-[#e8e3dc] rounded-xl">
+          <div>
+            <div className="text-sm font-semibold text-[#1a1a2e]">{tDelivery('lifecycleTitle')}</div>
+            <div className="text-xs text-[#8a7e6e]">{tDelivery('lifecycleSubtitle')}</div>
+          </div>
+          <button onClick={() => saveLifecycle(!lifecycleEnabled)} disabled={!profileLoaded || savingLifecycle}
+            className={`w-11 h-6 rounded-full transition-colors relative ${lifecycleEnabled ? 'bg-[#3b6bef]' : 'bg-[#e8e3dc]'}`}>
+            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${lifecycleEnabled ? 'right-0.5' : 'left-0.5'}`} />
           </button>
         </div>
         <div className="mb-4">
