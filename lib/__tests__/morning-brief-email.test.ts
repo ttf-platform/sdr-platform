@@ -567,64 +567,69 @@ describe('MORNING_BRIEF_MAX_MEETINGS + truncation notice — bornes strictes', (
     return { mode: 'meetings_today', meetings, ...extras }
   }
 
-  it("12 rendez-vous (limite exacte) SANS total_meetings_today → aucune ligne d'avertissement", () => {
+  // Lot « longueur » : la ligne du lot 5c-0 (truncationNotice) est REMPLACEE
+  // par une regle unique X sur Y (meetingsShortfallNotice). Les 4 assertions
+  // suivantes sont REECRITES contre la nouvelle chaine plutot que laissees
+  // en place (elles passeraient sans rien prouver — l'ancienne chaine
+  // n'existe plus). Les cas 3 et 4 de la nouvelle table (12/12/15 et
+  // 12/12/13) sont couverts explicitement.
+
+  it("12 rendez-vous (limite exacte, aucun meetings_expected, aucun total) → aucune ligne (rendered == dayTotal)", () => {
     const out = composeMorningBriefBlock({
       content: meetingsContent(12),
       locale:  'en', timeZone: 'UTC',
     })
     expect(out).not.toBeNull()
     if (!out) return
-    // Ni EN ni FR — la ligne n'est jamais posee sans le champ.
-    expect(out.blockMd).not.toContain('The first 12 meetings')
-    expect(out.blockMd).not.toContain('premiers rendez-vous')
+    // Ni EN ni FR — la nouvelle regle ne pose la ligne que si rendered<dayTotal.
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
+    expect(out.blockMd).not.toContain('rendez-vous du jour sont préparés ici.')
   })
 
-  it("13 rendez-vous : au rendu, seuls les 12 premiers sont composes (Bob 13 absent), et total_meetings_today=13 → ligne d'avertissement PRESENTE en EN", () => {
+  it("Cas 4 (12/12/13) : le 13e est coupe, total_meetings_today=13 → ligne EN '12 of your 13 meetings today are prepared here.'", () => {
     const out = composeMorningBriefBlock({
-      content: meetingsContent(13, { total_meetings_today: 13 }),
+      content: meetingsContent(13, { total_meetings_today: 13, meetings_expected: 12 }),
       locale:  'en', timeZone: 'UTC',
     })
     expect(out).not.toBeNull()
     if (!out) return
-    // 12 dossiers rendus, le 13e coupe :
     expect(out.blockMd).toContain('Meeting 12')
     expect(out.blockMd).not.toContain('Meeting 13')
-    // Ligne d'avertissement, en EN :
-    expect(out.blockMd).toContain('The first 12 meetings are prepared here; you have 13 in total today.')
+    expect(out.blockMd).toContain('12 of your 13 meetings today are prepared here.')
   })
 
-  it("13 rendez-vous, locale FR : la ligne s'affiche en francais", () => {
+  it("Cas 4 (12/12/13) locale FR : la ligne s'affiche en francais", () => {
     const out = composeMorningBriefBlock({
-      content: meetingsContent(13, { total_meetings_today: 13 }),
+      content: meetingsContent(13, { total_meetings_today: 13, meetings_expected: 12 }),
       locale:  'fr', timeZone: 'UTC',
     })
     expect(out).not.toBeNull()
     if (!out) return
-    expect(out.blockMd).toContain("Les 12 premiers rendez-vous sont préparés ici ; vous en avez 13 au total aujourd'hui.")
+    expect(out.blockMd).toContain('12 de vos 13 rendez-vous du jour sont préparés ici.')
   })
 
-  it("un content SANS total_meetings_today (brief archive ecrit avant ce lot) → aucune ligne, pas d'exception", () => {
-    // 15 rendez-vous mais champ absent : le compose plafonne toujours a 12,
-    // et n'affiche PAS la ligne (le champ dirige la ligne, pas la longueur
-    // du tableau).
+  it("un content SANS meetings_expected NI total_meetings_today (brief archive) → aucune ligne, pas d'exception", () => {
     const out = composeMorningBriefBlock({
       content: meetingsContent(15),
       locale:  'en', timeZone: 'UTC',
     })
     expect(out).not.toBeNull()
     if (!out) return
-    expect(out.blockMd).not.toContain('The first 12 meetings')
-    expect(out.blockMd).not.toContain('premiers rendez-vous')
+    // rendered=12, expected=null, totalAboveCap=null → dayTotal=rendered=12
+    // → rendered == dayTotal, pas de ligne.
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
   })
 
-  it("total_meetings_today <= 12 : borne STRICTE, aucune ligne (ligne apparait a 13, pas a 12)", () => {
+  it("total_meetings_today <= 12 : borne STRICTE, ne fait PAS office de dayTotal (garde de la semantique 5c-0)", () => {
+    // rendered=10 (10 rdv dans meetings), expected=null, total=12 mais NON
+    // > MAX → totalAboveCap=null → dayTotal=rendered=10 → pas de ligne.
     const out = composeMorningBriefBlock({
       content: meetingsContent(10, { total_meetings_today: 12 }),
       locale:  'en', timeZone: 'UTC',
     })
     expect(out).not.toBeNull()
     if (!out) return
-    expect(out.blockMd).not.toContain('The first 12 meetings')
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
   })
 })
 
@@ -678,5 +683,235 @@ describe("Mode C (meetings_prep) — pickMode + en-tete + absence de signal marc
     expect(out.blockMd).toContain('Signal')
     // Mais l en-tete C est present, ce qui prouve le pickMode.
     expect(out.blockMd).toContain('Updated meeting prep for today')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Lot « longueur » : table de verite du §1.2 — un test par ligne (12 cas)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// La table couvre les trois canaux du manque :
+//   canal 5c-0 : total du jour > MORNING_BRIEF_MAX_MEETINGS
+//   canal 1    : le modele rend N-k dossiers sur N demandes
+//   canal 2    : un dossier vide a l'assainissement (tous champs disparus)
+//
+// Les fixtures des cas 5-7 DOIVENT porter market_trends_brief (une section
+// non-dossier dans `sections`) — sans ca, une implementation qui derive
+// `rendered` de `sections.length` passerait les onze premiers tests et
+// afficherait « 10 de vos 12 » au lieu de « 9 de vos 12 » sur tout vrai
+// brief. Le cas 12 est en Mode C (l'en-tete meetingsPrepHeader est aussi
+// dans `sections` : meme piege).
+
+describe('Lot « longueur » — regle unique X sur Y (12 cas, contrat)', () => {
+  // Helper : rendez-vous plein (survit a meetingBlock : email suffit).
+  const fullMeeting = (i: number) => ({
+    attendee_email: `bob${i}@example.com`,
+    attendee_name:  `Bob ${i}`,
+    company_name:   `Co ${i}`,
+  })
+  // Rendez-vous vide (tous champs a « Unknown »/sans email) : meetingBlock
+  // le supprime — canal 2. Sans email, sans nom, sans compagnie, sans
+  // aperçu, sans liste : rien ne survit.
+  const emptyMeeting = () => ({
+    attendee_name: 'Unknown',
+    company_name:  'Unknown',
+  })
+
+  it("Cas 1 : 3 rendus / 3 demandes / — → aucune ligne (journee normale)", () => {
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today',
+        meetings: [fullMeeting(1), fullMeeting(2), fullMeeting(3)],
+        meetings_expected: 3,
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.meetingsRendered).toBe(3)
+    expect(out.meetingsExpected).toBe(3)
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
+  })
+
+  it("Cas 2 : 12 rendus / 12 demandes / — → aucune ligne (plafond pile, borne stricte)", () => {
+    const meetings = Array.from({ length: 12 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: { mode: 'meetings_today', meetings, meetings_expected: 12 },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.meetingsRendered).toBe(12)
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
+  })
+
+  it("Cas 3 : 12 rendus / 12 demandes / 15 total → '12 of your 15' (comportement 5c-0 préservé)", () => {
+    const meetings = Array.from({ length: 12 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 12, total_meetings_today: 15,
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain('12 of your 15 meetings today are prepared here.')
+  })
+
+  it("Cas 4 : 12 rendus / 12 demandes / 13 total → '12 of your 13' (borne basse 5c-0)", () => {
+    const meetings = Array.from({ length: 12 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 12, total_meetings_today: 13,
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain('12 of your 13 meetings today are prepared here.')
+  })
+
+  it("Cas 5 : 9 rendus / 12 demandes / — → '9 of your 12' (canal 1 : le modele desobeit)", () => {
+    // 9 dossiers dans meetings, demandé 12 par meetings_expected. Fixture
+    // avec market_trends_brief pour prouver que rendered != sections.length.
+    const meetings = Array.from({ length: 9 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 12,
+        market_trends_brief: [{ title: 'T', content: 'C' }], // +1 section non-dossier
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.meetingsRendered).toBe(9)
+    expect(out.blockMd).toContain('9 of your 12 meetings today are prepared here.')
+    // Preuve du piege : si rendered venait de sections.length ce serait '10'.
+    expect(out.blockMd).not.toContain('10 of your 12')
+  })
+
+  it("Cas 6 : 11 rendus / 12 demandes / — → '11 of your 12' (canal 2 : dossier vide)", () => {
+    // 12 dossiers dans meetings, mais l'un est entierement vide → il est
+    // supprime par meetingBlock → 11 rendus. Fixture avec market_trends_brief.
+    const meetings = [
+      ...Array.from({ length: 5 }, (_, i) => fullMeeting(i + 1)),
+      emptyMeeting(),
+      ...Array.from({ length: 6 }, (_, i) => fullMeeting(i + 7)),
+    ]
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 12,
+        market_trends_brief: [{ title: 'T', content: 'C' }],
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.meetingsRendered).toBe(11)
+    expect(out.blockMd).toContain('11 of your 12 meetings today are prepared here.')
+  })
+
+  it("Cas 7 : 9 rendus / 12 demandes / 15 total → '9 of your 15' (les deux canaux cumules)", () => {
+    // 9 dossiers dans meetings mais 12 demandés et 15 au total. dayTotal
+    // prend le total > cap.
+    const meetings = Array.from({ length: 9 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 12, total_meetings_today: 15,
+        market_trends_brief: [{ title: 'T', content: 'C' }],
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain('9 of your 15 meetings today are prepared here.')
+  })
+
+  it("Cas 8 : 5 rendus / — / — → aucune ligne (brief archive sans les champs, pas d'exception)", () => {
+    const meetings = Array.from({ length: 5 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: { mode: 'meetings_today', meetings },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
+  })
+
+  it("Cas 9 : 9 rendus / 'douze' / — → aucune ligne, jamais de NaN dans l'e-mail", () => {
+    const meetings = Array.from({ length: 9 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 'douze',
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).not.toContain('NaN')
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
+  })
+
+  it("Cas 10 : 9 rendus / -1 / — → aucune ligne (valeur absurde ignoree)", () => {
+    const meetings = Array.from({ length: 9 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: -1,
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).not.toContain('meetings today are prepared here.')
+  })
+
+  it("Cas 11 : 9 rendus / 12 demandes / 10 total → '9 of your 12' (un total non plafonnant garde la semantique 5c-0)", () => {
+    // total=10 n'est PAS > MORNING_BRIEF_MAX_MEETINGS (12), donc
+    // totalAboveCap=null → dayTotal = expected = 12 (pas 10). Le
+    // preserve la semantique 5c-0 : le « total du jour » du 5c-0 ne
+    // s'applique que quand il PLAFONNE.
+    const meetings = Array.from({ length: 9 }, (_, i) => fullMeeting(i + 1))
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_today', meetings,
+        meetings_expected: 12, total_meetings_today: 10,
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.blockMd).toContain('9 of your 12 meetings today are prepared here.')
+    expect(out.blockMd).not.toContain('9 of your 10')
+  })
+
+  it("Cas 12 : Mode C, 11 rendus / 12 demandes / — → '11 of your 12' (l'en-tete Mode C ne compte pas dans rendered)", () => {
+    // Fixture MODE C : l'en-tete meetingsPrepHeader est aussi dans
+    // sections. Si rendered venait de sections.length, la ligne dirait
+    // « 12 of your 12 » et le test rougirait.
+    const meetings = [
+      ...Array.from({ length: 5 }, (_, i) => fullMeeting(i + 1)),
+      emptyMeeting(), // supprime → 11 rendus sur 12 demandes
+      ...Array.from({ length: 6 }, (_, i) => fullMeeting(i + 7)),
+    ]
+    const out = composeMorningBriefBlock({
+      content: {
+        mode: 'meetings_prep', meetings,
+        meetings_expected: 12,
+      },
+      locale: 'en', timeZone: 'UTC',
+    })
+    expect(out).not.toBeNull()
+    if (!out) return
+    expect(out.mode).toBe('C')
+    expect(out.meetingsRendered).toBe(11)
+    expect(out.blockMd).toContain('11 of your 12 meetings today are prepared here.')
+    expect(out.blockMd).not.toContain('12 of your 12')
   })
 })

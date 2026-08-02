@@ -536,7 +536,11 @@ describe('generateMorningBrief — orchestration complète', () => {
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.mode).toBe('B')
-      expect(result.content).toEqual({ mode: 'meetings_today' })
+      // Lot « longueur » : meetings_expected est TOUJOURS pose (le
+      // caractere systematique du champ rend le manque detectable au
+      // rendu et cote cron). Un test qui l'attend conditionnellement
+      // laisserait le canal 1 invisible.
+      expect(result.content).toEqual({ mode: 'meetings_today', meetings_expected: 1 })
     }
     expect(create).toHaveBeenCalledTimes(1)
     expect(create.mock.calls[0][0].max_tokens).toBe(8000)
@@ -742,5 +746,55 @@ describe('generateMorningBrief — orchestration complète', () => {
 
     expect(result).toEqual({ ok: false, reason: 'no_meetings_for_prep' })
     expect(create).not.toHaveBeenCalled()
+  })
+
+  // Lot « longueur » : meetings_expected pose systematiquement, dans les
+  // DEUX modes ou il y a des rendez-vous (B et C). C'est le champ qui rend
+  // le manque detectable.
+
+  it("Mode B : meetings_expected pose sur content = nombre de rendez-vous PASSE au modele (borne par MORNING_BRIEF_MAX_MEETINGS)", async () => {
+    // 15 rendez-vous en base, plafond 12 -> le modele en voit 12, et
+    // meetings_expected doit valoir 12 (le DEMANDE, pas le total du jour).
+    const meetings = Array.from({ length: 15 }, (_, i) => ({
+      meeting_at:     `2026-08-02T${String(9 + Math.floor(i / 2)).padStart(2, '0')}:00:00Z`,
+      duration_min:   30,
+      attendee_name:  `Bob ${i + 1}`,
+      attendee_email: `bob${i + 1}@example.com`,
+      company_name:   `Co ${i + 1}`,
+      notes:          null,
+    }))
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_today","meetings":[]}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+    const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect((result.content as Record<string, unknown>).meetings_expected).toBe(12)
+      // total_meetings_today du lot 5c-0 reste, sa semantique inchangee.
+      expect((result.content as Record<string, unknown>).total_meetings_today).toBe(15)
+    }
+  })
+
+  it("Mode C : meetings_expected pose de la meme facon (kind='meetings_only')", async () => {
+    const meetings = [
+      { meeting_at: '2026-08-02T09:00:00Z', duration_min: 30, attendee_name: 'A', attendee_email: 'a@b.co', company_name: 'C1', notes: null },
+      { meeting_at: '2026-08-02T10:00:00Z', duration_min: 30, attendee_name: 'B', attendee_email: 'b@b.co', company_name: 'C2', notes: null },
+      { meeting_at: '2026-08-02T11:00:00Z', duration_min: 30, attendee_name: 'C', attendee_email: 'c@b.co', company_name: 'C3', notes: null },
+    ]
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_prep","meetings":[]}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+    const result = await generateMorningBrief({
+      admin, client, workspaceId: 'ws-1', kind: 'meetings_only',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.mode).toBe('C')
+      expect((result.content as Record<string, unknown>).meetings_expected).toBe(3)
+    }
   })
 })

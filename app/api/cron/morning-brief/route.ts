@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { cronComplete } from '@/lib/cron-log'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { generateMorningBrief, localInstantUTC } from '@/lib/morning-brief'
-import { composeMorningBriefBlock } from '@/lib/morning-brief-email'
+import { composeMorningBriefBlock, MORNING_BRIEF_MAX_MEETINGS } from '@/lib/morning-brief-email'
 import { sendMorningBriefEmail } from '@/lib/email'
 import { getEmailLocale } from '@/lib/email-templates'
 import { calculateProfileScore } from '@/lib/profile-quality'
@@ -122,6 +122,16 @@ export async function GET(request: Request) {
       empty_content:         0,
       ai_failed:             0,
       ai_truncated:          0,
+      // Lot « longueur » : compte les rendez-vous que le brief a laisses
+      // au bord de la route — modele qui rend N-k dossiers sur N demandes
+      // OU dossier vide a l'assainissement. Incremente UNIQUEMENT sur le
+      // chemin generateur (pas sur resendRow) : le compose du pas 10 tourne
+      // aussi au renvoi (envoi at-least-once) — sans cette garde, le meme
+      // manque serait compte a chaque reveil. Le run generateur passe
+      // TOUJOURS par le pas 10 avant l'INSERT : chaque brief est compte
+      // exactement une fois. Les deux canaux sont separes dans le
+      // console.warn ci-dessous ; ce compteur les cumule.
+      meetings_dropped:      0,
       truncated:             false,
       untreated_count:       0,
       errors:                [] as string[],
@@ -317,6 +327,32 @@ export async function GET(request: Request) {
           // Pas d'insertion : sinon, ligne fantôme visible comme brief vide
           // dans l'archive (l'écran sélectionne la ligne la plus récente).
           continue
+        }
+
+        // Lot « longueur » : compter les rendez-vous perdus, une seule fois
+        // par brief, uniquement sur le chemin generateur (jamais au renvoi
+        // — le compose tourne aussi la, envoi at-least-once). Le
+        // console.warn separe les deux canaux : `expected` (demande au
+        // modele) vs `parsed` (ce que le modele a REELLEMENT renvoye,
+        // plafonne) vs `rendered` (blocs pousses apres assainissement).
+        // Sans les trois nombres, un manque du a l'assainissement serait
+        // attribue a tort a la consigne. PAS de logAiCall : ce n'est pas
+        // un appel modele, l'y meler rendrait ai_call_log faux.
+        if (!resendRow && block.meetingsExpected !== null) {
+          const dropped = Math.max(0, block.meetingsExpected - block.meetingsRendered)
+          if (dropped > 0) {
+            summary.meetings_dropped += dropped
+            const parsedList = (content as { meetings?: unknown } | null)?.meetings
+            const parsed = Array.isArray(parsedList)
+              ? Math.min(parsedList.length, MORNING_BRIEF_MAX_MEETINGS)
+              : 0
+            console.warn('[cron/morning-brief] meetings dropped', {
+              workspace_id: workspaceId,
+              expected: block.meetingsExpected,
+              parsed,
+              rendered: block.meetingsRendered,
+            })
+          }
         }
 
         // 11. INSERT nu (uniquement si pas déjà présent). JAMAIS .upsert() :
