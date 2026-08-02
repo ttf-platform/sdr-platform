@@ -12,6 +12,8 @@ import type { ProfileForScore } from '@/lib/profile-quality'
 // de bornes qui vivait ici, avec son défaut DST déjà corrigé au lot 2 bis.
 import { todayBoundsUTC } from '@/lib/local-day'
 import { normalizeHalfHour, toInputTime } from '@/lib/morning-brief-time'
+import { decideRegen, type TodayMeetingInput } from '@/lib/morning-brief-regen'
+import { Tooltip } from '@/components/Tooltip'
 
 const supabase = createClient()
 
@@ -356,7 +358,11 @@ export default function MorningBriefPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [profile, setProfile] = useState<ProfileForScore | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
-  const [todayMeetingsMeta, setTodayMeetingsMeta] = useState<{ count: number; latestAt: string | null }>({ count: 0, latestAt: null })
+  // Lot 5b-bis : le predicat decideRegen a besoin des DEUX horodatages par
+  // rendez-vous (createdAt + confirmedAt) — cas booking double opt-in ou le
+  // RDV est reserve tot mais confirme plus tard. On charge les deux et on
+  // conserve la liste, plutot que juste count/latestAt.
+  const [todayMeetings, setTodayMeetings] = useState<TodayMeetingInput[]>([])
 
   // Morning Brief delivery settings — persistés depuis le lot 5a. Initialisés
   // à false / '07:30' (les 4 workspaces prod sont à false) puis remplacés par
@@ -423,13 +429,16 @@ export default function MorningBriefPage() {
       catch { bounds = todayBoundsUTC('UTC') }
       const { data: mtgs } = await supabase
         .from('meetings')
-        .select('created_at')
+        .select('created_at, confirmed_at')
         .eq('workspace_id', member.workspace_id)
         .eq('status', 'scheduled')
         .gte('meeting_at', bounds.start.toISOString())
         .lte('meeting_at', bounds.end.toISOString())
         .order('created_at', { ascending: false })
-      setTodayMeetingsMeta({ count: mtgs?.length ?? 0, latestAt: mtgs?.[0]?.created_at ?? null })
+      setTodayMeetings((mtgs ?? []).map(m => ({
+        createdAt:   (m as { created_at: string }).created_at,
+        confirmedAt: ((m as { confirmed_at?: string | null }).confirmed_at) ?? null,
+      })))
     })
   }, [])
 
@@ -442,8 +451,22 @@ export default function MorningBriefPage() {
   const todayStr = profileLoaded
     ? (() => { try { return todayBoundsUTC(tz).dateStr } catch { return todayBoundsUTC('UTC').dateStr } })()
     : ''
-  const todayBrief    = todayStr ? (briefs.find(b => b.brief_date === todayStr) ?? null) : null
-  const briefOutdated = todayMeetingsMeta.count > 0 && (!todayBrief || (todayMeetingsMeta.latestAt !== null && todayBrief.created_at < todayMeetingsMeta.latestAt))
+
+  // Lot 5b-bis : decision de regeneration cote client. Meme module que la
+  // route serveur — celle-ci recalcule et fait autorite (§1.4). Ici c'est
+  // purement pour l'affichage : etat du bouton, motif de l'infobulle,
+  // bandeau contextuel.
+  const todayBriefs         = todayStr ? briefs.filter(b => b.brief_date === todayStr) : []
+  const todayCronRow        = todayBriefs.find(b => b.source === 'cron') ?? null
+  const todayLatestBrief    = todayBriefs[0] ?? null
+  const todayCronEmailedAt  = (todayCronRow?.emailed_at as string | null | undefined) ?? null
+  const todayBriefCreatedAt = (todayLatestBrief?.created_at as string | null | undefined) ?? null
+  const regenDecision = decideRegen({
+    everReceivedBrief:   briefs.length > 0,
+    todayCronEmailedAt,
+    todayBriefCreatedAt,
+    todayMeetings,
+  })
 
   // ── Persistance des réglages (lot 5a). Sérialisation par contrôle : le
   // contrôle concerné est désactivé pendant sa requête, sinon deux bascules
@@ -492,16 +515,22 @@ export default function MorningBriefPage() {
     if (normalized !== lastSavedTimeRef.current) saveTime(normalized)
   }
 
-  const headerBtnLabel = generating ? tBtn('generating')
-    : briefOutdated   ? tBtn('regenerateWithNewMeeting')
-    : todayBrief      ? tBtn('regenerateTodaysBrief')
-    : tBtn('generateTodaysBrief')
-  const emptyBtnLabel = generating ? tBtn('generating')
-    : todayMeetingsMeta.count > 0  ? tBtn('generateTodaysBrief')
+  // Lot 5b-bis : trois issues seulement (§1.3). Le label ne « regenere »
+  // plus rien — le bouton grise et son motif prennent la place.
+  const headerBtnLabel = generating
+    ? tBtn('generating')
+    : regenDecision.enabled && regenDecision.kind === 'meetings_only'
+      ? tBtn('regenerateWithNewMeeting')
+      : tBtn('generateTodaysBrief')
+  const emptyBtnLabel = generating
+    ? tBtn('generating')
     : tBtn('generateFirstBrief')
 
   async function generateBrief() {
-    if (!workspaceId || profileGated) return
+    // Lot 5b-bis : le bouton grise n'appelle pas cette fonction (onClick
+    // conditionnel undefined). Garde defensive tout de meme si un chemin
+    // parallele l'appelait.
+    if (!workspaceId || profileGated || !regenDecision.enabled) return
     setGenerating(true)
     setGenerateError(null)
     try {
@@ -541,13 +570,40 @@ export default function MorningBriefPage() {
         </div>
         {briefs.length > 0 && (
           <div className="flex flex-col items-end gap-1">
-            <button onClick={generateBrief} disabled={generating || profileGated}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 ${briefOutdated ? 'bg-blue-600' : 'bg-[#3b6bef]'}`}>
-              {headerBtnLabel}
-            </button>
-            {briefOutdated && !generating && (
+            {/* Lot 5b-bis §1.3 — bouton grise SANS attribut `disabled`
+                (Tooltip ne s'ouvre pas dessus). Patron
+                settings/page.tsx:61-70 : opacity-50 cursor-not-allowed +
+                onClick conditionnel undefined. `aria-disabled` ajoute pour
+                les technologies d'assistance (premier site du repo).
+                L'attribut `disabled` est reserve au seul cas transitoire
+                `generating`. */}
+            {(() => {
+              const isBusy = generating
+              const isGrey = !regenDecision.enabled && !isBusy
+              const isNewMeeting = regenDecision.enabled && regenDecision.kind === 'meetings_only'
+              const btn = (
+                <button
+                  type="button"
+                  onClick={!isGrey && !isBusy ? generateBrief : undefined}
+                  disabled={isBusy}
+                  aria-disabled={isGrey || undefined}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold text-white ${
+                    isGrey ? 'bg-[#3b6bef] opacity-50 cursor-not-allowed' :
+                    isNewMeeting ? 'bg-blue-600' : 'bg-[#3b6bef]'
+                  } ${isBusy ? 'disabled:opacity-40' : ''}`}
+                >
+                  {headerBtnLabel}
+                </button>
+              )
+              return isGrey
+                ? <Tooltip content={tBtn('noNewMeetingTooltip')}>{btn}</Tooltip>
+                : btn
+            })()}
+            {/* Lot 5b-bis §1.3 : bandeau recable sur regenDecision plutot
+                que sur briefOutdated (supprime). */}
+            {regenDecision.enabled && regenDecision.kind === 'meetings_only' && !generating && (
               <p className="text-xs text-blue-600">
-                ℹ️ {tBtn('meetingsBanner', { count: todayMeetingsMeta.count })}
+                ℹ️ {tBtn('meetingsBanner', { count: todayMeetings.length })}
               </p>
             )}
           </div>
@@ -614,7 +670,13 @@ export default function MorningBriefPage() {
         <div className="flex flex-col gap-6">
           {/* Selected brief */}
           {selected && (
-            selected.content?.mode === 'meetings_today'
+            // Lot 5b-bis : Mode C (`meetings_prep`) est un SOUS-ENSEMBLE
+            // strict du Mode B (memes dossiers de rendez-vous, sans veille
+            // marche). On reutilise MeetingsBrief plutot que de creer un
+            // 3e composant — le rendu doit rester coherent, et le composant
+            // affiche naturellement zero market_trends_brief quand la cle
+            // est absente du content.
+            (selected.content?.mode === 'meetings_today' || selected.content?.mode === 'meetings_prep')
               ? <MeetingsBrief content={selected.content} />
               : selected.content?.mode === 'no_meetings'
                 ? <RichBrief content={selected.content} />
@@ -639,7 +701,10 @@ export default function MorningBriefPage() {
                     <div className="text-sm font-medium text-[#1a1a2e]">{fmtBriefDateShort(b.brief_date)}</div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-[#3b6bef] bg-[#eef1fd] px-1.5 py-0.5 rounded font-medium">
-                        {b.content?.mode === 'meetings_today' ? tArchiveBadge('meetingsDay') : b.content?.mode === 'no_meetings' ? tArchiveBadge('marketIntel') : tArchiveBadge('brief')}
+                        {b.content?.mode === 'meetings_today' ? tArchiveBadge('meetingsDay')
+                          : b.content?.mode === 'meetings_prep' ? tArchiveBadge('meetingsPrep')
+                          : b.content?.mode === 'no_meetings' ? tArchiveBadge('marketIntel')
+                          : tArchiveBadge('brief')}
                       </span>
                     </div>
                   </div>

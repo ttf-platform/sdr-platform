@@ -5,6 +5,8 @@ import { morningBriefGenerateSchema, badRequest } from '@/lib/schemas'
 import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { generateMorningBrief } from '@/lib/morning-brief'
+import { decideRegen } from '@/lib/morning-brief-regen'
+import { todayBoundsUTC } from '@/lib/local-day'
 
 // Lot 5c-0 : le Mode B genere jusqu a 8 000 tokens (12 rendez-vous, pire cas
 // mesure ~6 150), timeout par appel a 240 s. Un maxDuration a 60 s tuerait
@@ -42,7 +44,62 @@ export async function POST(request: Request) {
   const workspace_id = guard.workspaceId
   const admin = createAdminClient()
 
-  const result = await generateMorningBrief({ admin, client, workspaceId: workspace_id })
+  // Lot 5b-bis §1.4 : la route RECALCULE la decision cote serveur avec le
+  // meme module pur qu'utilise le client. On IGNORE explicitement tout
+  // `kind` present dans le corps (le schema Zod ne le declare pas mais
+  // n'est pas .strict()) — le client peut mentir, et un appel modele force
+  // est paye.
+  const [{ data: wp }, { data: allBriefs }] = await Promise.all([
+    admin.from('workspace_profiles').select('booking_config').eq('workspace_id', workspace_id).single(),
+    admin.from('morning_briefs').select('created_at, source, emailed_at, brief_date').eq('workspace_id', workspace_id).order('brief_date', { ascending: false }).order('created_at', { ascending: false }),
+  ])
+  const tz = (wp?.booking_config as { timezone?: string } | null)?.timezone ?? 'UTC'
+  let bounds: { start: Date; end: Date; dateStr: string }
+  try   { bounds = todayBoundsUTC(tz) }
+  catch { bounds = todayBoundsUTC('UTC') }
+
+  const briefs = allBriefs ?? []
+  const everReceivedBrief = briefs.length > 0
+  const todayBriefs = briefs.filter(b => b.brief_date === bounds.dateStr)
+  const todayCron = todayBriefs.find(b => b.source === 'cron')
+  const todayLatest = todayBriefs[0] // tri decroissant sur created_at → le plus recent
+  const todayCronEmailedAt = (todayCron?.emailed_at as string | null | undefined) ?? null
+  const todayBriefCreatedAt = (todayLatest?.created_at as string | null | undefined) ?? null
+
+  const { data: todayMeetings } = await admin
+    .from('meetings')
+    .select('created_at, confirmed_at')
+    .eq('workspace_id', workspace_id)
+    .eq('status', 'scheduled')
+    .gte('meeting_at', bounds.start.toISOString())
+    .lte('meeting_at', bounds.end.toISOString())
+
+  const decision = decideRegen({
+    everReceivedBrief,
+    todayCronEmailedAt,
+    todayBriefCreatedAt,
+    todayMeetings: (todayMeetings ?? []).map(m => ({
+      createdAt:   m.created_at as string,
+      confirmedAt: (m.confirmed_at as string | null | undefined) ?? null,
+    })),
+  })
+
+  if (!decision.enabled) {
+    // 409 (code deja employe dans le repo, app/api/prospect-emails/**) :
+    // ni erreur du client, ni erreur serveur, mais etat qui empeche l'action
+    // ici-maintenant. AUCUN appel modele fait.
+    return NextResponse.json(
+      { error: 'No new meetings to prepare. Come back after booking a new one today.' },
+      { status: 409 }
+    )
+  }
+
+  const result = await generateMorningBrief({
+    admin,
+    client,
+    workspaceId: workspace_id,
+    kind: decision.kind, // 'full' ou 'meetings_only', decide cote serveur.
+  })
 
   if (!result.ok) {
     if (result.reason === 'profile_score_too_low') {
@@ -65,6 +122,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'AI response was cut short. Please try again in a moment.' },
         { status: 500 }
+      )
+    }
+    if (result.reason === 'no_meetings_for_prep') {
+      // Lot 5b-bis : etat impossible en pratique (le predicat serveur
+      // ci-dessus verifie qu'il y a des rendez-vous avant d'appeler avec
+      // kind='meetings_only'). Trace explicitement plutot que de retomber
+      // silencieusement sur ai_unparseable.
+      return NextResponse.json(
+        { error: 'No meetings found for prep. Please refresh and try again.' },
+        { status: 409 }
       )
     }
     // reason === 'ai_unparseable' — derniere branche, exhaustive.
