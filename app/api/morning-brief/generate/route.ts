@@ -6,7 +6,11 @@ import { getAnthropicClient } from '@/lib/anthropic'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 import { generateMorningBrief } from '@/lib/morning-brief'
 
-export const maxDuration = 60
+// Lot 5c-0 : le Mode B genere jusqu a 8 000 tokens (12 rendez-vous, pire cas
+// mesure ~6 150), timeout par appel a 240 s. Un maxDuration a 60 s tuerait
+// la fonction avant l ecriture — le repo utilise deja 300 s pour les crons
+// lourds (auto-scan-signals, reputation-snapshot).
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   // ⚠️ getAnthropicClient() reste appelé AVANT billingGuard, comme historiquement :
@@ -53,7 +57,17 @@ export async function POST(request: Request) {
         { status: 503 }
       )
     }
-    // reason === 'ai_unparseable'
+    if (result.reason === 'ai_truncated') {
+      // Lot 5c-0 : distinct de 'ai_unparseable' (contenu illisible) et de
+      // 'ai_unavailable' (appel echoue). Message generique — cette branche
+      // est quasi inatteignable apres le plafond de 12 rendez-vous + le
+      // max_tokens de 8000, c est un filet de diagnostic.
+      return NextResponse.json(
+        { error: 'AI response was cut short. Please try again in a moment.' },
+        { status: 500 }
+      )
+    }
+    // reason === 'ai_unparseable' — derniere branche, exhaustive.
     return NextResponse.json(
       { error: 'Failed to parse AI response. Please try again.' },
       { status: 500 }

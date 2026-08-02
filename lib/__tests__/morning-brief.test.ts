@@ -441,8 +441,11 @@ function makeAdmin(opts: {
 }
 
 function makeClient(msg: {
-  content: Array<{ type: string; text?: string }>
-  usage?:  { input_tokens?: number; output_tokens?: number }
+  content:      Array<{ type: string; text?: string }>
+  usage?:       { input_tokens?: number; output_tokens?: number }
+  // Lot 5c-0 : ajoute pour couvrir le nouveau champ inspecte par
+  // generateMorningBrief (branche 'ai_truncated').
+  stop_reason?: string
 }): { client: Anthropic; create: ReturnType<typeof vi.fn> } {
   const create = vi.fn().mockResolvedValue(msg)
   const client = { messages: { create } } as unknown as Anthropic
@@ -536,7 +539,44 @@ describe('generateMorningBrief — orchestration complète', () => {
       expect(result.content).toEqual({ mode: 'meetings_today' })
     }
     expect(create).toHaveBeenCalledTimes(1)
-    expect(create.mock.calls[0][0].max_tokens).toBe(2500)
+    expect(create.mock.calls[0][0].max_tokens).toBe(8000)
+  })
+
+  it("Mode B : appel porte { timeout: 240_000, maxRetries: 0 } en second argument (surcharge par appel, jamais sur le singleton)", async () => {
+    const meetings = [{
+      meeting_at:     new Date().toISOString(),
+      duration_min:   30,
+      attendee_name:  'Bob',
+      attendee_email: 'bob@example.com',
+      company_name:   'Co',
+      notes:          null,
+    }]
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client, create } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_today"}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+    await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    expect(create.mock.calls[0][1]).toEqual({ timeout: 240_000, maxRetries: 0 })
+  })
+
+  it("Mode B : stop_reason='max_tokens' AVEC JSON parfaitement VALIDE → 'ai_truncated' (borne qui prouve que le test porte sur stop_reason, pas sur la forme du texte)", async () => {
+    const meetings = [{
+      meeting_at:     new Date().toISOString(),
+      duration_min:   30,
+      attendee_name:  'Bob',
+      attendee_email: 'bob@example.com',
+      company_name:   'Co',
+      notes:          null,
+    }]
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client } = makeClient({
+      content:     [{ type: 'text', text: '{"mode":"meetings_today","meetings":[]}' }],
+      usage:       { input_tokens: 100, output_tokens: 200 },
+      stop_reason: 'max_tokens',
+    })
+    const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    expect(result).toEqual({ ok: false, reason: 'ai_truncated' })
   })
 
   it("appel modèle qui jette : rend ai_unavailable avec detail", async () => {
@@ -548,7 +588,7 @@ describe('generateMorningBrief — orchestration complète', () => {
     expect(result).toEqual({ ok: false, reason: 'ai_unavailable', detail: 'boom' })
   })
 
-  it("réponse illisible : rend ai_unparseable (le JSON.parse reste hors du try messages.create)", async () => {
+  it("réponse illisible SANS stop_reason : rend ai_unparseable (non-régression — la 4e variante 'ai_truncated' ne doit pas manger celle-ci)", async () => {
     const admin = makeAdmin({ profile: { data: RICH_PROFILE } })
     const { client } = makeClient({
       // extractJsonObject('prefix {not: valid} tail') = '{not: valid}' → JSON.parse jette.
@@ -559,6 +599,79 @@ describe('generateMorningBrief — orchestration complète', () => {
     const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
 
     expect(result).toEqual({ ok: false, reason: 'ai_unparseable' })
+  })
+
+  it("Mode B : 15 rendez-vous en base → buildPromptB en voit EXACTEMENT 12, et les six interpolations disent 12", async () => {
+    // On simule 15 rendez-vous. Le prompt qui atteint le modele doit citer
+    // « 12 meetings » aux six sites, et le tableau qu on lui donne doit
+    // contenir 12 elements. Le total (15) est prescrit pour survivre a
+    // travers content.total_meetings_today (couvert par le test suivant).
+    const meetings = Array.from({ length: 15 }, (_, i) => ({
+      meeting_at:     `2026-08-02T${String(9 + Math.floor(i / 2)).padStart(2, '0')}:00:00Z`,
+      duration_min:   30,
+      attendee_name:  `Bob ${i + 1}`,
+      attendee_email: `bob${i + 1}@example.com`,
+      company_name:   `Co ${i + 1}`,
+      notes:          null,
+    }))
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client, create } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_today"}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+    await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    const prompt = create.mock.calls[0][0].messages[0].content as string
+    // Six interpolations de meetings.length : trois lignes citent le nombre,
+    // certaines deux fois — on compte les occurrences de la phrase-clef.
+    expect(prompt).toContain('12 meeting')
+    // Le 13e bloc « Meeting 13: » ne doit PAS apparaitre — on a coupe a 12.
+    expect(prompt).toContain('Meeting 12:')
+    expect(prompt).not.toContain('Meeting 13:')
+    // Le prompt ne doit contenir NULLE PART « 15 meeting » (le total ne
+    // fuit pas dans la consigne — il voyage par content.total_meetings_today).
+    expect(prompt).not.toContain('15 meeting')
+  })
+
+  it("Mode B : 15 rendez-vous → content.total_meetings_today est pose a 15 (l information voyage DANS content pour survivre a l INSERT et au renvoi)", async () => {
+    const meetings = Array.from({ length: 15 }, (_, i) => ({
+      meeting_at:     `2026-08-02T${String(9 + Math.floor(i / 2)).padStart(2, '0')}:00:00Z`,
+      duration_min:   30,
+      attendee_name:  `Bob ${i + 1}`,
+      attendee_email: `bob${i + 1}@example.com`,
+      company_name:   `Co ${i + 1}`,
+      notes:          null,
+    }))
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_today","meetings":[]}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+    const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect((result.content as Record<string, unknown>).total_meetings_today).toBe(15)
+    }
+  })
+
+  it("Mode B : 12 rendez-vous (limite exacte, PAS de troncature) → total_meetings_today ABSENT (borne stricte)", async () => {
+    const meetings = Array.from({ length: 12 }, (_, i) => ({
+      meeting_at:     `2026-08-02T${String(9 + Math.floor(i / 2)).padStart(2, '0')}:00:00Z`,
+      duration_min:   30,
+      attendee_name:  `Bob ${i + 1}`,
+      attendee_email: `bob${i + 1}@example.com`,
+      company_name:   `Co ${i + 1}`,
+      notes:          null,
+    }))
+    const admin = makeAdmin({ profile: { data: RICH_PROFILE }, meetings: { data: meetings } })
+    const { client } = makeClient({
+      content: [{ type: 'text', text: '{"mode":"meetings_today","meetings":[]}' }],
+      usage:   { input_tokens: 100, output_tokens: 200 },
+    })
+    const result = await generateMorningBrief({ admin, client, workspaceId: 'ws-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect((result.content as Record<string, unknown>).total_meetings_today).toBeUndefined()
+    }
   })
 
   it("firstName : lu depuis user_metadata.full_name (premier prénom), 'there' à défaut", async () => {

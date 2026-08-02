@@ -37,6 +37,12 @@ export type MorningBriefEmailBlock = {
   mode:    'A' | 'B'
 }
 
+// Plafond produit : un brief prepare au maximum 12 rendez-vous. Au-dela,
+// l e-mail serait illisible et la sortie du modele depasserait son plafond
+// (mesure : ~500 tokens par rendez-vous). Le plafond s applique A LA
+// GENERATION (on ne paie pas ce qu on jettera) et au rendu (ceinture).
+export const MORNING_BRIEF_MAX_MEETINGS = 12
+
 type Locale = 'en' | 'fr'
 
 // Labels are inlined here rather than pulled from next-intl on purpose :
@@ -46,23 +52,29 @@ type Locale = 'en' | 'fr'
 // Three labels — Angle, contacts, min — are intentionally identical in
 // both locales ; test T7 excludes them from the cross-language assertion.
 // No emojis (no email template in this repo carries one).
+// Notes de choix, lot 5c-0 :
+//   1. `truncationNotice` est une FONCTION (n: number) => string au lieu d une
+//      chaine plate a interpoler : la valeur doit varier avec N, et une
+//      fonction est plus lisible et plus safe qu un .replace('{n}', N)
+//      (aucun risque de laisser la sequence brute dans l e-mail si N est 0).
 const LABELS: Record<Locale, {
-  focus:       string
-  trends:      string
-  landscape:   string
-  ideas:       string
-  persona:     string
-  angle:       string
-  whyNow:      string
-  contacts:    string
-  meeting:     string
-  overview:    string
-  pains:       string
-  talking:     string
-  questions:   string
-  signal:      string
-  opportunity: string
-  min:         string
+  focus:            string
+  trends:           string
+  landscape:        string
+  ideas:            string
+  persona:          string
+  angle:            string
+  whyNow:           string
+  contacts:         string
+  meeting:          string
+  overview:         string
+  pains:            string
+  talking:          string
+  questions:        string
+  signal:           string
+  opportunity:      string
+  min:              string
+  truncationNotice: (total: number, shown: number) => string
 }> = {
   en: {
     focus:       "Today's focus",
@@ -81,6 +93,8 @@ const LABELS: Record<Locale, {
     signal:      'Quick market signal',
     opportunity: 'Opportunity',
     min:         'min',
+    truncationNotice: (total, shown) =>
+      `The first ${shown} meetings are prepared here; you have ${total} in total today.`,
   },
   fr: {
     focus:       'Priorité du jour',
@@ -99,6 +113,8 @@ const LABELS: Record<Locale, {
     signal:      'Signal marché rapide',
     opportunity: 'Opportunité',
     min:         'min',
+    truncationNotice: (total, shown) =>
+      `Les ${shown} premiers rendez-vous sont préparés ici ; vous en avez ${total} au total aujourd'hui.`,
   },
 }
 
@@ -363,7 +379,7 @@ export function composeMorningBriefBlock(args: {
     const ideasSection = section(LABELS[l].ideas, ideas)
     if (ideasSection) sections.push(ideasSection)
   } else {
-    const meetings = Array.isArray(rec.meetings) ? rec.meetings.slice(0, 12) : []
+    const meetings = Array.isArray(rec.meetings) ? rec.meetings.slice(0, MORNING_BRIEF_MAX_MEETINGS) : []
     for (let i = 0; i < meetings.length; i++) {
       const mBlock = meetingBlock(meetings[i], i + 1, l, timeZone)
       if (mBlock) sections.push(mBlock)
@@ -371,6 +387,22 @@ export function composeMorningBriefBlock(args: {
     const mtb = marketTrendsBullets(rec.market_trends_brief, 3)
     const mtbSection = section(LABELS[l].signal, mtb)
     if (mtbSection) sections.push(mtbSection)
+
+    // Ligne d avertissement de troncature — Mode B UNIQUEMENT, et seulement
+    // si au moins une autre section survit (§1.2(c) point 2). Sinon un
+    // content degenere produirait un e-mail reduit a son avertissement.
+    // Le champ total_meetings_today est ajoute par generateMorningBrief
+    // uniquement quand totalMeetings > MORNING_BRIEF_MAX_MEETINGS. Un
+    // brief archive sans le champ (ecrit avant ce lot) ne rend rien —
+    // borne stricte a 13 : a 12 aucune ligne, a 13 la ligne apparait.
+    const totalMeetings = typeof rec.total_meetings_today === 'number'
+      && Number.isFinite(rec.total_meetings_today)
+      && rec.total_meetings_today > MORNING_BRIEF_MAX_MEETINGS
+      ? rec.total_meetings_today
+      : null
+    if (totalMeetings !== null && sections.length > 0) {
+      sections.push(LABELS[l].truncationNotice(totalMeetings, MORNING_BRIEF_MAX_MEETINGS))
+    }
   }
 
   if (sections.length === 0) return null
