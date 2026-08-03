@@ -115,21 +115,42 @@ for (let h = 0; h < 24; h++) {
   }
 }
 
-describe("balayage 44 fuseaux × 9 jours × 48 hhmm — invariants seuls", () => {
+describe("balayage 44 fuseaux x 9 jours x 48 hhmm — invariants seuls", () => {
+  // Un `it` PAR FUSEAU (44 x 432 combinaisons) et non un `it` unique :
+  // le `it` unique dure ~5 s et depassait le delai par defaut de vitest
+  // (5 s) de facon INTERMITTENTE — mesure : 4 echecs sur 5 runs. Le
+  // decoupage par fuseau ramene chaque test a ~200 ms (marge 24x) sans
+  // delai explicite a maintenir, ET nomme le fuseau fautif dans le titre.
   for (const tz of TIMEZONES) {
-    for (const day of SWEEP_DAYS) {
-      for (const hhmm of SWEEP_HHMM) {
-        it(`${tz} ${day} ${hhmm}`, () => {
+    it(`${tz} — aucune exception, sinceISO parseable, sinceISO <= emailed_at (432 combinaisons)`, () => {
+      const failures: string[] = []
+      let combos = 0
+      for (const day of SWEEP_DAYS) {
+        for (const hhmm of SWEEP_HHMM) {
+          combos++
           const emailedAt = `${day}T12:00:00.000Z`
           const emailedMs = Date.parse(emailedAt)
           const deadline  = new Date(emailedMs + 86_400_000)
           const anchor: BriefAnchorRow = { emailed_at: emailedAt, brief_date: day }
-          const out = computeSinceISO({ deadline, timezone: tz, briefTime: `${hhmm}:00`, anchor })
+          let out: string
+          try { out = computeSinceISO({ deadline, timezone: tz, briefTime: `${hhmm}:00`, anchor }) }
+          catch (e) { failures.push(`${tz} ${day} ${hhmm} EXCEPTION ${e}`); continue }
           const outMs = Date.parse(out)
-          expect(Number.isFinite(outMs)).toBe(true)
-          expect(outMs).toBeLessThanOrEqual(emailedMs)
-        })
+          if (!Number.isFinite(outMs))   failures.push(`${tz} ${day} ${hhmm} NaN -> ${out}`)
+          else if (outMs > emailedMs)    failures.push(`${tz} ${day} ${hhmm} ${out} > ${emailedAt}`)
+        }
       }
-    }
+      expect(combos).toBe(432)
+      expect(failures.slice(0, 10)).toEqual([])
+    })
   }
+})
+
+// Garde-fou : un TIMEZONES vide ferait passer un balayage a zero `it` en
+// silence. Mesure a la source : 44 entrees.
+describe("balayage — le corpus lui-meme", () => {
+  it("44 fuseaux x 9 jours x 48 hhmm = 19 008 combinaisons", () => {
+    expect(TIMEZONES.length).toBe(44)
+    expect(SWEEP_DAYS.length * SWEEP_HHMM.length).toBe(432)
+  })
 })
