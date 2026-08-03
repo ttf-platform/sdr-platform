@@ -1171,19 +1171,20 @@ describe('LOT C1a — appBaseUrl absent ou vide → aucun lien emis', () => {
   })
 })
 
-// ─── Parenthese fermante dans une URL — constat du comportement ──────────
+// ─── Parenthese fermante dans une URL — encodage %28/%29, lien conserve
 //
-// Le moteur `renderEmailMarkdown` (interdit dans ce lot) tronque
-// `[libelle](https://x.example/A_(b))` au premier `)`. On CONSTATE ce
-// comportement pour qu'il soit repris au lot C2 — pas de correctif ici.
+// Correctif C1a-1 : avant, une URL contenant `)` etait tronquee au premier
+// `)` par la regex globale d'ancre du moteur (`\]\(([^)]+)\)`). Maintenant
+// on encode `(` et `)` en `%28`/`%29` a l'emission — les URLs legitimes
+// (Wikipedia par exemple) gardent leur lien intact.
 
-describe('LOT C1a — sourceUrl avec `)` : constat (correction reportee au C2)', () => {
-  it('sourceUrl contient une parenthese → href tronque au premier `)` par le moteur', () => {
+describe('LOT C1a — sourceUrl avec `)` : lien conserve, parentheses encodees', () => {
+  it("Wikipedia (Foo_(bar)) → href encode en Foo_%28bar%29, ancre conservee, hote = en.wikipedia.org", () => {
     const payload = emptyPayload({
       signals: [{
         prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
         signalName: 'Hiring', signalData: {},
-        sourceUrl: 'https://x.example/A_(b)',
+        sourceUrl: 'https://en.wikipedia.org/wiki/Foo_(bar)',
         prospectName: 'Alice', prospectCompany: 'Acme',
         href: '/dashboard/signals',
       }],
@@ -1191,16 +1192,112 @@ describe('LOT C1a — sourceUrl avec `)` : constat (correction reportee au C2)',
       isEmpty: false,
     })
     const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
-    // Le blockMd contient l'URL complete (nous la produisons brute).
-    expect(out.blockMd).toContain('https://x.example/A_(b)')
-    // Mais le rendu HTML tronque au premier `)` — comportement du moteur.
     const html = renderEmailMarkdown(out.blockMd)
-    const sourceMatch = html.match(/href="(https:\/\/x\.example[^"]*)"/)
-    expect(sourceMatch).not.toBeNull()
-    if (sourceMatch) {
-      // Le moteur coupe au premier `)` : href = 'https://x.example/A_(b'
-      expect(sourceMatch[1]).toBe('https://x.example/A_(b')
+    // Assertion sur l'HOTE : c'est la seule cible qui compte cote securite.
+    const hosts = [...html.matchAll(/href="([^"]*)"/g)]
+      .map(m => { try { return new URL(m[1]).host } catch { return 'INVALIDE' } })
+    expect(hosts).toContain('en.wikipedia.org')
+    // Assertion exacte du href encode.
+    const wiki = html.match(/href="(https:\/\/en\.wikipedia\.org[^"]*)"/)
+    expect(wiki).not.toBeNull()
+    if (wiki) expect(wiki[1]).toBe('https://en.wikipedia.org/wiki/Foo_%28bar%29')
+  })
+})
+
+// ─── Injection via sourceUrl : DEUX cas ──────────────────────────────────
+//
+// Correctif C1a-1 : la surface est reelle — prospect_signals.source_url
+// est ecrite par le cron auto-scan-signals a partir de sortie LLM sur des
+// pages scrapees (prompt-injection possible). Verrous :
+//   (1) avec crochets → l'URL est REJETEE (aucun anchor de source).
+//   (2) sans crochets → une ancre de source SURVIT, mais son HOTE est
+//       ok.example, pas evil.example (celui-ci n'est qu'un morceau de
+//       chemin sur ok.example).
+
+// Helper — assertions portent sur l'HOTE, jamais sur le contenu brut du
+// href : evil.example dans un path est sans consequence, seule la
+// destination reelle compte.
+const hostsOf = (html: string): string[] =>
+  [...html.matchAll(/href="([^"]*)"/g)]
+    .map(m => { try { return new URL(m[1]).host } catch { return 'INVALIDE' } })
+
+describe("LOT C1a — sourceUrl hostile : injection d'ancre tierce impossible", () => {
+  it("avec crochets 'https://ok.example/a)[Cliquez ici](https://evil.example' → URL rejetee, seule ancre interne survit", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'https://ok.example/a)[Cliquez ici](https://evil.example',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    const html = renderEmailMarkdown(out.blockMd)
+    // L'URL est rejetee par UNSAFE_IN_URL (contient `[` et `]`) : seule
+    // l'ancre interne du prospect survit.
+    expect(hostsOf(html)).toEqual(['app.mirvo.ai'])
+  })
+
+  it("sans crochets 'https://ok.example/a)https://evil.example' → ancre source vers ok.example (pas evil)", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'https://ok.example/a)https://evil.example',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    const html = renderEmailMarkdown(out.blockMd)
+    const hosts = hostsOf(html)
+    // Deux ancres : le prospect (app.mirvo.ai) + la source (ok.example).
+    // evil.example NE DOIT PAS apparaitre comme HOTE — c'est le piege.
+    expect(hosts).toEqual(['app.mirvo.ai', 'ok.example'])
+    expect(hosts).not.toContain('evil.example')
+  })
+})
+
+// ─── Balayage : 100 caracteres, aucun ne doit produire d'ancre tierce ────
+//
+// Un `it` unique avec boucle interne (patron verrouille au lot B) : sans
+// ca, 100 tests distincts pour un raisonnement qui tient en une phrase.
+// Les 5 non-ASCII (FF08, FF09, FE5A, 00A0, 2029) verrouillent le fait que
+// la regex d'ancre du moteur n'accepte que les parentheses ASCII —
+// balaye tout le plan multilingue de base sans iterer 65 000 valeurs.
+
+describe('LOT C1a — sourceUrl : balayage adversarial de 100 caracteres', () => {
+  it('ASCII 32-126 + parentheses pleine chasse + NBSP + U+2029 → aucun hote tiers', () => {
+    const codes: number[] = []
+    for (let c = 32; c <= 126; c++) codes.push(c)
+    codes.push(0xFF08, 0xFF09, 0xFE5A, 0x00A0, 0x2029)
+    const exploitable: string[] = []
+    for (const code of codes) {
+      const car = String.fromCodePoint(code)
+      const payload = emptyPayload({
+        signals: [{
+          prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+          signalName: 'Hiring', signalData: {},
+          sourceUrl: `https://ok.example/a${car}[X](https://evil.example`,
+          prospectName: 'Alice', prospectCompany: 'Acme',
+          href: '/dashboard/signals',
+        }],
+        totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+        isEmpty: false,
+      })
+      const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+      const html = renderEmailMarkdown(out.blockMd)
+      if (hostsOf(html).includes('evil.example')) {
+        exploitable.push(`code=0x${code.toString(16).toUpperCase()} (« ${car} »)`)
+      }
     }
+    expect(codes.length).toBe(100)
+    expect(exploitable).toEqual([])
   })
 })
 

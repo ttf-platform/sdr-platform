@@ -509,22 +509,40 @@ export function renderPayloadBlocks(args: {
   // couperait les URLs qui contiennent des parentheses. safeExternalHref
   // est la seconde ceinture (`javascript:` / `data:` perdent leur ancre).
   //
-  // 🔴 Rejet des caracteres de controle (`\x00-\x1F\x7F`) : sourceUrl est
-  // ecrite brute par le scanner AI a partir de sortie LLM sur des pages
-  // scrapees (surface de prompt-injection). Un `\n\n[phish](https://…)`
-  // interpole tel quel casserait le bloc markdown en DEUX blocs distincts —
-  // le second passerait par la regex d'ancre de renderEmailMarkdown et
-  // produirait une ancre attaquant dans un e-mail signe par le domaine.
-  // Les URLs legitimes ne contiennent JAMAIS de caractere de controle (RFC).
-  const CONTROL_CHARS = /[\x00-\x1F\x7F]/
+  // 🔴 Caracteres INTERDITS dans une sourceUrl — c'est (a), la SECURITE.
+  // sourceUrl est ecrite brute par le scanner AI a partir de sortie LLM
+  // sur des pages scrapees (surface de prompt-injection).
+  //   - controle (\x00-\x1F\x7F) : un \n\n casse le bloc markdown en deux
+  //     et le second bloc est reparse (trouve par /security-review C1a).
+  //   - [ ] : la regex d'ancre de renderEmailMarkdown est GLOBALE et exige
+  //     `[libelle](url)`. SANS CROCHETS, AUCUNE SECONDE ANCRE N'EST
+  //     CONSTRUCTIBLE — c'est ca, et ca seul, qui ferme la surface ouverte
+  //     par le `)` de `[Source](https://ok.example/a)[Cliquez ici](…)`.
+  //     Mesure : balayage de 100 caracteres (ASCII 32-126 plus parentheses
+  //     pleine chasse U+FF08/U+FF09/U+FE5A, NBSP, U+2029) — aucun ne
+  //     produit d'ancre vers un hote tiers apres le correctif.
+  //   - espaces : aucune URL legitime n'en contient.
+  const UNSAFE_IN_URL = /[\x00-\x1F\x7F\[\]\s]/
   const isHttpUrl = (url: unknown): url is string =>
     typeof url === 'string'
     && (url.startsWith('http://') || url.startsWith('https://'))
-    && !CONTROL_CHARS.test(url)
+    && !UNSAFE_IN_URL.test(url)
+
+  // 🔴 (b) Encodage des parentheses — c'est la QUALITE, pas la securite.
+  // Sans lui, `https://en.wikipedia.org/wiki/Foo_(bar)` voit son href
+  // tronque au premier `)` par la regex globale d'ancre du moteur : lien
+  // mort. On n'encode QUE `(` et `)` — appliquer un encodage complet sur
+  // l'URL entiere casserait `?`, `&`, `#`, `/` legitimes. Applique a
+  // externalLink SEULEMENT : les href internes de linkTo sont des
+  // litteraux codes en dur dans lib/brief-payload.ts, jamais derives de
+  // donnees tierces (a rouvrir le jour ou un href deviendrait dynamique).
+  const encodeParens = (url: string): string =>
+    url.replace(/\(/g, '%28').replace(/\)/g, '%29')
+
   const externalLink = (label: string, url: unknown): string => {
     if (!label) return ''
     if (!isHttpUrl(url)) return label
-    return `[${label}](${url})`
+    return `[${label}](${encodeParens(url)})`
   }
 
   // 1. Ligne de tete — trois totals en gras. PAS les .length (les
