@@ -915,3 +915,524 @@ describe('Lot « longueur » — regle unique X sur Y (12 cas, contrat)', () => 
     expect(out.blockMd).not.toContain('12 of your 12')
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT C1a — renderPayloadBlocks + non-regression golden
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Verrouille : (a) le rendu des 6 blocs du payload reel, (b) la surete des
+// liens (jamais nu, safeExternalHref est une SECONDE ceinture), (c) la
+// totalite (aucune exception), (d) `sections` = texte pur, (e) l'absence
+// de regression sur les briefs actuels (fixture generee sur l'arbre
+// PROPRE a 98605c7f — voir gate 8 du brief).
+
+import { renderPayloadBlocks } from '../morning-brief-email'
+import type { BriefPayload } from '../brief-payload'
+import golden from './__fixtures__/brief-block-golden.json'
+
+const APP_URL = 'https://app.mirvo.ai'
+
+// Payload minimal — chaque test l'etend selon son besoin.
+function emptyPayload(over: Partial<BriefPayload> = {}): BriefPayload {
+  return {
+    workspaceId:    'ws-1',
+    generatedAt:    '2026-08-03T05:30:00Z',
+    hotReplies:     [],
+    meetings:       [],
+    pending:        [],
+    signals:        [],
+    deliverability: [],
+    suggestion:     null,
+    totals: {
+      hotReplies:               0,
+      meetings:                 0,
+      pending:                  0,
+      signals:                  0,
+      deliverability:           0,
+      deliverabilityTriggering: 0,
+    },
+    isEmpty:  true,
+    hadError: false,
+    errors:   [],
+    ...over,
+  }
+}
+
+// ─── Golden — briefs existants NE CHANGENT PAS ───────────────────────────
+//
+// Le fichier `__fixtures__/brief-block-golden.json` a ete genere sur
+// l'arbre propre a 98605c7f avec un test jetable qui a `console.log` le
+// JSON des 6 chaines `blockMd` produites par la fonction NON modifiee.
+// Sans content.payload, le nouveau code doit rendre EXACTEMENT les memes
+// chaines (a l'octet pres).
+
+describe('LOT C1a — pas de regression sur les briefs existants (golden)', () => {
+  const CONTENT_A = {
+    mode: 'no_meetings',
+    intro: 'Voici le focus de ta journee.',
+    today_focus: {
+      title: 'Prospecter le segment PME 20-50',
+      rationale: 'Cycles courts et decideurs accessibles cette semaine.',
+    },
+    market_trends: [
+      { title: 'CRM regional', content: 'Trois nouveaux entrants sur ton segment.' },
+      { title: 'Hausse des budgets Q4', content: 'Signaux BANT plus faciles a qualifier.' },
+    ],
+    competitive_landscape: [
+      { competitor_type: 'Legacy', what_they_do: 'CRM lourd', positioning_opportunity: "Vitesse d'onboarding" },
+    ],
+    campaign_ideas: [
+      { name: 'Cold email PME', target_persona: 'Founder', angle: 'Time-to-value', why_now: "Fin d'annee", estimated_contacts: 240 },
+    ],
+  }
+  const CONTENT_B = {
+    mode: 'meetings_today',
+    intro: "Trois rendez-vous aujourd'hui.",
+    meetings: [
+      {
+        meeting_at: '2026-08-03T09:00:00Z',
+        duration_min: 30,
+        attendee_name: 'Alice Wonderland',
+        company_name: 'Acme SA',
+        attendee_email: 'alice@acme.example',
+        company_overview: 'Acme fabrique des widgets pour PME.',
+        likely_pain_points: ['Onboarding lent', 'Reporting manuel'],
+        talking_points: ['ROI en 30 jours', 'Integration Zapier'],
+        discovery_questions: ['Combien de reps ?', 'Stack CRM actuel ?'],
+      },
+    ],
+    market_trends_brief: [{ title: 'Segment PME', content: 'Trois nouveaux entrants.' }],
+  }
+  const CONTENT_C = {
+    mode: 'meetings_prep',
+    intro: 'Preparation mise a jour.',
+    meetings: [
+      {
+        meeting_at: '2026-08-03T14:30:00Z',
+        duration_min: 45,
+        attendee_name: 'Bob Builder',
+        company_name: 'Widgets Corp',
+        attendee_email: 'bob@widgets.example',
+        company_overview: 'Widgets Corp distribue des composants electroniques.',
+        likely_pain_points: ['Marge en baisse'],
+        talking_points: ['Automatisation'],
+        discovery_questions: ['Croissance actuelle ?'],
+      },
+    ],
+    meetings_expected: 1,
+  }
+  const CASES: Array<[keyof typeof golden, unknown, 'en' | 'fr']> = [
+    ['A_en', CONTENT_A, 'en'], ['A_fr', CONTENT_A, 'fr'],
+    ['B_en', CONTENT_B, 'en'], ['B_fr', CONTENT_B, 'fr'],
+    ['C_en', CONTENT_C, 'en'], ['C_fr', CONTENT_C, 'fr'],
+  ]
+  for (const [key, content, locale] of CASES) {
+    it(`${key} : blockMd inchange (fixture 98605c7f)`, () => {
+      const out = composeMorningBriefBlock({ content, locale, timeZone: 'UTC' })
+      expect(out).not.toBeNull()
+      expect(out?.blockMd).toBe(golden[key])
+    })
+  }
+})
+
+// ─── Injection — s() detruit les markdown-tokens des valeurs du payload ─
+describe('LOT C1a — injection : s() detruit `](` dans les valeurs, aucun `<a>` non voulu', () => {
+  it('fromName, subject et signalName hostiles → aucun `](` supplementaire dans blockMd', () => {
+    const payload = emptyPayload({
+      hotReplies: [{
+        threadId: 't', messageId: 'm', fromName: 'Alice [x](y)', fromEmail: 'a@b.co',
+        subject: 'Re: **demo**', preview: '', receivedAt: '2026-08-02T06:00:00Z',
+        sentiment: 'positive', href: '/dashboard/inbox',
+      }],
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: '[clic](http://mechant.example)', signalData: {},
+        sourceUrl: null, prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 1, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    // Exactement UN `](` par element (celui que la fonction construit) :
+    // 1 pour hotReply + 1 pour signal = 2. Aucun surplus injecte.
+    const bracketPairs = (out.blockMd.match(/\]\(/g) ?? []).length
+    expect(bracketPairs).toBe(2)
+    // Rendu HTML : un seul <a href> par element (2 elements → 2 hrefs), tous
+    // pointant sur l'URL construite. Le texte « mechant.example » PEUT rester
+    // dans le body (echape en texte pur par escapeHtml, non-clickable), MAIS
+    // aucun `href` ne doit pointer dessus.
+    const html = renderEmailMarkdown(out.blockMd)
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1])
+    expect(hrefs).toHaveLength(2)
+    expect(hrefs.every(h => h.startsWith(APP_URL))).toBe(true)
+    expect(hrefs.some(h => h.includes('mechant.example'))).toBe(false)
+  })
+})
+
+// ─── sourceUrl hostile — javascript:/data: perd son ancre ────────────────
+describe('LOT C1a — sourceUrl hostile', () => {
+  it("javascript:alert(1) → aucune ancre dans le HTML rendu (safeExternalHref)", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'javascript:alert(1)',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    // renderPayloadBlocks n'emet PAS d'ancre pour un sourceUrl non-http(s) —
+    // c'est la premiere ceinture. On verifie aussi la seconde (safeExternalHref
+    // au rendu) : le libelle « Source » ne doit pas ressortir en <a>.
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    expect(out.blockMd).not.toContain('javascript:')
+    expect(out.blockMd).not.toContain('](Source')
+    const html = renderEmailMarkdown(out.blockMd)
+    expect(html).not.toContain('javascript:')
+    // Une seule ancre (la prospect → /dashboard/signals), pas de « Source ».
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1])
+    expect(hrefs).toHaveLength(1)
+    expect(hrefs[0]).toBe(`${APP_URL}/dashboard/signals`)
+  })
+})
+
+// ─── sourceUrl avec newline (prompt-injection) → aucune ancre ────────────
+describe('LOT C1a — sourceUrl avec newline : anti-smuggling', () => {
+  it("sourceUrl 'https://ok\\n\\n[phish](https://mechant)' → aucune ancre phish dans le HTML", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'https://ok.example\n\n[phish](https://mechant.example)',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    const html = renderEmailMarkdown(out.blockMd)
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1])
+    // AUCUN href ne pointe vers mechant.example
+    expect(hrefs.some(h => h.includes('mechant.example'))).toBe(false)
+    // Le sourceUrl a caractere de controle est rejete par isHttpUrl :
+    // pas d'ancre « Source » emise, seule reste l'ancre du prospect.
+    expect(hrefs).toHaveLength(1)
+    expect(hrefs[0]).toBe(`${APP_URL}/dashboard/signals`)
+  })
+})
+
+// ─── href non relatif — aucun lien, libelle seul ─────────────────────────
+describe('LOT C1a — href non relatif', () => {
+  it("href = 'https://mechant.example/x' → aucun lien, libelle seul", () => {
+    const payload = emptyPayload({
+      hotReplies: [{
+        threadId: 't', messageId: 'm', fromName: 'Alice', fromEmail: 'a@b.co',
+        subject: 'Re: demo', preview: '', receivedAt: '2026-08-02T06:00:00Z',
+        sentiment: 'positive',
+        href: 'https://mechant.example/x' as string,
+      }],
+      totals: { hotReplies: 1, meetings: 0, pending: 0, signals: 0, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    expect(out.blockMd).not.toContain('mechant.example')
+    expect(out.blockMd).not.toContain('](')
+    // Le libelle est present.
+    expect(out.blockMd).toContain('Alice')
+  })
+})
+
+// ─── appBaseUrl absent OU vide — aucun lien ──────────────────────────────
+describe('LOT C1a — appBaseUrl absent ou vide → aucun lien emis', () => {
+  const payload = emptyPayload({
+    hotReplies: [{
+      threadId: 't', messageId: 'm', fromName: 'Alice', fromEmail: 'a@b.co',
+      subject: 'Re: demo', preview: '', receivedAt: '2026-08-02T06:00:00Z',
+      sentiment: 'positive', href: '/dashboard/inbox',
+    }],
+    totals: { hotReplies: 1, meetings: 0, pending: 0, signals: 0, deliverability: 0, deliverabilityTriggering: 0 },
+    isEmpty: false,
+  })
+
+  it('argument appBaseUrl omis → pas de `](` dans blockMd, aucune exception', () => {
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC' })
+    expect(out.blockMd).not.toContain('](')
+    expect(out.blockMd).toContain('Alice')
+  })
+
+  it("appBaseUrl: '' → pas de `](` dans blockMd, aucune exception", () => {
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: '' })
+    expect(out.blockMd).not.toContain('](')
+    expect(out.blockMd).toContain('Alice')
+  })
+})
+
+// ─── Parenthese fermante dans une URL — encodage %28/%29, lien conserve
+//
+// Correctif C1a-1 : avant, une URL contenant `)` etait tronquee au premier
+// `)` par la regex globale d'ancre du moteur (`\]\(([^)]+)\)`). Maintenant
+// on encode `(` et `)` en `%28`/`%29` a l'emission — les URLs legitimes
+// (Wikipedia par exemple) gardent leur lien intact.
+
+describe('LOT C1a — sourceUrl avec `)` : lien conserve, parentheses encodees', () => {
+  it("Wikipedia (Foo_(bar)) → href encode en Foo_%28bar%29, ancre conservee, hote = en.wikipedia.org", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'https://en.wikipedia.org/wiki/Foo_(bar)',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    const html = renderEmailMarkdown(out.blockMd)
+    // Assertion sur l'HOTE : c'est la seule cible qui compte cote securite.
+    const hosts = [...html.matchAll(/href="([^"]*)"/g)]
+      .map(m => { try { return new URL(m[1]).host } catch { return 'INVALIDE' } })
+    expect(hosts).toContain('en.wikipedia.org')
+    // Assertion exacte du href encode.
+    const wiki = html.match(/href="(https:\/\/en\.wikipedia\.org[^"]*)"/)
+    expect(wiki).not.toBeNull()
+    if (wiki) expect(wiki[1]).toBe('https://en.wikipedia.org/wiki/Foo_%28bar%29')
+  })
+})
+
+// ─── Injection via sourceUrl : DEUX cas ──────────────────────────────────
+//
+// Correctif C1a-1 : la surface est reelle — prospect_signals.source_url
+// est ecrite par le cron auto-scan-signals a partir de sortie LLM sur des
+// pages scrapees (prompt-injection possible). Verrous :
+//   (1) avec crochets → l'URL est REJETEE (aucun anchor de source).
+//   (2) sans crochets → une ancre de source SURVIT, mais son HOTE est
+//       ok.example, pas evil.example (celui-ci n'est qu'un morceau de
+//       chemin sur ok.example).
+
+// Helper — assertions portent sur l'HOTE, jamais sur le contenu brut du
+// href : evil.example dans un path est sans consequence, seule la
+// destination reelle compte.
+const hostsOf = (html: string): string[] =>
+  [...html.matchAll(/href="([^"]*)"/g)]
+    .map(m => { try { return new URL(m[1]).host } catch { return 'INVALIDE' } })
+
+describe("LOT C1a — sourceUrl hostile : injection d'ancre tierce impossible", () => {
+  it("avec crochets 'https://ok.example/a)[Cliquez ici](https://evil.example' → URL rejetee, seule ancre interne survit", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'https://ok.example/a)[Cliquez ici](https://evil.example',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    const html = renderEmailMarkdown(out.blockMd)
+    // L'URL est rejetee par UNSAFE_IN_URL (contient `[` et `]`) : seule
+    // l'ancre interne du prospect survit.
+    expect(hostsOf(html)).toEqual(['app.mirvo.ai'])
+  })
+
+  it("sans crochets 'https://ok.example/a)https://evil.example' → ancre source vers ok.example (pas evil)", () => {
+    const payload = emptyPayload({
+      signals: [{
+        prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+        signalName: 'Hiring', signalData: {},
+        sourceUrl: 'https://ok.example/a)https://evil.example',
+        prospectName: 'Alice', prospectCompany: 'Acme',
+        href: '/dashboard/signals',
+      }],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    const html = renderEmailMarkdown(out.blockMd)
+    const hosts = hostsOf(html)
+    // Deux ancres : le prospect (app.mirvo.ai) + la source (ok.example).
+    // evil.example NE DOIT PAS apparaitre comme HOTE — c'est le piege.
+    expect(hosts).toEqual(['app.mirvo.ai', 'ok.example'])
+    expect(hosts).not.toContain('evil.example')
+  })
+})
+
+// ─── Balayage : 100 caracteres, aucun ne doit produire d'ancre tierce ────
+//
+// Un `it` unique avec boucle interne (patron verrouille au lot B) : sans
+// ca, 100 tests distincts pour un raisonnement qui tient en une phrase.
+// Les 5 non-ASCII (FF08, FF09, FE5A, 00A0, 2029) verrouillent le fait que
+// la regex d'ancre du moteur n'accepte que les parentheses ASCII —
+// balaye tout le plan multilingue de base sans iterer 65 000 valeurs.
+
+describe('LOT C1a — sourceUrl : balayage adversarial de 100 caracteres', () => {
+  it('ASCII 32-126 + parentheses pleine chasse + NBSP + U+2029 → aucun hote tiers', () => {
+    const codes: number[] = []
+    for (let c = 32; c <= 126; c++) codes.push(c)
+    codes.push(0xFF08, 0xFF09, 0xFE5A, 0x00A0, 0x2029)
+    const exploitable: string[] = []
+    for (const code of codes) {
+      const car = String.fromCodePoint(code)
+      const payload = emptyPayload({
+        signals: [{
+          prospectId: 'pr', detectedAt: '2026-08-02T06:00:00Z',
+          signalName: 'Hiring', signalData: {},
+          sourceUrl: `https://ok.example/a${car}[X](https://evil.example`,
+          prospectName: 'Alice', prospectCompany: 'Acme',
+          href: '/dashboard/signals',
+        }],
+        totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 1, deliverability: 0, deliverabilityTriggering: 0 },
+        isEmpty: false,
+      })
+      const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+      const html = renderEmailMarkdown(out.blockMd)
+      if (hostsOf(html).includes('evil.example')) {
+        exploitable.push(`code=0x${code.toString(16).toUpperCase()} (« ${car} »)`)
+      }
+    }
+    expect(codes.length).toBe(100)
+    expect(exploitable).toEqual([])
+  })
+})
+
+// ─── Plafonds — totals dit N, tableau montre au max CAP ──────────────────
+describe('LOT C1a — plafonds : totals dit le vrai nombre, tableau plafonne', () => {
+  it('totals.signals = 10, signals[].length = 5 → ligne de tete dit « 10 », 5 lignes de detail', () => {
+    const mkSig = (i: number) => ({
+      prospectId: `pr-${i}`, detectedAt: '2026-08-02T06:00:00Z',
+      signalName: `Hiring ${i}`, signalData: {},
+      sourceUrl: null, prospectName: `Alice ${i}`, prospectCompany: 'Acme',
+      href: '/dashboard/signals',
+    })
+    const payload = emptyPayload({
+      signals: [mkSig(1), mkSig(2), mkSig(3), mkSig(4), mkSig(5)],
+      totals: { hotReplies: 0, meetings: 0, pending: 0, signals: 10, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    expect(out.blockMd).toContain('10 signals')
+    expect(out.blockMd).not.toContain('5 signals')
+    // 5 puces dans le bloc « What moved »
+    const bulletCount = (out.blockMd.match(/^- /gm) ?? []).length
+    expect(bulletCount).toBe(5)
+  })
+})
+
+// ─── Blocs vides — aucun titre pour un bloc vide ─────────────────────────
+describe('LOT C1a — blocs vides ne produisent aucune ligne', () => {
+  it('seul meetings est peuple → aucun titre des autres blocs', () => {
+    const payload = emptyPayload({
+      meetings: [{
+        id: 'me', meetingAt: '2026-08-03T09:00:00Z', durationMin: 30,
+        attendeeName: 'Alice', companyName: 'Acme', href: '/dashboard/meetings',
+      }],
+      totals: { hotReplies: 0, meetings: 1, pending: 0, signals: 0, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    expect(out.blockMd).toContain('**Today**')
+    expect(out.blockMd).not.toContain('**To handle**')
+    expect(out.blockMd).not.toContain('**To confirm**')
+    expect(out.blockMd).not.toContain('**What moved**')
+    expect(out.blockMd).not.toContain('**Deliverability**')
+    expect(out.blockMd).not.toContain('**One suggestion**')
+  })
+})
+
+// ─── Fuseaux : quatre heures differentes, fuseau invalide ne jette pas ───
+describe('LOT C1a — fuseaux : formatMeetingTime reutilise, repli UTC', () => {
+  const meeting = {
+    id: 'me', meetingAt: '2026-08-03T09:00:00Z', durationMin: 30,
+    attendeeName: 'Alice', companyName: 'Acme', href: '/dashboard/meetings',
+  }
+  const buildPayload = () => emptyPayload({
+    meetings: [meeting],
+    totals: { hotReplies: 0, meetings: 1, pending: 0, signals: 0, deliverability: 0, deliverabilityTriggering: 0 },
+    isEmpty: false,
+  })
+  // Extrait la ligne du RENDEZ-VOUS (celle qui commence par `- ` et contient « Alice »).
+  function meetingLine(md: string): string {
+    const line = md.split('\n').find(l => l.startsWith('- ') && l.includes('Alice'))
+    return line ?? ''
+  }
+
+  it('quatre fuseaux differents → quatre heures differentes sur la ligne du rendez-vous', () => {
+    const kiribati = renderPayloadBlocks({ payload: buildPayload(), locale: 'en', timeZone: 'Pacific/Kiritimati', appBaseUrl: APP_URL }).blockMd
+    const midway   = renderPayloadBlocks({ payload: buildPayload(), locale: 'en', timeZone: 'Pacific/Midway',     appBaseUrl: APP_URL }).blockMd
+    const paris    = renderPayloadBlocks({ payload: buildPayload(), locale: 'en', timeZone: 'Europe/Paris',       appBaseUrl: APP_URL }).blockMd
+    const utc      = renderPayloadBlocks({ payload: buildPayload(), locale: 'en', timeZone: 'UTC',                appBaseUrl: APP_URL }).blockMd
+    const lines = [meetingLine(kiribati), meetingLine(midway), meetingLine(paris), meetingLine(utc)]
+    expect(new Set(lines).size).toBe(4)
+  })
+
+  it('fuseau invalide → ne jette pas', () => {
+    expect(() =>
+      renderPayloadBlocks({ payload: buildPayload(), locale: 'en', timeZone: 'PAS_UN_FUSEAU', appBaseUrl: APP_URL })
+    ).not.toThrow()
+  })
+})
+
+// ─── Totalite : payload difforme → aucune exception, blockMd est une chaine
+describe('LOT C1a — totalite (jamais jette)', () => {
+  it('payload avec champs a null, tableaux absents, generatedAt difforme → aucune exception', () => {
+    // Cast en unknown pour construire un payload deliberement difforme.
+    const bad = {
+      workspaceId:    null,
+      generatedAt:    'pas-une-date',
+      hotReplies:     null,
+      meetings:       undefined,
+      pending:        'oops',
+      signals:        null,
+      deliverability: 42,
+      suggestion:     null,
+      totals:         null,
+      isEmpty:        null,
+      hadError:       null,
+      errors:         null,
+    } as unknown as BriefPayload
+    let out: ReturnType<typeof renderPayloadBlocks> | null = null
+    expect(() => { out = renderPayloadBlocks({ payload: bad, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL }) }).not.toThrow()
+    expect(out).not.toBeNull()
+    expect(typeof (out as unknown as { blockMd: string }).blockMd).toBe('string')
+  })
+})
+
+// ─── sections : autant d'entrees que de blocs non vides ──────────────────
+describe('LOT C1a — sections : projection texte pur', () => {
+  it('trois blocs peuples → sections de longueur 3, chacune title+content non vides', () => {
+    const payload = emptyPayload({
+      hotReplies: [{
+        threadId: 't', messageId: 'm', fromName: 'Alice', fromEmail: 'a@b.co',
+        subject: 'Re: demo', preview: '', receivedAt: '2026-08-02T06:00:00Z',
+        sentiment: 'positive', href: '/dashboard/inbox',
+      }],
+      meetings: [{
+        id: 'me', meetingAt: '2026-08-03T09:00:00Z', durationMin: 30,
+        attendeeName: 'Bob', companyName: 'Widgets', href: '/dashboard/meetings',
+      }],
+      suggestion: {
+        id: 'sg', name: 'Cold email PME', angle: 'Time-to-value',
+        valueProp: null, cta: null, targetPersona: null, reasoning: null,
+        href: '/dashboard/campaigns',
+      },
+      totals: { hotReplies: 1, meetings: 1, pending: 0, signals: 0, deliverability: 0, deliverabilityTriggering: 0 },
+      isEmpty: false,
+    })
+    const out = renderPayloadBlocks({ payload, locale: 'en', timeZone: 'UTC', appBaseUrl: APP_URL })
+    expect(out.sections).toHaveLength(3)
+    for (const sec of out.sections) {
+      expect(sec.title.length).toBeGreaterThan(0)
+      expect(sec.content.length).toBeGreaterThan(0)
+      // 🔴 Texte PUR : aucun `[..](..)`, aucun `**`, aucune puce `- `.
+      expect(sec.content).not.toMatch(/\]\(/)
+      expect(sec.content).not.toContain('**')
+      expect(sec.content.startsWith('- ')).toBe(false)
+    }
+  })
+})
