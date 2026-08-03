@@ -12,6 +12,7 @@ import { dueBriefDate, isWeekendDate, isInactive } from '@/lib/morning-brief-sch
 import { buildUnsubscribeUrl, getOrCreateUnsubscribeToken } from '@/lib/unsubscribe-token'
 import { buildBriefPayload } from '@/lib/brief-payload'
 import { shouldSendBrief } from '@/lib/brief-trigger'
+import { computeSinceISO } from '@/lib/brief-anchor'
 
 export const runtime = 'nodejs'
 // Lot 5c-0 : max_tokens du Mode B a 8000 + timeout par appel a 240 s. Une
@@ -357,23 +358,15 @@ export async function GET(request: Request) {
             // premiere fois).
             const hasEverSent = anchorFailed ? true : !!anchorRow
 
-            // sinceISO = min(deadline - 7j, dernier emailed_at). Repli
-            // ARRIERE de 7 jours (pas 24 h) : au lundi matin, un envoi
-            // vendredi soir laisse une ancre samedi qui masquerait tout
-            // signal du weekend — repli plus large pour couvrir un long
-            // gap. `Math.min` sur des NOMBRES uniquement (mixer Date/ISO
-            // rend NaN silencieux).
-            const fallbackMs = deadline.getTime() - 7 * 86_400_000
-            let sinceISO: string
-            try {
-              const anchorMs = anchorRow?.emailed_at ? Date.parse(anchorRow.emailed_at) : NaN
-              const chosenMs = Number.isFinite(anchorMs)
-                ? Math.min(fallbackMs, anchorMs)
-                : fallbackMs
-              sinceISO = new Date(chosenMs).toISOString()
-            } catch {
-              sinceISO = new Date(fallbackMs).toISOString()
-            }
+            // sinceISO : borne basse de la fenetre de nouveaute. Module pur
+            // lib/brief-anchor.ts — la logique vit hors de la route pour etre
+            // testable (aucun test de route n'existe dans ce repo).
+            const sinceISO = computeSinceISO({
+              deadline,
+              timezone:  timeZone,
+              briefTime: briefTime as string,
+              anchor:    anchorRow ?? null,
+            })
 
             const payload = await buildBriefPayload({
               admin,
