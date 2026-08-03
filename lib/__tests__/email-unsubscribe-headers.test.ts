@@ -1,5 +1,41 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { Resend } from 'resend'
+// ─── Mocks ────────────────────────────────────────────────────────────────
+//
+// Hermeticite. `sendTemplate` (lib/email.ts) appelle `getEmailTemplate`
+// (lib/email-templates.ts), qui instancie `createAdminClient()` et lit la
+// table `email_templates`. Sans ce mock, le verdict de ces 5 tests depend de
+// l'environnement ambiant : ils passent sur un clone sans `.env` (le client
+// Supabase leve « supabaseUrl is required », avale par le try/catch de
+// email-templates.ts et retombe sur les defauts du registry), mais ils
+// echouent en timeout de 5 s des que NEXT_PUBLIC_SUPABASE_URL et
+// SUPABASE_SERVICE_ROLE_KEY existent — un vrai appel reseau part alors.
+//
+// Le mock reproduit exactement le comportement actuel : aucune ligne en base
+// (`{ data: null, error: null }`) → `getEmailTemplate` retombe sur les
+// defauts du registry. Les assertions ne sont pas touchees.
+//
+// Meme convention que les 12 autres fichiers de lib/__tests__ qui mockent ce
+// module (reference : lib/__tests__/tier-limits-emails.test.ts:22) : dispatch
+// par table, `throw` sur toute table inattendue.
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: () => ({
+    from: (table: string) => {
+      if (table === 'email_templates') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+            }),
+          }),
+        }
+      }
+      throw new Error(`unexpected table: ${table}`)
+    },
+  }),
+}))
+
+// Import APRES le mock, pour que lib/email voie le client mocke.
 import {
   __resetResendClientForTests,
   sendOnboardingEmail,
