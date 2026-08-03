@@ -1,4 +1,9 @@
 import { toPlainTextForEmail, EMAIL_BLOCK_TEXT_MAX_LEN } from './text-safety'
+// 🔴 `import type` obligatoire : lib/brief-payload.ts importe deja la VALEUR
+// MORNING_BRIEF_MAX_MEETINGS depuis ce fichier — un import de valeur en
+// retour creerait un cycle. `import type` est efface a la compilation et
+// brise le cycle. Mesure : avec `import type`, tsc → 0.
+import type { BriefPayload } from './brief-payload'
 
 // ─── Scope ────────────────────────────────────────────────────────────────
 //
@@ -142,6 +147,85 @@ const LABELS: Record<Locale, {
     meetingsShortfallNotice: (rendered, dayTotal) =>
       `${rendered} de vos ${dayTotal} rendez-vous du jour sont préparés ici.`,
     meetingsPrepHeader: "Préparation des rendez-vous du jour, mise à jour",
+  },
+}
+
+// ─── Payload labels (lot C1a) ────────────────────────────────────────────
+//
+// Libelles des SIX blocs du payload reel + micro-labels (« expire dans »,
+// « Source », raisons deliverability). Inlines pour la meme raison que
+// LABELS (aucune route /api/** n'a de contexte next-intl).
+//
+// Trois choix qui n'ont pas l'air decoratifs :
+//   1. `expiresIn` est une fonction — evite d'interpoler dans une chaine
+//      plate a substitution (patron valide par `meetingsShortfallNotice`).
+//   2. Deux formes singulier/pluriel pour la ligne de tete : « 1 reply »
+//      et « 3 replies » — un digest qui dit « 1 replies » sent l'IA.
+//   3. `sent` et `bounce` sont des mots-cle courts, exposes tels quels
+//      dans le libelle deliverability. Aucun caractere qui puisse etre
+//      interprete comme du markdown.
+const PAYLOAD_LABELS: Record<Locale, {
+  toHandle:             string
+  todayTitle:           string
+  toConfirm:            string
+  whatMoved:            string
+  deliverabilityTitle:  string
+  suggestionTitle:      string
+  reply:                string
+  replies:              string
+  meetingHead:          string
+  meetingsHead:         string
+  signalHead:           string
+  signalsHead:          string
+  expiresIn:            (h: number) => string
+  sourceLink:           string
+  reasonHighBounce:     string
+  reasonProviderError:  string
+  reasonCapacityReached: string
+  bounce:               string
+  sent:                 string
+}> = {
+  en: {
+    toHandle:             'To handle',
+    todayTitle:           'Today',
+    toConfirm:            'To confirm',
+    whatMoved:            'What moved',
+    deliverabilityTitle:  'Deliverability',
+    suggestionTitle:      'One suggestion',
+    reply:                'reply',
+    replies:              'replies',
+    meetingHead:          'meeting',
+    meetingsHead:         'meetings',
+    signalHead:           'signal',
+    signalsHead:          'signals',
+    expiresIn:            (h) => `expires in ${h} h`,
+    sourceLink:           'Source',
+    reasonHighBounce:     'high bounce rate',
+    reasonProviderError:  'provider error',
+    reasonCapacityReached: 'capacity reached',
+    bounce:               'bounce',
+    sent:                 'sent',
+  },
+  fr: {
+    toHandle:             'À traiter',
+    todayTitle:           "Aujourd'hui",
+    toConfirm:            'À confirmer',
+    whatMoved:            'Ce qui a bougé',
+    deliverabilityTitle:  'Délivrabilité',
+    suggestionTitle:      'Une suggestion',
+    reply:                'réponse',
+    replies:              'réponses',
+    meetingHead:          'rendez-vous',
+    meetingsHead:         'rendez-vous',
+    signalHead:           'signal',
+    signalsHead:          'signaux',
+    expiresIn:            (h) => `expire dans ${h} h`,
+    sourceLink:           'Source',
+    reasonHighBounce:     'taux de rebond élevé',
+    reasonProviderError:  'erreur fournisseur',
+    reasonCapacityReached: 'capacité atteinte',
+    bounce:               'rebond',
+    sent:                 'envoyés',
   },
 }
 
@@ -368,12 +452,256 @@ function meetingBlock(m: unknown, index: number, l: Locale, timeZone: string): s
   return blocks.join('\n\n')
 }
 
+// ─── Payload rendering (lot C1a) ─────────────────────────────────────────
+//
+// Transforme un BriefPayload (lot A, 6 blocs de donnees reelles) en
+// markdown restreint + une projection en `[{ title, content }]` pour
+// l'ecran d'archive (page.tsx:334 rend `content.sections` telles quelles
+// dans un <p>).
+//
+// FONCTION TOTALE : ne jette jamais, meme sur payload difforme (champs
+// nuls, dates invalides, tableaux absents). Meme contrat que
+// composeMorningBriefBlock.
+//
+// Regles de surete (toutes obligatoires) :
+//   - Toute valeur du payload passe par s() (donnees saisies par des tiers).
+//   - Liens : construits a partir de `appBaseUrl` + `href` relatif, et
+//     UNIQUEMENT si `href` commence par `/`. `appBaseUrl` absent ou vide →
+//     libelle sans lien (jamais de lien relatif nu dans un e-mail).
+//   - sourceUrl : externe et brut. Ancre emise SEULEMENT si prefixe
+//     http:// ou https://. safeExternalHref est une seconde ceinture.
+//   - hhmm : formatMeetingTime (patron existant, repli UTC sur fuseau
+//     invalide).
+//   - Aucun instant lu de l'horloge, aucun appel reseau, aucun Supabase.
+//
+// `sections[].content` est du TEXTE PUR — aucun `[libelle](url)`, aucun
+// `**gras**`, aucune puce. L'ecran l'insere tel quel dans un <p> et la
+// syntaxe markdown s'y afficherait verbatim. Une ligne par element,
+// separees par \n.
+
+export function renderPayloadBlocks(args: {
+  payload:     BriefPayload
+  locale:      Locale
+  timeZone:    string
+  appBaseUrl?: string
+}): { blockMd: string; sections: Array<{ title: string; content: string }> } {
+  const l: Locale = args.locale === 'fr' ? 'fr' : 'en'
+  const { payload, timeZone } = args
+  const appBaseUrl = args.appBaseUrl ?? ''
+  const lbl = PAYLOAD_LABELS[l]
+
+  const md: string[]                                = []
+  const sections: Array<{ title: string; content: string }> = []
+
+  // Lien interne : libelle + href relatif → `[libelle](appBaseUrl + href)`.
+  // Si `appBaseUrl` est vide OU `href` ne commence pas par `/`, on rend
+  // le libelle NU (jamais de lien relatif nu dans un e-mail, il serait
+  // mort dans le webmail).
+  const linkTo = (label: string, href: unknown): string => {
+    if (!label) return ''
+    if (!appBaseUrl) return label
+    if (typeof href !== 'string' || !href.startsWith('/')) return label
+    return `[${label}](${appBaseUrl.replace(/\/+$/, '')}${href})`
+  }
+
+  // Lien externe : ancre emise SEULEMENT si l'URL commence par http:// ou
+  // https://. On ne PASSE PAS sourceUrl a s() : s() detruit `()` et
+  // couperait les URLs qui contiennent des parentheses. safeExternalHref
+  // est la seconde ceinture (`javascript:` / `data:` perdent leur ancre).
+  //
+  // 🔴 Rejet des caracteres de controle (`\x00-\x1F\x7F`) : sourceUrl est
+  // ecrite brute par le scanner AI a partir de sortie LLM sur des pages
+  // scrapees (surface de prompt-injection). Un `\n\n[phish](https://…)`
+  // interpole tel quel casserait le bloc markdown en DEUX blocs distincts —
+  // le second passerait par la regex d'ancre de renderEmailMarkdown et
+  // produirait une ancre attaquant dans un e-mail signe par le domaine.
+  // Les URLs legitimes ne contiennent JAMAIS de caractere de controle (RFC).
+  const CONTROL_CHARS = /[\x00-\x1F\x7F]/
+  const isHttpUrl = (url: unknown): url is string =>
+    typeof url === 'string'
+    && (url.startsWith('http://') || url.startsWith('https://'))
+    && !CONTROL_CHARS.test(url)
+  const externalLink = (label: string, url: unknown): string => {
+    if (!label) return ''
+    if (!isHttpUrl(url)) return label
+    return `[${label}](${url})`
+  }
+
+  // 1. Ligne de tete — trois totals en gras. PAS les .length (les
+  // tableaux sont plafonnes ; totals porte le nombre reel).
+  const t = payload?.totals
+  if (t && ((t.hotReplies | 0) + (t.meetings | 0) + (t.signals | 0)) > 0) {
+    const hLbl = t.hotReplies === 1 ? lbl.reply    : lbl.replies
+    const mLbl = t.meetings   === 1 ? lbl.meetingHead : lbl.meetingsHead
+    const sLbl = t.signals    === 1 ? lbl.signalHead  : lbl.signalsHead
+    md.push(`**${t.hotReplies} ${hLbl} · ${t.meetings} ${mLbl} · ${t.signals} ${sLbl}**`)
+  }
+
+  // 2. hotReplies — expediteur (fromName, defaut fromEmail), objet, lien.
+  const hrItems = Array.isArray(payload?.hotReplies) ? payload.hotReplies : []
+  {
+    const lines: string[] = []
+    const textLines: string[] = []
+    for (const r of hrItems) {
+      const from = s(r?.fromName) || s(r?.fromEmail)
+      const subj = s(r?.subject)
+      const label = [from, subj].filter(Boolean).join(' — ')
+      if (!label) continue
+      lines.push(`- ${linkTo(label, r?.href)}`)
+      textLines.push(label)
+    }
+    if (lines.length > 0) {
+      md.push(`**${lbl.toHandle}**\n\n${lines.join('\n')}`)
+      sections.push({ title: lbl.toHandle, content: textLines.join('\n') })
+    }
+  }
+
+  // 3. meetings — heure locale, personne, entreprise, lien.
+  const mItems = Array.isArray(payload?.meetings) ? payload.meetings : []
+  {
+    const lines: string[] = []
+    const textLines: string[] = []
+    for (const m of mItems) {
+      const time     = formatMeetingTime(m?.meetingAt, timeZone, l)
+      const attendee = s(m?.attendeeName)
+      const company  = s(m?.companyName)
+      const label    = [time, attendee, company].filter(Boolean).join(' · ')
+      if (!label) continue
+      lines.push(`- ${linkTo(label, m?.href)}`)
+      textLines.push(label)
+    }
+    if (lines.length > 0) {
+      md.push(`**${lbl.todayTitle}**\n\n${lines.join('\n')}`)
+      sections.push({ title: lbl.todayTitle, content: textLines.join('\n') })
+    }
+  }
+
+  // 4. pending — personne + « expire dans N h » (N vient de
+  // hoursUntilExpiry — deja calcule depuis generatedAt, JAMAIS depuis
+  // l'horloge locale).
+  const pItems = Array.isArray(payload?.pending) ? payload.pending : []
+  {
+    const lines: string[] = []
+    const textLines: string[] = []
+    for (const p of pItems) {
+      const attendee   = s(p?.attendeeName)
+      const company    = s(p?.companyName)
+      const namePart   = [attendee, company].filter(Boolean).join(' · ')
+      const h          = (typeof p?.hoursUntilExpiry === 'number' && Number.isFinite(p.hoursUntilExpiry))
+        ? Math.max(0, Math.round(p.hoursUntilExpiry))
+        : null
+      const expires    = h !== null ? lbl.expiresIn(h) : ''
+      const label      = [namePart, expires].filter(Boolean).join(' · ')
+      if (!label) continue
+      lines.push(`- ${linkTo(label, p?.href)}`)
+      textLines.push(label)
+    }
+    if (lines.length > 0) {
+      md.push(`**${lbl.toConfirm}**\n\n${lines.join('\n')}`)
+      sections.push({ title: lbl.toConfirm, content: textLines.join('\n') })
+    }
+  }
+
+  // 5. signals — prospect (name, defaut company), signalName, lien Source
+  // externe si sourceUrl est presente.
+  const sItems = Array.isArray(payload?.signals) ? payload.signals : []
+  {
+    const lines: string[] = []
+    const textLines: string[] = []
+    for (const sig of sItems) {
+      const prospect    = s(sig?.prospectName) || s(sig?.prospectCompany)
+      const signalName  = s(sig?.signalName)
+      const namePart    = [prospect, signalName].filter(Boolean).join(' · ')
+      if (!namePart) continue
+
+      const mainLink    = linkTo(namePart, sig?.href)
+      const httpUrl     = isHttpUrl(sig?.sourceUrl) ? (sig!.sourceUrl as string) : ''
+      const sourceAncre = httpUrl ? externalLink(lbl.sourceLink, httpUrl) : ''
+
+      lines.push(sourceAncre ? `- ${mainLink} · ${sourceAncre}` : `- ${mainLink}`)
+      // Texte pur pour l'ecran d'archive : URL brute, pas d'ancre markdown.
+      textLines.push(httpUrl ? `${namePart} · ${httpUrl}` : namePart)
+    }
+    if (lines.length > 0) {
+      md.push(`**${lbl.whatMoved}**\n\n${lines.join('\n')}`)
+      sections.push({ title: lbl.whatMoved, content: textLines.join('\n') })
+    }
+  }
+
+  // 6. deliverability — libelle par raison + chiffres portes par l'alerte.
+  const dItems = Array.isArray(payload?.deliverability) ? payload.deliverability : []
+  {
+    const lines: string[] = []
+    const textLines: string[] = []
+    for (const d of dItems) {
+      const reasonLabel =
+        d?.reason === 'high_bounce_rate'  ? lbl.reasonHighBounce
+      : d?.reason === 'provider_error'    ? lbl.reasonProviderError
+      : d?.reason === 'capacity_reached'  ? lbl.reasonCapacityReached
+      :                                     ''
+      const account = s(d?.emailAccountId)
+
+      // Chiffres portes par la raison. bounceRate est une fraction ; on
+      // affiche en pourcentage (borne 1 decimale — au-dela c'est du bruit).
+      let detail = ''
+      if (d?.reason === 'high_bounce_rate' && typeof d.bounceRate === 'number' && Number.isFinite(d.bounceRate)) {
+        detail = `${lbl.bounce} ${(d.bounceRate * 100).toFixed(1)}%`
+      } else if (d?.reason === 'provider_error') {
+        detail = s(d?.providerError)
+      } else if (d?.reason === 'capacity_reached'
+              && typeof d.dailySent === 'number' && Number.isFinite(d.dailySent)
+              && typeof d.dailyCapacity === 'number' && Number.isFinite(d.dailyCapacity)) {
+        detail = `${lbl.sent} ${d.dailySent}/${d.dailyCapacity}`
+      }
+
+      const label = [account, reasonLabel, detail].filter(Boolean).join(' · ')
+      if (!label) continue
+      lines.push(`- ${linkTo(label, d?.href)}`)
+      textLines.push(label)
+    }
+    if (lines.length > 0) {
+      md.push(`**${lbl.deliverabilityTitle}**\n\n${lines.join('\n')}`)
+      sections.push({ title: lbl.deliverabilityTitle, content: textLines.join('\n') })
+    }
+  }
+
+  // 7. suggestion — nom + angle + lien.
+  const sug = payload?.suggestion
+  if (sug) {
+    const name  = s(sug.name)
+    const angle = s(sug.angle)
+    const label = [name, angle].filter(Boolean).join(' — ')
+    if (label) {
+      md.push(`**${lbl.suggestionTitle}**\n\n- ${linkTo(label, sug.href)}`)
+      sections.push({ title: lbl.suggestionTitle, content: label })
+    }
+  }
+
+  return { blockMd: md.join('\n\n'), sections }
+}
+
+// Extrait `content.payload` s'il est present ET un objet. Aucune
+// validation de forme : renderPayloadBlocks tolere les champs difformes.
+function extractPayloadIfValid(content: unknown): BriefPayload | null {
+  if (content == null || typeof content !== 'object') return null
+  const rec = content as Record<string, unknown>
+  const p = rec.payload
+  if (p == null || typeof p !== 'object') return null
+  return p as BriefPayload
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────
 
 export function composeMorningBriefBlock(args: {
-  content:  unknown
-  locale:   Locale
-  timeZone: string
+  content:    unknown
+  locale:     Locale
+  timeZone:   string
+  // 🔴 OPTIONNEL — voir §1.5 du brief C1a. Il y a un appelant de production
+  // qui n'a pas encore le champ (app/api/cron/morning-brief/route.ts, hors
+  // scope de ce lot) et 44 appels de test. Un argument requis rendrait tsc
+  // rouge sur 45 lignes. Absent ou vide → renderPayloadBlocks n'emet aucun
+  // lien, seulement les libelles.
+  appBaseUrl?: string
 }): MorningBriefEmailBlock | null {
   const { content, timeZone } = args
   // Unexpected locale → fallback to 'en' without throwing (§2.9).
@@ -458,10 +786,25 @@ export function composeMorningBriefBlock(args: {
     }
   }
 
-  if (sections.length === 0) return null
+  // Lot C1a : rendu du payload reel si present. Aujourd'hui aucun brief
+  // n'a `content.payload` — la branche est morte et le comportement est
+  // identique a avant, a l'octet pres (verifie par la gate golden 8).
+  // C'est le lot C1b qui inscrira `payload` dans le contenu.
+  const payloadReal = extractPayloadIfValid(content)
+  const payloadRender = payloadReal
+    ? renderPayloadBlocks({ payload: payloadReal, locale: l, timeZone, appBaseUrl: args.appBaseUrl })
+    : null
+  const payloadMd = payloadRender?.blockMd ?? ''
+
+  // Sans payload, on preserve le contrat historique : sections vides →
+  // null. Avec payload, un rendu non vide sauve l'e-mail meme si les
+  // sections IA sont vides (permet a C1b de brancher `content = {payload}`
+  // sans casser).
+  if (sections.length === 0 && !payloadMd) return null
 
   const parts: string[] = []
   if (introLine) parts.push(introLine)
+  if (payloadMd) parts.push(payloadMd)
   parts.push(...sections)
   const meetingsExpected = mode === 'A' ? null : readNonNegativeInt(rec.meetings_expected)
   return {

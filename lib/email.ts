@@ -532,7 +532,7 @@ export async function sendMorningBriefEmail(params: {
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const { to, firstName, content, briefDate, timeZone, appBaseUrl, locale, unsubscribeUrl } = params;
 
-  const block = composeMorningBriefBlock({ content, locale, timeZone });
+  const block = composeMorningBriefBlock({ content, locale, timeZone, appBaseUrl });
   if (!block) return { ok: false, error: 'empty_content' };
 
   const localeIntl = locale === 'fr' ? 'fr-FR' : 'en-US';
