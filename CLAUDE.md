@@ -10,11 +10,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # development server (Next.js)
 npm run build        # production build (rm -rf .next first for a clean build)
 npm run lint         # ESLint
-npm run test         # vitest (watch mode)
-npm run test:run     # vitest (single run, all tests)
-npm run test:rls     # RLS integration tests only (requires live Supabase)
+npm run typecheck    # tsc --noEmit (fast type gate, no build)
+npm run test         # vitest (watch mode, both projects)
+npm run test:run     # vitest (single run, both projects — red without a live Supabase)
+npm run test:unit    # vitest project `unit` only — hermetic, no .env needed. THE gate.
+npm run test:rls     # vitest project `rls` only — RLS integration (requires live Supabase)
 npm run test:rls:gc  # garbage-collect orphan test fixtures older than 24h
 ```
+
+`npm run typecheck && npm run test:unit` is the pair to run before pushing: both must
+exit 0 from a clean clone with no `.env`, and also on a machine that has `.env.local`.
+`test:run` includes the `rls` project and is therefore expected to fail without a live
+Supabase — do not use it as a gate. Project split lives in `vitest.config.ts`;
+`npx vitest list --run --filesOnly` prints every test file prefixed `[unit]` or `[rls]`,
+which is how you verify no file fell out of both projects.
 
 For a clean production build before shipping: `rm -rf .next && npm run build`.
 
@@ -61,6 +70,8 @@ PostHog EU Cloud. SDK initialized in `app/providers.tsx` with `api_host: '/inges
 
 ### RLS tests
 `__tests__/rls/` contains integration tests that run against a live Supabase instance. They create real test workspaces (named `Test Workspace *`) and validate row-level security policies. Run `test:rls:gc` periodically to clean up orphan fixtures. Tests require `.env.local` with a live Supabase service role key.
+
+**Convention — `__tests__/rls/` holds only tests that need a live database.** It is the `rls` vitest project and is excluded from `test:unit`; anything dropped there silently leaves the gate. Hermetic tests go in `lib/__tests__/` (or a sibling `__tests__/` folder next to the code), never here. Conversely, a test in `lib/__tests__/` must not touch the network: mock `@/lib/supabase/admin` (dispatch by table, `throw` on an unexpected one) so its verdict never depends on whether `.env.local` exists.
 
 ### Middleware
 `middleware.ts` handles auth redirects for `/dashboard/**` (Supabase session refresh) and applies CSP headers via the `CSP_HEADER` module-level constant to all responses. Admin routes (`/admin/**`) have a separate `requireSentraAdmin()` guard in `lib/admin-auth.ts`.
@@ -171,7 +182,7 @@ Imports, env vars, dev comments are fine: `model: 'claude-sonnet-4-6'`, `import 
 - Permanent redirects: `/landing-v2 → /`, `/dashboard/admin → /admin`.
 - Plugins: `withNextIntl(withMDX(nextConfig))` (MDX + next-intl).
 
-Since the build gates TS and ESLint, a passing `npm run build` **is** a type/lint check. `npx tsc --noEmit` is still useful for fast local feedback before pushing (avoids a failed Vercel deploy cycle).
+Since the build gates TS and ESLint, a passing `npm run build` **is** a type/lint check. `npm run typecheck` (i.e. `tsc --noEmit`) is still useful for fast local feedback before pushing (avoids a failed Vercel deploy cycle).
 
 ### Production
 - Vercel Pro, project `sdr-platform` (repo name unchanged).
