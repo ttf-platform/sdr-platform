@@ -246,4 +246,8 @@ In this repo (root level):
 - `DESIGN.md` — north star "The Quiet Operator", palette, Fraunces Budget Rule, Weight Step Rule, One Signal Rule
 - `.impeccable/design.json` — machine-readable design tokens sidecar for Impeccable
 
-When material changes are made to this `CLAUDE.md`, reflect them in `SENTRA_TOOLING_STACK.md` (knowledge doc) to keep both aligned.
+When material changes are made to this `CLAUDE.md`, there is no mirror to update:
+`SENTRA_TOOLING_STACK.md` is archived (`30_ARCHIVES/PRODUIT_ET_MARCHE/`) and this file is
+the sole in-repo carrier for tooling and repo conventions. If a change alters a *project
+fact* rather than a repo convention, update its carrier in the Project's `00_CORE/` —
+never both.
