@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It is the in-repo source of truth for CC (CC sessions cannot read the Claude.ai Project Knowledge). Keep it aligned with the Project's RUNBOOKS.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It is the in-repo source of truth for CC (CC sessions cannot read the Claude.ai Project Knowledge). Keep it aligned with the Project's `00_CORE/` — specifically `00_CORE/05_METHODE.md`, which supersedes the former RUNBOOKS and CONSTITUTION.
 
 > Naming: the product is **Mirvo** (ex-**Sentra**, ex-**Firstsend/Polsia** v0). The `sentra-` prefix on skills, `requireSentraAdmin`, and internal identifiers is a **legacy technical name — do NOT rename**. Only user-visible strings must say Mirvo.
 
@@ -195,16 +195,51 @@ Since the build gates TS and ESLint, a passing `npm run build` **is** a type/lin
 - **`badRequest()` follow-up** — 2 auth routes (signup, login) still inline `'invalid_payload'` lowercase, not using centralized helper.
 
 ## Related project documents
-Maintained in the Claude.ai Project Knowledge (not in this repo). Founder consults them; CC sessions cannot read them directly and should rely on this CLAUDE.md as the in-repo source of truth. Canonical set (post knowledge refonte, 10 Jul 2026):
-- `start.md` — boot pointer for any new Project conversation
-- `MIRVO_RESTE_A_FAIRE_v13.md` — consolidated to-do (single source)
-- `CURRENT_STATE_v39.md` — full project state snapshot
-- `MIRVO_CODE_MAP_v9.md` — code map / what's live
-- `MIRVO_A1_PROVIDERS_WATERFALL_v5.md` — sourcing + enrichment stack
-- `MIRVO_PRICING_LANDING_REVIEW_v2.md` — pricing / economics / send stack / hero
-- `MIRVO_UX_FEATURE_INVENTORY 17-06.md` — features actually live
-- Behavioural rules: **CONSTITUTION** (in Project Instructions) + `RUNBOOKS_v3.md` + `HISTORIQUE_v1.md`
-- `SENTRA_TOOLING_STACK.md` — consolidated tooling registry
+
+Maintained in the Claude.ai Project Knowledge (not in this repo). CC sessions cannot read
+them directly and must rely on this CLAUDE.md as the in-repo source of truth.
+
+**Knowledge layout — five zones, in production since 04 Aug 2026.**
+
+| Zone | What it holds | Living? |
+|---|---|---|
+| `00_CORE/` | The truth of the project — 9 documents, one question each | **yes — canonical project knowledge** |
+| `10_ENGINEERING/` | How Claude works — engineering OS, Project Instructions, this file, generator | yes |
+| `20_AUDITS/` | Proof — dated reports, never rewritten | frozen |
+| `30_ARCHIVES/` | History — 92 pre-noyau documents in 5 sub-folders. **Never a source of truth** | frozen |
+| `40_WORKING/` | Temporary — absorbed into its carrier, or deleted | transient |
+
+**`00_CORE/` — the canonical set, frozen at v1.0.** It replaces every document previously
+listed here.
+
+| Document | The single question it answers |
+|---|---|
+| `00_CORE/00_START.md` | Where do I start? Routing matrix, the ten non-negotiable rules |
+| `00_CORE/01_PRODUIT.md` | What does Mirvo do, and for whom? |
+| `00_CORE/02_SYSTEME.md` | How is the system built? **Generated, never hand-written** |
+| `00_CORE/03_ETAT.md` | Where does the project stand, and what command proves it? |
+| `00_CORE/04_DECISIONS.md` | Why these choices, and what would invalidate them? |
+| `00_CORE/05_METHODE.md` | How do we work? Supersedes RUNBOOKS and CONSTITUTION |
+| `00_CORE/06_RISQUES.md` | What exposes us? |
+| `00_CORE/A1_GLOSSAIRE.md` | What does this term mean, where does this figure come from? |
+| `00_CORE/A2_ARCHIVE.md` | Where did old document X go, and who carries it now? |
+
+**Superseded — do not consult, do not cite.** The pre-refonte set once listed here
+(`start.md`, `MIRVO_RESTE_A_FAIRE_v13`, `CURRENT_STATE_v39`, `MIRVO_CODE_MAP_v9`,
+`MIRVO_A1_PROVIDERS_WATERFALL_v5`, `HISTORIQUE_v1`, `CONSTITUTION`) — **seven of those
+names no longer exist in the Project under any version**. The 92 legacy documents live in
+`30_ARCHIVES/` as a safety net only: they are opened solely when Max asks, or when a
+`00_CORE/` document points to one. A fact taken from an archive and not re-verified against
+the repo is N1, never N2.
+
+**Single-carrier rule.** Never create a new document if an existing one can carry the
+information — revise the carrier instead, and cross-reference rather than copy. Three
+exceptions only: `00_START` (orientation), `A1_GLOSSAIRE` (definitions), `A2_ARCHIVE`
+(traceability). Temporary work lives in `40_WORKING/` and is then absorbed or deleted.
+Full rule: `00_CORE/05_METHODE.md` §16.5.
+
+**Reference SHAs.** Audit dossier: `17a62bc1`. `02_SYSTEME` generated at: `dc3b9a5a`.
+Any figure quoted without its revision is not usable.
 
 In this repo (root level):
 - `PRODUCT.md` — brand personality, anti-references, design principles, audience
