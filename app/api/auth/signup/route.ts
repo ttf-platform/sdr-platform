@@ -70,7 +70,9 @@ export async function POST(request: NextRequest) {
         get(name: string) { return request.cookies.get(name)?.value },
         set(name: string, value: string, options: any) { cookieJar[name] = { name, value, options } },
         remove(name: string, options: any) { delete cookieJar[name] }
-      }
+      },
+      // NODE_ENV et non le protocole de la requête : tout déploiement de l'hébergeur est servi en https, et aucune source de protocole côté requête n'est prouvée non influençable. `next start` sur http en local est hors support de ce lot.
+      cookieOptions: { secure: process.env.NODE_ENV === 'production' },
     }
   )
 
@@ -132,7 +134,8 @@ export async function POST(request: NextRequest) {
     const cookieKey = `sb-${projectRef}-auth-token`
     const chunks = createChunks(cookieKey, JSON.stringify(signInData.session))
     chunks.forEach(({ name, value }) => {
-      cookieJar[name] = { name, value, options: { ...DEFAULT_COOKIE_OPTIONS } }
+      // NODE_ENV et non le protocole de la requête : tout déploiement de l'hébergeur est servi en https, et aucune source de protocole côté requête n'est prouvée non influençable. `next start` sur http en local est hors support de ce lot.
+      cookieJar[name] = { name, value, options: { ...DEFAULT_COOKIE_OPTIONS, secure: process.env.NODE_ENV === 'production' } }
     })
   }
 

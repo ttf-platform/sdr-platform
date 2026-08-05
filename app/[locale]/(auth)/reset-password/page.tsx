@@ -10,10 +10,18 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams()
 
   // Per-component client — avoids shared module-level session state
+  // Third argument MUST match lib/supabase/client.ts (module-level
+  // cachedBrowserClient / isSingleton default true).
   const supabase = useRef(
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {},
+        cookieOptions: {
+          secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
+        },
+      }
     )
   ).current
 

@@ -12,7 +12,9 @@ export async function createClient() {
         get(name: string) { return cookieStore.get(name)?.value },
         set(name: string, value: string, options: any) { try { cookieStore.set({ name, value, ...options }) } catch {} },
         remove(name: string, options: any) { try { cookieStore.delete(name) } catch {} }
-      }
+      },
+      // NODE_ENV et non le protocole de la requête : tout déploiement de l'hébergeur est servi en https, et aucune source de protocole côté requête n'est prouvée non influençable. `next start` sur http en local est hors support de ce lot.
+      cookieOptions: { secure: process.env.NODE_ENV === 'production' },
     }
   )
 }

@@ -185,6 +185,8 @@ export async function middleware(request: NextRequest) {
             supabaseResponse.cookies.set({ name, value: '', ...options })
           },
         },
+        // NODE_ENV et non le protocole de la requête : tout déploiement de l'hébergeur est servi en https, et aucune source de protocole côté requête n'est prouvée non influençable. `next start` sur http en local est hors support de ce lot.
+        cookieOptions: { secure: process.env.NODE_ENV === 'production' },
       }
     )
 
