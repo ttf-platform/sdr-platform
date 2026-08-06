@@ -37,19 +37,64 @@ function ResetPasswordForm() {
     if (verified.current) return  // StrictMode guard — only verify once
     verified.current = true
 
-    const token_hash = searchParams.get('token_hash')
-    const type       = searchParams.get('type')
+    // Supabase emits recovery links in TWO shapes and the client construction
+    // above (createBrowserClient, flowType 'pkce' + detectSessionInUrl true)
+    // consumes the pkce shape BEFORE this effect runs — it exchanges `code`
+    // for a session and strips `code` from the URL. If we only look for
+    // `token_hash`, we mis-diagnose the pkce case as "invalid link" even
+    // though a valid recovery session was just established.
+    //
+    // Branch order matches the observable input :
+    //   1. explicit error in the URL → invalid link (fail fast, no client I/O)
+    //   2. token_hash + type=recovery → historical shape, verifyOtp path kept
+    //      intact so a future email-template change reverts to it seamlessly
+    //   3. otherwise → ask the client for the session it may already hold
+    //      (getSession awaits the internal init promise deterministically —
+    //      no timers, no polling)
 
-    if (!token_hash || type !== 'recovery') {
+    const urlError =
+      searchParams.get('error') ||
+      searchParams.get('error_code') ||
+      searchParams.get('error_description')
+    if (urlError) {
       setError(t('errorInvalidLink'))
       return
     }
 
-    supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
-      .then(({ error: err }) => {
-        if (err) setError(t('errorInvalidLink'))
-        else     setSessionReady(true)
-      })
+    const token_hash = searchParams.get('token_hash')
+    const type       = searchParams.get('type')
+
+    if (token_hash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
+        .then(({ error: err }) => {
+          if (err) setError(t('errorInvalidLink'))
+          else     setSessionReady(true)
+        })
+      return
+    }
+
+    // Fallback : pkce link (already consumed) or any other shape that leaves
+    // a session on the client. getSession() constate qu'une session EXISTE ;
+    // il ne PROUVE PAS qu'elle vient d'un flux de recovery. Un utilisateur
+    // deja connecte qui ouvrirait cette page avec un lien invalide passerait
+    // ce filtre — limite documentee dans la description de PR, non traitee
+    // dans le perimetre de ce lot.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setSessionReady(true)
+      else              setError(t('errorInvalidLink'))
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Subscription — kept out of the one-shot effect above so StrictMode's
+  // mount → cleanup → mount cycle cleanly re-subscribes/re-unsubscribes.
+  // PASSWORD_RECOVERY is the only event that discriminates a recovery flow
+  // from any other session state ; when it arrives after the first read
+  // (init still in flight), it lifts the "verifying" screen.
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setSessionReady(true)
+    })
+    return () => data.subscription.unsubscribe()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handle(e: React.FormEvent) {
