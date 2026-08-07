@@ -10,7 +10,7 @@
  *   - InstantlyProvider constructor refuses empty apiKey
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   MockEmailProvider,
   InstantlyProvider,
@@ -81,15 +81,24 @@ describe('MockEmailProvider', () => {
     });
 
     it('sendEmail returns provider message id and timestamp', async () => {
-      const result = await provider.sendEmail({
-        inboxId: 'inbox_x',
-        to: 'prospect@acme.com',
-        fromName: 'Cyrus',
-        subject: 'Hello',
-        body: 'Test',
-      });
-      expect(result.providerMessageId).toMatch(/^mock_msg_/);
-      expect(() => new Date(result.scheduledAt)).not.toThrow();
+      // R8 - MockEmailProvider.sendEmail tire Math.random() et leve une panne
+      // simulee dans 5 % des cas. Ce test verifie la FORME du retour, jamais
+      // la panne : on fige le tirage pour le rendre deterministe. Le mock
+      // n'est PAS modifie - son comportement reste disponible en dev.
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      try {
+        const result = await provider.sendEmail({
+          inboxId: 'inbox_x',
+          to: 'prospect@acme.com',
+          fromName: 'Cyrus',
+          subject: 'Hello',
+          body: 'Test',
+        });
+        expect(result.providerMessageId).toMatch(/^mock_msg_/);
+        expect(() => new Date(result.scheduledAt)).not.toThrow();
+      } finally {
+        randomSpy.mockRestore();
+      }
     });
   });
 });
