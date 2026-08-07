@@ -3,7 +3,8 @@
 # Controle de derive du modele d'e-mail "Reset password" (lot INFRA.2).
 #
 # Verifie que la configuration d'authentification du projet de PRODUCTION
-# correspond a la copie de reference versionnee dans ce depot. # correspond a la trois elements compares casse la reinitialisation de mot de passe en silence.
+# correspond a la copie de reference versionnee dans ce depot. Perdre l'un des
+# trois elements compares casse la reinitialisation de mot de passe en silence.
 #
 # EXECUTION MANUELLE UNIQUEMENT — aucun secret n'est stocke dans ce depot,
 # aucune execution automatique n'est branchee. A lancer avant une mise en
