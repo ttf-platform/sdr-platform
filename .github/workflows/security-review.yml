@@ -11,6 +11,7 @@ on:
 jobs:
   security:
     runs-on: ubuntu-latest
+    environment: security-review
     steps:
       - uses: actions/checkout@v4
         with:
