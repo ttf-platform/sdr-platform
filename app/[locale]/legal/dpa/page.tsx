@@ -160,10 +160,9 @@ export default async function DpaPage({
                   ['Resend Inc.', 'Transactional email delivery', 'USA', 'EU-US DPF + SCCs'],
                   ['Anthropic PBC', 'AI-powered email generation, sentiment analysis', 'USA', 'EU-US DPF + SCCs'],
                   ['Instantly.ai (Foo Monk LLC)', 'Outbound email infrastructure', 'USA', 'EU-US DPF + SCCs'],
-                  ['Clay Labs Inc.', 'Prospect data enrichment', 'USA', 'EU-US DPF + SCCs'],
                   ['PostHog Inc.', 'Product analytics, session replay (EU project)', 'EU (Frankfurt)', 'N/A — EU-resident'],
                 ].map(([vendor, service, location, mechanism], i) => (
-                  <tr key={vendor as string} style={{ borderBottom: i < 7 ? '1px solid #e8e3dc' : undefined }}>
+                  <tr key={vendor as string} style={{ borderBottom: i < 6 ? '1px solid #e8e3dc' : undefined }}>
                     <td style={{ padding: '10px 14px', color: '#1a1a1a', fontWeight: 500 }}>{vendor}</td>
                     <td style={{ padding: '10px 14px', color: '#4a4a5a' }}>{service}</td>
                     <td style={{ padding: '10px 14px', color: '#4a4a5a' }}>{location}</td>
