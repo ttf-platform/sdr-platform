@@ -136,8 +136,14 @@ export async function GET(
       { status: 502 },
     )
   }
-  const safeAccountId = (accountId ?? '').trim()
-  if (!PROVIDER_ACCOUNT_ID_REGEX.test(safeAccountId)) {
+  // The real Instantly response omits account_id ; the field is only present
+  // in mock output and in the vendor documentation. Absent / non-string /
+  // empty-after-trim → persist NULL (email_accounts.provider_account_id is
+  // nullable by design, migration 052). Present and non-empty → apply the
+  // existing PROVIDER_ACCOUNT_ID_REGEX gate unchanged, 502 on failure.
+  const trimmedAccountId = typeof accountId === 'string' ? accountId.trim() : ''
+  const safeAccountId: string | null = trimmedAccountId.length > 0 ? trimmedAccountId : null
+  if (safeAccountId !== null && !PROVIDER_ACCOUNT_ID_REGEX.test(safeAccountId)) {
     return NextResponse.json(
       { error: 'invalid_provider_response', message: 'Provider returned an invalid account id.' },
       { status: 502 },
