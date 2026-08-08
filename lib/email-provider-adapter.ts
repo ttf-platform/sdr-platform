@@ -67,7 +67,12 @@ export interface OAuthInitResult {
 
 export type OAuthStatusResult =
   | { status: 'pending' }
-  | { status: 'success'; email: string; name: string; accountId: string }
+  // accountId is optional : the real Instantly response for
+  // GET /api/v2/oauth/session/status/{sessionId} carries only
+  // { status, email, name } at the top level (measured in prod, INFRA.4).
+  // The status route persists provider_account_id as NULL when the field
+  // is absent — the DB column is nullable by design.
+  | { status: 'success'; email: string; name: string; accountId?: string }
   | { status: 'error'; error: string; errorDescription?: string }
   | { status: 'expired' };
 
@@ -863,75 +868,20 @@ export class InstantlyProvider implements IEmailProvider {
       case 'pending':
         return { status: 'pending' }
       case 'success':
-        if (!b.email || !b.name || !b.account_id) {
-          // sonde TEMPORAIRE posée pour INFRA.4, à retirer après le relevé.
-          // Son retrait fera l'objet d'une PR séparée, il n'est pas dans le
-          // périmètre de celle-ci.
-          //
-          // Objet : identifier le contrat réellement renvoyé par le fournisseur
-          // sur GET /oauth/session/status/{sessionId} quand la validation
-          // échoue. AUCUNE valeur n'est journalisée — ni email, ni nom, ni
-          // account_id, ni jeton, ni longueur, ni extrait — seulement des
-          // noms de clés, des types et des booléens.
-          {
-            const probeBody: unknown = body
-            const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-              v !== null && typeof v === 'object' && !Array.isArray(v)
-
-            const bodyType: string = probeBody === null
-              ? 'null'
-              : Array.isArray(probeBody) ? 'array' : typeof probeBody
-
-            const topKeys: string[] = isPlainObject(probeBody) ? Object.keys(probeBody) : []
-            const topTypes: Record<string, string> = {}
-            const nestedKeys: Record<string, string[]> = {}
-            if (isPlainObject(probeBody)) {
-              for (const k of topKeys) {
-                const v = probeBody[k]
-                topTypes[k] = v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v
-                if (isPlainObject(v)) nestedKeys[k] = Object.keys(v)
-              }
-            }
-
-            const hasEmail     = isPlainObject(probeBody) && Object.prototype.hasOwnProperty.call(probeBody, 'email')
-            const hasName      = isPlainObject(probeBody) && Object.prototype.hasOwnProperty.call(probeBody, 'name')
-            const hasAccountId = isPlainObject(probeBody) && Object.prototype.hasOwnProperty.call(probeBody, 'account_id')
-
-            const accountIdValue: unknown = hasAccountId
-              ? (probeBody as Record<string, unknown>).account_id
-              : undefined
-            const accountIdIsString = typeof accountIdValue === 'string'
-            // Charset recalculé SUR PLACE — on n'importe pas la constante de
-            // la route de statut, elle doit rester à un seul endroit.
-            const accountIdOutsideCharsetRe = /[^A-Za-z0-9_\-:.]/
-            const accountIdHasAt: boolean | 'n/a' =
-              hasAccountId && accountIdIsString
-                ? (accountIdValue as string).includes('@')
-                : 'n/a'
-            const accountIdOutsideCharset: boolean | 'n/a' =
-              hasAccountId && accountIdIsString
-                ? accountIdOutsideCharsetRe.test(accountIdValue as string)
-                : 'n/a'
-
-            console.error('[InstantlyProvider.getOAuthStatus] SHAPE_PROBE', {
-              body_type: bodyType,
-              top_keys: topKeys,
-              top_types: topTypes,
-              nested_keys: nestedKeys,
-              has_email: hasEmail,
-              has_name: hasName,
-              has_account_id: hasAccountId,
-              account_id_has_at: accountIdHasAt,
-              account_id_outside_charset: accountIdOutsideCharset,
-            })
-          }
+        if (!b.email || !b.name) {
           throw new Error('[InstantlyProvider.getOAuthStatus] success missing fields')
         }
+        // account_id is documented by the vendor but not present in the
+        // observed prod response. Only forward it as a non-empty string ; an
+        // empty string is treated as an absence, never as a value — the
+        // status route would otherwise reject it via PROVIDER_ACCOUNT_ID_REGEX.
         return {
           status: 'success',
           email: b.email,
           name: b.name,
-          accountId: b.account_id,
+          ...(typeof b.account_id === 'string' && b.account_id.length > 0
+            ? { accountId: b.account_id }
+            : {}),
         }
       case 'error':
         return {
