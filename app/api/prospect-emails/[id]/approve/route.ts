@@ -88,17 +88,45 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
   // Gate A — no_sending_mailbox. Refuse before flipping status='sending' so
   // a rejected approval never leaves an orphaned row stuck in 'sending' that
-  // no webhook will ever transition. Count-only query, workspace-scoped.
-  // Matches the "ready to send" contract: setup_status='verified' AND
-  // paused_by_user=false AND auto_paused_at IS NULL.
-  const { count: mailboxCount } = await admin
+  // no webhook will ever transition. Same eligibility predicate as before :
+  // setup_status='verified' AND paused_by_user=false AND auto_paused_at IS
+  // NULL, workspace-scoped.
+  //
+  // Historically a count-only query ; now a READ of email_address so
+  // ensureCampaign (below) can pass the list as email_list to Instantly —
+  // a provider campaign without email_list cannot dispatch (measured in
+  // prod 2026-08-09).
+  //
+  // Only email_address is read : provider_inbox_id carries the address for
+  // OAuth mailboxes but the DFY turnkey path (cron reconcile-dfy-orders)
+  // writes an opaque provider identifier or NULL there, so it is not a
+  // reliable carrier of the address end-to-end.
+  //
+  // In-memory cleanup, after read — a DB cannot express "strip surrounding
+  // spaces" : trim() every value, drop nulls / non-strings, drop empties
+  // after trim, and forward the trimmed value, never the raw one. Motif :
+  // email_address is NULLABLE in prod (migration 029 declaring it NOT NULL
+  // is a CREATE TABLE IF NOT EXISTS that never took effect on the pre-
+  // existing table) ; the reconcile-dfy-orders cron only guards against
+  // falsy values, so a whitespace-only string can be persisted.
+  //
+  // Assumed behaviour change : an eligible row without a usable address
+  // passed this gate before this fix and is refused after it. Product
+  // decision by Max : forward EVERY eligible mailbox, no priority, no
+  // order, no rotation. The empty-list check below is the anti-silent-
+  // failure guard : the provider is NEVER called with an empty list nor
+  // with a list containing null / blank values.
+  const { data: mailboxRows } = await admin
     .from('email_accounts')
-    .select('id', { count: 'exact', head: true })
+    .select('email_address')
     .eq('workspace_id', guard.workspaceId)
     .eq('setup_status', 'verified')
     .eq('paused_by_user', false)
     .is('auto_paused_at', null)
-  if (!mailboxCount || mailboxCount === 0) {
+  const sendingMailboxes: string[] = (mailboxRows ?? [])
+    .map((r) => (typeof r.email_address === 'string' ? r.email_address.trim() : ''))
+    .filter((addr) => addr.length > 0)
+  if (sendingMailboxes.length === 0) {
     return NextResponse.json({ error: 'no_sending_mailbox' }, { status: 422 })
   }
 
@@ -228,7 +256,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     )
     try {
       const ensured = await withTimeout(
-        provider.ensureCampaign({ name: campaign.name, schedule }),
+        provider.ensureCampaign({ name: campaign.name, schedule, sendingMailboxes }),
         PROVIDER_TIMEOUT_MS,
       )
       providerCampaignId = ensured.providerCampaignId
