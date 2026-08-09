@@ -909,6 +909,30 @@ export class InstantlyProvider implements IEmailProvider {
       if (d >= 0 && d <= 6) daysObj[String(d)] = true
     }
 
+    // Instantly's timezone whitelist for campaign_schedule.schedules[].timezone
+    // is a closed enum that does NOT include Europe/Paris. Measured in prod
+    // 2026-08-09, POST https://api.instantly.ai/api/v2/campaigns replied :
+    //   { statusCode:400, error:"Bad Request",
+    //     message:"body/campaign_schedule/schedules/0/timezone must be equal
+    //              to one of the allowed values" }
+    // Same body, timezone swapped to Europe/Belgrade → HTTP 200.
+    //
+    // Europe/Belgrade tracks Europe/Paris hour-for-hour (measured : 0 offset
+    // divergence across 26 280 hourly instants from 2025-01-01 to 2028-01-01,
+    // Node 22.22.2 / ICU 78.2, identical DST transitions). The equivalence
+    // rests on France and Serbia currently landing on the SAME EU DST dates,
+    // NOT on a shared rule — recheck if either country changes its schedule
+    // (EU DST abolition, Serbian carve-out, …).
+    //
+    // Mirvo's business timezone stays Europe/Paris everywhere else ; only the
+    // value transmitted to Instantly is translated, right here, at the wire.
+    // No general lookup table, no fallback for unknown timezones : any other
+    // value is transmitted verbatim so the provider's own validator surfaces
+    // the mismatch. If this substitution ever looks like dead code, remember
+    // it exists BECAUSE the provider rejects the natural value.
+    const providerTimezone =
+      schedule.timezone === 'Europe/Paris' ? 'Europe/Belgrade' : schedule.timezone
+
     const res = await fetch(`${this.baseUrl}/campaigns`, {
       method: 'POST',
       headers: {
@@ -925,7 +949,7 @@ export class InstantlyProvider implements IEmailProvider {
             name:     'default',
             timing:   { from: schedule.windowStart, to: schedule.windowEnd },
             days:     daysObj,
-            timezone: schedule.timezone,
+            timezone: providerTimezone,
           }],
         },
       }),
