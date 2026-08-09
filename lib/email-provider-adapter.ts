@@ -98,6 +98,14 @@ export interface EnsureCampaignParams {
   name: string;
   /** Optional sending window override. Defaults to 08:00–18:00 Mon–Fri Europe/Paris. */
   schedule?: CampaignSchedule;
+  /**
+   * Addresses of the mailboxes that will send for this campaign. Required :
+   * a provider campaign without an email_list cannot dispatch, and Instantly
+   * does not surface this constraint on the create response — measured in
+   * prod 2026-08-09. The list is a snapshot taken at the first approval ;
+   * see the approve route's Gate A for the eligibility predicate.
+   */
+  sendingMailboxes: string[];
 }
 
 export interface EnsureCampaignResult {
@@ -944,6 +952,32 @@ export class InstantlyProvider implements IEmailProvider {
         // RFC 8058 one-click List-Unsubscribe header (Gmail/Yahoo Feb 2024 requirement).
         // Provider-managed: Instantly injects the header on every outbound message.
         insert_unsubscribe_header: true,
+        // Mailboxes that will dispatch for this campaign. Instantly requires
+        // this list on create ; measured in prod 2026-08-09, campaigns
+        // created without it do not emit. Forwarded verbatim from the
+        // caller's snapshot (approve/route.ts Gate A) — no ordering, no
+        // rotation, no dedup at this layer.
+        email_list: params.sendingMailboxes,
+        // Single-step "email" sequence. Instantly refuses to send a campaign
+        // that has no sequence, and a lead ships the step's variant body /
+        // subject at delay 0. The subject and body carry the literal
+        // {{mirvo_subject}} / {{mirvo_body}} markers : the provider
+        // substitutes them at send time from the per-lead custom variables
+        // populated by enqueueLead (measured in prod 2026-08-09 — the
+        // markers were replaced without any prior variable declaration).
+        // No HTML wrapping : Instantly preserves plain-text bodies with
+        // newlines verbatim, and empties any body that mixes plain text
+        // with <br/> tags.
+        sequences: [{
+          steps: [{
+            type:     'email',
+            delay:    0,
+            variants: [{
+              subject: '{{mirvo_subject}}',
+              body:    '{{mirvo_body}}',
+            }],
+          }],
+        }],
         campaign_schedule: {
           schedules: [{
             name:     'default',

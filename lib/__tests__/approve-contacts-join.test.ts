@@ -27,7 +27,7 @@ const {
   peRereadMock,
   stepSelectSingleMock,
   campaignSelectSingleMock,
-  emailAccountsCountMock,
+  emailAccountsGuardMock,
   peReserveCasMock,
   prospectSelectSingleMock,
   peSuccessUpdateMock,
@@ -47,7 +47,7 @@ const {
   peRereadMock:                vi.fn(),
   stepSelectSingleMock:        vi.fn(),
   campaignSelectSingleMock:    vi.fn(),
-  emailAccountsCountMock:      vi.fn(),
+  emailAccountsGuardMock:      vi.fn(),
   peReserveCasMock:            vi.fn(),
   prospectSelectSingleMock:    vi.fn(),
   peSuccessUpdateMock:         vi.fn(),
@@ -156,23 +156,19 @@ vi.mock('@/lib/supabase/admin', () => ({
         }
       }
       if (table === 'email_accounts') {
+        // Both queries have the same .eq().eq().eq().is() chain — only the
+        // requested columns differ. Gate A now reads email_address (list),
+        // the warmup probe reads daily_capacity, sending_phase (list).
+        // Dispatch on the columns string, not on count/head anymore.
         return {
-          select: (_cols: string, opts?: { count?: string; head?: boolean }) => {
-            if (opts?.count === 'exact' && opts.head === true) {
-              // Gate A count query
-              return {
-                eq: () => ({
-                  eq: () => ({
-                    eq: () => ({ is: emailAccountsCountMock }),
-                  }),
-                }),
-              }
-            }
-            // Warmup probe
+          select: (cols: string) => {
+            const target = cols === 'email_address'
+              ? emailAccountsGuardMock
+              : emailAccountsWarmupMock
             return {
               eq: () => ({
                 eq: () => ({
-                  eq: () => ({ is: emailAccountsWarmupMock }),
+                  eq: () => ({ is: target }),
                 }),
               }),
             }
@@ -253,7 +249,13 @@ beforeEach(() => {
     data:  { id: CAMPAIGN_ID, name: 'Test', provider_campaign_id: PROV_CAMP },
     error: null,
   })
-  emailAccountsCountMock.mockResolvedValue({ count: 1, error: null })
+  // Gate A now reads email_address (list). Default : one usable address so
+  // the six pre-existing tests still pass through the guard as they did
+  // when it was a count of 1.
+  emailAccountsGuardMock.mockResolvedValue({
+    data:  [{ email_address: 'sender@mirvo.test' }],
+    error: null,
+  })
   peReserveCasMock.mockResolvedValue({ data: [{ id: PE_ID }], error: null })
   // Post-§3 : the write only projects 'id'. Wide projection now lives
   // on a separate SELECT (peRereadMock below).
@@ -443,5 +445,40 @@ describe('POST /api/prospect-emails/[id]/approve — §3 write/projection decoup
     expect(emailSendLogInsertMock).toHaveBeenCalledTimes(1)
     // Reread is NOT attempted when CAS lost the race.
     expect(peRereadMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── New behaviour : Gate A refuses eligible rows whose email_address is null ─
+//
+// Documented behaviour change of the PR that made Gate A a list-read : an
+// eligible row (setup_status='verified', paused_by_user=false,
+// auto_paused_at IS NULL) whose email_address is null / non-string / blank
+// after trim used to pass the count-only guard and would now be refused —
+// because such a row cannot be forwarded to the provider as an email_list
+// entry.
+//
+// The in-memory cleanup in the route (trim + drop nulls + drop empties) is
+// what discriminates : without it, a [{ email_address: null }] list would
+// pass the "sendingMailboxes.length === 0" check as a length-1 list.
+describe('POST /api/prospect-emails/[id]/approve — Gate A rejects rows with null email_address', () => {
+  it('returns 422 no_sending_mailbox when the only eligible row has email_address = null', async () => {
+    // Row is eligible by the predicate but has no usable address.
+    emailAccountsGuardMock.mockResolvedValue({
+      data:  [{ email_address: null }],
+      error: null,
+    })
+
+    const res = await POST(makeReq(), { params })
+
+    expect(res.status).toBe(422)
+    const body = await res.json()
+    expect(body.error).toBe('no_sending_mailbox')
+
+    // The route must NOT have proceeded past Gate A — no CAS reserve,
+    // no enqueue, no finalise, no log.
+    expect(peReserveCasMock).not.toHaveBeenCalled()
+    expect(providerEnqueueLeadMock).not.toHaveBeenCalled()
+    expect(peSuccessUpdateMock).not.toHaveBeenCalled()
+    expect(emailSendLogInsertMock).not.toHaveBeenCalled()
   })
 })

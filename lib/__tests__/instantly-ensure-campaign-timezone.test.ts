@@ -58,11 +58,15 @@ function installFetchStub(captured: Captured[]) {
   })
 }
 
+// Not `as const` : sendingMailboxes needs to be a mutable string[] to
+// satisfy EnsureCampaignParams. A readonly tuple from `as const` would
+// break the type check on the existing call sites.
 const baseParams = {
   name: 'Test Campaign',
   senderEmail: 'sender@example.com',
   senderName:  'Sender Name',
-} as const
+  sendingMailboxes: ['mailbox-a@mirvo.test', 'mailbox-b@mirvo.test'],
+}
 
 const parisSchedule = {
   windowStart: '08:00',
@@ -112,5 +116,90 @@ describe('InstantlyProvider.ensureCampaign — timezone substitution', () => {
     }
     const sentTimezone = body?.campaign_schedule?.schedules?.[0]?.timezone
     expect(sentTimezone).toBe('Europe/London')
+  })
+})
+
+// ─── email_list + sequences on the create-campaign payload ─────────────────
+//
+// Measured in prod 2026-08-09 : the campaign Mirvo currently creates carries
+// neither "sequences" nor "email_list". A campaign carrying both (email_list
+// = the workspace mailboxes ; sequences = one email step, delay 0, one
+// variant with subject={{mirvo_subject}} + body={{mirvo_body}}) was observed
+// emitting a real message received in inbox. Instantly does not surface these
+// fields on the create response, so the only way to catch a regression is
+// by asserting on the request body.
+describe('InstantlyProvider.ensureCampaign — email_list and sequences payload', () => {
+  let captured: Captured[]
+
+  beforeEach(() => {
+    captured = []
+    installFetchStub(captured)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('forwards sendingMailboxes verbatim as email_list', async () => {
+    const provider = new InstantlyProvider('test-api-key')
+    await provider.ensureCampaign({
+      ...baseParams,
+      schedule: parisSchedule,
+      sendingMailboxes: ['a@mirvo.test', 'b@mirvo.test', 'c@mirvo.test'],
+    })
+
+    expect(captured).toHaveLength(1)
+    const body = captured[0].body as { email_list?: unknown }
+    expect(body.email_list).toEqual(['a@mirvo.test', 'b@mirvo.test', 'c@mirvo.test'])
+  })
+
+  it('carries a sequences[0] with exactly one email step, delay 0, and one variant', async () => {
+    const provider = new InstantlyProvider('test-api-key')
+    await provider.ensureCampaign({ ...baseParams, schedule: parisSchedule })
+
+    expect(captured).toHaveLength(1)
+    const body = captured[0].body as {
+      sequences?: Array<{
+        steps?: Array<{
+          type?:     string
+          delay?:    number
+          variants?: Array<{ subject?: string; body?: string }>
+        }>
+      }>
+    }
+    expect(Array.isArray(body.sequences)).toBe(true)
+    expect(body.sequences).toHaveLength(1)
+
+    const steps = body.sequences?.[0]?.steps
+    expect(Array.isArray(steps)).toBe(true)
+    expect(steps).toHaveLength(1)
+    expect(steps?.[0]?.type).toBe('email')
+    expect(steps?.[0]?.delay).toBe(0)
+
+    const variants = steps?.[0]?.variants
+    expect(Array.isArray(variants)).toBe(true)
+    expect(variants).toHaveLength(1)
+  })
+
+  it('sets the sole variant subject to the literal {{mirvo_subject}} marker', async () => {
+    const provider = new InstantlyProvider('test-api-key')
+    await provider.ensureCampaign({ ...baseParams, schedule: parisSchedule })
+
+    const body = captured[0].body as {
+      sequences?: Array<{ steps?: Array<{ variants?: Array<{ subject?: string }> }> }>
+    }
+    const subject = body.sequences?.[0]?.steps?.[0]?.variants?.[0]?.subject
+    expect(subject).toBe('{{mirvo_subject}}')
+  })
+
+  it('sets the sole variant body to the literal {{mirvo_body}} marker', async () => {
+    const provider = new InstantlyProvider('test-api-key')
+    await provider.ensureCampaign({ ...baseParams, schedule: parisSchedule })
+
+    const body = captured[0].body as {
+      sequences?: Array<{ steps?: Array<{ variants?: Array<{ body?: string }> }> }>
+    }
+    const variantBody = body.sequences?.[0]?.steps?.[0]?.variants?.[0]?.body
+    expect(variantBody).toBe('{{mirvo_body}}')
   })
 })
