@@ -682,7 +682,8 @@
         "campaign_step_missing": "Campaign step missing.",
         "campaign_missing": "Campaign missing.",
         "reject_failed": "Could not reject this draft.",
-        "other": "Unexpected error."
+        "other": "Unexpected error.",
+        "retry_unsafe": "Retry unavailable: this email may already have gone out."
       }
     },
     "shell": {
@@ -1499,14 +1500,17 @@
           "sendAllSuccess": "{count, plural, one {1 draft queued to send} other {# drafts queued to send}}",
           "sendAllNothingToSend": "No drafts to send.",
           "sendAllPartial": "Queued {ok} of {total} drafts to send. Some couldn't be queued — refresh to see which.",
-          "sendAllFailed": "Couldn't queue your drafts. Try again in a moment."
+          "sendAllFailed": "Couldn't queue your drafts. Try again in a moment.",
+          "cardRetry": "Retry",
+          "cardRetryUnavailable": "Retry unavailable — the send may have gone out"
         },
         "emailStatuses": {
           "draft": "Draft",
           "edited": "Edited",
           "approved": "✓ Approved",
           "sent": "↑ Sent",
-          "rejected": "✗ Rejected"
+          "rejected": "✗ Rejected",
+          "failed": "Failed"
         },
         "sources": {
           "manual": "Manual",
@@ -1549,7 +1553,10 @@
           "mailboxNotReadyAction": "Open Settings",
           "providerMockMode": "Email sending is not active. Contact support.",
           "sendFailed": "Could not queue this email. Try again.",
-          "warmup": "Your mailboxes are warming up — sending is limited to about {cap}/day for now."
+          "warmup": "Your mailboxes are warming up — sending is limited to about {cap}/day for now.",
+          "retryUnsafe": "Retry unavailable: this email may already have gone out. To avoid a duplicate, it cannot be sent again.",
+          "bulkApprovePartial": "{ok} approved, {fail} refused. Some emails cannot be sent again.",
+          "bulkDeleteSkipped": "{count, plural, one {1 email kept} other {# emails kept}}: they may already have gone out."
         },
         "approvalQueue": {
           "title": "Approval Queue",
@@ -2503,7 +2510,8 @@
         "failedToLoad": "Failed to load email.",
         "saveFailed": "Save failed. Please try again.",
         "regenerationFailed": "Regeneration failed. Please try again.",
-        "generationFailed": "Generation failed. Please try again."
+        "generationFailed": "Generation failed. Please try again.",
+        "retryUnsafe": "Retry unavailable: this email may already have gone out. To avoid a duplicate, it cannot be sent again."
       }
     },
     "campaignModals": {

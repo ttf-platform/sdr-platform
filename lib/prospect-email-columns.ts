@@ -8,6 +8,10 @@
  *
  *     - provider            literal 'instantly' in prod; vendor-named enum
  *     - send_error          carries "[InstantlyProvider.<method>] …" on failure
+ *                           → NEVER returned, and never used for a decision.
+ *                             Several authors write to it. Retry safety lives
+ *                             in the typed column `retry_safe` (migration
+ *                             092), which IS vendor-free and IS listed below.
  *     - thread_id           provider-set Message-ID may embed the vendor domain
  *                           (e.g. "<abc@inboxes.instantly.ai>")
  *     - bounce_reason       provider-set free text; may include vendor strings
@@ -24,10 +28,10 @@
  * for a campaign creates the provider campaign and activates it; subsequent
  * approvals just enqueue the prospect as a new lead.
  *
- * Status transitions on prospect_emails:
- *   draft|edited|approved → sending  (queued at the provider)
- *   sending               → sent     (set by the provider webhook — Sprint A4)
- *   sending               → failed   (this route, on provider/queue failure)
+ * Status transitions on prospect_emails are NOT duplicated here — the copy
+ * that used to live in this header went stale the day 'failed → sending'
+ * (retry) was added. Single owner: lib/prospect-email-status.ts
+ * (COMMITTED_STATUSES / APPROVABLE_STATUSES) and migration 085.
  */
 
 // Explicit allowlist of columns ever returned to the client.
@@ -109,4 +113,4 @@ export const PROSPECT_EMAIL_CLIENT_COLUMNS =
 export const PROSPECT_EMAIL_LIST_COLUMNS =
   'id, prospect_id, campaign_step_id, subject, body, mode, status, ' +
   'generated_at, approved_at, edited_at, rejected_at, sent_at, ' +
-  'provider_message_id, is_sample'
+  'provider_message_id, is_sample, retry_safe'

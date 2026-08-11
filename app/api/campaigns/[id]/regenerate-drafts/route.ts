@@ -75,12 +75,46 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     .single()
 
   if (initialStep) {
-    await admin
+    // Retry-safety guard. Deleting a row frees the UNIQUE(prospect_id,
+    // campaign_step_id) that stops a second send for that prospect. On a row
+    // the provider may already hold, that is a one-click bypass of the
+    // approve guard : Edit → Regenerate drafts → fresh row → Send All.
+    // Same rule as the two delete routes ; here the filter is on status, so
+    // the unsafe ids have to be excluded explicitly.
+    // Fail CLOSED : a swallowed read error would yield an empty preserve
+    // list and delete everything, guard included.
+    const { data: unsafeRows, error: guardReadError } = await admin
+      .from('prospect_emails')
+      .select('id')
+      .eq('workspace_id', guard.workspaceId)
+      .eq('campaign_step_id', initialStep.id)
+      .eq('retry_safe', false)
+    if (guardReadError) {
+      console.error('[regenerate-drafts] retry-safety read failed:', {
+        campaign_id: params.id, workspace_id: guard.workspaceId,
+        db_code: (guardReadError as { code?: string }).code ?? 'unknown',
+      })
+      return NextResponse.json({ error: 'guard_read_failed' }, { status: 500 })
+    }
+    const preservedCount = (unsafeRows ?? []).length
+
+    // Excluded by predicate rather than by a NOT IN list : a long id list would blow
+    // past PostgREST's URL limits, and a truncated exclusion fails OPEN.
+    const { error: delError } = await admin
       .from('prospect_emails')
       .delete()
       .eq('workspace_id', guard.workspaceId)
       .eq('campaign_step_id', initialStep.id)
       .in('status', ['draft', 'edited', 'rejected'])
+      .eq('retry_safe', true)
+    if (delError) {
+      return NextResponse.json({ error: delError.message }, { status: 500 })
+    }
+    if (preservedCount > 0) {
+      console.warn('[regenerate-drafts] rows preserved by retry-safety guard:', {
+        campaign_id: params.id, workspace_id: guard.workspaceId, preserved: preservedCount,
+      })
+    }
   }
 
   const result = await generateDraftsForCampaign(params.id, guard.workspaceId, mode)

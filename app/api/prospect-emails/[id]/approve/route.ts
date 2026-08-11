@@ -18,6 +18,7 @@
  *
  * Status transitions on prospect_emails:
  *   draft|edited|approved → sending  (queued at the provider)
+ *   failed                → sending  (RETRY — same content, no AI regen)
  *   sending               → sent     (set by the provider webhook — Sprint A4)
  *   sending               → failed   (this route, on provider/queue failure)
  */
@@ -25,13 +26,14 @@
 import { NextResponse } from 'next/server'
 import { billingGuard } from '@/lib/billing-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getEmailProvider } from '@/lib/email-provider-adapter'
+import { getEmailProvider, isProviderRejection } from '@/lib/email-provider-adapter'
 import { getEmailProviderDiagnostic, isMockSendBlocked } from '@/lib/email-provider-health'
 import { enforceEmptyBody } from '@/lib/schemas'
 import { campaignScheduleFromPrefs } from '@/lib/sending-schedule'
 import type { SendingPrefs } from '@/lib/types/sending-prefs'
 import { checkTierLimit, trackUsage } from '@/lib/tier-limits'
 import { isNoRowsError } from '@/lib/db-errors'
+import { APPROVABLE_STATUSES } from '@/lib/prospect-email-status'
 // Column allowlist + full vendor-invisibility doctrine live in
 // lib/prospect-email-columns.ts.
 import { PROSPECT_EMAIL_CLIENT_COLUMNS as CLIENT_COLUMNS } from '@/lib/prospect-email-columns'
@@ -51,7 +53,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   // 1. Fetch the prospect_email scoped to the caller's workspace.
   const { data: pe, error: fetchError } = await admin
     .from('prospect_emails')
-    .select('id, workspace_id, prospect_id, campaign_step_id, subject, body, thread_id, status')
+    .select('id, workspace_id, prospect_id, campaign_step_id, subject, body, thread_id, status, retry_safe')
     .eq('id', params.id)
     .eq('workspace_id', guard.workspaceId)
     .single()
@@ -62,6 +64,19 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
   if (pe.status === 'sending' || pe.status === 'sent') {
     return NextResponse.json({ error: 'already_sent' }, { status: 409 })
+  }
+
+  // Gate 0 — retry safety. Reads the typed column, never the status : a
+  // 'failed' row that the user edits becomes 'edited' and would slip past a
+  // status-keyed guard in one click. retry_safe travels with the row through
+  // every transition because nothing else writes it (migration 092).
+  // Placed before every other gate so an unsafe row never consumes quota,
+  // never touches the provider, and never reaches the CAS.
+  if (pe.retry_safe === false) {
+    console.error('[approve] blocked: retry unsafe', {
+      prospect_email_id: pe.id, workspace_id: guard.workspaceId, status: pe.status,
+    })
+    return NextResponse.json({ error: 'retry_unsafe' }, { status: 409 })
   }
 
   // 2. Resolve the parent campaign via campaign_step. campaign_steps has no
@@ -174,12 +189,17 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   //    read: draft/edited are the normal draft state, and 'approved' is
   //    the parked-by-old-bulk-approve state (that route is removed, but any
   //    rows still in that limbo can still be pushed to sending here — the
-  //    read at line 92 already excluded sending/sent).
+  //    read above already excluded sending/sent). 'failed' is in the list
+  //    too — a retry re-enqueues the SAME content, with no AI regeneration.
+  //    The list is NOT declared here: it lives in lib/prospect-email-status.ts
+  //    so it cannot drift from COMMITTED_STATUSES again the way it did when
+  //    'failed' was omitted. That module also carries what the retry does NOT
+  //    guarantee provider-side — read it before widening this list.
   const { data: reserved, error: reserveError } = await admin
     .from('prospect_emails')
     .update({ status: 'sending', approved_at: new Date().toISOString() })
     .eq('id', pe.id)
-    .in('status', ['draft', 'edited', 'approved'])
+    .in('status', [...APPROVABLE_STATUSES])
     .select('id')
   if (reserveError) {
     return NextResponse.json({ error: reserveError.message }, { status: 500 })
@@ -226,10 +246,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
   if (prospectError && !isNoRowsError(prospectError)) {
     const code = (prospectError as { code?: string }).code ?? 'unknown'
-    return await markFailed(admin, pe.id, guard.workspaceId, `prospect_lookup_failed:${code}`, providerName)
+    return await markFailed(admin, pe.id, guard.workspaceId, `prospect_lookup_failed:${code}`, providerName, true)
   }
   if (!prospect?.email) {
-    return await markFailed(admin, pe.id, guard.workspaceId, 'prospect_email_missing', providerName)
+    return await markFailed(admin, pe.id, guard.workspaceId, 'prospect_email_missing', providerName, true)
   }
 
   // 5. Ensure the provider-side campaign exists (create on first approval).
@@ -258,6 +278,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       const ensured = await withTimeout(
         provider.ensureCampaign({ name: campaign.name, schedule, sendingMailboxes }),
         PROVIDER_TIMEOUT_MS,
+        'ensureCampaign',
       )
       providerCampaignId = ensured.providerCampaignId
       createdProviderCampaign = true
@@ -276,7 +297,8 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      return await markFailed(admin, pe.id, guard.workspaceId, msg, providerName)
+      // Safe : the lead-submission step below was never reached.
+      return await markFailed(admin, pe.id, guard.workspaceId, msg, providerName, true)
     }
   }
 
@@ -293,11 +315,16 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         body:               pe.body,
       }),
       PROVIDER_TIMEOUT_MS,
+      'enqueueLead',
     )
     providerLeadId = lead.providerLeadId
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    return await markFailed(admin, pe.id, guard.workspaceId, msg, providerName)
+    // The only branch where the provider may already hold the prospect.
+    // Safe ONLY on an explicit refusal, carried by a typed flag — a timeout,
+    // a network error or a 2xx without a lead id all fall through to false.
+    // No permissive default: an unrecognised error is unsafe.
+    return await markFailed(admin, pe.id, guard.workspaceId, msg, providerName, isProviderRejection(err))
   }
 
   // 7. Activate the provider campaign once (only on first approval). If the
@@ -305,7 +332,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   //    already queued; the campaign can be activated manually or by retry.
   if (createdProviderCampaign) {
     try {
-      await withTimeout(provider.activateCampaign(providerCampaignId!), PROVIDER_TIMEOUT_MS)
+      await withTimeout(provider.activateCampaign(providerCampaignId!), PROVIDER_TIMEOUT_MS, 'activateCampaign')
     } catch (err) {
       console.error('[approve] activateCampaign failed (lead queued, campaign paused):',
         err instanceof Error ? err.message : err)
@@ -357,6 +384,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       provider:            providerName,
       provider_message_id: providerLeadId,
       send_error:          null,
+      retry_safe:          true,
       ...(mockFinalise ? { status: 'sent', sent_at: new Date().toISOString() } : {}),
     })
     .eq('id', pe.id)
@@ -426,11 +454,15 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 // Helpers
 // ---------------------------------------------------------------------------
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+// The `step` label is for the log and for post-mortems: both calls used to
+// produce the same string, so a timeout could not be traced to a step.
+// ⚠️ It is NOT a safety discriminant — nothing reads it. Retry safety is the
+// typed column, written by the caller that knows where it failed.
+function withTimeout<T>(p: Promise<T>, ms: number, step: string): Promise<T> {
   return Promise.race([
     p,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`provider timeout after ${ms}ms`)), ms),
+      setTimeout(() => reject(new Error(`provider timeout during ${step} after ${ms}ms`)), ms),
     ),
   ])
 }
@@ -446,6 +478,10 @@ async function markFailed(
   workspaceId: string,
   errorMessage: string,
   providerName: string | null,
+  // 🔒 EXPLICIT, never inferred. The caller is the only place that knows how
+  // far the send got. false means "the provider may hold this prospect" —
+  // the row will not be retried, and will not be deletable either.
+  retrySafe: boolean,
 ) {
   console.error('[approve] send_failed:', { prospectEmailId, workspaceId, providerName, errorMessage })
 
@@ -471,7 +507,7 @@ async function markFailed(
   const [updateRes] = await Promise.all([
     admin
       .from('prospect_emails')
-      .update({ status: 'failed', send_error: errorMessage })
+      .update({ status: 'failed', send_error: errorMessage, retry_safe: retrySafe })
       .eq('id', prospectEmailId)
       .eq('workspace_id', workspaceId)
       .eq('status', 'sending')

@@ -682,7 +682,8 @@
         "campaign_step_missing": "Étape de campagne manquante.",
         "campaign_missing": "Campagne manquante.",
         "reject_failed": "Impossible de rejeter ce brouillon.",
-        "other": "Erreur inattendue."
+        "other": "Erreur inattendue.",
+        "retry_unsafe": "Reprise impossible : cet e-mail est peut-être déjà parti."
       }
     },
     "shell": {
@@ -1499,14 +1500,17 @@
           "sendAllSuccess": "{count, plural, one {1 brouillon mis en file d'envoi} other {# brouillons mis en file d'envoi}}",
           "sendAllNothingToSend": "Aucun brouillon à envoyer.",
           "sendAllPartial": "{ok} brouillons sur {total} mis en file d'envoi. Certains ont échoué — rafraîchissez pour voir lesquels.",
-          "sendAllFailed": "Impossible de mettre les brouillons en file d'envoi. Réessayez dans un instant."
+          "sendAllFailed": "Impossible de mettre les brouillons en file d'envoi. Réessayez dans un instant.",
+          "cardRetry": "Réessayer",
+          "cardRetryUnavailable": "Reprise indisponible — envoi peut-être parti"
         },
         "emailStatuses": {
           "draft": "Brouillon",
           "edited": "Modifié",
           "approved": "✓ Validé",
           "sent": "↑ Envoyé",
-          "rejected": "✗ Rejeté"
+          "rejected": "✗ Rejeté",
+          "failed": "Échec"
         },
         "sources": {
           "manual": "Manuel",
@@ -1549,7 +1553,10 @@
           "mailboxNotReadyAction": "Ouvrir les paramètres",
           "providerMockMode": "L'envoi d'e-mails n'est pas actif. Contactez le support.",
           "sendFailed": "Impossible de mettre cet e-mail en file d'attente. Réessayez.",
-          "warmup": "Vos boîtes de réception sont en préchauffage, l'envoi est limité à environ {cap}/jour pour l'instant."
+          "warmup": "Vos boîtes de réception sont en préchauffage, l'envoi est limité à environ {cap}/jour pour l'instant.",
+          "retryUnsafe": "Reprise impossible : cet e-mail est peut-être déjà parti. Pour éviter un doublon, il ne peut pas être renvoyé.",
+          "bulkApprovePartial": "{ok} validés, {fail} refusés. Certains e-mails ne peuvent pas être renvoyés.",
+          "bulkDeleteSkipped": "{count, plural, one {1 e-mail conservé} other {# e-mails conservés}} : ils sont peut-être déjà partis."
         },
         "approvalQueue": {
           "title": "File de validation",
@@ -2503,7 +2510,8 @@
         "failedToLoad": "Échec du chargement de l'email.",
         "saveFailed": "Échec de l'enregistrement. Veuillez réessayer.",
         "regenerationFailed": "Échec de la régénération. Veuillez réessayer.",
-        "generationFailed": "Échec de la génération. Veuillez réessayer."
+        "generationFailed": "Échec de la génération. Veuillez réessayer.",
+        "retryUnsafe": "Reprise impossible : cet e-mail est peut-être déjà parti. Pour éviter un doublon, il ne peut pas être renvoyé."
       }
     },
     "campaignModals": {

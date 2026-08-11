@@ -141,7 +141,17 @@ export function EditEmailModal({ emailId, campaignPersonalizationMode, onClose, 
       if (res.error) { setError(res.error); setSaving(false); return }
 
       if (approve) {
-        await fetch(`/api/prospect-emails/${emailId}/approve`, { method: 'POST' })
+        // The response was previously discarded : a refused approval closed
+        // the modal as if the email had gone out. It can legitimately fail —
+        // retry_unsafe, no mailbox, quota — and the user must be told.
+        const approveRes = await fetch(`/api/prospect-emails/${emailId}/approve`, { method: 'POST' })
+        if (!approveRes.ok) {
+          let code = ''
+          try { code = (await approveRes.json())?.error ?? '' } catch { /* empty body */ }
+          setError(code === 'retry_unsafe' ? tErrors('retryUnsafe') : tErrors('saveFailed'))
+          setSaving(false)
+          return
+        }
       }
 
       onSaved()
