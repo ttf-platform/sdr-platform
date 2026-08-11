@@ -204,7 +204,7 @@ export function SendingDomainCard({ account }: { account: EmailAccount }) {
         <StatWithTooltip
           label="Phase"
           value={`${account.sending_phase ?? 1} of 3`}
-          tooltip="Building your domain's sending reputation gradually over about 3 weeks. During this ramp-up, your connected mailbox keeps your outreach running, and volume on the new domain increases step by step."
+          tooltip="Building your domain's sending reputation gradually over about 4 weeks. During this ramp-up, your connected mailbox keeps your outreach running, and volume on the new domain increases step by step."
         />
       </div>
 
