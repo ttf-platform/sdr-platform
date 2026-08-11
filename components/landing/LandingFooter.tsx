@@ -102,7 +102,6 @@ export function LandingFooter() {
               { label: t('productFeatures'),  href: '/#features' },
               { label: t('productPricing'),   href: '/#pricing' },
               { label: t('productRoadmap'),   href: '/#roadmap' },
-              { label: t('productChangelog'), href: '/changelog' },
             ]}
           />
 
@@ -111,8 +110,6 @@ export function LandingFooter() {
             heading={t('companyHeading')}
             links={[
               { label: t('companyAbout'),   href: '/about' },
-              { label: t('companyBlog'),    href: '/blog' },
-              { label: t('companyCareers'), href: '/careers' },
               { label: t('companyContact'), href: 'mailto:hello@mirvo.ai' },
             ]}
           />
