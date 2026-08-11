@@ -57,6 +57,9 @@ const PROOF_MAX = 500
 type EmailDraft = {
   id: string; subject: string; body: string
   status: 'draft' | 'edited' | 'approved' | 'sending' | 'sent' | 'failed' | 'bounced' | 'replied' | 'rejected'
+  /** Derived server-side from send_error (never exposed). Retry is offered only when true. */
+  /** Typed column (migration 092). false = the provider may already hold this prospect. */
+  retry_safe?: boolean
   mode: 'fast' | 'smart'
   step_order: number | null
   step_type:  string | null
@@ -86,8 +89,15 @@ const EMAIL_STATUS_STYLES: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
   sent:     'bg-blue-100 text-blue-700',
   rejected: 'bg-red-100 text-red-700',
+  // 'failed' = the send attempt did not go through. Red per the design
+  // system (red = Failed / Error) ; the label is what distinguishes it from
+  // 'rejected', which is a user decision, not a technical failure.
+  // ⚠️ Shape follows the REPO pattern (bg-100/text-700, no border), not the
+  // skill's bg-50/text-600/border spec : the five existing badges use the
+  // repo form, and re-styling them is out of TD-002's scope.
+  failed:   'bg-red-100 text-red-700',
 }
-const EMAIL_STATUS_KEYS = ['draft', 'edited', 'approved', 'sent', 'rejected'] as const
+const EMAIL_STATUS_KEYS = ['draft', 'edited', 'approved', 'sent', 'rejected', 'failed'] as const
 
 // Prospects table Source column dynamic keys — under dashboard.campaigns.detail.sources.*
 const SOURCE_KEYS = ['manual', 'paste', 'csv_import', 'ai_discover'] as const
@@ -403,8 +413,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   async function bulkApproveEmails() {
     if (selectedEmailIds.size === 0) return
     setBulkApprovingEmails(true)
-    await approveIds([...selectedEmailIds])
+    // The {ok, fail} result used to be discarded : a row refused by the
+    // retry-safety guard failed in complete silence, and the user had no way
+    // of knowing which one, nor why.
+    const { ok, fail } = await approveIds([...selectedEmailIds])
     setBulkApprovingEmails(false)
+    if (fail > 0) toast.error(tToasts('bulkApprovePartial', { ok, fail }))
     setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
   }
@@ -442,6 +456,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
     if (!res.ok) {
       rollbackEmailStatus(prev)
+      // The rollback restores the pre-call snapshot, so retry_safe stays at
+      // its stale value : a row the server just marked unsafe would keep
+      // offering the button. Refresh so the screen matches the server.
+      setEmailsRefreshKey(k => k + 1)
       switch (data.error) {
         case 'no_sending_mailbox':
           toast.error(tToasts('mailboxNotReady'), {
@@ -453,6 +471,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           break
         case 'provider_mock_mode':
           toast.error(tToasts('providerMockMode'))
+          break
+        // The row was refused because the provider MAY already hold this
+        // prospect. Persistent : it is a dead end the user must understand,
+        // not a transient glitch worth auto-dismissing.
+        case 'retry_unsafe':
+          toast.error(tToasts('retryUnsafe'), { duration: Infinity, closeButton: true })
           break
         case 'send_failed':
         default:
@@ -500,12 +524,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   async function bulkDeleteEmails() {
     if (selectedEmailIds.size === 0) return
     setBulkDeletingEmails(true)
-    await fetch('/api/prospect-emails/bulk-delete', {
+    // skipped_count is returned by the route precisely so the user learns
+    // that some rows were preserved by the retry-safety guard. Discarding it
+    // made them reappear after refresh with no explanation.
+    const res = await fetch('/api/prospect-emails/bulk-delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: [...selectedEmailIds] }),
     })
+    let skipped = 0
+    try { skipped = (await res.json())?.skipped_count ?? 0 } catch { /* empty body */ }
     setBulkDeletingEmails(false)
+    if (skipped > 0) toast.error(tToasts('bulkDeleteSkipped', { count: skipped }))
     setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
   }
@@ -1398,7 +1428,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 {/* Filtres — segmented control */}
                 <div className="inline-flex items-center bg-[#f0ece6] rounded-lg p-[3px]">
-                  {(['all', 'draft', 'edited', 'approved', 'rejected'] as const).map(f => {
+                  {(['all', 'draft', 'edited', 'approved', 'rejected', 'failed'] as const).map(f => {
                     const count = f === 'all' ? emailsTotal : (emailsByStatus[f] ?? 0)
                     const label = f === 'all' ? tEmails('filters.all') : tEmailStatuses(f)
                     const active = emailsFilter === f
@@ -1563,11 +1593,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                               row that would be silently skipped. */}
                           <input type="checkbox"
                             checked={selectedEmailIds.has(email.id)}
-                            disabled={committed}
-                            title={committed ? tEmails('selectDisabledSent') : undefined}
-                            aria-label={committed ? tEmails('selectDisabledSent') : undefined}
+                            disabled={committed || email.retry_safe === false}
+                            title={committed ? tEmails('selectDisabledSent')
+                                 : email.retry_safe === false ? tEmails('cardRetryUnavailable')
+                                 : undefined}
+                            aria-label={committed ? tEmails('selectDisabledSent')
+                                      : email.retry_safe === false ? tEmails('cardRetryUnavailable')
+                                      : undefined}
                             onChange={() => {
-                              if (committed) return
+                              if (committed || email.retry_safe === false) return
                               setSelectedEmailIds(prev => {
                                 const n = new Set(prev); n.has(email.id) ? n.delete(email.id) : n.add(email.id); return n
                               })
@@ -1627,16 +1661,42 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                               </button>
                             ) : !committed && (
                               <>
-                                <button
-                                  onClick={() => rejectEmail(email.id)}
-                                  className="text-xs text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
-                                  {tEmails('cardReject')}
-                                </button>
-                                <button
-                                  onClick={() => approveEmail(email.id)}
-                                  className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
-                                  {tEmails('cardApprove')}
-                                </button>
+                                {/* A failed row the server could not clear is a
+                                    dead end by design : neither retried nor
+                                    deleted, because the provider may already
+                                    hold the prospect. Say so instead of
+                                    showing a button that would 409. */}
+                                {/* Keyed on retry_safe alone, NOT on the status :
+                                    editing a failed row makes it 'edited' and a
+                                    status-keyed test would bring the refused
+                                    button back. Same key as the server guard. */}
+                                {email.retry_safe === false ? (
+                                  <>
+                                    {/* Rejeter n'envoie rien : il reste offert.
+                                        Seule l'approbation est retirée. */}
+                                    <span className="text-xs text-[#6b5e4e] italic">
+                                      {tEmails('cardRetryUnavailable')}
+                                    </span>
+                                    <button
+                                      onClick={() => rejectEmail(email.id)}
+                                      className="text-xs text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                      {tEmails('cardReject')}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => rejectEmail(email.id)}
+                                      className="text-xs text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                      {tEmails('cardReject')}
+                                    </button>
+                                    <button
+                                      onClick={() => approveEmail(email.id)}
+                                      className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                      {email.status === 'failed' ? tEmails('cardRetry') : tEmails('cardApprove')}
+                                    </button>
+                                  </>
+                                )}
                               </>
                             )}
                           </div>

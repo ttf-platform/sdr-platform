@@ -106,6 +106,35 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
   // .select('id').single() on zero-matched rows yields PGRST116 which we
   // translate into a 409, same shape as the sibling reject/edit routes.
   const admin = createAdminClient()
+
+  // Retry-safety guard. The comment above explains why deleting a COMMITTED
+  // row erases the anti-double-send memory ; the same reasoning applies to a
+  // row whose provider outcome is AMBIGUOUS. Its UNIQUE(prospect_id,
+  // campaign_step_id) is the only thing preventing a fresh draft — and a
+  // fresh send — for a prospect the provider may already hold. Deleting it
+  // would be a one-click bypass of the approve guard.
+  // Read-then-delete rather than a filter: the guard must fail CLOSED, and a
+  // .eq('retry_safe', true) filter would silently swallow the refusal into a
+  // PGRST116 indistinguishable from "row not found".
+  const { data: existing, error: guardReadError } = await admin
+    .from('prospect_emails')
+    .select('retry_safe')
+    .eq('id', params.id)
+    .eq('workspace_id', guard.workspaceId)
+    .maybeSingle()
+  // Fail CLOSED. A swallowed read error would leave `existing` null and let
+  // the delete through — the guard would be decorative.
+  if (guardReadError) {
+    console.error('[prospect-emails DELETE] retry-safety read failed:', {
+      prospect_email_id: params.id, workspace_id: guard.workspaceId,
+      db_code: (guardReadError as { code?: string }).code ?? 'unknown',
+    })
+    return NextResponse.json({ error: 'guard_read_failed' }, { status: 500 })
+  }
+  if (existing?.retry_safe === false) {
+    return NextResponse.json({ error: 'retry_unsafe' }, { status: 409 })
+  }
+
   const { error } = await admin
     .from('prospect_emails')
     .delete()

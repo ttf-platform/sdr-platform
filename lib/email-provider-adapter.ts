@@ -555,6 +555,38 @@ export class MockEmailProvider implements IEmailProvider {
 // own sprints land.
 // ============================================================================
 
+/**
+ * Marks an error as "the provider refused this call, nothing was created".
+ *
+ * 🔒 This flag is the ONLY safe way to tell a refusal apart from an ambiguous
+ * failure. Do not infer it from the message: message text is free-form, is
+ * written by several call sites, and has already proved unreliable as a
+ * safety carrier once. Absence of the flag means UNSAFE — there is no
+ * permissive default.
+ */
+export function providerRejected(err: Error): Error {
+  ;(err as Error & { providerRejected?: true }).providerRejected = true
+  return err
+}
+
+/**
+ * The only HTTP classes that PROVE the call was refused before anything was
+ * created: client errors, minus the two that mean "try again later".
+ *   4xx     the provider evaluated the request and said no.
+ *   408/429 timeout and rate limit — the request may have landed. NOT safe.
+ *   5xx     server or gateway error — may follow a partial write. NOT safe.
+ */
+function isDeliberateRefusal(status: number): boolean {
+  if (status === 408 || status === 429) return false
+  return status >= 400 && status < 500
+}
+
+/** True only when the provider explicitly refused; false for anything else. */
+export function isProviderRejection(err: unknown): boolean {
+  return err instanceof Error
+    && (err as Error & { providerRejected?: true }).providerRejected === true
+}
+
 export class InstantlyProvider implements IEmailProvider {
   readonly providerName = 'instantly' as const;
 
@@ -1027,7 +1059,15 @@ export class InstantlyProvider implements IEmailProvider {
     })
     const body = await this.parseBody(res)
     if (!res.ok) {
-      throw new Error(`[InstantlyProvider.enqueueLead] ${this.errorMessage(body, res.status)}`)
+      // 🔒 Only a DELIBERATE refusal proves nothing was created. A 5xx is
+      // rendered by the provider or by a gateway and can follow a partial
+      // commit; a 504 can time out after the lead was written; 408 and 429
+      // say nothing either. This file already classifies 429/5xx as
+      // inconclusive elsewhere (see triggerWarmup) — the same line is drawn
+      // here. Absence of proof is NOT safety: everything outside the narrow
+      // deliberate-refusal class falls through unflagged, i.e. unsafe.
+      const err = new Error(`[InstantlyProvider.enqueueLead] ${this.errorMessage(body, res.status)}`)
+      throw isDeliberateRefusal(res.status) ? providerRejected(err) : err
     }
     const b = body as { id?: string; lead_id?: string }
     const id = b.id ?? b.lead_id

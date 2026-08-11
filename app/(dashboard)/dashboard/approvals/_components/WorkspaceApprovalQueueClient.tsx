@@ -47,6 +47,7 @@ type ApproveError =
   | 'no_sending_mailbox'
   | 'provider_mock_mode'
   | 'already_sent'
+  | 'retry_unsafe'
   | 'send_failed'
   | 'not_found'
   | 'campaign_step_missing'

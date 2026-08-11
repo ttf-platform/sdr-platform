@@ -23,6 +23,61 @@ export const COMMITTED_STATUSES = [
 
 export type CommittedStatus = typeof COMMITTED_STATUSES[number]
 
+// -----------------------------------------------------------------------------
+// APPROVABLE — the states a reservation may transition to 'sending'
+// -----------------------------------------------------------------------------
+//
+// SINGLE OWNER of the allowlist consumed by the CAS reservation in
+// app/api/prospect-emails/[id]/approve/route.ts. It used to be a literal
+// inside that route — the only writer declaring a TRANSITION allowlist of its
+// own instead of deriving from COMMITTED_STATUSES above. 'failed' had been
+// omitted: a send that failed could never be re-approved, and the zero-row CAS
+// fell through to 409 already_sent — a false message, since nothing had left.
+//
+// 'failed' IS approvable, and that is not a new decision:
+//   - it is not in COMMITTED_STATUSES above;
+//   - migration 085 states "From 'failed' → no restriction";
+//   - markFailed() carries a CAS .eq('status','sending'), so a 'failed' row
+//     can never have overwritten a 'sent' row IN THE DATABASE.
+//
+// ⚠️ WHAT THE DATABASE INVARIANT DOES *NOT* PROVE. markFailed()'s CAS says a
+// 'failed' row never overwrote a 'sent' row IN THE DATABASE. It says nothing
+// about provider state: enqueueLead() can throw after a 2xx carrying no lead
+// id, on a timeout, or on a 5xx — in all three the lead may exist. That is
+// precisely why retry safety is NOT derived here: the approve route writes
+// prospect_emails.retry_safe = false on every one of those paths, and the
+// guard then refuses the row whatever status it is later moved to. A double
+// send on that path is NOT accepted — it is bounded by the column. What
+// remains out of scope is provider-side idempotency (migration 085).
+//
+// 'rejected' stays deliberately OUT of this list: a user-rejected email is
+// regenerated, not re-approved. Unchanged behaviour.
+export const APPROVABLE_STATUSES = [
+  'draft',
+  'edited',
+  'approved',
+  'failed',
+] as const
+
+export type ApprovableStatus = typeof APPROVABLE_STATUSES[number]
+
+// -----------------------------------------------------------------------------
+// RETRY SAFETY — où elle vit, et pourquoi pas ici
+// -----------------------------------------------------------------------------
+//
+// "May this row be handed to the provider again?" is NOT derived at runtime.
+// It is persisted in prospect_emails.retry_safe (migration 092) and written by
+// exactly one author: the approve route, at the moment it knows where the
+// failure happened.
+//
+// 🔴 An earlier revision derived it from send_error. That was WRONG and is
+// documented here so it is not retried: send_error has several authors — the
+// approve route writes a failure cause, the /instantly webhook writes an
+// `auto_stop: …` marker on rows that were never submitted. A safety guarantee
+// must not hang on a shared free-text field.
+//
+// Readers just read the column. There is nothing to compute.
+
 export function isCommitted(status: string | null | undefined): boolean {
   if (!status) return false
   return (COMMITTED_STATUSES as readonly string[]).includes(status)

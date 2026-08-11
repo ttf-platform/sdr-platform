@@ -24,11 +24,37 @@ export async function POST(request: Request) {
   // "id belongs to another workspace" and "id is committed" — same
   // shape as bulk-reject so the caller doesn't need to distinguish.
   const admin = createAdminClient()
+
+  // Retry-safety guard — same reasoning as the unitary DELETE : a row whose
+  // provider outcome is ambiguous still holds the UNIQUE that prevents a
+  // second send for that prospect. Ambiguous ids are dropped from the delete
+  // set and counted as skipped, the shape the caller already handles.
+  const { data: candidates, error: guardReadError } = await admin
+    .from('prospect_emails')
+    .select('id, retry_safe')
+    .eq('workspace_id', guard.workspaceId)
+    .in('id', ids)
+  // Fail CLOSED, and say the truth : a swallowed read error would report
+  // "kept, they may already have gone out", which would be false.
+  if (guardReadError) {
+    console.error('[bulk-delete] retry-safety read failed:', {
+      workspace_id: guard.workspaceId,
+      db_code: (guardReadError as { code?: string }).code ?? 'unknown',
+    })
+    return NextResponse.json({ error: 'guard_read_failed' }, { status: 500 })
+  }
+  const safeIds = (candidates ?? [])
+    .filter(row => row.retry_safe !== false)
+    .map(row => row.id)
+  if (safeIds.length === 0) {
+    return NextResponse.json({ deleted_count: 0, skipped_count: ids.length })
+  }
+
   const { data: deleted, error } = await admin
     .from('prospect_emails')
     .delete()
     .eq('workspace_id', guard.workspaceId)
-    .in('id', ids)
+    .in('id', safeIds)
     .not('status', 'in', COMMITTED_NOT_IN_FILTER)
     .select('id')
 

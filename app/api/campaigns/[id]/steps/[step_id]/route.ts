@@ -83,6 +83,26 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
     )
   }
 
+  // Same reasoning, one state further out : an AMBIGUOUS row still holds the
+  // UNIQUE that stops a second send for that prospect. Dropping the step
+  // cascades it away — migration 085's trigger deliberately lets cascades
+  // through — and frees that guard. This route already protects rows that
+  // WERE sent ; it must also protect rows that MAY have been.
+  const { count: unsafeCount, error: unsafeErr } = await admin
+    .from('prospect_emails')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', guard.workspaceId)
+    .eq('campaign_step_id', params.step_id)
+    .eq('retry_safe', false)
+
+  if (unsafeErr) return NextResponse.json({ error: unsafeErr.message }, { status: 500 })
+  if ((unsafeCount ?? 0) > 0) {
+    return NextResponse.json(
+      { error: 'step_has_unsafe_emails', count: unsafeCount },
+      { status: 409 },
+    )
+  }
+
   const { error } = await admin.from('campaign_steps').delete().eq('id', params.step_id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
