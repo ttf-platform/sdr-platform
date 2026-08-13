@@ -65,7 +65,7 @@ export async function GET(
   // Projection widened to (status, confirmation_sent_at) — server-only ;
   // this route's response is still just `{ busy }` (see l.79 below). No
   // client field leak.
-  const { data: meetings } = await admin
+  const { data: meetings, error: meetingsErr } = await admin
     .from('meetings')
     .select('meeting_at, duration_min, status, confirmation_sent_at')
     .eq('workspace_id', profile.workspace_id)
@@ -73,13 +73,41 @@ export async function GET(
     .gte('meeting_at', dayStart.toISOString())
     .lte('meeting_at', dayEnd.toISOString())
 
+  // TD-005 — UNKNOWN IS NOT FREE.
+  //
+  // Pre-fix this was a data-only destructure : `const { data: meetings }`.
+  // Any failure of the query above — outage, column drift, RLS/grant change,
+  // PostgREST error — left `meetings` null, `(meetings ?? [])` collapsed it
+  // to an empty set, and the route answered `{ busy: [] }` with HTTP 200.
+  // An empty busy list is indistinguishable from "nothing is booked", so the
+  // public page rendered the owner's ENTIRE day as free, with no signal
+  // anywhere. That is a fail-open on the only public surface of the product.
+  //
+  // `!meetings` is checked alongside the error on purpose : PostgREST returns
+  // `[]` (never null) for a successful empty result, so a null `data` without
+  // an `error` is an anomaly we must not read as "no meetings".
+  //
+  // 503 (not 500) : the condition is transient by nature and the caller is a
+  // browser that will retry on the next date/timezone change. The body carries
+  // a stable machine code — `availability_unavailable` — which the page maps
+  // to a localised sentence. Same snake_case code convention as the sibling
+  // POST route (`slot_in_past`, `recipient_limit_reached`, …), which is the
+  // established shape for booking errors that the client localises.
+  if (meetingsErr || !meetings) {
+    console.error('[book:availability] busy lookup failed', {
+      slug: params.slug,
+      error: meetingsErr?.message ?? 'null data without error',
+    })
+    return NextResponse.json({ error: 'availability_unavailable' }, { status: 503 })
+  }
+
   // Filter : (a) all scheduled rows keep blocking ; (b) pending rows only
   // block while inside the retention window. isPendingStillActive returns
   // FALSE when confirmation_sent_at is NULL — a defensively-shaped pending
   // row cannot freeze a slot forever. Admin-created rows (POST
   // /api/meetings) are status='scheduled', so they block via branch (a),
   // never via the pending predicate.
-  const blocking = (meetings ?? []).filter(m => {
+  const blocking = meetings.filter(m => {
     if (m.status === 'scheduled') return true
     return isPendingStillActive({
       status: m.status,
