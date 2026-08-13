@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import Stripe from 'stripe'
 import { getEmailProviderDiagnostic } from '@/lib/email-provider-health'
+import { COMMITTED_STATUSES } from '@/lib/prospect-email-status'
 
 const CHECK_TIMEOUT_MS = 3000
 
@@ -126,25 +127,56 @@ function checkInstantlyWebhook(): CheckResult {
   return { status: 'ok' }
 }
 
-// Sprint B4 — detects the "Instantly webhook silence" outage: the app is
-// producing send activity (users approve emails, which triggers Instantly
-// ensureCampaign/enqueueLead/activateCampaign within seconds) but no webhook
-// has been received in > 48h. Almost certainly means the webhook URL is not
-// registered in the Instantly dashboard, so REPLY/SENT/BOUNCED events never
-// come back — replies vanish silently to the user.
+// Sprint B4, repaired by lot INFRA.5 — detects the provider "webhook silence"
+// outage: the app handed emails to the sending provider but no webhook came
+// back. Replies then vanish silently: the inbox has a single source and no
+// replay, so a silence window is a permanent data hole.
 //
-// Activity signal is prospect_emails.status='approved' + approved_at within
-// the last 24h — NOT email_send_log (which is populated BY the SENT webhook
-// itself, so a silent webhook would starve that signal and cause a permanent
-// false negative). Approvals are user-driven and land on the DB regardless
-// of the webhook state.
+// ACTIVITY SIGNAL — prospect_emails whose status is in COMMITTED_STATUSES,
+// with approved_at inside the window. Read this before touching it:
+//   * COMMITTED_STATUSES is imported, never redeclared. Its owner module
+//     defines it as "handed off to the sending provider", which is exactly
+//     the question this probe asks. A local copy would drift, the way the
+//     approve route's own allowlist once did.
+//   * NOT status='approved'. That is a PARKING state — a variant converged
+//     into prospect_emails and NOT yet shipped. Its only writers are in
+//     app/api/prospect-email-variants/[id]/route.ts, which never calls the
+//     provider. Counting it produced BOTH failure modes at once: the nominal
+//     draft -> approve -> 'sending' path never sits in 'approved' (probe
+//     stayed green through any outage), while staged-but-unsent variants
+//     triggered it with no event ever due.
+//   * NOT email_send_log — populated BY the SENT webhook itself, so a silent
+//     webhook starves that signal: a permanent false negative.
+//   * approved_at is rewritten by the CAS reservation at hand-off time, so
+//     on a committed row it IS the hand-off timestamp.
 //
-// Query pair uses idx_webhook_events_provider_type (migration 061). No
-// user input in either query — all values are constants defined above.
-// Error strings surface only counts, table names, and durations. Never PII
-// (no email addresses, no workspace ids), never any secret.
+// THRESHOLD — 72h, not 48h. The default sending calendar is Mon-Fri
+// (lib/types/sending-prefs.ts), so the normal weekend gap reaches ~63h and
+// 48h alerted on it every week. WHAT 72h DOES NOT BUY: sendDays is user
+// configurable, and a narrower calendar still leaves a longer legitimate
+// gap. This reduces the false-positive class, it does not close it.
+//
+// DETECTION DELAY, published with its scope — the probe flips past 72h, but
+// the only consumer that notifies is the daily 08:00 UTC health-alert cron,
+// so real notification lands anywhere in 72h..96h, and only on days where a
+// hand-off happened inside the activity window. `degraded` also returns HTTP
+// 200, so an external uptime monitor cannot alert on it.
+//
+// ERROR STRINGS — vendor-neutral, and they carry no counter. /api/health is
+// public, unauthenticated and rate-limit exempt (middleware.ts). This is a
+// NON-AGGRAVATION measure only: it stops this probe from ADDING a vendor
+// name and a cross-tenant volume to that surface. It does NOT close vendor
+// invisibility there — the response keys and two sibling checks still name
+// providers. That residue belongs to TD-138, not here.
+//
+// Neither query takes user input; all values are constants defined above.
+// Never PII (no email addresses, no workspace ids), never any secret.
+// The second query is served by idx_webhook_events_provider_type on its
+// `provider` prefix only — event_type is not constrained here, so ordering
+// is not index-served. Neither query filters workspace_id: both are
+// deliberately cross-tenant, this is an operator-level probe.
 const INSTANTLY_ACTIVITY_WINDOW_HOURS   = 24
-const INSTANTLY_SILENCE_THRESHOLD_HOURS = 48
+const INSTANTLY_SILENCE_THRESHOLD_HOURS = 72
 
 async function checkInstantlyWebhookActivity(): Promise<CheckResult> {
   try {
@@ -161,7 +193,7 @@ async function checkInstantlyWebhookActivity(): Promise<CheckResult> {
     const { count: recentApprovals, error: activityErr } = await admin
       .from('prospect_emails')
       .select('id', { count: 'exact' })
-      .eq('status', 'approved')
+      .in('status', [...COMMITTED_STATUSES])
       .gte('approved_at', activitySince)
       .limit(1)
     if (activityErr) {
@@ -191,8 +223,8 @@ async function checkInstantlyWebhookActivity(): Promise<CheckResult> {
 
     if (hoursSince > INSTANTLY_SILENCE_THRESHOLD_HOURS) {
       const detail = lastAt > 0
-        ? `last Instantly webhook was ${Math.round(hoursSince)}h ago (threshold ${INSTANTLY_SILENCE_THRESHOLD_HOURS}h), but ${approvals} approvals in the last ${INSTANTLY_ACTIVITY_WINDOW_HOURS}h`
-        : `no Instantly webhook ever received, but ${approvals} approvals in the last ${INSTANTLY_ACTIVITY_WINDOW_HOURS}h — is the webhook URL configured in the Instantly dashboard?`
+        ? `last provider webhook was ${Math.floor(hoursSince)}h ago (threshold ${INSTANTLY_SILENCE_THRESHOLD_HOURS}h) while send activity is present`
+        : `no provider webhook ever received while send activity is present — check the webhook URL registered with the provider`
       return { status: 'degraded', error: detail }
     }
 
