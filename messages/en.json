@@ -545,6 +545,7 @@
     "dateTimeTitle": "Select a date and time",
     "timesShownIn": "Times shown in",
     "noSlots": "No slots available.",
+    "slotsUnavailable": "We can't show available times right now. Please try again in a moment.",
     "confirmTitle": "Confirm your booking",
     "videoLink": "Video link",
     "namePlaceholder": "Your name",

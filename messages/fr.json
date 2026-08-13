@@ -545,6 +545,7 @@
     "dateTimeTitle": "Sélectionnez une date et une heure",
     "timesShownIn": "Horaires affichés en",
     "noSlots": "Aucun créneau disponible.",
+    "slotsUnavailable": "Impossible d'afficher les créneaux disponibles pour le moment. Merci de réessayer dans un instant.",
     "confirmTitle": "Confirmez votre réservation",
     "videoLink": "Lien vidéo",
     "namePlaceholder": "Votre nom",

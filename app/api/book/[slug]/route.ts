@@ -177,14 +177,40 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const dayStartUTC = new Date(`${ownerDateStr}T00:00:00${ownerOffset}`)
   const dayEndUTC   = new Date(`${ownerDateStr}T23:59:59.999${ownerOffset}`)
 
-  const { data: dayMeetings } = await admin
+  const { data: dayMeetings, error: dayMeetingsErr } = await admin
     .from('meetings').select('meeting_at, duration_min, status, confirmation_sent_at')
     .eq('workspace_id', profile.workspace_id)
     .in('status', ['scheduled', 'pending'])
     .gte('meeting_at', dayStartUTC.toISOString())
     .lt('meeting_at',  dayEndUTC.toISOString())
 
-  const blocking = (dayMeetings ?? []).filter(m => {
+  // TD-005 — UNKNOWN IS NOT FREE, on the WRITE path.
+  //
+  // Pre-fix this was a data-only destructure. A failed query left
+  // `dayMeetings` null, `(dayMeetings ?? [])` made `blocking` empty, the
+  // conflict test below found nothing to collide with, and the INSERT went
+  // through : a double booking written on a slot the owner already holds,
+  // plus a confirmation email sent for it. The read path (availability
+  // route) only mis-DISPLAYS ; this one mis-WRITES, so it is the more
+  // severe of the two occurrences of the same missing invariant.
+  //
+  // Refusing here is the conservative branch : we lose a legitimate booking
+  // during an incident rather than persist a meeting we cannot prove is
+  // free. 503 + a stable code the page localises, same convention as the
+  // other client-localised errors of this route.
+  if (dayMeetingsErr || !dayMeetings) {
+    console.error('[book:create] conflict lookup failed — booking refused', {
+      slug: params.slug,
+      error: dayMeetingsErr?.message ?? 'null data without error',
+    })
+    return NextResponse.json(
+      { error: 'availability_unavailable',
+        message: 'We could not verify this time slot is still free. Please try again in a moment.' },
+      { status: 503 },
+    )
+  }
+
+  const blocking = dayMeetings.filter(m => {
     if (m.status === 'scheduled') return true
     // Pending row : blocks only if inside the retention window. NULL
     // confirmation_sent_at → fail open (does not block) ; admin-created

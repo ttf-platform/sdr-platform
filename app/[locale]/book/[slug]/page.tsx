@@ -122,6 +122,18 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [selSlot, setSelSlot]   = useState('')   // UTC ISO string
   const [form, setForm]         = useState({ name: '', email: '', company: '', notes: '' })
   const [busyRanges, setBusyRanges] = useState<BusyRange[]>([])
+  // TD-005 — the third occurrence of "unknown is not free", and the decisive
+  // one : whatever the server answers, the LAST word on what the prospect
+  // sees is here. `true` means we could not establish the owner's busy set
+  // for the selected date, so no slot may be offered.
+  const [availabilityUnknown, setAvailabilityUnknown] = useState(false)
+  // Revue adversariale B2 — sans ce compteur, l'état « inconnu » est COLLANT.
+  // Recliquer la même date repose la même valeur, React court-circuite, aucune
+  // dépendance de l'effet ne change, et aucune nouvelle requête n'est émise :
+  // « réessayez dans un instant » était faux, le prospect restait bloqué
+  // jusqu'au rechargement de la page. Le compteur est incrémenté à chaque clic
+  // sur une date et fait donc toujours repartir la requête.
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr]   = useState('')
   const [pendingInfo, setPendingInfo] = useState<{ email: string; expiresInHours: number } | null>(null)
@@ -172,19 +184,61 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   }, [slug])
 
   // Fetch busy ranges when date, prospect TZ, or data changes
+  //
+  // TD-005 — pre-fix this read `.then(d => setBusyRanges(d.busy ?? []))` with
+  // `.catch(() => setBusyRanges([]))`. BOTH branches translated "we do not
+  // know" into "nothing is busy", i.e. into a full day of free slots. That
+  // made the server-side fix invisible : hardening the route to answer 503
+  // would have landed in the `.catch`/`?? []` path and rendered exactly the
+  // same wide-open calendar. The failure had to be closed here too.
+  //
+  // Three distinct unknowns are now folded into ONE state — non-2xx status,
+  // unparseable or wrongly-shaped body, network failure — because the
+  // product consequence is identical in all three : offer nothing, say so.
+  //
+  // `cancelled` guards the race where the prospect switches date or timezone
+  // while a request is in flight : a stale resolution must not overwrite the
+  // state of the current selection (in either direction).
   useEffect(() => {
-    if (!selDateStr || !data) { setBusyRanges([]); return }
+    if (!selDateStr || !data) { setBusyRanges([]); setAvailabilityUnknown(false); return }
+    let cancelled = false
     const tz = encodeURIComponent(prospectTz)
+    const markUnknown = () => {
+      if (cancelled) return
+      setBusyRanges([])
+      setAvailabilityUnknown(true)
+      // NE PAS vider `selSlot` ici. Revue adversariale B1 : ce callback peut
+      // se résoudre alors que le prospect est DÉJÀ à l'étape formulaire — la
+      // requête part au choix de la date, il avance, il saisit, et l'échec
+      // arrive après. L'étape formulaire rend `fmtSlot(selSlot)` sans garde ;
+      // sur chaîne vide, Intl lève RangeError, et le dépôt n'a aucun
+      // `error.tsx` : `app/global-error.tsx` remplace alors toute la page par
+      // un écran 500. On perdait le parcours au lieu de le dégrader, dans le
+      // scénario même que ce lot ferme.
+      //
+      // Rien n'est perdu de l'invariant : c'est le POST qui refuse d'écrire
+      // quand le conflit n'est pas vérifiable, et c'est là que la garantie
+      // doit vivre. Vider ici n'était que de la redondance.
+    }
     fetch(`/api/book/${slug}/availability?date=${selDateStr}&prospect_tz=${tz}`)
-      .then(r => r.json())
-      .then(d => setBusyRanges(d.busy ?? []))
-      .catch(() => setBusyRanges([]))
-  }, [selDateStr, prospectTz, slug, data])
+      .then(async r => {
+        const d = await r.json().catch(() => null)
+        if (cancelled) return
+        if (!r.ok || !d || !Array.isArray(d.busy)) { markUnknown(); return }
+        setBusyRanges(d.busy)
+        setAvailabilityUnknown(false)
+      })
+      .catch(markUnknown)
+    return () => { cancelled = true }
+  }, [selDateStr, prospectTz, slug, data, availabilityAttempt])
 
   const buffer = data?.buffer_minutes ?? 0
 
-  // Slots for the selected date: UTC ISOs filtered for past + busy
-  const slots = selDateStr && data
+  // Slots for the selected date: UTC ISOs filtered for past + busy.
+  // TD-005 — `!availabilityUnknown` is the gate : with the busy set
+  // unestablished, the theoretical slots derived from the owner's windows
+  // are NOT known to be free, so none is offered.
+  const slots = selDateStr && data && !availabilityUnknown
     ? getSlotsForProspectDate(selDateStr, prospectTz, data.timezone, data.availability_windows, duration)
         .filter(s => {
           if (new Date(s).getTime() <= Date.now() + buffer * 60_000) return false
@@ -241,6 +295,10 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         : res.error === 'slug_limit_reached'      ? t('errorSlugLimit')
         : res.error === 'platform_limit_reached'  ? t('errorPlatformLimit')
         : res.error === 'email_send_failed'       ? t('errorEmailSendFailed')
+        // TD-005 — the write path refused because it could not prove the
+        // slot was still free. Same sentence as the read path : from the
+        // prospect's side both are "we cannot show/hold times right now".
+        : res.error === 'availability_unavailable' ? t('slotsUnavailable')
         : res.error
       setSubmitErr(localised); setSubmitting(false); return
     }
@@ -409,7 +467,12 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                     const dayNum   = parseInt(dateStr.split('-')[2], 10)
                     return (
                       <button key={dateStr} disabled={!avail}
-                        onClick={() => { setSelDateStr(dateStr); setSelSlot('') }}
+                        onClick={() => {
+                          setSelDateStr(dateStr); setSelSlot('')
+                          // B2 — relance la requête même quand la date ne change
+                          // pas : c'est le geste par lequel le prospect réessaie.
+                          setAvailabilityAttempt(n => n + 1)
+                        }}
                         className={`aspect-square rounded-lg text-sm font-medium transition-colors ${
                           selected ? 'bg-[#1a1a2e] text-white'
                           : avail   ? 'hover:bg-[#eef1fd] text-[#1a1a2e]'
@@ -426,7 +489,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               {selDateStr && (
                 <div>
                   <p className="text-sm font-medium text-[#1a1a2e] mb-2">{fmtDateStr(selDateStr)}</p>
-                  {slots.length === 0
+                  {availabilityUnknown
+                    ? <p className="text-sm text-[#8a7e6e]">{t('slotsUnavailable')}</p>
+                    : slots.length === 0
                     ? <p className="text-sm text-[#8a7e6e]">{t('noSlots')}</p>
                     : (
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-52 overflow-y-auto">
