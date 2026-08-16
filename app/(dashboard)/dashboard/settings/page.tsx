@@ -691,6 +691,21 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* GOOGLE CALENDAR (LC21 (1)) */}
+      <div className={`${cardCls} mt-6`}>
+        <header className="flex items-center gap-2 mb-2">
+          <span className="text-xl" aria-hidden>🗓️</span>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#8a7e6e]">{t('googleCalendar.sectionTitle')}</h2>
+        </header>
+        <p className="text-sm text-[#4a4a5a] mb-4">{t('googleCalendar.description')}</p>
+        <Link
+          href={{ pathname: '/dashboard/settings/calendar' }}
+          className="inline-flex items-center gap-1 text-xs border border-[#e8e3dc] px-3 py-1.5 rounded-lg text-[#6b5e4e] hover:bg-[#f5f2ee] transition-colors"
+        >
+          {t('googleCalendar.configureCta')}
+        </Link>
+      </div>
+
       {/* SENDING DOMAINS: full width */}
       <div className={`${cardCls} mt-6`}>
         <header className="flex items-center gap-2 mb-2">
