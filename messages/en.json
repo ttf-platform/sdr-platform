@@ -2202,6 +2202,40 @@
         "planLinePrefix": "{tier} plan · ",
         "viewUsageCta": "View usage →"
       },
+      "googleCalendar": {
+        "sectionTitle": "Google Calendar",
+        "description": "Connect a Google account to prepare calendar sync.",
+        "configureCta": "Configure →",
+        "page": {
+          "back": "← Settings",
+          "title": "Google Calendar",
+          "subtitle": "Connect a Google account to your workspace.",
+          "sectionHeader": "Connection status",
+          "loadError": "Loading failed.",
+          "connectError": "Connection failed.",
+          "disconnectError": "Disconnection failed.",
+          "connectedLabel": "Connected account:",
+          "partialLabel": "Partially connected account:",
+          "partialHint": "Some permissions are missing. Reconnect and accept every request.",
+          "noneLabel": "No Google account is linked to this workspace.",
+          "connectCta": "Connect Google Calendar",
+          "reconnectCta": "Reconnect",
+          "disconnectCta": "Disconnect",
+          "notice": "Calendar sync is not yet active. Your availability slots keep being handled as they are today.",
+          "status": {
+            "connecte": "Account connected.",
+            "refus_google": "Authorization denied by Google.",
+            "etat_invalide": "OAuth session invalid or expired. Please try again.",
+            "identite_invalide": "Invalid Google identity.",
+            "jeton_absent": "Google did not return a reusable token. Try again and accept every permission.",
+            "compte_different": "Another Google account is already linked to this workspace.",
+            "retire": "Account disconnected.",
+            "retire_local_seulement": "Account disconnected locally.",
+            "aucun_raccordement": "No connection in progress.",
+            "borne_espace": "Connecting is currently restricted."
+          }
+        }
+      },
       "sendingDomains": {
         "sectionTitle": "Sending domains",
         "tooltip": "Configure your dedicated domain for long-term deliverability. It warms up gradually over about 4 weeks, while your connected mailbox keeps your campaigns sending in the meantime.",

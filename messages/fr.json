@@ -2202,6 +2202,40 @@
         "planLinePrefix": "formule {tier} · ",
         "viewUsageCta": "Voir la consommation →"
       },
+      "googleCalendar": {
+        "sectionTitle": "Google Calendar",
+        "description": "Raccordez un compte Google pour préparer la synchronisation calendrier.",
+        "configureCta": "Configurer →",
+        "page": {
+          "back": "← Réglages",
+          "title": "Google Calendar",
+          "subtitle": "Raccordez un compte Google à votre espace.",
+          "sectionHeader": "État du raccordement",
+          "loadError": "Chargement impossible.",
+          "connectError": "Connexion impossible.",
+          "disconnectError": "Déconnexion impossible.",
+          "connectedLabel": "Compte connecté :",
+          "partialLabel": "Compte partiellement raccordé :",
+          "partialHint": "Certaines permissions manquent. Reconnectez et acceptez toutes les demandes.",
+          "noneLabel": "Aucun compte Google raccordé à cet espace.",
+          "connectCta": "Connecter Google Calendar",
+          "reconnectCta": "Reconnecter",
+          "disconnectCta": "Déconnecter",
+          "notice": "La synchronisation calendrier n'est pas encore active. Vos créneaux restent gérés comme aujourd'hui.",
+          "status": {
+            "connecte": "Compte connecté.",
+            "refus_google": "Autorisation refusée par Google.",
+            "etat_invalide": "Session OAuth invalide ou expirée. Recommencez.",
+            "identite_invalide": "Identité Google invalide.",
+            "jeton_absent": "Google n'a pas retourné de jeton réutilisable. Recommencez et acceptez toutes les permissions.",
+            "compte_different": "Un autre compte Google est déjà associé à cet espace.",
+            "retire": "Compte déconnecté.",
+            "retire_local_seulement": "Compte déconnecté localement.",
+            "aucun_raccordement": "Aucun raccordement en cours.",
+            "borne_espace": "Le raccordement est réservé pour le moment."
+          }
+        }
+      },
       "sendingDomains": {
         "sectionTitle": "Domaines d'envoi",
         "tooltip": "Configurez votre domaine dédié pour une délivrabilité durable. Il se met en chauffe progressivement sur environ 4 semaines, pendant que votre boîte mail connectée continue d'envoyer vos campagnes.",
