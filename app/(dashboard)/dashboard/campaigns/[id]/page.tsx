@@ -413,11 +413,42 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   async function bulkApproveEmails() {
     if (selectedEmailIds.size === 0) return
     setBulkApprovingEmails(true)
-    // The {ok, fail} result used to be discarded : a row refused by the
-    // retry-safety guard failed in complete silence, and the user had no way
-    // of knowing which one, nor why.
-    const { ok, fail } = await approveIds([...selectedEmailIds])
-    setBulkApprovingEmails(false)
+    const ids = [...selectedEmailIds]
+    // TD-011.b — sérialiser le PREMIER appel avant le pool. Cette vue est
+    // scopée à UNE campagne, donc un seul probe suffit : il crée + persiste
+    // provider_campaign_id chez le fournisseur, et le pool qui suit tombe
+    // sur createdProviderCampaign=false. Sans ce sérialiseur, jusqu'à 4
+    // POST partent en parallèle avec provider_campaign_id NULL → chacun
+    // crée sa propre campagne fournisseur (§4).
+    //
+    // Contrat de continuation : le pool ne part QUE si le probe a réussi.
+    // Un échec de probe (n'importe quelle cause) prouve que la campagne
+    // fournisseur n'est pas persistée ; poursuivre créerait la course
+    // qu'on veut fermer.
+    //
+    // Le probe est un `fetch` nu — une erreur réseau lève avant qu'on
+    // remette le bouton dans son état normal. try/catch/finally garantit
+    // que setBulkApprovingEmails(false) tombe TOUJOURS, et que sur
+    // exception rien n'est parti (ok=0) donc le pool ne démarre pas non
+    // plus. approveIds() attrape déjà ses propres erreurs, mais on garde
+    // les deux appels dans le même try par symétrie.
+    let ok = 0
+    let fail = 0
+    try {
+      const probeRes = await fetch(`/api/prospect-emails/${ids[0]}/approve`, { method: 'POST' })
+      ok = probeRes.ok ? 1 : 0
+      fail = probeRes.ok ? 0 : 1
+      if (probeRes.ok && ids.length > 1) {
+        const rest = await approveIds(ids.slice(1))
+        ok += rest.ok
+        fail += rest.fail
+      }
+    } catch {
+      ok = 0
+      fail = ids.length
+    } finally {
+      setBulkApprovingEmails(false)
+    }
     if (fail > 0) toast.error(tToasts('bulkApprovePartial', { ok, fail }))
     setSelectedEmailIds(new Set())
     setEmailsRefreshKey(k => k + 1)
@@ -450,6 +481,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     const res = await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
     let data: {
       error?: string
+      email?: { status?: EmailDraft['status'] }
       warmup?: { total_daily_capacity?: number; in_warmup?: boolean }
     } = {}
     try { data = await res.json() } catch { /* empty body */ }
@@ -483,6 +515,28 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           toast.error(tToasts('sendFailed'))
       }
       return
+    }
+
+    // TD-010 5.a — refléter le statut RÉEL rendu par le serveur. L'état
+    // optimiste écrit 'approved' ; le serveur, lui, a flippé la ligne à
+    // 'sending' (chemin normal) ou 'sent' (mockFinalise). Sans ce miroir,
+    // la ligne restait 'approved' jusqu'à un rechargement, le bouton restait
+    // cliquable et un second clic rendait 409 already_sent affiché en échec.
+    //
+    // Si le serveur n'a pas rendu de statut exploitable (email:null en cas
+    // de reread failed §3), on retombe sur le refresh déjà utilisé sur le
+    // chemin d'erreur.
+    const returnedStatus = data.email?.status
+    if (returnedStatus && returnedStatus !== 'approved') {
+      setEmailDrafts(ds => ds.map(e => e.id === id ? { ...e, status: returnedStatus } : e))
+      setEmailsByStatus(bs => {
+        const next = { ...bs }
+        if (next.approved) next.approved = Math.max(0, next.approved - 1)
+        next[returnedStatus] = (next[returnedStatus] ?? 0) + 1
+        return next
+      })
+    } else if (!returnedStatus) {
+      setEmailsRefreshKey(k => k + 1)
     }
 
     // Success — surface warmup capacity once per session so bulk approvers
@@ -685,7 +739,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         return
       }
 
-      // 2. Probe workspace-level : premier approve seul.
+      // 2. Probe workspace-level : premier approve seul. TD-011.b — le pool
+      //    ne doit démarrer QUE si le probe a réussi. La bande passante
+      //    précédente (n'importe quelle erreur autre que no_sending_mailbox
+      //    / provider_mock_mode) continuait vers le pool avec
+      //    provider_campaign_id toujours nul → course fournisseur (§4).
       const first = ids[0]
       const probeRes = await fetch(`/api/prospect-emails/${first}/approve`, { method: 'POST' })
       if (!probeRes.ok) {
@@ -704,8 +762,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           toast.error(tToasts('providerMockMode'))
           return
         }
-        // Erreur non-bloquante workspace : on continue quand même le reste,
-        // le refresh en fin affichera l'état par mail.
+        // Toute autre erreur : ARRÊT. Le probe n'a pas persisté
+        // provider_campaign_id, un pool qui partirait maintenant rouvrirait
+        // la course qu'on ferme au §4. L'écran est rafraîchi (finally) et le
+        // toast d'échec informe l'utilisateur.
+        toast.error(tEmails('sendAllFailed'))
+        return
       }
 
       // 3. Batch le reste. Le probe (first) compte comme 1 succès si ok.
@@ -1692,6 +1754,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                     </button>
                                     <button
                                       onClick={() => approveEmail(email.id)}
+                                      title={tEmails('cardApproveTooltip')}
                                       className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                       {email.status === 'failed' ? tEmails('cardRetry') : tEmails('cardApprove')}
                                     </button>

@@ -662,6 +662,7 @@
       "subjectLabel": "Objet",
       "bodyLabel": "Corps",
       "approve": "Valider",
+      "approveTooltip": "Mettre cet e-mail en file d'envoi",
       "approving": "Validation…",
       "reject": "Rejeter",
       "edit": "Modifier",
@@ -679,6 +680,10 @@
         "not_found": "Brouillon introuvable.",
         "campaign_step_missing": "Étape de campagne manquante.",
         "campaign_missing": "Campagne manquante.",
+        "prospect_email_lookup_failed": "Impossible de lire ce brouillon pour le moment. Réessayez.",
+        "campaign_step_lookup_failed": "Impossible de lire l'étape de la campagne pour le moment. Réessayez.",
+        "campaign_lookup_failed": "Impossible de lire la campagne pour le moment. Réessayez.",
+        "mailbox_lookup_failed": "Impossible de lire vos boîtes d'envoi pour le moment. Réessayez.",
         "reject_failed": "Impossible de rejeter ce brouillon.",
         "other": "Erreur inattendue.",
         "retry_unsafe": "Reprise impossible : cet e-mail est peut-être déjà parti."
@@ -1500,7 +1505,8 @@
           "sendAllPartial": "{ok} brouillons sur {total} mis en file d'envoi. Certains ont échoué — rafraîchissez pour voir lesquels.",
           "sendAllFailed": "Impossible de mettre les brouillons en file d'envoi. Réessayez dans un instant.",
           "cardRetry": "Réessayer",
-          "cardRetryUnavailable": "Reprise indisponible — envoi peut-être parti"
+          "cardRetryUnavailable": "Reprise indisponible — envoi peut-être parti",
+          "cardApproveTooltip": "Mettre cet e-mail en file d'envoi"
         },
         "emailStatuses": {
           "draft": "Brouillon",

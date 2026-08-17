@@ -43,6 +43,10 @@ type ApiResponse = {
 
 // Distinct error codes we surface with a friendly reason from /[id]/approve.
 // Any other server error rolls up under a generic "generation error" bucket.
+//
+// TD-091 — the four *_lookup_failed codes carry the 500 DB failures the
+// server used to disguise as 404 / 422 (see approve/route.ts §1). They MUST
+// be reachable from tErr(...) so a panne DB doesn't render as the raw key.
 type ApproveError =
   | 'no_sending_mailbox'
   | 'provider_mock_mode'
@@ -52,6 +56,10 @@ type ApproveError =
   | 'not_found'
   | 'campaign_step_missing'
   | 'campaign_missing'
+  | 'prospect_email_lookup_failed'
+  | 'campaign_step_lookup_failed'
+  | 'campaign_lookup_failed'
+  | 'mailbox_lookup_failed'
   | 'other'
 
 const APPROVE_CONCURRENCY = 4
@@ -73,12 +81,25 @@ async function runWithLimit<TIn, TOut>(items: TIn[], limit: number, task: (item:
   return out
 }
 
-type ApproveResult = { id: string; ok: true } | { id: string; ok: false; error: ApproveError }
+// TD-010 5.b — the client carries the server-returned status so handleApprove
+// can decide between "remove locally" (server confirmed the row left the
+// draft state) and "refresh" (unexpected shape). Absence of status is not
+// the same as success : the response.email may be null when the wide
+// reread fails (§3), and in that case the queue must consult the server
+// rather than trust the optimistic drop.
+type ApproveResult =
+  | { id: string; ok: true; status?: string }
+  | { id: string; ok: false; error: ApproveError }
 
 async function approveOne(id: string): Promise<ApproveResult> {
   try {
     const res = await fetch(`/api/prospect-emails/${id}/approve`, { method: 'POST' })
-    if (res.ok) return { id, ok: true }
+    if (res.ok) {
+      let body: { email?: { status?: string } } = {}
+      try { body = await res.json() } catch { /* empty */ }
+      const status = typeof body.email?.status === 'string' ? body.email.status : undefined
+      return { id, ok: true, status }
+    }
     let body: { error?: string } = {}
     try { body = await res.json() } catch { /* empty */ }
     const code = (body?.error ?? 'other') as ApproveError
@@ -139,8 +160,16 @@ export function WorkspaceApprovalQueueClient() {
     const result = await approveOne(id)
     setBusyId(null); setBusy('idle')
     if (result.ok) {
-      // Drop the row locally, no need to refetch the whole list.
-      setData(prev => prev ? removeDraft(prev, id) : prev)
+      // TD-010 5.b — trust what the server actually wrote. If it returned a
+      // status past the draft phase, drop the row locally ; if the reread
+      // failed (email:null path §3) we don't know for sure, so refresh
+      // instead of a blind removal that could hide a real problem.
+      const status = result.status
+      if (status && status !== 'draft' && status !== 'edited') {
+        setData(prev => prev ? removeDraft(prev, id) : prev)
+      } else {
+        await refresh()
+      }
     } else {
       setFlash({ kind: 'partial', text: tErr(result.error) })
     }
@@ -173,8 +202,52 @@ export function WorkspaceApprovalQueueClient() {
     setBusy('bulk')
     setProgress({ done: 0, total: ids.length })
 
+    // TD-011.c — sérialiser le PREMIER appel PAR CAMPAGNE. Les ids peuvent
+    // couvrir plusieurs campagnes, et le CAS anti-course fournisseur
+    // (route.ts §4.a) est POSÉ par campagne, pas globalement : un unique
+    // probe global ne suffirait pas. On regroupe donc par campagne, on
+    // sérialise le premier appel de chaque groupe (séquentiellement, pour
+    // ne pas ouvrir la course inter-campagnes non plus au niveau du client
+    // navigateur), puis on batche le reste. Un probe raté sur une campagne
+    // n'empêche pas les autres campagnes de progresser.
+    const groups = data?.groups ?? []
+    const idsSet = new Set(ids)
+    const byCampaign = new Map<string, string[]>()
+    for (const group of groups) {
+      const selected = group.drafts.filter(d => idsSet.has(d.id)).map(d => d.id)
+      if (selected.length > 0) byCampaign.set(group.campaign.id, selected)
+    }
+
     const results: ApproveResult[] = []
-    await runWithLimit(ids, APPROVE_CONCURRENCY, async (id) => {
+    // Sérialisation des probes : un après l'autre. Chaque probe termine
+    // avant le suivant → aucune concurrence côté fournisseur, aucune
+    // dépendance sur le comportement du navigateur.
+    const passedCampaigns: string[] = []
+    for (const [campaignId, campaignIds] of byCampaign) {
+      const probe = await approveOne(campaignIds[0])
+      results.push(probe)
+      setProgress(prev => prev ? { ...prev, done: prev.done + 1 } : null)
+      if (probe.ok) passedCampaigns.push(campaignId)
+      // Si le probe échoue, on n'attaque pas le reste de CETTE campagne : le
+      // même contrat qu'à campaigns/[id]/page.tsx §4.b. Les ids restants
+      // seront comptés en échec ci-dessous.
+    }
+    const restIds: string[] = []
+    for (const [campaignId, campaignIds] of byCampaign) {
+      if (!passedCampaigns.includes(campaignId)) {
+        // Marquer les restants de cette campagne comme échoués — même code
+        // que le probe si connu, sinon 'other'.
+        const probeResult = results.find(r => r.id === campaignIds[0])
+        const err = (probeResult && !probeResult.ok ? probeResult.error : 'other') as ApproveError
+        for (const id of campaignIds.slice(1)) {
+          results.push({ id, ok: false, error: err })
+          setProgress(prev => prev ? { ...prev, done: prev.done + 1 } : null)
+        }
+        continue
+      }
+      restIds.push(...campaignIds.slice(1))
+    }
+    await runWithLimit(restIds, APPROVE_CONCURRENCY, async (id) => {
       const r = await approveOne(id)
       results.push(r)
       setProgress(prev => prev ? { ...prev, done: prev.done + 1 } : null)
@@ -446,6 +519,7 @@ function DraftRow({
         <button
           onClick={onApprove}
           disabled={disabled}
+          title={t('approveTooltip')}
           className="bg-[#3b6bef] text-white rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-[#2d5cdc] transition-colors disabled:opacity-40 min-w-[6rem]"
         >
           {rowBusy ? t('approving') : t('approve')}

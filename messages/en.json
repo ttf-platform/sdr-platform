@@ -662,6 +662,7 @@
       "subjectLabel": "Subject",
       "bodyLabel": "Body",
       "approve": "Approve",
+      "approveTooltip": "Queue this email for sending",
       "approving": "Approving…",
       "reject": "Reject",
       "edit": "Edit",
@@ -679,6 +680,10 @@
         "not_found": "Draft is gone.",
         "campaign_step_missing": "Campaign step missing.",
         "campaign_missing": "Campaign missing.",
+        "prospect_email_lookup_failed": "Could not read this draft right now. Please try again.",
+        "campaign_step_lookup_failed": "Could not read the campaign step right now. Please try again.",
+        "campaign_lookup_failed": "Could not read the campaign right now. Please try again.",
+        "mailbox_lookup_failed": "Could not read your sending mailboxes right now. Please try again.",
         "reject_failed": "Could not reject this draft.",
         "other": "Unexpected error.",
         "retry_unsafe": "Retry unavailable: this email may already have gone out."
@@ -1500,7 +1505,8 @@
           "sendAllPartial": "Queued {ok} of {total} drafts to send. Some couldn't be queued — refresh to see which.",
           "sendAllFailed": "Couldn't queue your drafts. Try again in a moment.",
           "cardRetry": "Retry",
-          "cardRetryUnavailable": "Retry unavailable — the send may have gone out"
+          "cardRetryUnavailable": "Retry unavailable — the send may have gone out",
+          "cardApproveTooltip": "Queue this email for sending"
         },
         "emailStatuses": {
           "draft": "Draft",

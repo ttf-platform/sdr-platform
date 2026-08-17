@@ -112,54 +112,46 @@ type MockResponse = { data: unknown; error: unknown; count?: number };
 function makeMockSupabase(handlers: {
   [key: string]: () => MockResponse | Promise<MockResponse>;
 }) {
-  // eslint-disable-next-line
-  const builder: any = {
-    _table: '',
-    _filters: [] as string[],
-    _selectArgs: undefined as { count?: 'exact'; head?: boolean } | undefined,
-    from(table: string) {
-      builder._table = table;
-      builder._filters = [];
-      builder._selectArgs = undefined;
-      return builder;
-    },
-    select(_cols: string, opts?: { count?: 'exact'; head?: boolean }) {
-      builder._selectArgs = opts;
-      return builder;
-    },
-    insert(_payload: unknown) {
-      builder._filters.push('insert');
-      return builder;
-    },
-    update(_payload: unknown) {
-      builder._filters.push('update');
-      return builder;
-    },
-    eq(_col: string, _val: unknown) {
-      return builder;
-    },
-    gte(_col: string, _val: unknown) {
-      return builder;
-    },
-    lt(_col: string, _val: unknown) {
-      return builder;
-    },
-    order(_col: string, _opts: unknown) {
-      return builder;
-    },
-    single() {
-      const handler = handlers[`${builder._table}:single`] ?? handlers[builder._table];
-      return Promise.resolve(handler ? handler() : { data: null, error: null });
-    },
-    then(resolve: (v: unknown) => void) {
-      const handler = handlers[builder._table];
-      const result = handler
-        ? handler()
-        : ({ data: [], error: null, count: 0 } as MockResponse);
-      Promise.resolve(result).then((r) => resolve(r));
-    },
+  // TD-013 — bot-ai executeGetUserCampaigns now co-reads campaigns +
+  // prospects under a single Promise.all. A shared-state builder races
+  // on _table when two chains overlap, so each `.from()` call spawns a
+  // FRESH builder that owns its own _table for the whole chain. Also
+  // adds the `.not()` builder used by the new count query.
+  const makeChain = (table: string) => {
+    // eslint-disable-next-line
+    const chain: any = {
+      _table: table,
+      _filters: [] as string[],
+      _selectArgs: undefined as { count?: 'exact'; head?: boolean } | undefined,
+      select(_cols: string, opts?: { count?: 'exact'; head?: boolean }) {
+        chain._selectArgs = opts;
+        return chain;
+      },
+      insert(_payload: unknown) { chain._filters.push('insert'); return chain; },
+      update(_payload: unknown) { chain._filters.push('update'); return chain; },
+      eq(_col: string, _val: unknown) { return chain; },
+      gte(_col: string, _val: unknown) { return chain; },
+      lt(_col: string, _val: unknown) { return chain; },
+      not(_col: string, _op: string, _val: unknown) { return chain; },
+      order(_col: string, _opts: unknown) { return chain; },
+      single() {
+        const handler = handlers[`${chain._table}:single`] ?? handlers[chain._table];
+        return Promise.resolve(handler ? handler() : { data: null, error: null });
+      },
+      then(resolve: (v: unknown) => void) {
+        const handler = handlers[chain._table];
+        const result = handler
+          ? handler()
+          : ({ data: [], error: null, count: 0 } as MockResponse);
+        Promise.resolve(result).then((r) => resolve(r));
+      },
+    };
+    return chain;
   };
-  return builder as unknown as import('@supabase/supabase-js').SupabaseClient;
+  const client = {
+    from(table: string) { return makeChain(table); },
+  };
+  return client as unknown as import('@supabase/supabase-js').SupabaseClient;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +249,80 @@ describe('executeToolCall', () => {
     };
     expect(result.campaigns[0].open_rate).toBeCloseTo(0.35);
     expect(result.campaigns[0].reply_rate).toBeCloseTo(0.05);
+  });
+
+  // TD-013 — la colonne dénormalisée campaigns.prospects_count peut dériver
+  // (elle n'est écrite QUE par app/api/campaigns/[id]/prospects/route.ts,
+  // pas par les autres flux qui ajoutent des prospects). Les deux routes
+  // produit (GET /api/campaigns, GET /api/campaigns/[id]) recalculent déjà
+  // à la volée depuis prospects. bot-ai lisait la colonne stale et injectait
+  // sa valeur dans le contexte de l'assistant → compte périmé annoncé au
+  // support.
+  //
+  // Le test observe le contrat : le count doit venir des rows prospects,
+  // pas de la colonne. Fixture discriminante : campaigns.prospects_count
+  // vaut un nombre QUE personne n'attend, prospects rend un autre nombre —
+  // seul le premier peut être vu si la route lit encore la colonne.
+  it('TD-013 — getUserCampaigns compte prospects à la volée, pas via campaigns.prospects_count', async () => {
+    ctx.supabase = makeMockSupabase({
+      campaigns: () => ({
+        data: [
+          {
+            id: 'c-1',
+            name: 'A',
+            status: 'active',
+            // Colonne dénormalisée VOLONTAIREMENT fausse : si bot-ai lit
+            // encore cette valeur, la ligne suivante fera rougir le test.
+            prospects_count: 999,
+            sent_count: 10,
+            opened_count: 3,
+            replied_count: 1,
+            created_at: '2026-08-01',
+          },
+        ],
+        error: null,
+      }),
+      // Trois lignes prospects rattachées à c-1 → le VRAI count.
+      prospects: () => ({
+        data: [
+          { campaign_id: 'c-1' },
+          { campaign_id: 'c-1' },
+          { campaign_id: 'c-1' },
+        ],
+        error: null,
+      }),
+    });
+    const result = (await executeToolCall('getUserCampaigns', {}, ctx)) as {
+      campaigns: Array<{ id: string; prospects_count: number }>;
+    };
+    expect(result.campaigns[0].id).toBe('c-1');
+    expect(result.campaigns[0].prospects_count).toBe(3);
+    expect(result.campaigns[0].prospects_count).not.toBe(999);
+  });
+
+  it('TD-013 — une campagne sans prospects rend prospects_count: 0 (map miss → 0)', async () => {
+    ctx.supabase = makeMockSupabase({
+      campaigns: () => ({
+        data: [
+          {
+            id: 'c-empty',
+            name: 'Empty',
+            status: 'draft',
+            prospects_count: 42,   // stale — must be ignored
+            sent_count: 0,
+            opened_count: 0,
+            replied_count: 0,
+            created_at: '2026-08-01',
+          },
+        ],
+        error: null,
+      }),
+      prospects: () => ({ data: [], error: null }),
+    });
+    const result = (await executeToolCall('getUserCampaigns', {}, ctx)) as {
+      campaigns: Array<{ prospects_count: number }>;
+    };
+    expect(result.campaigns[0].prospects_count).toBe(0);
   });
 
   it('getUserCampaigns handles zero sent without dividing by zero', async () => {

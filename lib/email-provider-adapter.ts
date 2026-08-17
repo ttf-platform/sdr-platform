@@ -860,10 +860,14 @@ export class InstantlyProvider implements IEmailProvider {
     try { body = text ? JSON.parse(text) : {} } catch { body = {} }
 
     if (!res.ok) {
-      const message = (body as { error?: string; message?: string })?.error
-        ?? (body as { message?: string })?.message
-        ?? `provider returned HTTP ${res.status}`
-      throw new Error(`[InstantlyProvider.initOAuth] ${message}`)
+      // TD-090 — compose error+message when both exist. Same rationale as
+      // the private errorMessage helper below (this initOAuth path was
+      // written before the helper existed).
+      const b2 = body as { error?: string; message?: string }
+      const err = typeof b2?.error   === 'string' ? b2.error.trim()   : ''
+      const msg = typeof b2?.message === 'string' ? b2.message.trim() : ''
+      const composed = (err && msg) ? `${err}: ${msg}` : (err || msg || `provider returned HTTP ${res.status}`)
+      throw new Error(`[InstantlyProvider.initOAuth] ${composed}`)
     }
 
     const b = body as { session_id?: string; auth_url?: string; expires_at?: string }
@@ -889,10 +893,12 @@ export class InstantlyProvider implements IEmailProvider {
       return { status: 'expired' }
     }
     if (!res.ok) {
-      const message = (body as { error?: string; message?: string })?.error
-        ?? (body as { message?: string })?.message
-        ?? `provider returned HTTP ${res.status}`
-      throw new Error(`[InstantlyProvider.getOAuthStatus] ${message}`)
+      // TD-090 — see initOAuth above ; same composition rule.
+      const b2 = body as { error?: string; message?: string }
+      const err = typeof b2?.error   === 'string' ? b2.error.trim()   : ''
+      const msg = typeof b2?.message === 'string' ? b2.message.trim() : ''
+      const composed = (err && msg) ? `${err}: ${msg}` : (err || msg || `provider returned HTTP ${res.status}`)
+      throw new Error(`[InstantlyProvider.getOAuthStatus] ${composed}`)
     }
 
     const b = body as {
@@ -1315,8 +1321,17 @@ export class InstantlyProvider implements IEmailProvider {
   }
 
   private errorMessage(body: unknown, status: number): string {
+    // TD-090 — compose error + message when both exist. Prior to this fix the
+    // reader kept the generic `error` ("Bad Request") and dropped the
+    // discriminating `message` (e.g. "body/campaign_schedule/schedules/0/
+    // timezone must be equal to one of the allowed values") — measured in
+    // prod 2026-08-09. Composing both surfaces the actionable diagnostic to
+    // the server log while the client still sees GENERIC_SEND_FAILURE.
     const b = body as { error?: string; message?: string }
-    return b?.error ?? b?.message ?? `provider returned HTTP ${status}`
+    const err = typeof b?.error   === 'string' ? b.error.trim()   : ''
+    const msg = typeof b?.message === 'string' ? b.message.trim() : ''
+    if (err && msg) return `${err}: ${msg}`
+    return err || msg || `provider returned HTTP ${status}`
   }
 }
 

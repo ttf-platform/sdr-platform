@@ -211,15 +211,40 @@ async function executeGetUserMailboxes(ctx: BotContext): Promise<unknown> {
 }
 
 async function executeGetUserCampaigns(ctx: BotContext): Promise<unknown> {
+  // TD-013 — compter les prospects à la volée, comme les deux routes produit
+  // (GET /api/campaigns et GET /api/campaigns/[id]) qui recalculent
+  // prospects_count depuis la table prospects. La colonne dénormalisée
+  // campaigns.prospects_count n'a qu'un seul écrivain
+  // (app/api/campaigns/[id]/prospects/route.ts) et peut donc dériver.
+  // Injecter la stale value dans le contexte de l'assistant lui faisait
+  // annoncer un compte périmé — même incohérence que les deux vues
+  // corrigées en amont.
+  //
   // Actual columns: sent_count, opened_count, replied_count (no bounces column)
-  const { data, error } = await ctx.supabase
-    .from('campaigns')
-    .select('id, name, status, prospects_count, sent_count, opened_count, replied_count, created_at')
-    .eq('workspace_id', ctx.workspaceId)
-    .order('created_at', { ascending: false });
+  const [
+    { data, error },
+    { data: prospectRows },
+  ] = await Promise.all([
+    ctx.supabase
+      .from('campaigns')
+      .select('id, name, status, sent_count, opened_count, replied_count, created_at')
+      .eq('workspace_id', ctx.workspaceId)
+      .order('created_at', { ascending: false }),
+    ctx.supabase
+      .from('prospects')
+      .select('campaign_id')
+      .eq('workspace_id', ctx.workspaceId)
+      .not('campaign_id', 'is', null),
+  ]);
 
   if (error) {
     return { error: 'Could not fetch campaigns right now.' };
+  }
+
+  const countMap = new Map<string, number>();
+  for (const r of (prospectRows ?? []) as Array<{ campaign_id: string }>) {
+    const id = r.campaign_id;
+    countMap.set(id, (countMap.get(id) ?? 0) + 1);
   }
 
   const campaigns = (data ?? []).map((c) => {
@@ -228,6 +253,7 @@ async function executeGetUserCampaigns(ctx: BotContext): Promise<unknown> {
     const replies = c.replied_count ?? 0;
     return {
       ...c,
+      prospects_count: countMap.get(c.id) ?? 0,
       open_rate: sent > 0 ? Number((opens / sent).toFixed(4)) : 0,
       reply_rate: sent > 0 ? Number((replies / sent).toFixed(4)) : 0,
     };
