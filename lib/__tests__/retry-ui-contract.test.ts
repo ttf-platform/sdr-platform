@@ -33,6 +33,17 @@ describe('TD-002 — la frontière serveur → navigateur', () => {
     // évite un second porteur de la même information.
     expect(cols(PROSPECT_EMAIL_CLIENT_COLUMNS)).not.toContain('retry_safe')
   })
+
+  // TD-010 §5.a / §5.b — le client de la file de validation ET la page de
+  // campagne lisent data.email.status pour refléter le statut réel après
+  // approbation. Sans `status` dans la projection retournée, cette
+  // observation ne franchit pas la frontière : l'écran garde l'état
+  // optimiste 'approved' et le bouton reste cliquable → second clic 409
+  // affiché comme un échec. Ce test verrouille le porteur — pas la logique
+  // client (qui ne peut pas être exécutée sans DOM dans ce projet).
+  it("PREUVE 27 (TD-010) — la projection d'approbation expose status au client", () => {
+    expect(cols(PROSPECT_EMAIL_CLIENT_COLUMNS)).toContain('status')
+  })
 })
 
 // ─── Parité et propreté des libellés ───────────────────────────────────────
@@ -52,6 +63,17 @@ const NEW_KEYS: [string[], string][] = [
   [['dashboard', 'campaigns', 'detail', 'toasts'],        'bulkDeleteSkipped'],
   [['dashboard', 'approvals', 'errors'],                  'retry_unsafe'],
   [['components', 'emailModals', 'errors'],               'retryUnsafe'],
+  // TD-010 §5.d — nouveaux codes d'erreur remontés par la route (§1
+  // TD-091). Sans ces clés, une panne DB s'affichait sous la clé brute
+  // ("mailbox_lookup_failed") au lieu d'un libellé lisible.
+  [['dashboard', 'approvals', 'errors'],                  'mailbox_lookup_failed'],
+  [['dashboard', 'approvals', 'errors'],                  'campaign_lookup_failed'],
+  [['dashboard', 'approvals', 'errors'],                  'prospect_email_lookup_failed'],
+  [['dashboard', 'approvals', 'errors'],                  'campaign_step_lookup_failed'],
+  // TD-010 §5.c — infobulle qui dit que ce geste met l'e-mail en file
+  // d'envoi. Le libellé du bouton ("Approve"/"Valider") ne le disait pas.
+  [['dashboard', 'approvals'],                            'approveTooltip'],
+  [['dashboard', 'campaigns', 'detail', 'emails'],        'cardApproveTooltip'],
 ]
 
 describe('TD-002 — libellés', () => {

@@ -51,6 +51,13 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   const admin = createAdminClient()
 
   // 1. Fetch the prospect_email scoped to the caller's workspace.
+  //
+  // TD-091 : distinguish a genuine "row absent" from a DB error. Conflating
+  // them silently rewrites a transient failure as a permanent 404, and the
+  // guard behind (retry-safety, Gate A, quota, CAS reserve) is skipped
+  // altogether — the user sees a wrong reason, the row stays draftable.
+  // A garde qui ne sait pas refuse : on a real error we fail closed with a
+  // distinct 500 code so the UI can surface the difference.
   const { data: pe, error: fetchError } = await admin
     .from('prospect_emails')
     .select('id, workspace_id, prospect_id, campaign_step_id, subject, body, thread_id, status, retry_safe')
@@ -58,7 +65,14 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .eq('workspace_id', guard.workspaceId)
     .single()
 
-  if (fetchError || !pe) {
+  if (fetchError && !isNoRowsError(fetchError)) {
+    const code = (fetchError as { code?: string }).code ?? 'unknown'
+    console.error('[approve] prospect_email_lookup_failed:', {
+      prospect_email_id: params.id, workspace_id: guard.workspaceId, db_code: code,
+    })
+    return NextResponse.json({ error: 'prospect_email_lookup_failed' }, { status: 500 })
+  }
+  if (!pe) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
@@ -87,16 +101,36 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     .select('id, campaign_id')
     .eq('id', pe.campaign_step_id)
     .single()
-  if (stepError || !step) {
+  // TD-091 : same rule as the prospect_email fetch above — a DB error is not
+  // an absence. Fail closed with a distinct 500 so the user knows to retry.
+  if (stepError && !isNoRowsError(stepError)) {
+    const code = (stepError as { code?: string }).code ?? 'unknown'
+    console.error('[approve] campaign_step_lookup_failed:', {
+      prospect_email_id: pe.id, workspace_id: guard.workspaceId, db_code: code,
+    })
+    return NextResponse.json({ error: 'campaign_step_lookup_failed' }, { status: 500 })
+  }
+  if (!step) {
     return NextResponse.json({ error: 'campaign_step_missing' }, { status: 404 })
   }
 
-  const { data: campaign } = await admin
+  const { data: campaign, error: campaignError } = await admin
     .from('campaigns')
     .select('id, name, provider_campaign_id')
     .eq('id', step.campaign_id)
     .eq('workspace_id', guard.workspaceId)
     .single()
+  // TD-091 : the pre-fix code discarded `error` completely, so a DB panne
+  // was rendered as 404 campaign_missing (i.e. « votre campagne n'existe
+  // pas »). Fail closed with a distinct 500 so an operator can tell the
+  // two apart.
+  if (campaignError && !isNoRowsError(campaignError)) {
+    const code = (campaignError as { code?: string }).code ?? 'unknown'
+    console.error('[approve] campaign_lookup_failed:', {
+      prospect_email_id: pe.id, workspace_id: guard.workspaceId, campaign_id: step.campaign_id, db_code: code,
+    })
+    return NextResponse.json({ error: 'campaign_lookup_failed' }, { status: 500 })
+  }
   if (!campaign) {
     return NextResponse.json({ error: 'campaign_missing' }, { status: 404 })
   }
@@ -131,13 +165,25 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   // order, no rotation. The empty-list check below is the anti-silent-
   // failure guard : the provider is NEVER called with an empty list nor
   // with a list containing null / blank values.
-  const { data: mailboxRows } = await admin
+  const { data: mailboxRows, error: mailboxError } = await admin
     .from('email_accounts')
     .select('email_address')
     .eq('workspace_id', guard.workspaceId)
     .eq('setup_status', 'verified')
     .eq('paused_by_user', false)
     .is('auto_paused_at', null)
+  // TD-091 : the pre-fix code let a DB error silently coerce mailboxRows to
+  // null, which then produced an empty sendingMailboxes list and a 422
+  // no_sending_mailbox — the user reads « aucune boîte d'envoi » while
+  // their inboxes are perfectly valid. Fail closed with a distinct 500 so
+  // the guard cannot mislead.
+  if (mailboxError) {
+    const code = (mailboxError as { code?: string }).code ?? 'unknown'
+    console.error('[approve] mailbox_lookup_failed:', {
+      prospect_email_id: pe.id, workspace_id: guard.workspaceId, db_code: code,
+    })
+    return NextResponse.json({ error: 'mailbox_lookup_failed' }, { status: 500 })
+  }
   const sendingMailboxes: string[] = (mailboxRows ?? [])
     .map((r) => (typeof r.email_address === 'string' ? r.email_address.trim() : ''))
     .filter((addr) => addr.length > 0)
@@ -282,23 +328,77 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       )
       providerCampaignId = ensured.providerCampaignId
       createdProviderCampaign = true
-
-      // Persist before doing anything else so a later failure here doesn't
-      // leak a dangling provider campaign per Mirvo campaign.
-      const { error: persistError } = await admin
-        .from('campaigns')
-        .update({ provider_campaign_id: providerCampaignId, status: 'active' })
-        .eq('id', campaign.id)
-        .eq('workspace_id', guard.workspaceId)
-      if (persistError) {
-        console.error('[approve] persist provider_campaign_id failed:', persistError)
-        // Continue: the enqueue can still work; reconciliation cron will
-        // backfill the column from provider state in a future sprint.
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       // Safe : the lead-submission step below was never reached.
       return await markFailed(admin, pe.id, guard.workspaceId, msg, providerName, true)
+    }
+
+    // TD-011.a — CAS reservation of campaigns.provider_campaign_id.
+    //
+    // Sans garde, deux approbations concurrentes sur la même Mirvo campaign
+    // écrivent chacune leur propre provider_campaign_id ici (last-write-wins)
+    // et le perdant croit avoir gagné : il active une campagne fournisseur
+    // sans lead, tandis que sa lecture pré-CAS de campaign.provider_campaign_id
+    // était null → createdProviderCampaign=true → il rejoue toutes les
+    // étapes suivantes sur SA campagne, orpheline. On ferme la course en
+    // constraignant l'UPDATE : `.is('provider_campaign_id', null)` ne
+    // matche QUE tant que personne d'autre n'a écrit. provider_campaign_id
+    // ET status='active' sont écrits DANS LA MÊME instruction — les scinder
+    // laisserait un perdant activer une campagne côté Mirvo.
+    const {
+      data: persistRows,
+      error: persistError,
+    } = await admin
+      .from('campaigns')
+      .update({ provider_campaign_id: providerCampaignId, status: 'active' })
+      .eq('id', campaign.id)
+      .eq('workspace_id', guard.workspaceId)
+      .is('provider_campaign_id', null)
+      .select('id')
+    if (persistError) {
+      console.error('[approve] persist provider_campaign_id failed:', {
+        prospect_email_id: pe.id, workspace_id: guard.workspaceId, campaign_id: campaign.id,
+        db_code: (persistError as { code?: string }).code ?? 'unknown',
+      })
+      // A garde qui ne sait pas refuse — la campagne fournisseur qu'on
+      // vient de créer reste orpheline (risque accepté §4.a). retry-safe:
+      // rien n'a été enqueue.
+      return await markFailed(
+        admin, pe.id, guard.workspaceId,
+        'campaign_persist_failed', providerName, true,
+      )
+    }
+    if (!persistRows || persistRows.length === 0) {
+      // Le CAS n'a matché aucune ligne : quelqu'un d'autre a déjà écrit
+      // provider_campaign_id. NE PAS conclure « concurrent a gagné » ni
+      // court-circuiter l'appel fournisseur — relire pour connaître le
+      // gagnant, workspace-scopé.
+      const { data: reread, error: rereadError } = await admin
+        .from('campaigns')
+        .select('provider_campaign_id')
+        .eq('id', campaign.id)
+        .eq('workspace_id', guard.workspaceId)
+        .single()
+      const winnerId = (reread?.provider_campaign_id as string | null | undefined) ?? null
+      if (rereadError || !winnerId) {
+        // Une garde qui ne sait pas refuse. Aucun appel fournisseur.
+        console.error('[approve] campaign_reread_failed after CAS miss:', {
+          prospect_email_id: pe.id, workspace_id: guard.workspaceId, campaign_id: campaign.id,
+          db_code: (rereadError as { code?: string } | null | undefined)?.code ?? 'no_winner_id',
+        })
+        return await markFailed(
+          admin, pe.id, guard.workspaceId,
+          'campaign_reread_failed', providerName, true,
+        )
+      }
+      // Utiliser l'identifiant du gagnant pour l'enqueue ; cette requête n'a
+      // rien créé qui lui appartienne, donc elle N'ACTIVE PAS. La campagne
+      // fournisseur qu'on avait créée juste au-dessus est orpheline (elle
+      // sera sans lead et non activée) — risque accepté du §4.a, à noter
+      // dans le retour final.
+      providerCampaignId = winnerId
+      createdProviderCampaign = false
     }
   }
 
@@ -320,6 +420,29 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     providerLeadId = lead.providerLeadId
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    // TD-012 — this request created + persisted the provider campaign, then
+    // the enqueue failed. Prior to this fix the route returned here without
+    // ever calling activateCampaign : provider_campaign_id was already
+    // written, so the next approval saw createdProviderCampaign=false and
+    // skipped activation forever. Attempt activation on THIS failure path
+    // so a subsequent successful enqueue can dispatch. Best-effort : the
+    // activate failure is logged and swallowed — the response stays the
+    // markFailed response (never propagate a second error to the client).
+    // Only for the campaign THIS request created — never another
+    // concurrent's (§4.a : createdProviderCampaign is false on the CAS-loss
+    // path).
+    if (createdProviderCampaign) {
+      try {
+        await withTimeout(
+          provider.activateCampaign(providerCampaignId!),
+          PROVIDER_TIMEOUT_MS,
+          'activateCampaign',
+        )
+      } catch (activateErr) {
+        console.error('[approve] activateCampaign failed on enqueue-failure path (best-effort):',
+          activateErr instanceof Error ? activateErr.message : activateErr)
+      }
+    }
     // The only branch where the provider may already hold the prospect.
     // Safe ONLY on an explicit refusal, carried by a typed flag — a timeout,
     // a network error or a 2xx without a lead id all fall through to false.

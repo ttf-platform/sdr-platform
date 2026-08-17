@@ -203,3 +203,68 @@ describe('InstantlyProvider.ensureCampaign — email_list and sequences payload'
     expect(variantBody).toBe('{{mirvo_body}}')
   })
 })
+
+// ─── TD-090 — errorMessage composes error + message ────────────────────────
+//
+// Measured in prod 2026-08-09 : the provider returned
+//   { "error": "Bad Request",
+//     "message": "body/campaign_schedule/schedules/0/timezone must be equal
+//                 to one of the allowed values" }
+// The old reader kept the generic "Bad Request" and dropped the only
+// discriminating clue. errorMessage is a PRIVATE helper — we exercise it
+// through ensureCampaign's own error path (a stubbed fetch returning a
+// non-2xx body). Same precedent as the timezone tests above : any URL
+// other than /campaigns makes the stub throw so drift fails the test.
+describe('InstantlyProvider.ensureCampaign — TD-090 error composition', () => {
+  function installErrorFetch(errorBody: Record<string, unknown>, status = 400) {
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string' ? input
+        : input instanceof URL ? input.href
+        : (input as Request).url
+      if (url !== CAMPAIGNS_URL) throw new Error(`unexpected fetch: ${url}`)
+      return {
+        ok: false,
+        status,
+        text: async () => JSON.stringify(errorBody),
+      } as unknown as Response
+    })
+  }
+
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  it('composes "<error>: <message>" when both are present (this is the prod regression)', async () => {
+    installErrorFetch({
+      error:   'Bad Request',
+      message: 'body/campaign_schedule/schedules/0/timezone must be equal to one of the allowed values',
+    })
+    const provider = new InstantlyProvider('test-api-key')
+    await expect(
+      provider.ensureCampaign({ ...baseParams, schedule: parisSchedule }),
+    ).rejects.toThrow(/Bad Request: body\/campaign_schedule\/schedules\/0\/timezone/)
+  })
+
+  it('keeps just "error" when message is absent', async () => {
+    installErrorFetch({ error: 'Bad Request' })
+    const provider = new InstantlyProvider('test-api-key')
+    await expect(
+      provider.ensureCampaign({ ...baseParams, schedule: parisSchedule }),
+    ).rejects.toThrow(/\bBad Request\b/)
+  })
+
+  it('keeps just "message" when error is absent', async () => {
+    installErrorFetch({ message: 'campaign name too long' })
+    const provider = new InstantlyProvider('test-api-key')
+    await expect(
+      provider.ensureCampaign({ ...baseParams, schedule: parisSchedule }),
+    ).rejects.toThrow(/campaign name too long/)
+  })
+
+  it('falls back to "provider returned HTTP <status>" when both are absent', async () => {
+    installErrorFetch({}, 502)
+    const provider = new InstantlyProvider('test-api-key')
+    await expect(
+      provider.ensureCampaign({ ...baseParams, schedule: parisSchedule }),
+    ).rejects.toThrow(/provider returned HTTP 502/)
+  })
+})
