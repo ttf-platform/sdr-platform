@@ -1,7 +1,7 @@
 /**
  * app/api/calendar/google/sources/route.ts
  *
- * LC21 (2)b — liste des calendriers Google d'un espace, et selection
+ * LC21 (2)b + (2)c — liste des calendriers Google d'un espace, et selection
  * conflit / ecriture par le proprietaire.
  *
  *   GET  /api/calendar/google/sources           : lecture locale.
@@ -11,10 +11,14 @@
  *                                                 limiteur echouant ferme.
  *   PUT  /api/calendar/google/sources           : pose is_conflict et
  *                                                 is_write_target pour cet
- *                                                 espace.
+ *                                                 espace, arme la
+ *                                                 synchronisation, et remet
+ *                                                 mirror_ready = false.
  *
- * Ni GET ni PUT ne basculent mirror_ready. Ce lot ne synchronise aucun
- * evenement, ne pose aucun watch, n'appelle Google que pour la calendarList.
+ * (2)c : le PUT declenche la synchronisation en armant sync_pending sur les
+ * sources devenues is_conflict, et le desarme sur celles qui l'ont perdue.
+ * La bascule mirror_ready vers true reste l'apanage du moteur ; ici on ne
+ * fait que retomber a false quand la selection change.
  */
 
 import { NextResponse } from 'next/server';
@@ -253,15 +257,16 @@ export async function PUT(request: Request) {
 
   const { data: rowsData, error: rowsErr } = await admin
     .from('calendar_sources')
-    .select('google_calendar_id, still_present, access_role')
+    .select('google_calendar_id, still_present, access_role, is_conflict')
     .eq('workspace_id', guard.workspaceId);
   if (rowsErr) return internalError();
 
-  const knownById = new Map<string, { still_present: boolean; access_role: string | null }>();
-  for (const r of (rowsData ?? []) as Array<{ google_calendar_id: string; still_present: boolean; access_role: string | null }>) {
+  const knownById = new Map<string, { still_present: boolean; access_role: string | null; was_conflict: boolean }>();
+  for (const r of (rowsData ?? []) as Array<{ google_calendar_id: string; still_present: boolean; access_role: string | null; is_conflict: boolean }>) {
     knownById.set(r.google_calendar_id, {
       still_present: r.still_present === true,
       access_role:   r.access_role ?? null,
+      was_conflict:  r.is_conflict === true,
     });
   }
 
@@ -321,6 +326,67 @@ export async function PUT(request: Request) {
       .eq('workspace_id', guard.workspaceId)
       .eq('google_calendar_id', parsed.writeTargetId);
     if (setWriteErr) return internalError();
+  }
+
+  // (2)c — armement de la synchronisation. Compare l'etat AVANT / APRES la
+  // pose des drapeaux pour identifier les transitions.
+  const newConflictSet = new Set(parsed.conflictIds);
+  const becameConflict: string[] = [];
+  const wasConflictOnly: string[] = [];
+  for (const [id, meta] of knownById.entries()) {
+    const isNowConflict = newConflictSet.has(id);
+    if (isNowConflict && !meta.was_conflict) becameConflict.push(id);
+    if (!isNowConflict && meta.was_conflict) wasConflictOnly.push(id);
+  }
+
+  const nowIso = new Date().toISOString();
+  if (becameConflict.length > 0) {
+    const { error: armErr } = await admin
+      .from('calendar_sources')
+      .update({
+        sync_pending:      true,
+        sync_requested_at: nowIso,
+        last_error:        null,
+      })
+      .eq('workspace_id', guard.workspaceId)
+      .in('google_calendar_id', becameConflict);
+    if (armErr) return internalError();
+  }
+  if (wasConflictOnly.length > 0) {
+    const { error: disarmErr } = await admin
+      .from('calendar_sources')
+      .update({
+        sync_pending:      false,
+        sync_requested_at: null,
+        sync_token:        null,
+      })
+      .eq('workspace_id', guard.workspaceId)
+      .in('google_calendar_id', wasConflictOnly);
+    if (disarmErr) return internalError();
+  }
+
+  // mirror_ready = false : le perimetre a change (ou vient d'etre confirme),
+  // le miroir n'est plus repute complet tant que le moteur n'a pas rendu la
+  // main. Ne touche la ligne que si un flip est necessaire — inutile
+  // d'ecrire pour maintenir false a false.
+  const stateRead = await admin
+    .from('calendar_sync_state')
+    .select('mirror_ready')
+    .eq('workspace_id', guard.workspaceId)
+    .maybeSingle();
+  if (stateRead.error) return internalError();
+
+  if (!stateRead.data) {
+    const { error: insErr } = await admin
+      .from('calendar_sync_state')
+      .insert({ workspace_id: guard.workspaceId, mirror_ready: false });
+    if (insErr) return internalError();
+  } else if (stateRead.data.mirror_ready === true) {
+    const { error: updErr } = await admin
+      .from('calendar_sync_state')
+      .update({ mirror_ready: false })
+      .eq('workspace_id', guard.workspaceId);
+    if (updErr) return internalError();
   }
 
   return NextResponse.json({ ok: true }, { headers: NO_STORE });

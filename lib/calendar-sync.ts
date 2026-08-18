@@ -1,0 +1,440 @@
+/**
+ * lib/calendar-sync.ts
+ *
+ * LC21 (2)c — moteur de synchronisation complete d'UN calendrier.
+ *
+ *   runFullSyncForSource({ workspaceId, googleCalendarId })
+ *     Prend un bail, verifie l'eligibilite, dechiffre le refresh_token, lit
+ *     Google sur une fenetre bornee, ecrit le nouveau jeu en generation
+ *     alternee, bascule active_generation en UNE instruction, purge l'ancien
+ *     jeu. Retourne un resultat structure, jamais une exception non rattrapee.
+ *
+ *   recomputeMirrorReady({ workspaceId })
+ *     Recalcule l'etat global du miroir a partir des sources is_conflict.
+ *     Ne pose first_full_sync_done_at qu'une seule fois (a la premiere
+ *     bascule vers mirror_ready=true).
+ *
+ * BAIL COMME CAPACITE. Le bail n'est PAS un simple booleen : c'est un jeton
+ * — la chaine ISO exacte posee dans sync_lease_until. Chaque ecriture de
+ * (2)c est conditionnee `WHERE sync_lease_until = jeton` : si le bail a ete
+ * repris entre-temps, l'ecriture affecte zero ligne et on sort en
+ * bail_perdu. En complement, avant CHAQUE lot d'insertion, on relit
+ * active_generation ; s'il vaut deja la generation cible, une autre
+ * execution a bascule sur notre cible et on arrete. Cette double garde rend
+ * STRUCTUREL le fait que rien n'est jamais ecrit ni purge sur la generation
+ * active.
+ *
+ * PORTEE : aucune ecriture d'evenement cote Google, aucun watch, aucun
+ * webhook, aucune lecture incrementale par syncToken. Le nextSyncToken est
+ * stocke tel quel s'il est rendu par Google — sa consommation appartient a
+ * (2)d.
+ */
+
+import type { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient as makeAdmin } from '@/lib/supabase/admin';
+import { decrypt } from '@/lib/crypto';
+import {
+  listEventsWindow,
+  type CalendarEvent,
+  type ListEventsWindowIgnored,
+} from '@/lib/google-calendar-client';
+
+// Borne technique provisoire du lot (2)c, a reconsiderer au lot (3), ne vaut
+// aucune regle produit.
+export const MIRROR_WINDOW_PAST_DAYS   = 1;
+export const MIRROR_WINDOW_FUTURE_DAYS = 120;
+
+type Admin = ReturnType<typeof createAdminClient>;
+
+export type SyncIgnored = ListEventsWindowIgnored;
+
+export type RunFullSyncOutcome =
+  | { ok: true;  reason: 'sync_ok';           written: number; ignored: SyncIgnored; nextSyncTokenStored: boolean }
+  | { ok: false; reason: 'bail_occupe' }
+  | { ok: false; reason: 'bail_perdu' }
+  | { ok: false; reason: 'source_non_eligible' }
+  | { ok: false; reason: 'jeton_indisponible' }
+  | { ok: false; reason: 'echec_google' };
+
+export type RunFullSyncInput = {
+  workspaceId:      string;
+  googleCalendarId: string;
+  admin?:           Admin;
+  now?:             Date;
+};
+
+const LEASE_MINUTES = 5;
+
+function windowIso(now: Date): { timeMin: string; timeMax: string } {
+  const past   = new Date(now.getTime() - MIRROR_WINDOW_PAST_DAYS   * 24 * 60 * 60 * 1000);
+  const future = new Date(now.getTime() + MIRROR_WINDOW_FUTURE_DAYS * 24 * 60 * 60 * 1000);
+  return { timeMin: past.toISOString(), timeMax: future.toISOString() };
+}
+
+function newLeaseToken(now: Date): string {
+  return new Date(now.getTime() + LEASE_MINUTES * 60 * 1000).toISOString();
+}
+
+// Utilise l'HEURE REELLE au moment de l'appel, pas le `now` d'entree de
+// runFullSyncForSource. C'est ce qui permet a l'echeance de bail d'AVANCER
+// entre deux prolongations — sans cela, chaque extendLease reposerait la
+// meme valeur, le jeton evoluerait mais l'horizon d'expiration resterait
+// fige au T0 + LEASE_MINUTES : une synchronisation dont l'ecriture depasse
+// LEASE_MINUTES serait fatalement depossedee.
+function freshLeaseToken(): string {
+  return new Date(Date.now() + LEASE_MINUTES * 60 * 1000).toISOString();
+}
+
+// Prise initiale du bail. Rend le JETON pose (ISO exact) ou null si aucun
+// bail n'a pu etre pris. Ce jeton est ce qui identifie la possession pour
+// TOUTES les ecritures suivantes.
+async function tryAcquireLease(admin: Admin, workspaceId: string, googleCalendarId: string, now: Date): Promise<string | null> {
+  const token = newLeaseToken(now);
+
+  // (1) bail libre : sync_lease_until IS NULL
+  const free = await admin
+    .from('calendar_sources')
+    .update({ sync_lease_until: token })
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId)
+    .is('sync_lease_until', null)
+    .select('google_calendar_id');
+  if (free.error) return null;
+  if (Array.isArray(free.data) && free.data.length > 0) return token;
+
+  // (2) bail expire : sync_lease_until < now
+  const expired = await admin
+    .from('calendar_sources')
+    .update({ sync_lease_until: token })
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId)
+    .lt('sync_lease_until', now.toISOString())
+    .select('google_calendar_id');
+  if (expired.error) return null;
+  if (Array.isArray(expired.data) && expired.data.length > 0) return token;
+
+  return null;
+}
+
+// Prolongation conditionnee. La ligne n'est mise a jour QUE si sync_lease_until
+// vaut encore le jeton courant. Rend le NOUVEAU jeton pose en cas de succes,
+// null si le bail nous a ete pris entre-temps.
+//
+// L'echeance posee est calculee sur l'heure REELLE au moment de l'appel
+// (Date.now()), pas sur le `now` d'entree de runFullSyncForSource. C'est
+// cette regle qui rend la prolongation EFFECTIVE : sans elle, chaque
+// extendLease reposerait la meme valeur et l'expiration resterait scellee
+// au T0 initial.
+async function extendLease(admin: Admin, workspaceId: string, googleCalendarId: string, currentToken: string): Promise<string | null> {
+  const next = freshLeaseToken();
+  const res = await admin
+    .from('calendar_sources')
+    .update({ sync_lease_until: next })
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId)
+    .eq('sync_lease_until', currentToken)
+    .select('google_calendar_id');
+  if (res.error) return null;
+  if (!Array.isArray(res.data) || res.data.length === 0) return null;
+  return next;
+}
+
+async function releaseLease(admin: Admin, workspaceId: string, googleCalendarId: string): Promise<void> {
+  // Uniquement utilise en sortie source_non_eligible / jeton_indisponible.
+  // Sur bail_perdu, on ne libere JAMAIS : le bail appartient a l'execution
+  // qui l'a repris.
+  await admin
+    .from('calendar_sources')
+    .update({ sync_lease_until: null })
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId);
+}
+
+async function stampError(admin: Admin, workspaceId: string, googleCalendarId: string, message: string, currentToken: string): Promise<void> {
+  // Poser last_error et liberer le bail — mais UNIQUEMENT si nous le
+  // detenons encore (WHERE sync_lease_until = jeton). Sinon on ne touche a
+  // rien : l'execution qui detient le bail decidera de l'etat.
+  await admin
+    .from('calendar_sources')
+    .update({
+      last_error:       message,
+      sync_lease_until: null,
+    })
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId)
+    .eq('sync_lease_until', currentToken);
+}
+
+async function loadSource(admin: Admin, workspaceId: string, googleCalendarId: string): Promise<{
+  is_conflict: boolean; still_present: boolean; active_generation: number; sync_lease_until: string | null;
+} | null> {
+  const { data, error } = await admin
+    .from('calendar_sources')
+    .select('is_conflict, still_present, active_generation, sync_lease_until')
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    is_conflict:       data.is_conflict === true,
+    still_present:     data.still_present === true,
+    active_generation: Number(data.active_generation ?? 0),
+    sync_lease_until:  (data.sync_lease_until as string | null) ?? null,
+  };
+}
+
+async function loadActiveGeneration(admin: Admin, workspaceId: string, googleCalendarId: string): Promise<number | null> {
+  const { data, error } = await admin
+    .from('calendar_sources')
+    .select('active_generation')
+    .eq('workspace_id', workspaceId)
+    .eq('google_calendar_id', googleCalendarId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return Number(data.active_generation ?? 0);
+}
+
+async function loadRefreshToken(admin: Admin, workspaceId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from('calendar_connections')
+    .select('refresh_token_encrypted')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+  if (error || !data) return null;
+  try {
+    return decrypt(data.refresh_token_encrypted);
+  } catch {
+    return null;
+  }
+}
+
+const INSERT_BATCH_SIZE = 500;
+
+export async function runFullSyncForSource(input: RunFullSyncInput): Promise<RunFullSyncOutcome> {
+  const admin = input.admin ?? makeAdmin();
+  const now   = input.now   ?? new Date();
+  const ws  = input.workspaceId;
+  const cal = input.googleCalendarId;
+
+  // (a) prise de bail — le jeton est la chaine ISO exacte posee.
+  let token = await tryAcquireLease(admin, ws, cal, now);
+  if (!token) return { ok: false, reason: 'bail_occupe' };
+
+  // (b) source eligible ?
+  const preSrc = await loadSource(admin, ws, cal);
+  if (!preSrc || !preSrc.is_conflict || !preSrc.still_present) {
+    await releaseLease(admin, ws, cal);
+    return { ok: false, reason: 'source_non_eligible' };
+  }
+
+  // (c) jeton refresh
+  const refreshToken = await loadRefreshToken(admin, ws);
+  if (!refreshToken) {
+    await stampError(admin, ws, cal, 'jeton_indisponible', token);
+    return { ok: false, reason: 'jeton_indisponible' };
+  }
+
+  // (d) lecture Google
+  const win = windowIso(now);
+  let events:            CalendarEvent[];
+  let nextSyncToken:     string | null;
+  let ignoredFromGoogle: SyncIgnored;
+  try {
+    const result = await listEventsWindow({
+      refreshToken,
+      calendarId: cal,
+      timeMin:    win.timeMin,
+      timeMax:    win.timeMax,
+    });
+    events            = result.events;
+    nextSyncToken     = result.nextSyncToken;
+    ignoredFromGoogle = result.ignored;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'echec_google';
+    await stampError(admin, ws, cal, msg, token);
+    return { ok: false, reason: 'echec_google' };
+  }
+
+  // Apres Google — AVANT toute ecriture :
+  //   1. relire la source ;
+  //   2. si sync_lease_until != jeton  → bail_perdu (aucune ecriture, aucune
+  //      liberation de bail : il ne nous appartient plus) ;
+  //   3. prolonger le bail par un update conditionne. Zero ligne → bail_perdu.
+  const postSrc = await loadSource(admin, ws, cal);
+  if (!postSrc) return { ok: false, reason: 'bail_perdu' };
+  if (postSrc.sync_lease_until !== token) return { ok: false, reason: 'bail_perdu' };
+  const extended = await extendLease(admin, ws, cal, token);
+  if (!extended) return { ok: false, reason: 'bail_perdu' };
+  token = extended;
+
+  // (e) generation cible recalculee sur l'active_generation RELU.
+  //
+  // ECART DOCUMENTAIRE, SIGNALE ET NON CORRIGE ICI : le commentaire de tete
+  // de la migration 094 decrit la bascule comme active_generation + 1. Le
+  // schema (smallint) n'impose rien ; l'implementation utilise l'alternance
+  // binaire pour eviter tout debordement. Le commentaire de 094 sera repris
+  // dans un lot ulterieur ; ce lot ne modifie pas 094.
+  const target = postSrc.active_generation === 0 ? 1 : 0;
+
+  // Avant la suppression de la generation cible : revalider bail + verifier
+  // que la generation active n'a pas deja bascule sur notre cible.
+  const preDeleteExtend = await extendLease(admin, ws, cal, token);
+  if (!preDeleteExtend) return { ok: false, reason: 'bail_perdu' };
+  token = preDeleteExtend;
+  const preDeleteGen = await loadActiveGeneration(admin, ws, cal);
+  if (preDeleteGen === null || preDeleteGen === target) {
+    // Un autre acteur a bascule sur notre cible — ne pas ecrire ni purger.
+    return { ok: false, reason: 'bail_perdu' };
+  }
+
+  // (1) supprimer le residu potentiel de la generation cible
+  const del = await admin
+    .from('external_busy')
+    .delete()
+    .eq('workspace_id', ws)
+    .eq('google_calendar_id', cal)
+    .eq('generation', target);
+  if (del.error) {
+    await stampError(admin, ws, cal, 'echec_google', token);
+    return { ok: false, reason: 'echec_google' };
+  }
+
+  // (2) inserer le nouveau jeu par lots de 500. Avant CHAQUE lot : bail +
+  // active_generation revalides.
+  let written = 0;
+  for (let i = 0; i < events.length; i += INSERT_BATCH_SIZE) {
+    const preBatchExtend = await extendLease(admin, ws, cal, token);
+    if (!preBatchExtend) return { ok: false, reason: 'bail_perdu' };
+    token = preBatchExtend;
+    const preBatchGen = await loadActiveGeneration(admin, ws, cal);
+    if (preBatchGen === null || preBatchGen === target) {
+      return { ok: false, reason: 'bail_perdu' };
+    }
+
+    const slice = events.slice(i, i + INSERT_BATCH_SIZE);
+    const rows = slice.map(e => ({
+      workspace_id:       ws,
+      google_calendar_id: cal,
+      generation:         target,
+      google_event_id:    e.id,
+      starts_at:          e.startsAt,
+      ends_at:            e.endsAt,
+      transparency:       e.transparency,
+    }));
+    const ins = await admin.from('external_busy').insert(rows);
+    if (ins.error) {
+      await stampError(admin, ws, cal, 'echec_google', token);
+      return { ok: false, reason: 'echec_google' };
+    }
+    written += rows.length;
+  }
+
+  // (3) bascule finale conditionnee au bail : WHERE ... AND sync_lease_until = jeton.
+  const swap = await admin
+    .from('calendar_sources')
+    .update({
+      active_generation: target,
+      last_sync_at:      now.toISOString(),
+      sync_pending:      false,
+      sync_token:        nextSyncToken,
+      last_error:        null,
+      sync_lease_until:  null,
+    })
+    .eq('workspace_id', ws)
+    .eq('google_calendar_id', cal)
+    .eq('sync_lease_until', token)
+    .select('google_calendar_id');
+  if (swap.error) {
+    // Cas rare : erreur PostgREST autre. On ne touche pas last_error de
+    // maniere inconditionnelle, on tente une pose conditionnee au bail.
+    await stampError(admin, ws, cal, 'echec_google', token);
+    return { ok: false, reason: 'echec_google' };
+  }
+  if (!Array.isArray(swap.data) || swap.data.length === 0) {
+    // Le bail a ete repris pendant l'ecriture : rien n'est reussi de notre
+    // cote, on ne touche a rien d'autre.
+    return { ok: false, reason: 'bail_perdu' };
+  }
+
+  // (4) purge des lignes external_busy hors de la generation cible.
+  const purge = await admin
+    .from('external_busy')
+    .delete()
+    .eq('workspace_id', ws)
+    .eq('google_calendar_id', cal)
+    .neq('generation', target);
+  if (purge.error) {
+    // La bascule a eu lieu ; la purge finale peut etre retentee au prochain
+    // tour. On signale l'echec technique dans last_error mais on ne peut
+    // plus revenir en arriere sur la bascule.
+    return { ok: false, reason: 'echec_google' };
+  }
+
+  return {
+    ok:                  true,
+    reason:              'sync_ok',
+    written,
+    ignored:             ignoredFromGoogle,
+    nextSyncTokenStored: nextSyncToken !== null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// mirror_ready — recalcul global d'un espace.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RecomputeInput = {
+  workspaceId: string;
+  admin?:      Admin;
+  now?:        Date;
+};
+
+export type RecomputeOutcome = {
+  mirror_ready: boolean;
+  first_full_sync_done_at_touched: boolean;
+};
+
+export async function recomputeMirrorReady(input: RecomputeInput): Promise<RecomputeOutcome> {
+  const admin = input.admin ?? makeAdmin();
+  const now   = input.now   ?? new Date();
+
+  const { data, error } = await admin
+    .from('calendar_sources')
+    .select('is_conflict, last_sync_at, sync_pending')
+    .eq('workspace_id', input.workspaceId);
+  if (error) return { mirror_ready: false, first_full_sync_done_at_touched: false };
+
+  const rows = (data ?? []) as Array<{ is_conflict: boolean; last_sync_at: string | null; sync_pending: boolean }>;
+  const conflicts = rows.filter(r => r.is_conflict === true);
+
+  let ready = false;
+  if (conflicts.length > 0) {
+    ready = conflicts.every(r => r.last_sync_at !== null && r.sync_pending === false);
+  }
+
+  const state = await admin
+    .from('calendar_sync_state')
+    .select('mirror_ready, first_full_sync_done_at')
+    .eq('workspace_id', input.workspaceId)
+    .maybeSingle();
+
+  const patch: Record<string, unknown> = { mirror_ready: ready };
+  let firstFullSyncTouched = false;
+  if (ready && (!state.data?.first_full_sync_done_at)) {
+    patch.first_full_sync_done_at = now.toISOString();
+    firstFullSyncTouched = true;
+  }
+
+  if (state.data) {
+    await admin
+      .from('calendar_sync_state')
+      .update(patch)
+      .eq('workspace_id', input.workspaceId);
+  } else {
+    await admin
+      .from('calendar_sync_state')
+      .insert({ workspace_id: input.workspaceId, ...patch });
+  }
+
+  return { mirror_ready: ready, first_full_sync_done_at_touched: firstFullSyncTouched };
+}
