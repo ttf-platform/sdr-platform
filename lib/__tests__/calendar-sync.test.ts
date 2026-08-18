@@ -248,11 +248,58 @@ function projectCols<T extends Record<string, unknown>>(rows: T[], cols: string)
   });
 }
 
+// Comparaison generique valeur < / > qui tolere booleens et chaines. Suit
+// la semantique Postgres : FALSE < TRUE.
+function cmpNonNull(a: unknown, b: unknown): number {
+  if (typeof a === 'boolean' && typeof b === 'boolean') {
+    if (a === b) return 0;
+    return a ? 1 : -1; // TRUE > FALSE
+  }
+  const sa = String(a);
+  const sb = String(b);
+  if (sa < sb) return -1;
+  if (sa > sb) return  1;
+  return 0;
+}
+
+// Applique une liste d'ordonnancements dans l'ordre. Chaque niveau porte
+// SON PROPRE nullsFirst — la position des NULL est donc IMPOSEE
+// explicitement par le code appelant. On simule ici le comportement
+// PostgREST : si nullsFirst n'est PAS fourni, le defaut Postgres s'applique
+// (ASC -> NULLS LAST ; DESC -> NULLS FIRST). Un test dont l'invariant
+// depend d'un rangement particulier des NULL DOIT donc que le code
+// applicatif pose nullsFirst — sinon l'assertion tombe.
+type OrderSpec = { col: string; ascending: boolean; nullsFirstExplicit: boolean | undefined };
+function applyOrder<T extends Record<string, unknown>>(rows: T[], specs: OrderSpec[]): T[] {
+  if (specs.length === 0) return rows;
+  const copy = rows.slice();
+  copy.sort((a, b) => {
+    for (const spec of specs) {
+      const av = a[spec.col];
+      const bv = b[spec.col];
+      const aNull = av === null || av === undefined;
+      const bNull = bv === null || bv === undefined;
+      if (aNull && bNull) continue;
+      if (aNull || bNull) {
+        // Rang des NULL : nullsFirst explicite prime ; sinon defaut Postgres.
+        const nullsFirst = spec.nullsFirstExplicit === undefined
+          ? !spec.ascending  // DESC -> NULLS FIRST, ASC -> NULLS LAST
+          : spec.nullsFirstExplicit;
+        if (aNull && !bNull) return nullsFirst ? -1 :  1;
+        return nullsFirst ?  1 : -1;
+      }
+      const c = cmpNonNull(av, bv);
+      if (c !== 0) return spec.ascending ? c : -c;
+    }
+    return 0;
+  });
+  return copy;
+}
+
 function makeSourcesTable() {
   function selectChain(cols: string) {
     const filters: Array<{ op: string; col: string; val: unknown }> = [];
-    let orderCol: string | null = null;
-    let orderAsc = true;
+    const orderSpecs: OrderSpec[] = [];
     let limitN: number | null = null;
     const c = {
       eq(col: string, val: unknown) { filters.push({ op: 'eq', col, val }); return c; },
@@ -265,7 +312,12 @@ function makeSourcesTable() {
       lt(col: string, val: unknown) { filters.push({ op: 'lt', col, val }); return c; },
       gte(col: string, val: unknown) { filters.push({ op: 'gte', col, val }); return c; },
       order(col: string, opts?: { ascending?: boolean; nullsFirst?: boolean }) {
-        orderCol = col; orderAsc = opts?.ascending !== false; return c;
+        orderSpecs.push({
+          col,
+          ascending:          opts?.ascending !== false,
+          nullsFirstExplicit: opts && Object.prototype.hasOwnProperty.call(opts, 'nullsFirst') ? opts.nullsFirst : undefined,
+        });
+        return c;
       },
       limit(n: number) { limitN = n; return c; },
       async maybeSingle() {
@@ -276,19 +328,7 @@ function makeSourcesTable() {
       then<A>(onFulfilled: (v: unknown) => A, onRejected?: (e: unknown) => A) {
         return Promise.resolve().then(() => {
           let rows = matchFilters(__sources as unknown as Array<Record<string, unknown>>, filters);
-          if (orderCol) {
-            const asc = orderAsc;
-            const key = orderCol;
-            rows.sort((a, b) => {
-              const av = a[key];
-              const bv = b[key];
-              const at = av === null || av === undefined ? '' : String(av);
-              const bt = bv === null || bv === undefined ? '' : String(bv);
-              if (at < bt) return asc ? -1 : 1;
-              if (at > bt) return asc ? 1 : -1;
-              return 0;
-            });
-          }
+          rows = applyOrder(rows, orderSpecs);
           if (limitN !== null) rows = rows.slice(0, limitN);
           return { data: projectCols(rows, cols), error: null };
         }).then(onFulfilled, onRejected);
@@ -1473,5 +1513,310 @@ describe('LC21 (2)c correctif — cas I : compte des ignores REEL, ventile par m
     expect(body.ignored_events).toEqual({ cancelled: 1, invalid_bounds: 1, unreadable: 2 });
     expect(body.ignored_lease).toBe(0);
     expect(body.lost_lease).toBe(0);
+  });
+});
+
+// =============================================================================
+// LC21 (2)FIN — cas J, K, L, M, N, O, P
+// =============================================================================
+
+describe('LC21 (2)FIN — cas J : GET et POST rendent le meme resultat pour la meme entree', () => {
+  it('meme etat -> memes chiffres ; garde identique pour les deux verbes', async () => {
+    // Faux timers : sans horloge fixe, last_sync_at (pose sur Date.now())
+    // differerait de quelques ms entre POST et GET et la structure du
+    // payload ne serait plus egalisable a la milliseconde pres.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-05T00:00:00.000Z'));
+    try {
+      seedSource({ google_calendar_id: 'j1', is_conflict: true, still_present: true, sync_pending: true,  sync_requested_at: '2026-01-01T00:00:00Z' });
+      seedSource({ google_calendar_id: 'j2', is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null, last_sync_at: null });
+      __eventsByCalendar.set('j1', { events: [], nextSyncToken: null, calendarTimeZone: 'UTC' });
+      __eventsByCalendar.set('j2', { events: [], nextSyncToken: null, calendarTimeZone: 'UTC' });
+
+      vi.resetModules();
+      const modPost = await import('@/app/api/calendar/google/sync/route');
+      const resPost = await modPost.POST(new Request('https://mirvo.test/api/calendar/google/sync', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      }));
+      expect(resPost.status).toBe(200);
+      const bodyPost = await resPost.json();
+
+      // Rearme les sources pour un second tour identique (recomputeMirrorReady et
+      // runFullSyncForSource ont deja consomme l'etat pending).
+      __sources.forEach(s => {
+        s.last_sync_at      = null;
+        s.sync_pending      = s.google_calendar_id === 'j1';
+        s.sync_requested_at = s.google_calendar_id === 'j1' ? '2026-01-01T00:00:00Z' : null;
+        s.active_generation = 0;
+        s.sync_lease_until  = null;
+        s.sync_token        = null;
+        s.last_error        = null;
+      });
+      __busy = [];
+
+      vi.resetModules();
+      const modGet = await import('@/app/api/calendar/google/sync/route');
+      const resGet = await modGet.GET(new Request('https://mirvo.test/api/calendar/google/sync', {
+        method: 'GET',
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      }));
+      expect(resGet.status).toBe(200);
+      const bodyGet = await resGet.json();
+
+      // Meme comptes, meme structure de payload.
+      expect(bodyGet).toEqual(bodyPost);
+      expect(resGet.headers.get('Cache-Control')).toBe('no-store');
+      expect(resPost.headers.get('Cache-Control')).toBe('no-store');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('garde identique : CRON_SECRET absent -> 500 sur GET comme sur POST, aucun appel Google', async () => {
+    delete process.env.CRON_SECRET;
+    vi.resetModules();
+    const { GET, POST } = await import('@/app/api/calendar/google/sync/route');
+    const resGet  = await GET(new Request('https://mirvo.test/x',  { method: 'GET' }));
+    const resPost = await POST(new Request('https://mirvo.test/x', { method: 'POST' }));
+    expect(resGet.status).toBe(500);
+    expect(resPost.status).toBe(500);
+    expect(__listEventsCalls).toBe(0);
+  });
+
+  it('garde identique : secret faux -> 401 sur GET comme sur POST, aucun appel Google', async () => {
+    vi.resetModules();
+    const { GET, POST } = await import('@/app/api/calendar/google/sync/route');
+    const resGet  = await GET(new Request('https://mirvo.test/x',  { method: 'GET',  headers: { authorization: 'Bearer wrong' } }));
+    const resPost = await POST(new Request('https://mirvo.test/x', { method: 'POST', headers: { authorization: 'Bearer wrong' } }));
+    expect(resGet.status).toBe(401);
+    expect(resPost.status).toBe(401);
+    expect(__listEventsCalls).toBe(0);
+  });
+});
+
+describe('LC21 (2)FIN — cas K : source jamais synchronisee et NON sync_pending est traitee', () => {
+  it('ferme le defaut de (2)c ou seules les sources sync_pending etaient prises', async () => {
+    seedSource({
+      google_calendar_id: 'never-k',
+      is_conflict:        true,
+      still_present:      true,
+      sync_pending:       false,        // <-- pas marquee pending
+      sync_requested_at:  null,
+      last_sync_at:       null,         // <-- jamais synchronisee
+    });
+    __eventsByCalendar.set('never-k', {
+      events: [{ id: 'ev-k', startsAt: '2026-01-06T10:00Z', endsAt: '2026-01-06T11:00Z', transparency: 'opaque' }],
+      nextSyncToken: null, calendarTimeZone: 'UTC',
+    });
+
+    vi.resetModules();
+    const { POST } = await import('@/app/api/calendar/google/sync/route');
+    const res = await POST(new Request('https://mirvo.test/api/calendar/google/sync', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CRON_SECRET}` },
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.treated).toBe(1);
+    expect(body.succeeded).toBe(1);
+
+    const src = __sources[0];
+    expect(src.last_sync_at).not.toBeNull();
+    expect(src.active_generation).toBe(1);
+  });
+});
+
+describe('LC21 (2)FIN — cas L : ordre respecte, NULLS impose, plafond de 10, aucune source deux fois', () => {
+  it('sync_pending d\'abord ; puis last_sync_at IS NULL avant les non-nulls ; puis last_sync_at ASC ; cap 10', async () => {
+    // Sement 12 sources, dans un ordre d'insertion volontairement melange
+    // pour prouver que le TRI vient de la requete, pas de l'ordre d'insertion.
+    // Trois pending par sync_requested_at croissant, cinq never-synced,
+    // quatre synchronisees a differentes dates.
+    seedSource({ google_calendar_id: 'p-mid',   is_conflict: true, still_present: true, sync_pending: true,  sync_requested_at: '2026-01-01T00:00:02Z', last_sync_at: null });
+    seedSource({ google_calendar_id: 'never-D', is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: null });
+    seedSource({ google_calendar_id: 'old-1',   is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: '2026-06-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'p-first', is_conflict: true, still_present: true, sync_pending: true,  sync_requested_at: '2026-01-01T00:00:01Z', last_sync_at: null });
+    seedSource({ google_calendar_id: 'never-A', is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: null });
+    seedSource({ google_calendar_id: 'old-2',   is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: '2026-05-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'never-B', is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: null });
+    seedSource({ google_calendar_id: 'p-last',  is_conflict: true, still_present: true, sync_pending: true,  sync_requested_at: '2026-01-01T00:00:03Z', last_sync_at: null });
+    seedSource({ google_calendar_id: 'never-C', is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: null });
+    seedSource({ google_calendar_id: 'old-3',   is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: '2026-04-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'old-4',   is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: '2026-03-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'never-E', is_conflict: true, still_present: true, sync_pending: false, sync_requested_at: null,                    last_sync_at: null });
+    // Total : 12 sources eligibles ; plafond .limit(10) doit couper le dernier.
+    for (const s of __sources) {
+      __eventsByCalendar.set(s.google_calendar_id, { events: [], nextSyncToken: null, calendarTimeZone: 'UTC' });
+    }
+
+    // Trace l'ordre des appels a runFullSyncForSource par instrumentation
+    // legere : le mock listEventsWindow enregistre l'ordre des calendarId.
+    const order: string[] = [];
+    __eventsByCalendar.forEach((v, k) => {
+      __eventsByCalendar.set(k, {
+        ...(v as { events: unknown[]; nextSyncToken: string | null; calendarTimeZone: string | null }),
+      });
+    });
+    const originalMap = __eventsByCalendar;
+    __eventsByCalendar = new Map();
+    for (const [k, v] of originalMap.entries()) {
+      __eventsByCalendar.set(k, {
+        hookThenEvents: async () => { order.push(k); },
+        script: v as { events: Array<{ id: string; startsAt: string; endsAt: string; transparency: 'opaque'|'transparent' }>; nextSyncToken: string | null; calendarTimeZone: string | null },
+      });
+    }
+
+    vi.resetModules();
+    const { POST } = await import('@/app/api/calendar/google/sync/route');
+    const res = await POST(new Request('https://mirvo.test/api/calendar/google/sync', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CRON_SECRET}` },
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.treated).toBe(10);
+    expect(body.succeeded).toBe(10);
+
+    // Ordre attendu :
+    //   1. sync_pending=true dans l'ordre sync_requested_at ASC :
+    //      p-first, p-mid, p-last
+    //   2. puis les non-pending, last_sync_at IS NULL en premier — dans un
+    //      ordre stable (le mock preserve l'ordre d'insertion pour les rows
+    //      equivalentes) : never-D, never-A, never-B, never-C, never-E
+    //   3. puis last_sync_at ASC parmi les autres :
+    //      old-4 (mars), old-3 (avr)   -- old-2 (mai) et old-1 (juin) coupes
+    // Cap a 10 -> les 10 premiers ci-dessus.
+    //
+    // NB : ce test tomberait si le code applicatif n'imposait pas
+    // nullsFirst=true sur last_sync_at. Sans cette pose explicite, le
+    // defaut Postgres pour ASC est NULLS LAST : les never_synced
+    // arriveraient DERRIERE les old-*, l'ordre observe serait
+    // p-first, p-mid, p-last, old-4, old-3, old-2, old-1, never-A, never-B, never-C
+    // et l'egalite ci-dessous echouerait.
+    expect(order).toEqual([
+      'p-first', 'p-mid', 'p-last',
+      'never-D', 'never-A', 'never-B', 'never-C', 'never-E',
+      'old-4', 'old-3',
+    ]);
+    // Aucune source traitee deux fois.
+    expect(new Set(order).size).toBe(order.length);
+  });
+});
+
+describe('LC21 (2)FIN — cas M : sources ineligibles jamais selectionnees', () => {
+  it('is_conflict=false ou still_present=false -> jamais dans le lot', async () => {
+    seedSource({ google_calendar_id: 'no-conflict', is_conflict: false, still_present: true,  sync_pending: true, sync_requested_at: '2026-01-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'gone',        is_conflict: true,  still_present: false, sync_pending: true, sync_requested_at: '2026-01-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'ok',          is_conflict: true,  still_present: true,  sync_pending: true, sync_requested_at: '2026-01-01T00:00:00Z' });
+    __eventsByCalendar.set('no-conflict', { events: [], nextSyncToken: null, calendarTimeZone: 'UTC' });
+    __eventsByCalendar.set('gone',        { events: [], nextSyncToken: null, calendarTimeZone: 'UTC' });
+    __eventsByCalendar.set('ok',          { events: [], nextSyncToken: null, calendarTimeZone: 'UTC' });
+
+    vi.resetModules();
+    const { POST } = await import('@/app/api/calendar/google/sync/route');
+    const res = await POST(new Request('https://mirvo.test/api/calendar/google/sync', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${CRON_SECRET}` },
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.treated).toBe(1); // seule 'ok' est eligible
+
+    const treated = __sources.filter(s => s.last_sync_at !== null).map(s => s.google_calendar_id);
+    expect(treated).toEqual(['ok']);
+  });
+});
+
+describe('LC21 (2)FIN — cas N : readMirrorFreshness rend les faits, pas une decision', () => {
+  it('les quatre faits attendus, sans aucun jugement de peremption', async () => {
+    seedSource({ google_calendar_id: 'n1', is_conflict: true,  still_present: true, last_sync_at: '2026-05-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'n2', is_conflict: true,  still_present: true, last_sync_at: '2026-03-01T00:00:00Z' });
+    seedSource({ google_calendar_id: 'n3', is_conflict: true,  still_present: true, last_sync_at: null });
+    seedSource({ google_calendar_id: 'n4', is_conflict: false, still_present: true, last_sync_at: '2020-01-01T00:00:00Z' }); // ignore
+    seedSource({ google_calendar_id: 'n5', is_conflict: true,  still_present: false, last_sync_at: '2020-01-01T00:00:00Z' }); // ignore
+    __syncStates.push({ workspace_id: WORKSPACE_ID, mirror_ready: true, first_full_sync_done_at: '2026-01-01T00:00:00Z' });
+
+    vi.resetModules();
+    const { readMirrorFreshness } = await import('@/lib/calendar-sync');
+    const facts = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    expect(facts.conflict_sources).toBe(3);       // n1, n2, n3 (n4 et n5 exclus)
+    expect(facts.never_synced).toBe(1);           // n3
+    expect(facts.oldest_last_sync_at).toBe('2026-03-01T00:00:00Z'); // le plus ancien parmi n1/n2
+    expect(facts.mirror_ready).toBe(true);        // lu tel quel
+  });
+});
+
+describe('LC21 (2)FIN — cas O : mirror_ready NE dependant PAS du temps ecoule', () => {
+  // NB : ce test prouve UNIQUEMENT que readMirrorFreshness restitue
+  // mirror_ready TEL QU'IL EST STOCKE et ne le modifie JAMAIS en fonction
+  // du temps ecoule. Il ne signifie EN AUCUN CAS qu'un miroir ancien serait
+  // acceptable : le lot (3) appliquera le seuil de peremption de
+  // MIRROR_STALE_AFTER_MINUTES au moment de decider. Cette precision doit
+  // rester lisible : la peremption est une LECTURE, pas une transformation
+  // de l'etat pose en base.
+  it('mirror_ready reste true meme quand la derniere sync remonte a des heures ; MIRROR_STALE_AFTER_MINUTES exporte pour lecture par (3)', async () => {
+    seedSource({ google_calendar_id: 'stale', is_conflict: true, still_present: true, last_sync_at: '2026-01-01T00:00:00Z' });
+    __syncStates.push({ workspace_id: WORKSPACE_ID, mirror_ready: true, first_full_sync_done_at: '2026-01-01T00:00:00Z' });
+
+    vi.resetModules();
+    const modA = await import('@/lib/calendar-sync');
+    const facts1 = await modA.readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+    expect(facts1.mirror_ready).toBe(true);
+
+    // Un appel ulterieur, sans qu'aucune sync ne se soit executee, n'a pas
+    // modifie l'etat en base : mirror_ready reste true.
+    expect(__syncStates[0].mirror_ready).toBe(true);
+    const facts2 = await modA.readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+    expect(facts2.mirror_ready).toBe(true);
+    expect(__syncStates[0].mirror_ready).toBe(true);
+
+    // La constante existe et est un nombre : le lot (3) la lira pour
+    // appliquer la peremption cote lecture, pas cote ecriture.
+    expect(typeof modA.MIRROR_STALE_AFTER_MINUTES).toBe('number');
+    expect(modA.MIRROR_STALE_AFTER_MINUTES).toBeGreaterThan(0);
+  });
+});
+
+describe('LC21 (2)FIN — cas P : controle statique de vercel.json', () => {
+  it('l\'entree est presente avec chemin et cadence exacts ; les quatorze preexistantes sont intactes', async () => {
+    const { readFileSync } = await import('fs');
+    const { resolve } = await import('path');
+    const raw = readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf-8');
+    const json = JSON.parse(raw) as { crons: Array<{ path: string; schedule: string }> };
+
+    // Exactement UNE entree ajoutee : la nouvelle. Toutes les autres restent.
+    const expectedPreexisting = [
+      { path: '/api/cron/trial-expiry',                 schedule: '0 2 * * *' },
+      { path: '/api/cron/hard-delete-users',            schedule: '0 3 * * *' },
+      { path: '/api/cron/daily-cost-check',             schedule: '0 9 * * *' },
+      { path: '/api/cron/auto-scan-signals',            schedule: '0 5 * * *' },
+      { path: '/api/cron/onboarding-emails',            schedule: '0 10 * * *' },
+      { path: '/api/cron/cleanup-oauth-sessions',       schedule: '0 4 * * *' },
+      { path: '/api/cron/reconcile-dfy-orders',         schedule: '*/15 * * * *' },
+      { path: '/api/cron/reputation-snapshot',          schedule: '0 6 * * *' },
+      { path: '/api/cron/purge-canceled-workspaces',    schedule: '0 7 * * *' },
+      { path: '/api/cron/health-alert',                 schedule: '0 8 * * *' },
+      { path: '/api/cron/dunning-escalation',           schedule: '0 8 * * *' },
+      { path: '/api/cron/winback',                      schedule: '0 9 * * *' },
+      { path: '/api/cron/expire-pending-bookings',      schedule: '*/30 * * * *' },
+      { path: '/api/cron/morning-brief',                schedule: '*/30 * * * *' },
+    ];
+
+    // Total : 15 entrees.
+    expect(json.crons).toHaveLength(15);
+
+    // Les 14 preexistantes existent avec chemin et cadence exacts.
+    for (const expected of expectedPreexisting) {
+      const found = json.crons.find(c => c.path === expected.path);
+      expect(found, `entree preexistante manquante : ${expected.path}`).toBeDefined();
+      expect(found!.schedule).toBe(expected.schedule);
+    }
+
+    // La nouvelle entree.
+    const added = json.crons.find(c => c.path === '/api/calendar/google/sync');
+    expect(added).toBeDefined();
+    expect(added!.schedule).toBe('*/15 * * * *');
   });
 });
