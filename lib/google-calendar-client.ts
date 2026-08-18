@@ -1,16 +1,23 @@
 /**
  * lib/google-calendar-client.ts
  *
- * LC21 (1) — SEUL endroit du lot qui parle a Google.
+ * LC21 (1) + (2)b — SEUL endroit du lot qui parle a Google.
  *
- * Expose quatre fonctions et rien de plus :
+ * Expose cinq fonctions et rien de plus :
  *   - buildAuthUrl({ state, codeChallenge })
  *   - exchangeCode({ code, codeVerifier })
  *   - verifyIdentity(idToken)
  *   - revoke(token)
+ *   - listCalendars({ refreshToken })
  *
- * Aucun freebusy, aucune liste ni selection de calendriers, aucune creation
- * d'evenement. Aucune expansion de scopes.
+ * Aucune fonction d'ecriture d'evenement n'est exposee ni definie dans ce
+ * module.
+ *
+ * PORTEE DU SCOPE calendar.events (ecriture) : le scope est demande PAR
+ * ANTICIPATION pour le lot (4) — creation, mise a jour et suppression
+ * d'evenements par Mirvo. AUCUNE ligne du lot (2) ne l'utilise en ecriture.
+ * Ni ce module, ni les routes du lot (2), ne creent, modifient ni suppriment
+ * d'evenement Google.
  *
  * Les quatre scopes ci-dessous sont l'ordre canonique demande. verifyIdToken
  * utilise l'audience GOOGLE_CALENDAR_CLIENT_ID (bibliotheque officielle).
@@ -25,7 +32,7 @@ export const GOOGLE_CALENDAR_SCOPES: readonly string[] = [
   'openid',
   'email',
   'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
-  'https://www.googleapis.com/auth/calendar.events.freebusy',
+  'https://www.googleapis.com/auth/calendar.events',
 ] as const;
 
 function requireEnv(name: string): string {
@@ -116,4 +123,71 @@ export async function revoke(token: string): Promise<{ ok: boolean }> {
   } catch {
     return { ok: false };
   }
+}
+
+export type CalendarEntry = {
+  id:         string;
+  name:       string;
+  accessRole: string | null;
+  primary:    boolean;
+};
+
+export type ListCalendarsOptions = {
+  refreshToken: string;
+};
+
+export async function listCalendars(options: ListCalendarsOptions): Promise<CalendarEntry[]> {
+  const client = makeClient();
+  client.setCredentials({ refresh_token: options.refreshToken });
+
+  const results: CalendarEntry[] = [];
+  let pageToken: string | undefined;
+  do {
+    const url = new URL('https://www.googleapis.com/calendar/v3/users/me/calendarList');
+    url.searchParams.set('maxResults', '250');
+    url.searchParams.set('showDeleted', 'false');
+    url.searchParams.set('showHidden', 'true');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const { token } = await client.getAccessToken();
+    if (!token) throw new Error('[google-calendar-client] no access token');
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      throw new Error(`[google-calendar-client] calendarList.list ${res.status}`);
+    }
+    const data = await res.json() as {
+      items?: Array<{
+        id?:              string;
+        summary?:         string;
+        summaryOverride?: string;
+        accessRole?:      string;
+        primary?:         boolean;
+      }>;
+      nextPageToken?: string;
+    };
+
+    if (Array.isArray(data.items)) {
+      for (const item of data.items) {
+        if (!item.id) continue;
+        const displayName = typeof item.summaryOverride === 'string' && item.summaryOverride.length > 0
+          ? item.summaryOverride
+          : (typeof item.summary === 'string' && item.summary.length > 0 ? item.summary : item.id);
+        results.push({
+          id:         item.id,
+          name:       displayName,
+          accessRole: typeof item.accessRole === 'string' ? item.accessRole : null,
+          primary:    item.primary === true,
+        });
+      }
+    }
+
+    pageToken = typeof data.nextPageToken === 'string' && data.nextPageToken.length > 0
+      ? data.nextPageToken
+      : undefined;
+  } while (pageToken);
+
+  return results;
 }

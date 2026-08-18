@@ -1,7 +1,7 @@
 /**
  * app/api/calendar/google/connection/route.ts
  *
- * LC21 (1) —
+ * LC21 (1) + (2)b —
  *   GET    /api/calendar/google/connection : etat + metadonnees, jamais de
  *          jeton, Cache-Control: no-store.
  *   DELETE /api/calendar/google/connection : suppression, quatre branches.
@@ -13,7 +13,8 @@
  *
  * Le calcul 'permissions_a_completer' compare granted_scopes decoupe sur
  * l'espace aux quatre URI CANONIQUES ci-dessous — Google reecrit 'email' en
- * 'https://www.googleapis.com/auth/userinfo.email' lors de l'echange.
+ * 'https://www.googleapis.com/auth/userinfo.email' lors de l'echange, et
+ * calendar.events.freebusy a ete retire de la liste demandee au lot (2)b.
  */
 
 import { NextResponse } from 'next/server';
@@ -30,7 +31,7 @@ const CANONICAL_SCOPES = [
   'openid',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
-  'https://www.googleapis.com/auth/calendar.events.freebusy',
+  'https://www.googleapis.com/auth/calendar.events',
 ] as const;
 
 function computeStatus(grantedScopesRaw: string | null): 'non_connecte' | 'connecte' | 'permissions_a_completer' {

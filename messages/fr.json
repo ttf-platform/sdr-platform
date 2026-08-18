@@ -2239,6 +2239,29 @@
             "retire_local_seulement": "Compte déconnecté localement.",
             "aucun_raccordement": "Aucun raccordement en cours.",
             "borne_espace": "Le raccordement est réservé pour le moment."
+          },
+          "sources": {
+            "sectionHeader": "Calendriers",
+            "intro": "Choisissez les calendriers dont les événements bloquent vos disponibilités, et celui où Mirvo posera les rendez-vous.",
+            "loading": "Chargement de vos calendriers…",
+            "loadError": "Impossible de charger vos calendriers.",
+            "refreshCta": "Rafraîchir depuis Google",
+            "refreshing": "Rafraîchissement…",
+            "refreshError": "Google a refusé le rafraîchissement. Recommencez.",
+            "empty": "Aucun calendrier trouvé sur ce compte Google.",
+            "conflictColumn": "Bloquer les disponibilités",
+            "writeColumn": "Calendrier de réservation",
+            "missingBadge": "N'existe plus côté Google",
+            "primaryBadge": "Principal",
+            "saveCta": "Enregistrer la sélection",
+            "saving": "Enregistrement…",
+            "saved": "Sélection enregistrée. La synchronisation démarrera au prochain lot.",
+            "errors": {
+              "calendrier_inconnu": "L'un des calendriers sélectionnés est inconnu de cet espace.",
+              "calendrier_absent": "L'un des calendriers sélectionnés n'existe plus côté Google.",
+              "calendrier_ecriture_requis": "Choisissez exactement un calendrier de réservation dès qu'au moins un calendrier de blocage est sélectionné.",
+              "role_insuffisant": "Le calendrier de réservation doit être un calendrier que vous pouvez modifier."
+            }
           }
         }
       },
