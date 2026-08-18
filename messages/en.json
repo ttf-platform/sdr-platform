@@ -2239,6 +2239,29 @@
             "retire_local_seulement": "Account disconnected locally.",
             "aucun_raccordement": "No connection in progress.",
             "borne_espace": "Connecting is currently restricted."
+          },
+          "sources": {
+            "sectionHeader": "Calendars",
+            "intro": "Pick the calendars whose events should block your availability, and the one Mirvo will write bookings to.",
+            "loading": "Loading your calendars…",
+            "loadError": "Loading calendars failed.",
+            "refreshCta": "Refresh from Google",
+            "refreshing": "Refreshing…",
+            "refreshError": "Google refused the refresh. Try again.",
+            "empty": "No calendar found on this Google account.",
+            "conflictColumn": "Block availability",
+            "writeColumn": "Booking calendar",
+            "missingBadge": "No longer present on Google",
+            "primaryBadge": "Primary",
+            "saveCta": "Save selection",
+            "saving": "Saving…",
+            "saved": "Selection saved. Sync will start in the next batch.",
+            "errors": {
+              "calendrier_inconnu": "One of the selected calendars is unknown to this workspace.",
+              "calendrier_absent": "One of the selected calendars is no longer present on Google.",
+              "calendrier_ecriture_requis": "Pick exactly one booking calendar when you select at least one blocking calendar.",
+              "role_insuffisant": "The booking calendar must be one you can write to."
+            }
           }
         }
       },
