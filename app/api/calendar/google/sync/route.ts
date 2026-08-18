@@ -1,7 +1,7 @@
 /**
  * app/api/calendar/google/sync/route.ts
  *
- * LC21 (2)c — POST : synchronisation complete d'un lot de sources.
+ * LC21 (2)c + (2)FIN — synchronisation complete d'un lot de sources.
  *
  * Auth : CRON_SECRET en Bearer, comparaison par timingSafeEqual (patron
  * strict de app/api/cron/expire-pending-bookings/route.ts). Secret non
@@ -10,22 +10,30 @@
  *
  * Borne : ne traite QUE CALENDAR_CONNECT_ALLOWED_WORKSPACE_ID.
  *
- * Cette route N'EST PAS inscrite dans vercel.json. C'est voulu — la
- * planification appartient au lot (2)e.
+ * (2)FIN — GET et POST partagent EXACTEMENT le meme corps :
+ *   - le planificateur Vercel appelle en GET (les quatorze crons existants
+ *     du depot exportent tous GET) ;
+ *   - POST reste ouvert pour un appel manuel ou une commande d'operation.
+ * Aucune logique dupliquee, aucune seconde garde, aucun comportement
+ * different entre les deux verbes.
  */
 
 import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { runFullSyncForSource, recomputeMirrorReady } from '@/lib/calendar-sync';
+import {
+  runFullSyncForSource,
+  recomputeMirrorReady,
+  readMirrorFreshness,
+} from '@/lib/calendar-sync';
 
 export const runtime = 'nodejs';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 const BATCH_MAX = 10;
 
-export async function POST(req: Request) {
+async function runSyncRequest(req: Request): Promise<NextResponse> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json({ error: 'Misconfigured: CRON_SECRET not set' }, { status: 500, headers: NO_STORE });
@@ -46,20 +54,43 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
+  // (2)FIN — SELECTION.
+  //
+  // Eligibilite : is_conflict = true ET still_present = true. Rien d'autre.
+  // Ordre :
+  //   1. sync_pending = true en premier (booleen : true > false, donc DESC),
+  //      trie par sync_requested_at ASC ;
+  //   2. puis les autres : last_sync_at IS NULL en premier (NULLS FIRST
+  //      IMPOSE EXPLICITEMENT), puis last_sync_at croissant.
+  // Plafond : dix par tour ; execution sequentielle.
+  //
+  // Les trois `.order()` sont chaines : Supabase JS pousse a PostgREST un
+  // `order=col1.dir.nulls,col2.dir.nulls,...`. nullsFirst est POSE POUR
+  // CHAQUE colonne concernee — jamais laisse au defaut du client ni du
+  // moteur, sinon le rangement des NULL de last_sync_at bascule (le defaut
+  // Postgres ASC est NULLS LAST, contraire a notre invariant "never_synced
+  // en premier").
   const { data: pendingRows, error: pendingErr } = await admin
     .from('calendar_sources')
-    .select('google_calendar_id, sync_requested_at')
-    .eq('workspace_id', allowedWorkspace)
-    .eq('sync_pending', true)
-    .eq('is_conflict',  true)
-    .order('sync_requested_at', { ascending: true, nullsFirst: true })
+    .select('google_calendar_id, sync_pending, sync_requested_at, last_sync_at')
+    .eq('workspace_id',   allowedWorkspace)
+    .eq('is_conflict',    true)
+    .eq('still_present',  true)
+    .order('sync_pending',      { ascending: false, nullsFirst: false }) // true > false, TRUE first
+    .order('sync_requested_at', { ascending: true,  nullsFirst: false }) // NULLS LAST — les non-pending (sync_requested_at null) restent groupees en 2e groupe
+    .order('last_sync_at',      { ascending: true,  nullsFirst: true  }) // NULLS FIRST — never_synced avant les autres
     .limit(BATCH_MAX);
 
   if (pendingErr) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500, headers: NO_STORE });
   }
 
-  const targets = (pendingRows ?? []) as Array<{ google_calendar_id: string; sync_requested_at: string | null }>;
+  const targets = (pendingRows ?? []) as Array<{
+    google_calendar_id: string;
+    sync_pending:       boolean;
+    sync_requested_at:  string | null;
+    last_sync_at:       string | null;
+  }>;
 
   let succeeded    = 0;
   let failed       = 0;
@@ -70,7 +101,14 @@ export async function POST(req: Request) {
   // motif. Uniquement des NOMBRES : aucun identifiant, aucun contenu.
   const ignoredEvents = { cancelled: 0, invalid_bounds: 0, unreadable: 0 };
 
+  // Garde-fou anti-doublon dans le meme tour : le plafond .limit(10) et la
+  // cle primaire garantissent deja l'unicite, mais on protege
+  // explicitement contre toute duplication accidentelle.
+  const seen = new Set<string>();
   for (const row of targets) {
+    if (seen.has(row.google_calendar_id)) continue;
+    seen.add(row.google_calendar_id);
+
     const outcome = await runFullSyncForSource({
       workspaceId:      allowedWorkspace,
       googleCalendarId: row.google_calendar_id,
@@ -92,12 +130,22 @@ export async function POST(req: Request) {
 
   await recomputeMirrorReady({ workspaceId: allowedWorkspace, admin });
 
+  // (2)FIN — expose la fraicheur du miroir dans le compte-rendu. Ces
+  // valeurs sont des FAITS. La peremption est appliquee par le lot (3), pas
+  // ici — mirror_ready sort tel qu'il est en base.
+  const freshness = await readMirrorFreshness({ workspaceId: allowedWorkspace, admin });
+
   return NextResponse.json({
-    treated:        targets.length,
+    treated:             targets.length,
     succeeded,
     failed,
-    ignored_lease:  ignoredLease,
-    lost_lease:     lostLease,
-    ignored_events: ignoredEvents,
+    ignored_lease:       ignoredLease,
+    lost_lease:          lostLease,
+    ignored_events:      ignoredEvents,
+    oldest_last_sync_at: freshness.oldest_last_sync_at,
+    never_synced:        freshness.never_synced,
   }, { headers: NO_STORE });
 }
+
+export async function POST(req: Request) { return runSyncRequest(req); }
+export async function GET(req: Request)  { return runSyncRequest(req); }

@@ -44,6 +44,13 @@ import {
 export const MIRROR_WINDOW_PAST_DAYS   = 1;
 export const MIRROR_WINDOW_FUTURE_DAYS = 120;
 
+// Seuil provisoire, ajustable apres mesure reelle, ne vaut aucune regle
+// produit definitive. La cadence planifiee etant de 15 minutes, ce seuil
+// correspond a deux tours manques. Ce module l'expose ; il ne l'applique
+// nulle part. La peremption est une LECTURE, appliquee par le lot (3) au
+// moment de decider — jamais une transformation de l'etat pose en base.
+export const MIRROR_STALE_AFTER_MINUTES = 30;
+
 type Admin = ReturnType<typeof createAdminClient>;
 
 export type SyncIgnored = ListEventsWindowIgnored;
@@ -437,4 +444,62 @@ export async function recomputeMirrorReady(input: RecomputeInput): Promise<Recom
   }
 
   return { mirror_ready: ready, first_full_sync_done_at_touched: firstFullSyncTouched };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// readMirrorFreshness — expose des FAITS sur la fraicheur du miroir.
+//
+// Rend :
+//   conflict_sources     : nombre de sources is_conflict+still_present
+//   never_synced         : nombre d'entre elles dont last_sync_at est nul
+//   oldest_last_sync_at  : la plus ancienne last_sync_at parmi elles, ou null
+//   mirror_ready         : l'etat lu, tel quel
+//
+// NE PREND AUCUNE DECISION. mirror_ready n'est PAS modifie en fonction du
+// temps ecoule : la peremption est une lecture appliquee par le lot (3) au
+// moment de decider, pas une transformation de l'etat pose en base.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type MirrorFreshness = {
+  conflict_sources:    number;
+  never_synced:        number;
+  oldest_last_sync_at: string | null;
+  mirror_ready:        boolean;
+};
+
+export type ReadMirrorFreshnessInput = {
+  workspaceId: string;
+  admin?:      Admin;
+};
+
+export async function readMirrorFreshness(input: ReadMirrorFreshnessInput): Promise<MirrorFreshness> {
+  const admin = input.admin ?? makeAdmin();
+
+  const { data: srcs, error: srcsErr } = await admin
+    .from('calendar_sources')
+    .select('last_sync_at')
+    .eq('workspace_id', input.workspaceId)
+    .eq('is_conflict',   true)
+    .eq('still_present', true);
+  if (srcsErr) {
+    return { conflict_sources: 0, never_synced: 0, oldest_last_sync_at: null, mirror_ready: false };
+  }
+
+  const rows = (srcs ?? []) as Array<{ last_sync_at: string | null }>;
+  const conflict_sources = rows.length;
+  const never_synced     = rows.filter(r => r.last_sync_at === null).length;
+  const dated            = rows
+    .map(r => r.last_sync_at)
+    .filter((v): v is string => typeof v === 'string' && v.length > 0)
+    .sort();
+  const oldest_last_sync_at = dated.length > 0 ? dated[0] : null;
+
+  const state = await admin
+    .from('calendar_sync_state')
+    .select('mirror_ready')
+    .eq('workspace_id', input.workspaceId)
+    .maybeSingle();
+  const mirror_ready = state.data?.mirror_ready === true;
+
+  return { conflict_sources, never_synced, oldest_last_sync_at, mirror_ready };
 }
