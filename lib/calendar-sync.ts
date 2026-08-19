@@ -15,10 +15,13 @@
  *     bascule vers mirror_ready=true).
  *
  * BAIL COMME CAPACITE. Le bail n'est PAS un simple booleen : c'est un jeton
- * — la chaine ISO exacte posee dans sync_lease_until. Chaque ecriture de
- * (2)c est conditionnee `WHERE sync_lease_until = jeton` : si le bail a ete
- * repris entre-temps, l'ecriture affecte zero ligne et on sort en
- * bail_perdu. En complement, avant CHAQUE lot d'insertion, on relit
+ * — l'echeance exacte posee dans sync_lease_until. LA POSSESSION N'EST
+ * JAMAIS EVALUEE EN JAVASCRIPT : chaque ecriture de (2)c est conditionnee
+ * `WHERE sync_lease_until = jeton`, comparaison faite PAR LA BASE sur des
+ * valeurs timestamptz — donc independante de la representation textuelle
+ * de l'instant (`Z`, `+00:00`, tout autre decalage). Si le bail a ete repris
+ * entre-temps, l'ecriture affecte zero ligne et on sort en bail_perdu.
+ * En complement, avant CHAQUE lot d'insertion, on relit
  * active_generation ; s'il vaut deja la generation cible, une autre
  * execution a bascule sur notre cible et on arrete. Cette double garde rend
  * STRUCTUREL le fait que rien n'est jamais ecrit ni purge sur la generation
@@ -173,11 +176,11 @@ async function stampError(admin: Admin, workspaceId: string, googleCalendarId: s
 }
 
 async function loadSource(admin: Admin, workspaceId: string, googleCalendarId: string): Promise<{
-  is_conflict: boolean; still_present: boolean; active_generation: number; sync_lease_until: string | null;
+  is_conflict: boolean; still_present: boolean; active_generation: number;
 } | null> {
   const { data, error } = await admin
     .from('calendar_sources')
-    .select('is_conflict, still_present, active_generation, sync_lease_until')
+    .select('is_conflict, still_present, active_generation')
     .eq('workspace_id', workspaceId)
     .eq('google_calendar_id', googleCalendarId)
     .maybeSingle();
@@ -186,7 +189,6 @@ async function loadSource(admin: Admin, workspaceId: string, googleCalendarId: s
     is_conflict:       data.is_conflict === true,
     still_present:     data.still_present === true,
     active_generation: Number(data.active_generation ?? 0),
-    sync_lease_until:  (data.sync_lease_until as string | null) ?? null,
   };
 }
 
@@ -263,13 +265,20 @@ export async function runFullSyncForSource(input: RunFullSyncInput): Promise<Run
   }
 
   // Apres Google — AVANT toute ecriture :
-  //   1. relire la source ;
-  //   2. si sync_lease_until != jeton  → bail_perdu (aucune ecriture, aucune
-  //      liberation de bail : il ne nous appartient plus) ;
-  //   3. prolonger le bail par un update conditionne. Zero ligne → bail_perdu.
+  //   1. relire la source (c'est active_generation qu'on vient y chercher) ;
+  //   2. prolonger le bail par un update conditionne
+  //      `WHERE sync_lease_until = jeton`. Zero ligne → bail_perdu : le bail
+  //      ne nous appartient plus, on n'ecrit rien et on ne libere rien.
+  //
+  // LA POSSESSION EST DECIDEE PAR LA BASE, JAMAIS ICI. Une comparaison
+  // JavaScript entre le jeton pose et la valeur relue comparerait deux
+  // REPRESENTATIONS d'un meme instant : le client rend `+00:00` la ou
+  // toISOString() produit `Z`. Elle sortait donc en bail_perdu a CHAQUE
+  // passage, sans erreur ecrite et sans donnee — mesure en production le
+  // 19/08/2026. La condition equivalente existe cote base, sur des valeurs
+  // timestamptz, et elle est representation-independante.
   const postSrc = await loadSource(admin, ws, cal);
   if (!postSrc) return { ok: false, reason: 'bail_perdu' };
-  if (postSrc.sync_lease_until !== token) return { ok: false, reason: 'bail_perdu' };
   const extended = await extendLease(admin, ws, cal, token);
   if (!extended) return { ok: false, reason: 'bail_perdu' };
   token = extended;

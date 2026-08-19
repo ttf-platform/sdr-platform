@@ -217,11 +217,50 @@ function gcalMockFactory() {
 vi.mock('@/lib/google-calendar-client', () => gcalMockFactory());
 
 // ---- supabase/admin : mock in-memory ----
+// -----------------------------------------------------------------------------
+// FIDELITE DE SERIALISATION DES HORODATAGES — ajoute par le correctif du bail.
+//
+// Le client de base ne rend PAS la chaine qu'on lui a donnee : un timestamptz
+// est serialise avec un DECALAGE EXPLICITE — `2026-08-19T11:50:13.776+00:00` —
+// la ou `Date.prototype.toISOString()` produit `...Z`. Mesure en production le
+// 19/08/2026 : `to_json(sync_lease_until)` a rendu
+// `"2026-08-19T11:50:13.776+00:00"` pour un jeton pose comme
+// `"2026-08-19T11:50:13.776Z"`.
+//
+// Une doublure qui renvoie la chaine fournie est COMPLAISANTE : elle rend
+// indetectable toute comparaison de possession fondee sur l'egalite textuelle.
+// Ici, donc :
+//   - les LECTURES rendent la forme a decalage explicite ;
+//   - les FILTRES `eq` / `neq` comparent des INSTANTS, comme Postgres apres
+//     cast, et non des chaines.
+// -----------------------------------------------------------------------------
+const TIMESTAMP_COLS = new Set([
+  'sync_lease_until', 'sync_requested_at', 'last_sync_at', 'channel_expires_at',
+  'created_at', 'updated_at', 'starts_at', 'ends_at', 'first_full_sync_done_at',
+]);
+
+function renderTimestamp(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  const t = Date.parse(v);
+  if (Number.isNaN(t)) return v;   // marqueur litteral pose par un test : inchange
+  return new Date(t).toISOString().replace(/Z$/, '+00:00');
+}
+
+// Egalite d'INSTANT, avec repli sur l'identite pour les valeurs non temporelles.
+function sameInstant(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ta = Date.parse(a);
+  const tb = Date.parse(b);
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  return ta === tb;
+}
+
 function matchFilters<T extends Record<string, unknown>>(rows: T[], filters: Array<{ op: string; col: string; val: unknown }>): T[] {
   let out = rows.filter(_ => true);
   for (const f of filters) {
-    if (f.op === 'eq')  out = out.filter(r => r[f.col] === f.val);
-    if (f.op === 'neq') out = out.filter(r => r[f.col] !== f.val);
+    if (f.op === 'eq')  out = out.filter(r => TIMESTAMP_COLS.has(f.col) ? sameInstant(r[f.col], f.val) : r[f.col] === f.val);
+    if (f.op === 'neq') out = out.filter(r => TIMESTAMP_COLS.has(f.col) ? !sameInstant(r[f.col], f.val) : r[f.col] !== f.val);
     if (f.op === 'in')  out = out.filter(r => (f.val as unknown[]).includes(r[f.col]));
     if (f.op === 'is_null') out = out.filter(r => r[f.col] === null);
     if (f.op === 'lt')  out = out.filter(r => {
@@ -239,11 +278,17 @@ function matchFilters<T extends Record<string, unknown>>(rows: T[], filters: Arr
 }
 
 function projectCols<T extends Record<string, unknown>>(rows: T[], cols: string): unknown[] {
-  if (cols === '*') return rows;
+  if (cols === '*') {
+    return rows.map(r => {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(r)) out[k] = TIMESTAMP_COLS.has(k) ? renderTimestamp(v) : v;
+      return out;
+    });
+  }
   const wanted = cols.split(',').map(s => s.trim());
   return rows.map(r => {
     const out: Record<string, unknown> = {};
-    for (const c of wanted) out[c] = r[c];
+    for (const c of wanted) out[c] = TIMESTAMP_COLS.has(c) ? renderTimestamp(r[c]) : r[c];
     return out;
   });
 }
@@ -1743,7 +1788,9 @@ describe('LC21 (2)FIN — cas N : readMirrorFreshness rend les faits, pas une de
 
     expect(facts.conflict_sources).toBe(3);       // n1, n2, n3 (n4 et n5 exclus)
     expect(facts.never_synced).toBe(1);           // n3
-    expect(facts.oldest_last_sync_at).toBe('2026-03-01T00:00:00Z'); // le plus ancien parmi n1/n2
+    // Comparaison d'INSTANT, pas de texte : le client rend `+00:00` la ou le
+    // test seme `Z`. Assertion corrigee avec le correctif du bail du 19/08.
+    expect(Date.parse(facts.oldest_last_sync_at ?? '')).toBe(Date.parse('2026-03-01T00:00:00Z')); // le plus ancien parmi n1/n2
     expect(facts.mirror_ready).toBe(true);        // lu tel quel
   });
 });
@@ -1818,5 +1865,78 @@ describe('LC21 (2)FIN — cas P : controle statique de vercel.json', () => {
     const added = json.crons.find(c => c.path === '/api/calendar/google/sync');
     expect(added).toBeDefined();
     expect(added!.schedule).toBe('*/15 * * * *');
+  });
+});
+
+// =============================================================================
+// CORRECTIF DU BAIL — cas P et Q.
+//
+// Defaut mesure en production le 19/08/2026 : la possession du bail etait
+// revalidee par une egalite TEXTUELLE entre le jeton pose (`...Z`) et la
+// valeur relue chez le client (`...+00:00`). Elle ne pouvait jamais tenir :
+// sortie `bail_perdu` a chaque passage, sans erreur ecrite et sans donnee.
+// =============================================================================
+
+const dbDescribeLease = LOCAL_DB_READY ? describe : describe.skip;
+
+dbDescribeLease('LC21 (2)FIN correctif — cas P : contrat REEL de serialisation d\'un timestamptz', () => {
+  const psqlArgs = ['-v', 'ON_ERROR_STOP=1', '-X', '-q', RAW_DB_URL];
+  function psqlValue(sql: string): string {
+    return execFileSync('psql', [...psqlArgs, '-t', '-A', '-c', sql], { encoding: 'utf-8' }).trim();
+  }
+
+  const JS_FORM = new Date('2026-08-19T11:50:13.776Z').toISOString();
+
+  it('la base NE rend PAS la chaine JavaScript qu\'on lui a donnee', () => {
+    const rendu = psqlValue(`SELECT to_json('${JS_FORM}'::timestamptz)::text`);
+    expect(rendu).not.toBe(`"${JS_FORM}"`);
+    expect(rendu.includes('Z')).toBe(false);
+  });
+
+  it('et pourtant les deux representations designent le MEME instant apres cast', () => {
+    const egal = psqlValue(
+      `SELECT ('${JS_FORM}'::timestamptz = '2026-08-19T11:50:13.776+00:00'::timestamptz)`
+    );
+    expect(egal).toBe('t');
+  });
+});
+
+describe('LC21 (2)FIN correctif — cas Q : la possession du bail ne depend PAS de la representation', () => {
+  it('la valeur relue differe textuellement du jeton pose, et la synchronisation aboutit quand meme', async () => {
+    seedSource();
+    __eventsByCalendar.set('cal-A', {
+      events: [
+        { id: 'q1', startsAt: '2026-01-02T10:00:00.000Z', endsAt: '2026-01-02T11:00:00.000Z', transparency: 'opaque' },
+      ],
+      nextSyncToken:    null,
+      calendarTimeZone: 'UTC',
+    });
+
+    vi.resetModules();
+    const { runFullSyncForSource } = await import('@/lib/calendar-sync');
+    const outcome = await runFullSyncForSource({
+      workspaceId:      WORKSPACE_ID,
+      googleCalendarId: 'cal-A',
+      now:              new Date('2026-01-05T00:00:00.000Z'),
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.reason).toBe('sync_ok');
+
+    const src = __sources[0];
+    expect(src.active_generation).toBe(1);
+    expect(src.sync_pending).toBe(false);
+    expect(src.last_sync_at).toBe('2026-01-05T00:00:00.000Z');
+    expect(src.last_error).toBeNull();
+    expect(__busy).toHaveLength(1);
+
+    // Le jeton pose et la valeur que le client aurait rendue sont deux
+    // chaines DIFFERENTES pour un MEME instant. C'est precisement ce qui
+    // faisait sortir l'ancien code en bail_perdu.
+    const pose = __leaseTimeline.find(v => typeof v === 'string') as string;
+    expect(pose).toBeTruthy();
+    const relu = renderTimestamp(pose) as string;
+    expect(relu).not.toBe(pose);
+    expect(Date.parse(relu)).toBe(Date.parse(pose));
   });
 });
