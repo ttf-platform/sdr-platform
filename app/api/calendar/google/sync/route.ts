@@ -133,7 +133,33 @@ async function runSyncRequest(req: Request): Promise<NextResponse> {
   // (2)FIN — expose la fraicheur du miroir dans le compte-rendu. Ces
   // valeurs sont des FAITS. La peremption est appliquee par le lot (3), pas
   // ici — mirror_ready sort tel qu'il est en base.
-  const freshness = await readMirrorFreshness({ workspaceId: allowedWorkspace, admin });
+  //
+  // LC21 (3)A — readMirrorFreshness rend desormais un resultat DISCRIMINE.
+  //
+  // CE QUI CHANGE, ET IL NE FAUT PAS ECRIRE QUE RIEN NE CHANGE :
+  //
+  //   - sur `lecture_sources` : la reponse est IDENTIQUE a l'ancienne. Les
+  //     sources n'avaient pas pu etre lues, donc l'ancienne implementation
+  //     rendait deja null et 0.
+  //
+  //   - sur `lecture_etat` : la reponse DIFFERE. L'ancienne implementation
+  //     avait deja lu les sources et calcule oldest_last_sync_at et
+  //     never_synced ; seule la lecture de mirror_ready etait avalee, et ces
+  //     deux faits sortaient quand meme. Avec l'union, ils sont perdus au
+  //     profit de null et 0.
+  //
+  // DIFFERENCE ASSUMEE, et voici son perimetre exact : ce corps de reponse
+  // n'a AUCUN consommateur fonctionnel — verifie sur tout le depot, seuls les
+  // tests le lisent, et vercel.json ne declare que le chemin ; le
+  // planificateur jette le corps. Preserver des faits partiels sur une erreur
+  // de lecture aurait exige de complexifier le type pour un lecteur qui
+  // n'existe pas.
+  //
+  // mirror_ready ne sort pas d'ici et n'est pas interprete : la peremption est
+  // appliquee par decideMirror, au moment de decider — D38 §9.
+  const freshness        = await readMirrorFreshness({ workspaceId: allowedWorkspace, admin });
+  const oldestLastSyncAt = freshness.ok ? freshness.facts.oldest_last_sync_at : null;
+  const neverSynced      = freshness.ok ? freshness.facts.never_synced        : 0;
 
   return NextResponse.json({
     treated:             targets.length,
@@ -142,8 +168,8 @@ async function runSyncRequest(req: Request): Promise<NextResponse> {
     ignored_lease:       ignoredLease,
     lost_lease:          lostLease,
     ignored_events:      ignoredEvents,
-    oldest_last_sync_at: freshness.oldest_last_sync_at,
-    never_synced:        freshness.never_synced,
+    oldest_last_sync_at: oldestLastSyncAt,
+    never_synced:        neverSynced,
   }, { headers: NO_STORE });
 }
 
