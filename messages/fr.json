@@ -581,6 +581,8 @@
     "slotPassedTitle": "Cet horaire est déjà passé",
     "slotPassedBody": "Le créneau choisi est maintenant dans le passé. Choisissez un nouvel horaire sur la page de réservation — pas d'inquiétude, votre demande initiale a été annulée.",
     "slotPassedCta": "Choisir un nouveau créneau",
+    "availabilityUnavailableTitle": "Nous n'avons pas pu vérifier ce créneau",
+    "availabilityUnavailableBody": "Nous n'avons pas pu consulter l'agenda de votre interlocuteur à l'instant, votre rendez-vous n'a donc pas été confirmé. Rien n'est perdu : votre lien de confirmation reste valable. Réessayez dans quelques minutes.",
     "slotTakenTitle": "Ce créneau vient d'être pris",
     "slotTakenBody": "Quelqu'un a confirmé le même horaire juste avant vous. Choisissez un autre créneau sur la page de réservation — pas d'inquiétude, votre demande initiale a été annulée.",
     "slotTakenCta": "Choisir un autre créneau",

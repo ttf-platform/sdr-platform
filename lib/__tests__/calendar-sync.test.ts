@@ -2110,7 +2110,7 @@ describe('LC21 (3)A — cas A4 : le plus ancien last_sync_at est choisi par INST
 });
 
 describe('LC21 (3)A — cas A5 : le decideur, table de verite complete', () => {
-  const FACTS = (o: Partial<{ conflict_sources: number; never_synced: number; oldest_last_sync_at: string | null; mirror_ready: boolean }>) => ({
+  const FACTS = (o: Partial<{ conflict_sources: number; never_synced: number; oldest_last_sync_at: string | null; newest_last_sync_at: string | null; mirror_ready: boolean }>) => ({
     ok: true as const,
     facts: {
       conflict_sources:    o.conflict_sources    ?? 1,
@@ -2119,6 +2119,9 @@ describe('LC21 (3)A — cas A5 : le decideur, table de verite complete', () => {
       // et le cas « aucune fraicheur datable » ne serait jamais eprouve.
       oldest_last_sync_at: Object.prototype.hasOwnProperty.call(o, 'oldest_last_sync_at')
         ? (o.oldest_last_sync_at ?? null)
+        : '2026-01-01T12:00:00Z',
+      newest_last_sync_at: Object.prototype.hasOwnProperty.call(o, 'newest_last_sync_at')
+        ? (o.newest_last_sync_at ?? null)
         : '2026-01-01T12:00:00Z',
       mirror_ready:        o.mirror_ready        ?? true,
     },
@@ -2420,5 +2423,87 @@ describe('LC21 (3)A — cas A9 : COURSE entre l\'instantane de generation et la 
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('lecture attendue reussie');
     expect(res.intervals).toHaveLength(1);
+  });
+});
+
+// =============================================================================
+// LC21 (3)C — LA COUVERTURE REELLEMENT CONNUE.
+// =============================================================================
+
+describe('LC21 (3)C — cas C1 : newest_last_sync_at, par comparaison d\'INSTANTS', () => {
+  it('rend la PLUS RECENTE, meme quand l\'ordre lexical designe l\'autre', async () => {
+    // Memes deux valeurs que le cas A4, dans l'autre sens : l'ordre lexical
+    // designerait `ancien` comme le plus grand, l'ordre chronologique designe
+    // `tardif`.
+    const TARDIF = '2026-01-15T08:00:00+00:00'; // 08:00 UTC
+    const ANCIEN = '2026-01-15T09:00:00+02:00'; // 07:00 UTC
+    expect(TARDIF < ANCIEN).toBe(true);
+    expect(Date.parse(ANCIEN)).toBeLessThan(Date.parse(TARDIF));
+
+    seedSource({ google_calendar_id: 'c1-a', is_conflict: true, still_present: true, last_sync_at: TARDIF });
+    seedSource({ google_calendar_id: 'c1-b', is_conflict: true, still_present: true, last_sync_at: ANCIEN });
+    __syncStates.push({ workspace_id: WORKSPACE_ID, mirror_ready: true, first_full_sync_done_at: '2026-01-01T00:00:00Z' });
+
+    vi.resetModules();
+    const { readMirrorFreshness } = await import('@/lib/calendar-sync');
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('lecture attendue reussie');
+    expect(Date.parse(res.facts.newest_last_sync_at ?? '')).toBe(Date.parse(TARDIF));
+    expect(Date.parse(res.facts.oldest_last_sync_at ?? '')).toBe(Date.parse(ANCIEN));
+  });
+});
+
+describe('LC21 (3)C — cas C2 : mirrorCoverage est l\'INTERSECTION des fenetres reellement peuplees', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('debut = plus RECENTE - 1 j ; fin = plus ANCIENNE + 120 j', async () => {
+    vi.resetModules();
+    const { mirrorCoverage, MIRROR_WINDOW_PAST_DAYS, MIRROR_WINDOW_FUTURE_DAYS } = await import('@/lib/calendar-sync');
+
+    const ancienne = Date.parse('2026-01-10T00:00:00Z');
+    const recente  = Date.parse('2026-01-12T00:00:00Z');
+    const cov = mirrorCoverage({
+      conflict_sources:    2,
+      never_synced:        0,
+      oldest_last_sync_at: new Date(ancienne).toISOString(),
+      newest_last_sync_at: new Date(recente).toISOString(),
+      mirror_ready:        true,
+    });
+
+    expect(cov).not.toBeNull();
+    expect(cov!.fromMs).toBe(recente  - MIRROR_WINDOW_PAST_DAYS   * DAY);
+    expect(cov!.toMs).toBe(ancienne + MIRROR_WINDOW_FUTURE_DAYS * DAY);
+  });
+
+  it('la borne HAUTE recule quand la synchronisation vieillit — ce que `now + 120 j` ne voyait pas', async () => {
+    vi.resetModules();
+    const { mirrorCoverage, MIRROR_WINDOW_FUTURE_DAYS } = await import('@/lib/calendar-sync');
+
+    const maintenant = Date.parse('2026-06-01T12:00:00Z');
+    const syncIlYa25 = maintenant - 25 * 60_000;
+    const cov = mirrorCoverage({
+      conflict_sources:    1,
+      never_synced:        0,
+      oldest_last_sync_at: new Date(syncIlYa25).toISOString(),
+      newest_last_sync_at: new Date(syncIlYa25).toISOString(),
+      mirror_ready:        true,
+    });
+
+    // L'ancienne regle aurait revendique `maintenant + 120 j`. La couverture
+    // reelle s'arrete 25 minutes plus tot : cette bande n'a jamais ete lue.
+    expect(cov!.toMs).toBe(syncIlYa25 + MIRROR_WINDOW_FUTURE_DAYS * DAY);
+    expect(cov!.toMs).toBeLessThan(maintenant + MIRROR_WINDOW_FUTURE_DAYS * DAY);
+    expect((maintenant + MIRROR_WINDOW_FUTURE_DAYS * DAY) - cov!.toMs).toBe(25 * 60_000);
+  });
+
+  it('aucune source datable -> null, que l\'appelant doit traiter comme un refus', async () => {
+    vi.resetModules();
+    const { mirrorCoverage } = await import('@/lib/calendar-sync');
+    const base = { conflict_sources: 1, never_synced: 0, mirror_ready: true };
+    expect(mirrorCoverage({ ...base, oldest_last_sync_at: null, newest_last_sync_at: null })).toBeNull();
+    expect(mirrorCoverage({ ...base, oldest_last_sync_at: '2026-01-01T00:00:00Z', newest_last_sync_at: null })).toBeNull();
+    expect(mirrorCoverage({ ...base, oldest_last_sync_at: 'pas-une-date', newest_last_sync_at: '2026-01-01T00:00:00Z' })).toBeNull();
   });
 });

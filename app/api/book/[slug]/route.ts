@@ -8,6 +8,34 @@ import { dispatchAdminAlert } from '@/lib/admin-alerts'
 import { normalizeEmailForRateLimit, toPlainTextForEmail } from '@/lib/text-safety'
 import { isPendingStillActive } from '@/lib/meetings-retention'
 import { generatedBookingTitle } from '@/lib/meeting-title'
+import {
+  readMirrorFreshness,
+  decideMirror,
+  readMirrorBusy,
+  mirrorCoverage,
+  MIRROR_STALE_AFTER_MINUTES,
+} from '@/lib/calendar-sync'
+
+// LC21 (3)C — refus du miroir sur le chemin d'ECRITURE.
+//
+// Meme code que le refus pose par TD-005 sur cette route :
+// `availability_unavailable` en 503, avec la meme phrase deja localisee par la
+// page publique. Le motif precis reste cote serveur, dans le journal, et n'est
+// jamais rendu au client.
+//
+// Ce refus a une consequence PLUS LOURDE que celle de la lecture : la lecture
+// n'affiche pas un creneau, l'ecriture refuse une reservation. C'est la branche
+// conservatrice assumee par D27 — on perd une reservation legitime pendant un
+// incident plutot que d'ecrire un rendez-vous dont on ne peut pas prouver qu'il
+// est libre.
+function refusMiroir(slug: string, motif: string): NextResponse {
+  console.error('[book:create] mirror refused — booking refused', { slug, motif })
+  return NextResponse.json(
+    { error: 'availability_unavailable',
+      message: 'We could not verify this time slot is still free. Please try again in a moment.' },
+    { status: 503 },
+  )
+}
 
 // Per-recipient / per-slug / platform caps for the confirmation-email path.
 // These live IN THE DB (COUNT before INSERT) rather than in Redis because
@@ -158,6 +186,80 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   })
   if (!slotInWindow) return NextResponse.json({ error: 'Selected slot is outside availability hours' }, { status: 400 })
 
+  // ═══ LC21 (3)C — LE MIROIR DECIDE AVANT D'ECRIRE ══════════════════════════
+  //
+  // Le lot (3)B a ferme la LECTURE publique. Il n'a pas ferme l'ECRITURE : un
+  // POST direct sur cette route, ou un creneau affiche puis occupe dans
+  // l'intervalle, creait une ligne `pending` sans qu'aucun intervalle Google ne
+  // soit consulte. La lecture n'affiche qu'a tort ; l'ecriture, elle, PERSISTE
+  // un rendez-vous et envoie un courriel. C'est la plus grave des deux
+  // occurrences du meme invariant manquant.
+  //
+  // PLACE DE LA GARDE : apres les controles bon marche et purement locaux —
+  // creneau passe, jour sans disponibilite, creneau hors fenetre — et AVANT la
+  // lecture de `meetings`. Un refus n'a besoin d'aucune de ces lectures, et une
+  // requete invalide n'a pas a couter une interrogation du miroir.
+  //
+  // TAMPON PARTAGE : `bufMs`, `ns` et `ne` sont definis ICI, une seule fois, et
+  // servent au miroir COMME au conflit Mirvo plus bas. Deux definitions
+  // divergentes feraient appliquer deux tampons differents selon la provenance
+  // du rendez-vous sans que rien ne le signale.
+  const bufMs = (cfg.buffer_minutes ?? 15) * 60_000
+  const ns    = slotStartUTC.getTime()
+  const ne    = slotEndUTC.getTime()
+
+  // La plage REELLEMENT interrogee dans le miroir : le creneau elargi du tampon
+  // des deux cotes. Un evenement Google qui se termine juste avant le creneau
+  // bloque ce creneau par son tampon ; l'interroger sur le seul creneau le
+  // manquerait.
+  const mirrorFrom = new Date(ns - bufMs)
+  const mirrorTo   = new Date(ne + bufMs)
+
+  const nowMirror = new Date()
+  const freshness = await readMirrorFreshness({ workspaceId: profile.workspace_id })
+  const decision  = decideMirror({ freshness, now: nowMirror, staleAfterMinutes: MIRROR_STALE_AFTER_MINUTES })
+  const coverage  = freshness.ok ? mirrorCoverage(freshness.facts) : null
+
+  if (decision.mode === 'refuser') return refusMiroir(params.slug, decision.motif)
+
+  // COUVERTURE ET LECTURE — UNIQUEMENT dans le mode `utiliser`, meme arbitrage
+  // que la route de lecture. En mode `ignorer` — aucune source de conflit — il
+  // n'y a pas de miroir dont on puisse sortir : appliquer la borne refuserait
+  // des reservations que Mirvo accepte depuis toujours sur tous les espaces
+  // sans calendrier raccorde.
+  //
+  // La couverture est celle REELLEMENT PEUPLEE, deduite des last_sync_at des
+  // sources — jamais `now +/- constantes`. Voir mirrorCoverage.
+  if (decision.mode === 'utiliser') {
+    if (!coverage) return refusMiroir(params.slug, 'hors_couverture')
+    if (mirrorFrom.getTime() < coverage.fromMs || mirrorTo.getTime() > coverage.toMs) {
+      return refusMiroir(params.slug, 'hors_couverture')
+    }
+
+    // FAIL-CLOSED : tout echec de lecture — sources illisibles, intervalles
+    // illisibles, generation instable — refuse. Un jeu partiel se lirait « ce
+    // creneau est libre ».
+    const mirror = await readMirrorBusy({
+      workspaceId: profile.workspace_id,
+      fromUtc:     mirrorFrom,
+      toUtc:       mirrorTo,
+    })
+    if (!mirror.ok) return refusMiroir(params.slug, mirror.reason)
+
+    const conflitMiroir = mirror.intervals.some(it => {
+      const ms = new Date(it.starts_at).getTime()
+      const me = new Date(it.ends_at).getTime()
+      return ns < me + bufMs && ne > ms - bufMs
+    })
+    // Conflit ETABLI avec un intervalle Google : meme reponse qu'un conflit
+    // Mirvo. Le prospect n'a pas a savoir d'ou vient l'occupation, et la page
+    // publique localise deja cette phrase.
+    if (conflitMiroir) return NextResponse.json(
+      { error: 'This time slot is no longer available. Please choose another time.' },
+      { status: 409 },
+    )
+  }
+
   // ── Conflict check: SCHEDULED + PENDING-WITHIN-RETENTION reserve time ────
   // Pending rows now block for RETENTION_MINUTES after confirmation_sent_at
   // (lib/meetings-retention.ts) — an attacker who reloads pending rows can
@@ -222,9 +324,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     })
   })
 
-  const bufMs = (cfg.buffer_minutes ?? 15) * 60_000
-  const ns    = slotStartUTC.getTime()
-  const ne    = slotEndUTC.getTime()
+  // bufMs / ns / ne sont definis plus haut, dans le bloc miroir : une seule
+  // definition sert les deux conflits — LC21 (3)C.
   const conflict = blocking.some(m => {
     const ms = new Date(m.meeting_at).getTime()
     const me = ms + m.duration_min * 60_000
