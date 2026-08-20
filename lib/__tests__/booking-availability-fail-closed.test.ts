@@ -27,12 +27,16 @@ const {
   rateLimitBySlugMock,
   sendBookingConfirmationEmailMock,
   dispatchAdminAlertMock,
+  readMirrorFreshnessMock,
+  readMirrorBusyMock,
   state,
 } = vi.hoisted(() => ({
   rateLimitByIpMock:               vi.fn(),
   rateLimitBySlugMock:             vi.fn(),
   sendBookingConfirmationEmailMock: vi.fn(),
   dispatchAdminAlertMock:          vi.fn(),
+  readMirrorFreshnessMock:         vi.fn(),
+  readMirrorBusyMock:              vi.fn(),
   state: {
     profile:        null as any,
     members:        null as any,
@@ -55,6 +59,16 @@ vi.mock('@/lib/email', () => ({
 
 vi.mock('@/lib/admin-alerts', () => ({
   dispatchAdminAlert: dispatchAdminAlertMock,
+}))
+
+// LC21 (3)B — seules les DEUX fonctions d'E/S du miroir sont doublees.
+// decideMirror et les constantes restent REELS : c'est leur enchainement avec
+// la route qu'on eprouve ici, pas leur logique interne, deja couverte par
+// lib/__tests__/calendar-sync.test.ts.
+vi.mock('@/lib/calendar-sync', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/calendar-sync')>()),
+  readMirrorFreshness: readMirrorFreshnessMock,
+  readMirrorBusy:      readMirrorBusyMock,
 }))
 
 // Un seul faux client pour les deux routes. La table `meetings` est
@@ -172,6 +186,14 @@ beforeEach(() => {
   state.meetingsCalls  = 0
   state.insertPayloads = []
   state.deleteCount    = 0
+  // Defaut : AUCUNE source de conflit -> decideMirror rend `ignorer`, donc le
+  // comportement Mirvo actuel. C'est ce qui permet a tous les cas TD-005
+  // preexistants de rester STRICTEMENT INCHANGES.
+  readMirrorFreshnessMock.mockResolvedValue({
+    ok: true,
+    facts: { conflict_sources: 0, never_synced: 0, oldest_last_sync_at: null, mirror_ready: false },
+  })
+  readMirrorBusyMock.mockResolvedValue({ ok: true, intervals: [] })
   rateLimitByIpMock.mockResolvedValue({ allowed: true })
   rateLimitBySlugMock.mockResolvedValue({ allowed: true })
   sendBookingConfirmationEmailMock.mockResolvedValue({ ok: true })
@@ -490,5 +512,185 @@ describe('TD-005 — libellés', () => {
     for (const s of [en.book.slotsUnavailable, fr.book.slotsUnavailable]) {
       expect(s).not.toMatch(/supabase|postgres|instantly|resend|500|503|error/i)
     }
+  })
+})
+
+// ─── LC21 (3)B — branchement du miroir dans la lecture publique ────────────
+//
+// L'horloge est figee a NOW par le beforeEach de ce fichier : aucun cas
+// ci-dessous ne depend de la date d'execution.
+//
+//   NOW        = 2026-09-16T08:00:00Z
+//   BOOK_DAY   = 2026-09-16, fuseau UTC -> [00:00:00.000Z, 23:59:59.999Z]
+//   couverture = [NOW - 1 j, NOW + 120 j] = [2026-09-15T08:00Z, 2027-01-14T08:00Z]
+//   tampon     = 15 minutes
+
+const MIN = 60_000
+const FRESH_OK = {
+  ok: true as const,
+  facts: {
+    conflict_sources:    1,
+    never_synced:        0,
+    // 10 minutes avant NOW : largement en deca du seuil de 30 minutes.
+    oldest_last_sync_at: new Date(NOW.getTime() - 10 * MIN).toISOString(),
+    mirror_ready:        true,
+  },
+}
+
+describe('LC21 (3)B — le miroir decide avant toute lecture', () => {
+  it('mode IGNORER — aucune source de conflit : comportement Mirvo strictement actuel, le miroir n\'est meme pas interroge', async () => {
+    state.meetingsQueue = [{ data: [scheduledAt10], error: null }]
+
+    const res  = await GET(availabilityRequest(), ctx)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    // Le rendez-vous Mirvo de 10:00, elargi du tampon de 15 minutes.
+    expect(body.busy).toEqual([{ start_utc: '2026-09-16T09:45:00.000Z', end_utc: '2026-09-16T10:45:00.000Z' }])
+    expect(readMirrorBusyMock).not.toHaveBeenCalled()
+  })
+
+  it('mode UTILISER — les creneaux Google sont FUSIONNES avec ceux de Mirvo, et elargis du MEME tampon', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    readMirrorBusyMock.mockResolvedValue({
+      ok: true,
+      intervals: [{ starts_at: '2026-09-16T14:00:00.000Z', ends_at: '2026-09-16T15:00:00.000Z' }],
+    })
+    state.meetingsQueue = [{ data: [scheduledAt10], error: null }]
+
+    const res  = await GET(availabilityRequest(), ctx)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.busy).toEqual([
+      { start_utc: '2026-09-16T09:45:00.000Z', end_utc: '2026-09-16T10:45:00.000Z' }, // Mirvo
+      { start_utc: '2026-09-16T13:45:00.000Z', end_utc: '2026-09-16T15:15:00.000Z' }, // Google, meme tampon
+    ])
+  })
+
+  it('mode UTILISER — la plage interrogee est ELARGIE du tampon des deux cotes', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    state.meetingsQueue = [{ data: [], error: null }]
+
+    await GET(availabilityRequest(), ctx)
+
+    const arg = readMirrorBusyMock.mock.calls[0][0]
+    // Sans cet elargissement, un evenement finissant juste avant minuit serait
+    // manque, alors que son tampon mord DANS la journee demandee.
+    expect(arg.fromUtc.toISOString()).toBe('2026-09-15T23:45:00.000Z')
+    expect(arg.toUtc.toISOString()).toBe('2026-09-17T00:14:59.999Z')
+  })
+
+  it('mode UTILISER — la reponse ne porte QUE des bornes : aucune donnee Google', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    readMirrorBusyMock.mockResolvedValue({
+      ok: true,
+      intervals: [{ starts_at: '2026-09-16T14:00:00.000Z', ends_at: '2026-09-16T15:00:00.000Z' }],
+    })
+    state.meetingsQueue = [{ data: [], error: null }]
+
+    const body = await (await GET(availabilityRequest(), ctx)).json()
+
+    expect(Object.keys(body)).toEqual(['busy'])
+    for (const b of body.busy) expect(Object.keys(b).sort()).toEqual(['end_utc', 'start_utc'])
+    expect(JSON.stringify(body)).not.toContain('google')
+  })
+})
+
+describe('LC21 (3)B — refus par defaut : 503 availability_unavailable, SANS lire meetings', () => {
+  const attendRefus = async (res: Response) => {
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({ error: 'availability_unavailable' })
+    // La lecture de meetings n'a pas eu lieu : un refus n'en a pas besoin.
+    expect(state.meetingsCalls).toBe(0)
+  }
+
+  it('lecture du miroir impossible', async () => {
+    readMirrorFreshnessMock.mockResolvedValue({ ok: false, reason: 'lecture_sources' })
+    await attendRefus(await GET(availabilityRequest(), ctx))
+  })
+
+  it('miroir non pret', async () => {
+    readMirrorFreshnessMock.mockResolvedValue({ ...FRESH_OK, facts: { ...FRESH_OK.facts, mirror_ready: false } })
+    await attendRefus(await GET(availabilityRequest(), ctx))
+  })
+
+  it('une source jamais synchronisee', async () => {
+    readMirrorFreshnessMock.mockResolvedValue({ ...FRESH_OK, facts: { ...FRESH_OK.facts, never_synced: 1 } })
+    await attendRefus(await GET(availabilityRequest(), ctx))
+  })
+
+  it('miroir PERIME au-dela du seuil', async () => {
+    readMirrorFreshnessMock.mockResolvedValue({
+      ...FRESH_OK,
+      facts: { ...FRESH_OK.facts, oldest_last_sync_at: new Date(NOW.getTime() - 31 * MIN).toISOString() },
+    })
+    await attendRefus(await GET(availabilityRequest(), ctx))
+  })
+
+  it('journee HORS COUVERTURE par la borne basse', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    // 2026-09-15T00:00Z commence AVANT NOW - 1 j = 2026-09-15T08:00Z.
+    await attendRefus(await GET(availabilityRequest('2026-09-15'), ctx))
+  })
+
+  it('BORD — journee INTEGRALEMENT dans la couverture, mais le TAMPON SEUL franchit la borne basse', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    // Fuseau UTC-08:00 toute l'annee. On emploie `Pacific/Pitcairn` et NON
+    // `Etc/GMT+8` : le `+` d'une chaine de requete se decode en ESPACE, et le
+    // fuseau serait rejete en 400 avant d'atteindre le miroir.
+    //
+    // La journee du 2026-09-15 y va de 08:00:00.000Z a
+    // 2026-09-16T07:59:59.999Z. Elle est donc ENTIEREMENT contenue dans la
+    // couverture, dont la borne basse est exactement 2026-09-15T08:00:00.000Z.
+    //
+    // Mais la plage REELLEMENT interrogee commence a 07:45:00.000Z, quinze
+    // minutes plus tot : le miroir ne sait rien de cette frange, et un
+    // evenement qui s'y trouverait bloquerait pourtant un creneau de la
+    // journee par son tampon.
+    //
+    // Un controle porte sur dayStart / dayEnd laisserait passer ce cas.
+    await attendRefus(await GET(availabilityRequest('2026-09-15', 'Pacific/Pitcairn'), ctx))
+  })
+
+  it('journee HORS COUVERTURE par la borne haute — elle MORD au-dela, elle ne commence pas apres', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    // 2027-01-14 commence AVANT la borne haute (08:00Z) mais se termine APRES.
+    // Le controle porte sur la journee ENTIERE : on refuse.
+    await attendRefus(await GET(availabilityRequest('2027-01-14'), ctx))
+  })
+})
+
+describe('LC21 (3)B — un echec de lecture des intervalles ne devient jamais une journee libre', () => {
+  it('generation instable pendant la lecture -> 503', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    readMirrorBusyMock.mockResolvedValue({ ok: false, reason: 'generation_instable' })
+    state.meetingsQueue = [{ data: [scheduledAt10], error: null }]
+
+    const res = await GET(availabilityRequest(), ctx)
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({ error: 'availability_unavailable' })
+  })
+
+  it('intervalles illisibles -> 503', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    readMirrorBusyMock.mockResolvedValue({ ok: false, reason: 'lecture_intervalles' })
+    state.meetingsQueue = [{ data: [], error: null }]
+
+    expect((await GET(availabilityRequest(), ctx)).status).toBe(503)
+  })
+})
+
+describe('LC21 (3)B — le controle de couverture ne s\'applique QU\'AU mode utiliser', () => {
+  it('sans aucune source de conflit, une date tres lointaine reste servie — aucune regression pour les espaces sans calendrier', async () => {
+    // Defaut du beforeEach : conflict_sources = 0 -> mode `ignorer`.
+    state.meetingsQueue = [{ data: [], error: null }]
+
+    const res  = await GET(availabilityRequest('2027-06-01'), ctx)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.busy).toEqual([])
+    expect(readMirrorBusyMock).not.toHaveBeenCalled()
   })
 })

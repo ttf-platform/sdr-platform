@@ -3,6 +3,30 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { bookingAvailabilitySchema, badRequest } from '@/lib/schemas'
 import { rateLimitByIp } from '@/lib/rate-limit'
 import { isPendingStillActive } from '@/lib/meetings-retention'
+import {
+  readMirrorFreshness,
+  decideMirror,
+  readMirrorBusy,
+  MIRROR_STALE_AFTER_MINUTES,
+  MIRROR_WINDOW_PAST_DAYS,
+  MIRROR_WINDOW_FUTURE_DAYS,
+} from '@/lib/calendar-sync'
+
+// LC21 (3)B — refus unique, code unique.
+//
+// Toutes les causes de refus du miroir sortent par le MEME code que celui pose
+// par TD-005 : `availability_unavailable`, en 503. Le motif precis reste cote
+// serveur, dans le journal, et n'est JAMAIS rendu au client.
+//
+// Consequence assumee, deja portee par D27 : l'ecran de refus est indiscernable
+// de celui d'une panne de base, et de celui de TD-004. Ce lot n'aggrave pas
+// cette dette, il en herite.
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function refus(slug: string, motif: string): NextResponse {
+  console.error('[book:availability] mirror refused', { slug, motif })
+  return NextResponse.json({ error: 'availability_unavailable' }, { status: 503 })
+}
 
 function getTzOffset(tz: string, dateStr: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -46,12 +70,61 @@ export async function GET(
 
   const cfg    = profile.booking_config ?? {}
   const bufMin = cfg.buffer_minutes ?? 15
+  const bufMs  = bufMin * 60_000
 
   // Query UTC range = the full prospect date in their timezone (or owner TZ as fallback)
   const queryTz     = prospectTz ?? cfg.timezone ?? 'UTC'
   const queryOffset = getTzOffset(queryTz, date)
   const dayStart    = new Date(`${date}T00:00:00${queryOffset}`)
   const dayEnd      = new Date(`${date}T23:59:59.999${queryOffset}`)
+
+  // LC21 (3)B — LA PLAGE REELLEMENT INTERROGEE DANS LE MIROIR.
+  //
+  // Elle est elargie du tampon des deux cotes, parce qu'un evenement situe HORS
+  // de la journee peut, par son tampon, bloquer un creneau DANS la journee.
+  // Elle est definie ICI, une seule fois, et sert a la fois au controle de
+  // couverture et a la lecture : deux definitions divergentes rendraient le
+  // controle faux sans que rien ne le signale.
+  const mirrorFrom = new Date(dayStart.getTime() - bufMs)
+  const mirrorTo   = new Date(dayEnd.getTime()   + bufMs)
+
+  // ─── LC21 (3)B — LE MIROIR DECIDE AVANT TOUTE LECTURE ────────────────────
+  //
+  // D5 : la disponibilite se decide sur le miroir local, jamais par un appel
+  // au fournisseur sur le chemin d'une reservation.
+  // D27 : si Mirvo ne peut pas etablir qu'un creneau est libre, il ne le
+  // considere pas comme libre.
+  //
+  // On decide AVANT d'interroger meetings : un refus n'a pas besoin de cette
+  // lecture, et la faire couterait une requete pour un resultat jete.
+  const now       = new Date()
+  const freshness = await readMirrorFreshness({ workspaceId: profile.workspace_id })
+  const decision  = decideMirror({ freshness, now, staleAfterMinutes: MIRROR_STALE_AFTER_MINUTES })
+
+  if (decision.mode === 'refuser') return refus(params.slug, decision.motif)
+
+  // COUVERTURE — controle place UNIQUEMENT dans le mode `utiliser`, arbitrage
+  // de Max du 20/08/2026.
+  //
+  // « Hors couverture du miroir » n'a de sens que lorsque le miroir DECIDE. En
+  // mode `ignorer` — aucune source de conflit — il n'y a pas de miroir dont on
+  // puisse sortir : appliquer la borne la refuserait des dates que Mirvo sert
+  // depuis toujours, sur tous les espaces sans calendrier raccorde.
+  //
+  // Le controle porte sur `mirrorFrom` / `mirrorTo`, LA PLAGE REELLEMENT
+  // INTERROGEE — pas sur la seule journee. Une journee entierement contenue
+  // dans la couverture peut avoir un tampon qui la franchit : le miroir ne
+  // saurait alors rien de cette frange, et un creneau y serait rendu libre a
+  // tort. La plage interrogee doit donc etre INTEGRALEMENT contenue : debut ET
+  // fin. Si elle mord d'un seul cote, on refuse — hors de sa fenetre, le
+  // miroir ne dit pas « libre », il ne sait pas.
+  if (decision.mode === 'utiliser') {
+    const couvertureDebut = new Date(now.getTime() - MIRROR_WINDOW_PAST_DAYS   * DAY_MS)
+    const couvertureFin   = new Date(now.getTime() + MIRROR_WINDOW_FUTURE_DAYS * DAY_MS)
+    if (mirrorFrom.getTime() < couvertureDebut.getTime() || mirrorTo.getTime() > couvertureFin.getTime()) {
+      return refus(params.slug, 'hors_couverture')
+    }
+  }
 
   // Read BOTH scheduled AND pending rows, then filter the pending set in JS
   // to the retention window (isPendingStillActive from lib/meetings-retention).
@@ -115,7 +188,6 @@ export async function GET(
     })
   })
 
-  const bufMs = bufMin * 60_000
   const busy  = blocking.map(m => {
     const startMs = new Date(m.meeting_at).getTime()
     const endMs   = startMs + (m.duration_min ?? 30) * 60_000
@@ -125,5 +197,40 @@ export async function GET(
     }
   })
 
+  // ─── LC21 (3)B — LES INTERVALLES DU MIROIR ───────────────────────────────
+  //
+  // TAMPON. buffer_minutes s'applique aux creneaux venus de Google COMME aux
+  // rendez-vous Mirvo : il protege la disponibilite du proprietaire quelle que
+  // soit la provenance du rendez-vous — arbitrage de Max du 20/08/2026.
+  //
+  // PLAGE ELARGIE, et c'est la consequence mecanique de ce tampon : un
+  // evenement qui se termine JUSTE AVANT le debut de la journee voit sa fin
+  // elargie DANS cette journee. Interroger le miroir sur la seule journee le
+  // manquerait, et le creneau serait rendu libre a tort. On interroge donc
+  // [debut - tampon, fin + tampon].
+  //
+  // FAIL-CLOSED : tout echec de lecture — sources illisibles, intervalles
+  // illisibles, ou generation instable pendant la lecture — sort en 503. On ne
+  // rend jamais un jeu partiel : un jeu incomplet se lit « ce creneau est
+  // libre ».
+  if (decision.mode === 'utiliser') {
+    const mirror = await readMirrorBusy({
+      workspaceId: profile.workspace_id,
+      fromUtc:     mirrorFrom,
+      toUtc:       mirrorTo,
+    })
+    if (!mirror.ok) return refus(params.slug, mirror.reason)
+
+    for (const it of mirror.intervals) {
+      busy.push({
+        start_utc: new Date(new Date(it.starts_at).getTime() - bufMs).toISOString(),
+        end_utc:   new Date(new Date(it.ends_at).getTime()   + bufMs).toISOString(),
+      })
+    }
+  }
+
+  // La reponse publique ne porte QUE des bornes. Aucun identifiant Google,
+  // aucun titre, aucun participant : le miroir n'en detient pas, et cette
+  // route n'en expose pas.
   return NextResponse.json({ busy })
 }
