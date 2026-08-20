@@ -154,6 +154,16 @@ let __leaseUpdatesCount = 0;
 // au cas H de prouver que l'echeance avance EFFECTIVEMENT entre deux
 // prolongations, pas seulement qu'un appel a eu lieu.
 let __leaseTimeline: Array<string | null> = [];
+// LC21 (3)A — injection d'ECHECS DE LECTURE. Sans elle, aucun test ne peut
+// distinguer « lecture impossible » de « rien a lire », qui est exactement
+// l'ambiguite que ce lot ferme.
+let __failSourcesSelect  = false;
+let __failSyncStateSelect = false;
+let __failBusySelectFor: string | null = null; // google_calendar_id dont la lecture echoue
+// Crochet declenche APRES chaque lecture d'external_busy, avant que le
+// resultat ne soit rendu : permet de simuler une bascule de generation par la
+// tache planifiee PENDANT la lecture du lecteur de disponibilite.
+let __afterBusySelect: null | (() => void) = null;
 
 function resetState() {
   __sources     = [];
@@ -165,6 +175,10 @@ function resetState() {
   __afterInsertBusy  = null;
   __leaseUpdatesCount = 0;
   __leaseTimeline    = [];
+  __failSourcesSelect  = false;
+  __failSyncStateSelect = false;
+  __failBusySelectFor  = null;
+  __afterBusySelect    = null;
 }
 
 // -----------------------------------------------------------------------------
@@ -243,6 +257,13 @@ function renderTimestamp(v: unknown): unknown {
   if (typeof v !== 'string') return v;
   const t = Date.parse(v);
   if (Number.isNaN(t)) return v;   // marqueur litteral pose par un test : inchange
+  // Une valeur qui porte DEJA un decalage explicite est rendue telle quelle :
+  // c'est ce que fait la base, qui serialise dans le fuseau de la session. Un
+  // banc dont la session n'est pas en UTC rend donc `+01:00` ou `+02:00`, et
+  // ces deux formes coexistent de part et d'autre d'un changement d'heure.
+  // Normaliser ici masquerait ce cas, qui est precisement celui ou l'ordre
+  // lexical et l'ordre chronologique divergent.
+  if (/[+-]\d{2}:\d{2}$/.test(v)) return v;
   return new Date(t).toISOString().replace(/Z$/, '+00:00');
 }
 
@@ -256,6 +277,24 @@ function sameInstant(a: unknown, b: unknown): boolean {
   return ta === tb;
 }
 
+function cmpTemporalOrString(col: string, v: unknown, ref: unknown, op: '<' | '>' | '>='): boolean {
+  if (v === null || v === undefined) return false;
+  if (TIMESTAMP_COLS.has(col)) {
+    const a = Date.parse(String(v));
+    const b = Date.parse(String(ref));
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      if (op === '<')  return a <  b;
+      if (op === '>')  return a >  b;
+      return a >= b;
+    }
+  }
+  const sa = String(v);
+  const sb = String(ref);
+  if (op === '<')  return sa <  sb;
+  if (op === '>')  return sa >  sb;
+  return sa >= sb;
+}
+
 function matchFilters<T extends Record<string, unknown>>(rows: T[], filters: Array<{ op: string; col: string; val: unknown }>): T[] {
   let out = rows.filter(_ => true);
   for (const f of filters) {
@@ -263,16 +302,12 @@ function matchFilters<T extends Record<string, unknown>>(rows: T[], filters: Arr
     if (f.op === 'neq') out = out.filter(r => TIMESTAMP_COLS.has(f.col) ? !sameInstant(r[f.col], f.val) : r[f.col] !== f.val);
     if (f.op === 'in')  out = out.filter(r => (f.val as unknown[]).includes(r[f.col]));
     if (f.op === 'is_null') out = out.filter(r => r[f.col] === null);
-    if (f.op === 'lt')  out = out.filter(r => {
-      const v = r[f.col];
-      if (v === null || v === undefined) return false;
-      return String(v) < String(f.val);
-    });
-    if (f.op === 'gte') out = out.filter(r => {
-      const v = r[f.col];
-      if (v === null || v === undefined) return false;
-      return String(v) >= String(f.val);
-    });
+    // LC21 (3)A — sur une colonne temporelle, l'ordre se compare en INSTANTS,
+    // comme Postgres apres cast. Sur les autres colonnes, comparaison de
+    // chaines, inchangee.
+    if (f.op === 'lt')  out = out.filter(r => cmpTemporalOrString(f.col, r[f.col], f.val, '<'));
+    if (f.op === 'gt')  out = out.filter(r => cmpTemporalOrString(f.col, r[f.col], f.val, '>'));
+    if (f.op === 'gte') out = out.filter(r => cmpTemporalOrString(f.col, r[f.col], f.val, '>='));
   }
   return out;
 }
@@ -366,12 +401,14 @@ function makeSourcesTable() {
       },
       limit(n: number) { limitN = n; return c; },
       async maybeSingle() {
+        if (__failSourcesSelect) return { data: null, error: { message: 'lecture calendar_sources indisponible' } };
         const rows = matchFilters(__sources as unknown as Array<Record<string, unknown>>, filters);
         if (rows.length === 0) return { data: null, error: null };
         return { data: projectCols(rows, cols)[0], error: null };
       },
       then<A>(onFulfilled: (v: unknown) => A, onRejected?: (e: unknown) => A) {
         return Promise.resolve().then(() => {
+          if (__failSourcesSelect) return { data: null, error: { message: 'lecture calendar_sources indisponible' } };
           let rows = matchFilters(__sources as unknown as Array<Record<string, unknown>>, filters);
           rows = applyOrder(rows, orderSpecs);
           if (limitN !== null) rows = rows.slice(0, limitN);
@@ -494,7 +531,34 @@ function makeBusyTable() {
     return c;
   }
 
+  // LC21 (3)A — chaine de LECTURE sur external_busy. Elle n'existait pas :
+  // (2) n'ecrivait que dans cette table. Filtres supportes : eq, lt, gt.
+  function selectChain(cols: string) {
+    const filters: Array<{ op: string; col: string; val: unknown }> = [];
+    const c = {
+      eq(col: string, val: unknown) { filters.push({ op: 'eq', col, val }); return c; },
+      lt(col: string, val: unknown) { filters.push({ op: 'lt', col, val }); return c; },
+      gt(col: string, val: unknown) { filters.push({ op: 'gt', col, val }); return c; },
+      then<A>(onFulfilled: (v: unknown) => A, onRejected?: (e: unknown) => A) {
+        return Promise.resolve().then(() => {
+          const calFilter = filters.find(f => f.col === 'google_calendar_id');
+          if (__failBusySelectFor !== null && calFilter && calFilter.val === __failBusySelectFor) {
+            return { data: null, error: { message: 'lecture external_busy indisponible' } };
+          }
+          const rows = matchFilters(__busy as unknown as Array<Record<string, unknown>>, filters);
+          const out  = projectCols(rows, cols);
+          // La bascule simulee a lieu APRES que les lignes ont ete lues :
+          // c'est exactement la fenetre de course que (3)A doit fermer.
+          if (__afterBusySelect) __afterBusySelect();
+          return { data: out, error: null };
+        }).then(onFulfilled, onRejected);
+      },
+    };
+    return c;
+  }
+
   return {
+    select: (cols: string) => selectChain(cols),
     async insert(rows: MemBusy[]) {
       // Simule le trigger external_busy_requires_conflict.
       for (const row of rows) {
@@ -533,6 +597,7 @@ function makeSyncStateTable() {
     const c = {
       eq(col: string, val: unknown) { filters.push({ op: 'eq', col, val }); return c; },
       async maybeSingle() {
+        if (__failSyncStateSelect) return { data: null, error: { message: 'lecture calendar_sync_state indisponible' } };
         const rows = matchFilters(__syncStates as unknown as Array<Record<string, unknown>>, filters);
         if (rows.length === 0) return { data: null, error: null };
         return { data: projectCols(rows, cols)[0], error: null };
@@ -1784,7 +1849,12 @@ describe('LC21 (2)FIN — cas N : readMirrorFreshness rend les faits, pas une de
 
     vi.resetModules();
     const { readMirrorFreshness } = await import('@/lib/calendar-sync');
-    const facts = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    // LC21 (3)A — le resultat est discrimine : la lecture a reussi.
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('lecture attendue reussie');
+    const facts = res.facts;
 
     expect(facts.conflict_sources).toBe(3);       // n1, n2, n3 (n4 et n5 exclus)
     expect(facts.never_synced).toBe(1);           // n3
@@ -1809,14 +1879,18 @@ describe('LC21 (2)FIN — cas O : mirror_ready NE dependant PAS du temps ecoule'
 
     vi.resetModules();
     const modA = await import('@/lib/calendar-sync');
-    const facts1 = await modA.readMirrorFreshness({ workspaceId: WORKSPACE_ID });
-    expect(facts1.mirror_ready).toBe(true);
+    const res1 = await modA.readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+    expect(res1.ok).toBe(true);
+    if (!res1.ok) throw new Error('lecture attendue reussie');
+    expect(res1.facts.mirror_ready).toBe(true);
 
     // Un appel ulterieur, sans qu'aucune sync ne se soit executee, n'a pas
     // modifie l'etat en base : mirror_ready reste true.
     expect(__syncStates[0].mirror_ready).toBe(true);
-    const facts2 = await modA.readMirrorFreshness({ workspaceId: WORKSPACE_ID });
-    expect(facts2.mirror_ready).toBe(true);
+    const res2 = await modA.readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+    expect(res2.ok).toBe(true);
+    if (!res2.ok) throw new Error('lecture attendue reussie');
+    expect(res2.facts.mirror_ready).toBe(true);
     expect(__syncStates[0].mirror_ready).toBe(true);
 
     // La constante existe et est un nombre : le lot (3) la lira pour
@@ -1938,5 +2012,413 @@ describe('LC21 (2)FIN correctif — cas Q : la possession du bail ne depend PAS 
     const relu = renderTimestamp(pose) as string;
     expect(relu).not.toBe(pose);
     expect(Date.parse(relu)).toBe(Date.parse(pose));
+  });
+});
+
+// =============================================================================
+// LC21 (3)A — SOCLE MIROIR FIABLE.
+//
+// Cas A1 a A7. Prefixe distinct des lettres de (2) : la nomenclature par
+// lettres seules etait deja saturee.
+// =============================================================================
+
+describe('LC21 (3)A — cas A1 : une erreur de lecture des sources est NOMMEE, pas encodee en zero source', () => {
+  it('rend ok=false / lecture_sources, et ne se confond pas avec un espace sans calendrier', async () => {
+    seedSource({ google_calendar_id: 'a1', is_conflict: true, still_present: true, last_sync_at: '2026-05-01T00:00:00Z' });
+    __syncStates.push({ workspace_id: WORKSPACE_ID, mirror_ready: true, first_full_sync_done_at: '2026-01-01T00:00:00Z' });
+    __failSourcesSelect = true;
+
+    vi.resetModules();
+    const { readMirrorFreshness } = await import('@/lib/calendar-sync');
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('echec de lecture attendu');
+    expect(res.reason).toBe('lecture_sources');
+  });
+});
+
+describe('LC21 (3)A — cas A2 : l\'erreur de lecture de l\'etat global n\'est plus avalee', () => {
+  it('rend ok=false / lecture_etat, la ou l\'ancienne version rendait mirror_ready=false', async () => {
+    seedSource({ google_calendar_id: 'a2', is_conflict: true, still_present: true, last_sync_at: '2026-05-01T00:00:00Z' });
+    __failSyncStateSelect = true;
+
+    vi.resetModules();
+    const { readMirrorFreshness } = await import('@/lib/calendar-sync');
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('echec de lecture attendu');
+    expect(res.reason).toBe('lecture_etat');
+  });
+});
+
+describe('LC21 (3)A — cas A3 : zero source de conflit est une LECTURE REUSSIE', () => {
+  it('ok=true avec conflict_sources=0 — etat distinct de l\'echec du cas A1', async () => {
+    seedSource({ google_calendar_id: 'a3', is_conflict: false, still_present: true, last_sync_at: null });
+
+    vi.resetModules();
+    const { readMirrorFreshness } = await import('@/lib/calendar-sync');
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('lecture attendue reussie');
+    expect(res.facts.conflict_sources).toBe(0);
+    expect(res.facts.never_synced).toBe(0);
+    expect(res.facts.oldest_last_sync_at).toBeNull();
+  });
+});
+
+describe('LC21 (3)A — cas A4 : le plus ancien last_sync_at est choisi par INSTANT', () => {
+  it('deux horodatages VALIDES a decalages differents : l\'ordre lexical designe le mauvais, l\'ordre chronologique le bon', async () => {
+    // Deux valeurs que la colonne timestamptz peut reellement porter. La base
+    // serialise dans le fuseau de sa session : de part et d'autre d'un
+    // changement d'heure, deux lignes du meme espace sortent avec des
+    // DECALAGES DIFFERENTS.
+    //
+    //   tardif  = 2026-01-15T08:00:00+00:00  ->  08:00 UTC
+    //   ancien  = 2026-01-15T09:00:00+02:00  ->  07:00 UTC   <-- le plus ancien
+    //
+    // Ordre LEXICAL : '...T08:00:00+00:00' < '...T09:00:00+02:00'
+    //   -> `.sort()[0]` designe `tardif`, qui est le PLUS RECENT. FAUX.
+    // Ordre CHRONOLOGIQUE : 07:00 UTC < 08:00 UTC
+    //   -> la comparaison par instant designe `ancien`. JUSTE.
+    //
+    // Consequence produit si l'on se trompe : la fraicheur du miroir est
+    // surestimee d'une heure, et un miroir perime peut passer pour frais.
+    const TARDIF = '2026-01-15T08:00:00+00:00';
+    const ANCIEN = '2026-01-15T09:00:00+02:00';
+
+    // Garde du test lui-meme : sans cette divergence, le cas ne prouve rien.
+    expect(TARDIF < ANCIEN).toBe(true);                        // ordre lexical
+    expect(Date.parse(ANCIEN)).toBeLessThan(Date.parse(TARDIF)); // ordre reel
+
+    seedSource({ google_calendar_id: 'a4-tardif', is_conflict: true, still_present: true, last_sync_at: TARDIF });
+    seedSource({ google_calendar_id: 'a4-ancien', is_conflict: true, still_present: true, last_sync_at: ANCIEN });
+    __syncStates.push({ workspace_id: WORKSPACE_ID, mirror_ready: true, first_full_sync_done_at: '2026-01-01T00:00:00Z' });
+
+    vi.resetModules();
+    const { readMirrorFreshness } = await import('@/lib/calendar-sync');
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('lecture attendue reussie');
+    expect(Date.parse(res.facts.oldest_last_sync_at ?? '')).toBe(Date.parse(ANCIEN));
+    expect(res.facts.conflict_sources).toBe(2);
+    expect(res.facts.never_synced).toBe(0);
+  });
+});
+
+describe('LC21 (3)A — cas A5 : le decideur, table de verite complete', () => {
+  const FACTS = (o: Partial<{ conflict_sources: number; never_synced: number; oldest_last_sync_at: string | null; mirror_ready: boolean }>) => ({
+    ok: true as const,
+    facts: {
+      conflict_sources:    o.conflict_sources    ?? 1,
+      never_synced:        o.never_synced        ?? 0,
+      // `??` serait faux ici : il ecraserait un null EXPLICITE par le defaut,
+      // et le cas « aucune fraicheur datable » ne serait jamais eprouve.
+      oldest_last_sync_at: Object.prototype.hasOwnProperty.call(o, 'oldest_last_sync_at')
+        ? (o.oldest_last_sync_at ?? null)
+        : '2026-01-01T12:00:00Z',
+      mirror_ready:        o.mirror_ready        ?? true,
+    },
+  });
+  const NOW = new Date('2026-01-01T12:00:00Z');
+
+  it('echec de lecture -> refuser / lecture_impossible', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    expect(decideMirror({ freshness: { ok: false, reason: 'lecture_sources' }, now: NOW, staleAfterMinutes: 30 }))
+      .toEqual({ mode: 'refuser', motif: 'lecture_impossible' });
+    expect(decideMirror({ freshness: { ok: false, reason: 'lecture_etat' }, now: NOW, staleAfterMinutes: 30 }))
+      .toEqual({ mode: 'refuser', motif: 'lecture_impossible' });
+  });
+
+  it('zero source -> ignorer, ET CE TEST PASSE AVANT mirror_ready', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    // mirror_ready est false : c'est ce que recomputeMirrorReady pose quand il
+    // n'y a aucune source de conflit. Si l'ordre etait inverse, tout espace
+    // sans calendrier raccorde serait REFUSE.
+    expect(decideMirror({
+      freshness: FACTS({ conflict_sources: 0, mirror_ready: false, oldest_last_sync_at: null }),
+      now: NOW, staleAfterMinutes: 30,
+    })).toEqual({ mode: 'ignorer', motif: 'aucune_source_de_conflit' });
+  });
+
+  it('miroir non pret -> refuser / miroir_non_pret', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    expect(decideMirror({ freshness: FACTS({ mirror_ready: false }), now: NOW, staleAfterMinutes: 30 }))
+      .toEqual({ mode: 'refuser', motif: 'miroir_non_pret' });
+  });
+
+  it('une source jamais synchronisee -> refuser / jamais_synchronise', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    expect(decideMirror({ freshness: FACTS({ never_synced: 1 }), now: NOW, staleAfterMinutes: 30 }))
+      .toEqual({ mode: 'refuser', motif: 'jamais_synchronise' });
+  });
+
+  it('aucune fraicheur datable -> refuser / jamais_synchronise', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    expect(decideMirror({ freshness: FACTS({ oldest_last_sync_at: null }), now: NOW, staleAfterMinutes: 30 }))
+      .toEqual({ mode: 'refuser', motif: 'jamais_synchronise' });
+    expect(decideMirror({ freshness: FACTS({ oldest_last_sync_at: 'pas-une-date' }), now: NOW, staleAfterMinutes: 30 }))
+      .toEqual({ mode: 'refuser', motif: 'jamais_synchronise' });
+  });
+
+  it('frontiere du seuil : EXACTEMENT le seuil -> utiliser ; le seuil plus une seconde -> perime', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    const base = new Date('2026-01-01T12:00:00Z').getTime();
+
+    // Age = exactement 30 minutes. Le refus est sur `>`, donc on UTILISE.
+    expect(decideMirror({
+      freshness: FACTS({ oldest_last_sync_at: new Date(base - 30 * 60_000).toISOString() }),
+      now: new Date(base), staleAfterMinutes: 30,
+    })).toEqual({ mode: 'utiliser' });
+
+    // Age = 30 minutes et une seconde.
+    expect(decideMirror({
+      freshness: FACTS({ oldest_last_sync_at: new Date(base - 30 * 60_000 - 1000).toISOString() }),
+      now: new Date(base), staleAfterMinutes: 30,
+    })).toEqual({ mode: 'refuser', motif: 'perime' });
+  });
+
+  it('miroir frais -> utiliser', async () => {
+    vi.resetModules();
+    const { decideMirror } = await import('@/lib/calendar-sync');
+    expect(decideMirror({
+      freshness: FACTS({ oldest_last_sync_at: '2026-01-01T11:59:00Z' }),
+      now: NOW, staleAfterMinutes: 30,
+    })).toEqual({ mode: 'utiliser' });
+  });
+
+  it('la peremption est une LECTURE : decideMirror ne touche a rien', async () => {
+    seedSource({ google_calendar_id: 'a5', is_conflict: true, still_present: true, last_sync_at: '2020-01-01T00:00:00Z' });
+    __syncStates.push({ workspace_id: WORKSPACE_ID, mirror_ready: true, first_full_sync_done_at: '2020-01-01T00:00:00Z' });
+
+    vi.resetModules();
+    const { readMirrorFreshness, decideMirror } = await import('@/lib/calendar-sync');
+    const res = await readMirrorFreshness({ workspaceId: WORKSPACE_ID });
+    const decision = decideMirror({ freshness: res, now: NOW, staleAfterMinutes: 30 });
+
+    expect(decision).toEqual({ mode: 'refuser', motif: 'perime' });
+    // L'etat pose en base n'a PAS bouge.
+    expect(__syncStates[0].mirror_ready).toBe(true);
+    expect(__sources[0].last_sync_at).toBe('2020-01-01T00:00:00Z');
+  });
+});
+
+describe('LC21 (3)A — cas A6 : lecture des intervalles, generation active, opaque, bornes seules', () => {
+  it('recouvrement correct, transparent ecarte, generation inactive ecartee, AUCUN champ interdit en sortie', async () => {
+    seedSource({ google_calendar_id: 'cal-A', is_conflict: true, still_present: true, active_generation: 1 });
+
+    const push = (o: Partial<MemBusy>) => __busy.push({
+      workspace_id:       WORKSPACE_ID,
+      google_calendar_id: 'cal-A',
+      generation:         1,
+      google_event_id:    'evt',
+      starts_at:          '2026-08-20T10:30:00.000Z',
+      ends_at:            '2026-08-20T11:30:00.000Z',
+      transparency:       'opaque',
+      ...o,
+    } as MemBusy);
+
+    push({ google_event_id: 'dedans'      });                                                              // retenu
+    push({ google_event_id: 'a-cheval',    starts_at: '2026-08-19T23:00:00.000Z', ends_at: '2026-08-20T00:30:00.000Z' }); // retenu
+    push({ google_event_id: 'transparent', transparency: 'transparent' });                                 // ecarte
+    push({ google_event_id: 'gen-morte',   generation: 0 });                                               // ecarte
+    push({ google_event_id: 'avant',       starts_at: '2026-08-18T10:00:00.000Z', ends_at: '2026-08-18T11:00:00.000Z' }); // ecarte
+    push({ google_event_id: 'apres',       starts_at: '2026-08-22T10:00:00.000Z', ends_at: '2026-08-22T11:00:00.000Z' }); // ecarte
+
+    vi.resetModules();
+    const { readMirrorBusy } = await import('@/lib/calendar-sync');
+    const res = await readMirrorBusy({
+      workspaceId: WORKSPACE_ID,
+      fromUtc:     new Date('2026-08-20T00:00:00.000Z'),
+      toUtc:       new Date('2026-08-21T00:00:00.000Z'),
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('lecture attendue reussie');
+    expect(res.intervals).toHaveLength(2);
+
+    // ETANCHEITE : la sortie ne porte QUE les bornes. google_event_id n'est
+    // jamais selectionne — interdiction ecrite deux fois dans la migration 094.
+    for (const it of res.intervals) {
+      expect(Object.keys(it).sort()).toEqual(['ends_at', 'starts_at']);
+    }
+    expect(JSON.stringify(res.intervals)).not.toContain('google_event_id');
+    expect(JSON.stringify(res.intervals)).not.toContain('evt');
+  });
+});
+
+describe('LC21 (3)A — cas A7 : fail-closed INTEGRAL sur plusieurs sources', () => {
+  it('une seule source illisible => ECHEC GLOBAL, jamais les intervalles partiels des autres', async () => {
+    seedSource({ google_calendar_id: 'cal-ok', is_conflict: true, still_present: true, active_generation: 0 });
+    seedSource({ google_calendar_id: 'cal-ko', is_conflict: true, still_present: true, active_generation: 0 });
+
+    __busy.push({
+      workspace_id: WORKSPACE_ID, google_calendar_id: 'cal-ok', generation: 0,
+      google_event_id: 'ok-1',
+      starts_at: '2026-08-20T10:00:00.000Z', ends_at: '2026-08-20T11:00:00.000Z',
+      transparency: 'opaque',
+    });
+    __failBusySelectFor = 'cal-ko';
+
+    vi.resetModules();
+    const { readMirrorBusy } = await import('@/lib/calendar-sync');
+    const res = await readMirrorBusy({
+      workspaceId: WORKSPACE_ID,
+      fromUtc:     new Date('2026-08-20T00:00:00.000Z'),
+      toUtc:       new Date('2026-08-21T00:00:00.000Z'),
+    });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('echec global attendu');
+    expect(res.reason).toBe('lecture_intervalles');
+    // Aucun intervalle partiel n'est expose : le type ne le permet meme pas.
+    expect('intervals' in res).toBe(false);
+  });
+
+  it('sources illisibles -> lecture_sources', async () => {
+    __failSourcesSelect = true;
+    vi.resetModules();
+    const { readMirrorBusy } = await import('@/lib/calendar-sync');
+    const res = await readMirrorBusy({
+      workspaceId: WORKSPACE_ID,
+      fromUtc:     new Date('2026-08-20T00:00:00.000Z'),
+      toUtc:       new Date('2026-08-21T00:00:00.000Z'),
+    });
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('echec attendu');
+    expect(res.reason).toBe('lecture_sources');
+  });
+});
+
+const dbDescribeA8 = LOCAL_DB_READY ? describe : describe.skip;
+
+dbDescribeA8('LC21 (3)A — cas A8 : la semantique de RECOUVREMENT, en SQL', () => {
+  const psqlArgs = ['-v', 'ON_ERROR_STOP=1', '-X', '-q', RAW_DB_URL];
+  function psqlValue(sql: string): string {
+    return execFileSync('psql', [...psqlArgs, '-t', '-A', '-c', sql], { encoding: 'utf-8' }).trim();
+  }
+
+  // PORTEE EXACTE, declaree : ce cas eprouve le PREDICAT
+  // `starts_at < fin AND ends_at > debut` sur des timestamptz reels, dans un
+  // banc Postgres local. Il n'eprouve NI la table external_busy, NI le client
+  // de base, NI la route. Il ne remplace pas une mesure en production.
+  it('starts_at < fin ET ends_at > debut retient l\'evenement A CHEVAL et ecarte les adjacents', () => {
+    const sql = `
+      WITH ev(nom, starts_at, ends_at) AS (VALUES
+        ('dedans',   '2026-08-20T10:30:00Z'::timestamptz, '2026-08-20T11:30:00Z'::timestamptz),
+        ('a-cheval-debut', '2026-08-19T23:00:00Z'::timestamptz, '2026-08-20T00:30:00Z'::timestamptz),
+        ('a-cheval-fin',   '2026-08-20T23:30:00Z'::timestamptz, '2026-08-21T00:30:00Z'::timestamptz),
+        ('englobant',      '2026-08-19T00:00:00Z'::timestamptz, '2026-08-22T00:00:00Z'::timestamptz),
+        ('adjacent-avant', '2026-08-19T23:00:00Z'::timestamptz, '2026-08-20T00:00:00Z'::timestamptz),
+        ('adjacent-apres', '2026-08-21T00:00:00Z'::timestamptz, '2026-08-21T01:00:00Z'::timestamptz)
+      )
+      SELECT string_agg(nom, ',' ORDER BY nom) FROM ev
+       WHERE starts_at < '2026-08-21T00:00:00Z'::timestamptz
+         AND ends_at   > '2026-08-20T00:00:00Z'::timestamptz`;
+    // Les deux ADJACENTS sont exclus : un evenement qui finit exactement au
+    // debut de la plage, ou qui commence exactement a sa fin, ne bloque pas.
+    expect(psqlValue(sql)).toBe('a-cheval-debut,a-cheval-fin,dedans,englobant');
+  });
+});
+
+describe('LC21 (3)A — cas A9 : COURSE entre l\'instantane de generation et la lecture', () => {
+  it('bascule + purge PENDANT la lecture -> echec global nomme, jamais un jeu vide pris pour « aucun conflit »', async () => {
+    // Etat initial : une source de conflit en generation 0, avec UN intervalle
+    // occupe dans cette generation.
+    seedSource({ google_calendar_id: 'cal-A', is_conflict: true, still_present: true, active_generation: 0 });
+    __busy.push({
+      workspace_id: WORKSPACE_ID, google_calendar_id: 'cal-A', generation: 0,
+      google_event_id: 'occupe',
+      starts_at: '2026-08-20T10:30:00.000Z', ends_at: '2026-08-20T11:30:00.000Z',
+      transparency: 'opaque',
+    });
+
+    // Pendant la lecture, la tache planifiee bascule vers la generation 1 et
+    // PURGE la generation 0 — exactement ce que fait runFullSyncForSource.
+    let bascule = 0;
+    __afterBusySelect = () => {
+      if (bascule > 0) return;
+      bascule += 1;
+      __sources[0].active_generation = 1;
+      __busy = __busy.filter(b => b.generation !== 0);
+      __busy.push({
+        workspace_id: WORKSPACE_ID, google_calendar_id: 'cal-A', generation: 1,
+        google_event_id: 'occupe',
+        starts_at: '2026-08-20T10:30:00.000Z', ends_at: '2026-08-20T11:30:00.000Z',
+        transparency: 'opaque',
+      });
+    };
+
+    vi.resetModules();
+    const { readMirrorBusy } = await import('@/lib/calendar-sync');
+    const res = await readMirrorBusy({
+      workspaceId: WORKSPACE_ID,
+      fromUtc:     new Date('2026-08-20T00:00:00.000Z'),
+      toUtc:       new Date('2026-08-21T00:00:00.000Z'),
+    });
+
+    expect(bascule).toBe(1); // la course a bien eu lieu
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('echec global attendu');
+    expect(res.reason).toBe('generation_instable');
+    // La branche d'echec ne porte PAS d'intervalles : le type l'interdit, et
+    // on le verifie a l'execution.
+    expect('intervals' in res).toBe(false);
+  });
+
+  it('une source qui DISPARAIT pendant la lecture -> echec global', async () => {
+    seedSource({ google_calendar_id: 'cal-A', is_conflict: true, still_present: true, active_generation: 0 });
+    seedSource({ google_calendar_id: 'cal-B', is_conflict: true, still_present: true, active_generation: 0 });
+
+    let fait = 0;
+    __afterBusySelect = () => {
+      if (fait > 0) return;
+      fait += 1;
+      // cal-B cesse d'etre une source de conflit : deselection en cours de route.
+      __sources[1].is_conflict = false;
+    };
+
+    vi.resetModules();
+    const { readMirrorBusy } = await import('@/lib/calendar-sync');
+    const res = await readMirrorBusy({
+      workspaceId: WORKSPACE_ID,
+      fromUtc:     new Date('2026-08-20T00:00:00.000Z'),
+      toUtc:       new Date('2026-08-21T00:00:00.000Z'),
+    });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('echec global attendu');
+    expect(res.reason).toBe('generation_instable');
+  });
+
+  it('sans aucune bascule, la lecture reste valide et rend les intervalles', async () => {
+    seedSource({ google_calendar_id: 'cal-A', is_conflict: true, still_present: true, active_generation: 0 });
+    __busy.push({
+      workspace_id: WORKSPACE_ID, google_calendar_id: 'cal-A', generation: 0,
+      google_event_id: 'occupe',
+      starts_at: '2026-08-20T10:30:00.000Z', ends_at: '2026-08-20T11:30:00.000Z',
+      transparency: 'opaque',
+    });
+
+    vi.resetModules();
+    const { readMirrorBusy } = await import('@/lib/calendar-sync');
+    const res = await readMirrorBusy({
+      workspaceId: WORKSPACE_ID,
+      fromUtc:     new Date('2026-08-20T00:00:00.000Z'),
+      toUtc:       new Date('2026-08-21T00:00:00.000Z'),
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('lecture attendue reussie');
+    expect(res.intervals).toHaveLength(1);
   });
 });
