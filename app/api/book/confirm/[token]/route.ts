@@ -5,6 +5,33 @@ import { ensureDealAtMeetingBooked } from '@/lib/deals'
 import { notifyWorkspaceOwner } from '@/lib/notifications'
 import { generateICS, buildSummary, buildDescription } from '@/lib/ics'
 import { generateCalendarLinks } from '@/lib/calendar-links'
+import {
+  readMirrorFreshness,
+  decideMirror,
+  readMirrorBusy,
+  mirrorCoverage,
+  MIRROR_STALE_AFTER_MINUTES,
+} from '@/lib/calendar-sync'
+
+// LC21 (3)C — refus du miroir sur le chemin de CONFIRMATION.
+//
+// Deux semantiques, jamais confondues :
+//   - conflit ETABLI avec un intervalle Google  -> 409 slot_taken
+//   - disponibilite NON ETABLISSABLE            -> 503 availability_unavailable
+//
+// Reutiliser slot_taken pour un etat inconnu mentirait au prospect : « quelqu'un
+// a confirme avant vous » alors que la verite est « nous n'avons pas pu
+// verifier ». Le 503 est REESSAYABLE et la page le presente comme tel.
+//
+// LE JETON N'EST JAMAIS PROLONGE — arbitrage de Max, 20/08/2026. Sur refus :
+// aucune RPC, aucune mutation du pending, expires_at intact. S'il expire pendant
+// une indisponibilite prolongee, la reservation expire normalement et le
+// prospect recommence. On refuse de creer une prolongation potentiellement
+// indefinie du pending.
+function refusMiroirConfirm(motif: string): NextResponse {
+  console.error('[book:confirm] mirror refused', { motif })
+  return NextResponse.json({ outcome: 'availability_unavailable' }, { status: 503 })
+}
 
 // The client sends `?locale=en|fr` on both GET and POST — see
 // app/[locale]/book/confirm/[token]/page.tsx. We validate that against the
@@ -124,6 +151,95 @@ export async function POST(
   }
 
   const admin = createAdminClient()
+
+  // ═══ LC21 (3)C — LA GARDE DU MIROIR, AVANT LA RPC ═════════════════════════
+  //
+  // POURQUOI ICI ET PAS EN SQL : confirm_booking est REVOKE pour PUBLIC, anon et
+  // authenticated, et GRANT au seul service_role (migrations 086 et 087). Son
+  // unique appelant est cette route. Une garde posee ici la couvre integralement,
+  // et ecrire la meme decision en PL/pgSQL creerait deux sources de verite pour
+  // une seule regle.
+  //
+  // POURQUOI L'ABSENCE D'ATOMICITE N'EST PAS UN DEFAUT : le verrou consultatif de
+  // la RPC ne protege que des confirmations concurrentes. Le miroir, lui, est
+  // rafraichi toutes les quinze minutes et tolere jusqu'a trente. Fermer une
+  // course de quelques millisecondes tout en acceptant trente minutes de retard
+  // n'acheterait rien.
+  const { data: pre, error: preErr } = await admin
+    .from('meetings')
+    .select('id, workspace_id, meeting_at, duration_min, status, expires_at')
+    .eq('confirmation_token', token)
+    .maybeSingle()
+
+  if (preErr) {
+    console.error('[book:confirm] pre-read failed', preErr)
+    return NextResponse.json({ outcome: 'db_error', message: 'Please try again in a moment.' }, { status: 500 })
+  }
+
+  // LA MACHINE A ETATS N'EST PAS DUPLIQUEE. La garde ne s'applique qu'a une ligne
+  // qui a une chance d'etre confirmee : pending, creneau futur, jeton non expire.
+  // Tous les autres cas — ligne absente, deja confirmee, expiree, creneau passe —
+  // sont laisses a la RPC, qui les tranche sous verrou et rend son propre
+  // resultat. Omettre expires_at ferait rendre un refus miroir la ou la RPC rend
+  // `expired`.
+  const nowMs      = Date.now()
+  const gardeUtile = !!pre
+    && pre.status === 'pending'
+    && new Date(pre.meeting_at).getTime() > nowMs
+    && (!pre.expires_at || new Date(pre.expires_at).getTime() > nowMs)
+
+  if (gardeUtile && pre) {
+    // buffer_minutes — FAIL-CLOSED SUR L'ERREUR DE LECTURE, arbitrage de Max.
+    //
+    // Une erreur de lecture ne doit PAS retomber sur 15 : un tampon reel plus
+    // large serait sous-estime pendant la panne, et un conflit passerait. En
+    // revanche une lecture REUSSIE sans configuration retombe bien sur 15, ce
+    // qui est le comportement de la RPC — COALESCE(..., 15).
+    const { data: prof, error: profErr } = await admin
+      .from('workspace_profiles')
+      .select('booking_config')
+      .eq('workspace_id', pre.workspace_id)
+      .maybeSingle()
+    if (profErr) return refusMiroirConfirm('lecture_booking_config')
+
+    const cfgConfirm = (prof?.booking_config ?? {}) as { buffer_minutes?: number }
+    const bufMs      = (cfgConfirm.buffer_minutes ?? 15) * 60_000
+    const ns         = new Date(pre.meeting_at).getTime()
+    const ne         = ns + (pre.duration_min ?? 30) * 60_000
+    const mirrorFrom = new Date(ns - bufMs)
+    const mirrorTo   = new Date(ne + bufMs)
+
+    const nowDate   = new Date()
+    const freshness = await readMirrorFreshness({ workspaceId: pre.workspace_id })
+    const decision  = decideMirror({ freshness, now: nowDate, staleAfterMinutes: MIRROR_STALE_AFTER_MINUTES })
+    const coverage  = freshness.ok ? mirrorCoverage(freshness.facts) : null
+
+    if (decision.mode === 'refuser') return refusMiroirConfirm(decision.motif)
+
+    if (decision.mode === 'utiliser') {
+      if (!coverage) return refusMiroirConfirm('hors_couverture')
+      if (mirrorFrom.getTime() < coverage.fromMs || mirrorTo.getTime() > coverage.toMs) {
+        return refusMiroirConfirm('hors_couverture')
+      }
+
+      const mirror = await readMirrorBusy({
+        workspaceId: pre.workspace_id,
+        fromUtc:     mirrorFrom,
+        toUtc:       mirrorTo,
+      })
+      if (!mirror.ok) return refusMiroirConfirm(mirror.reason)
+
+      const conflitMiroir = mirror.intervals.some(it => {
+        const ms = new Date(it.starts_at).getTime()
+        const me = new Date(it.ends_at).getTime()
+        return ns < me + bufMs && ne > ms - bufMs
+      })
+      // Conflit ETABLI : le creneau est pris. Aucune RPC, la ligne pending reste
+      // telle quelle et expirera normalement.
+      if (conflitMiroir) return NextResponse.json({ outcome: 'slot_taken' }, { status: 409 })
+    }
+  }
+
   const { data, error } = await admin.rpc('confirm_booking', { p_token: token })
 
   if (error) {

@@ -32,6 +32,7 @@ import { safeExternalHref } from '@/lib/url-safety'
 //     slot_taken        → "someone confirmed before you"
 //     unknown           → "link not valid"
 //     db_error          → "try again"
+//     availability_unavailable → "we could not verify — retryable" (LC21 (3)C)
 
 type ConfirmedPayload = {
   meeting: { id: string; meeting_at: string; duration_min: number; booking_slug: string | null }
@@ -52,6 +53,12 @@ type PeekResponse =
   | { outcome: 'slot_taken' }
   | { outcome: 'unknown' }
   | { outcome: 'db_error'; message?: string }
+  // LC21 (3)C — la disponibilite n'a pas pu etre ETABLIE : miroir illisible,
+  // perime, ou creneau hors de la fenetre reellement synchronisee. Etat
+  // REESSAYABLE, et distinct de slot_taken : dire « quelqu'un a confirme avant
+  // vous » quand la verite est « nous n'avons pas pu verifier » serait un
+  // mensonge au prospect.
+  | { outcome: 'availability_unavailable' }
 
 export default function BookConfirmPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -282,6 +289,14 @@ export default function BookConfirmPage({ params }: { params: Promise<{ token: s
               <div className="text-4xl mb-3">🔍</div>
               <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('unknownTitle')}</h2>
               <p className="text-sm text-[#4a3f32] leading-relaxed">{t('unknownBody')}</p>
+            </div>
+          )}
+
+          {peek.status === 'done' && peek.response.outcome === 'availability_unavailable' && (
+            <div className="text-center">
+              <div className="text-4xl mb-3">🕒</div>
+              <h2 className="text-xl font-bold text-[#1a1a2e] mb-2">{t('availabilityUnavailableTitle')}</h2>
+              <p className="text-sm text-[#4a3f32] leading-relaxed">{t('availabilityUnavailableBody')}</p>
             </div>
           )}
 

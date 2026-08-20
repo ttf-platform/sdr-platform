@@ -7,9 +7,8 @@ import {
   readMirrorFreshness,
   decideMirror,
   readMirrorBusy,
+  mirrorCoverage,
   MIRROR_STALE_AFTER_MINUTES,
-  MIRROR_WINDOW_PAST_DAYS,
-  MIRROR_WINDOW_FUTURE_DAYS,
 } from '@/lib/calendar-sync'
 
 // LC21 (3)B — refus unique, code unique.
@@ -21,8 +20,6 @@ import {
 // Consequence assumee, deja portee par D27 : l'ecran de refus est indiscernable
 // de celui d'une panne de base, et de celui de TD-004. Ce lot n'aggrave pas
 // cette dette, il en herite.
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function refus(slug: string, motif: string): NextResponse {
   console.error('[book:availability] mirror refused', { slug, motif })
   return NextResponse.json({ error: 'availability_unavailable' }, { status: 503 })
@@ -100,6 +97,7 @@ export async function GET(
   const now       = new Date()
   const freshness = await readMirrorFreshness({ workspaceId: profile.workspace_id })
   const decision  = decideMirror({ freshness, now, staleAfterMinutes: MIRROR_STALE_AFTER_MINUTES })
+  const coverage  = freshness.ok ? mirrorCoverage(freshness.facts) : null
 
   if (decision.mode === 'refuser') return refus(params.slug, decision.motif)
 
@@ -118,10 +116,14 @@ export async function GET(
   // tort. La plage interrogee doit donc etre INTEGRALEMENT contenue : debut ET
   // fin. Si elle mord d'un seul cote, on refuse — hors de sa fenetre, le
   // miroir ne dit pas « libre », il ne sait pas.
+  //
+  // LC21 (3)C — la couverture est celle REELLEMENT PEUPLEE, deduite des
+  // last_sync_at des sources, et non `now +/- constantes` : entre la derniere
+  // synchronisation et maintenant, l'horizon a avance sans que le miroir ait
+  // bouge. Voir mirrorCoverage.
   if (decision.mode === 'utiliser') {
-    const couvertureDebut = new Date(now.getTime() - MIRROR_WINDOW_PAST_DAYS   * DAY_MS)
-    const couvertureFin   = new Date(now.getTime() + MIRROR_WINDOW_FUTURE_DAYS * DAY_MS)
-    if (mirrorFrom.getTime() < couvertureDebut.getTime() || mirrorTo.getTime() > couvertureFin.getTime()) {
+    if (!coverage) return refus(params.slug, 'hors_couverture')
+    if (mirrorFrom.getTime() < coverage.fromMs || mirrorTo.getTime() > coverage.toMs) {
       return refus(params.slug, 'hors_couverture')
     }
   }

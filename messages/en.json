@@ -581,6 +581,8 @@
     "slotPassedTitle": "This time has already passed",
     "slotPassedBody": "The slot you picked is now in the past. Please choose a new time on the booking page — no worries, your original request has been dropped.",
     "slotPassedCta": "Book a new slot",
+    "availabilityUnavailableTitle": "We could not verify this slot",
+    "availabilityUnavailableBody": "We could not check the organiser's calendar just now, so we did not confirm your meeting. Nothing is lost — your confirmation link is still valid. Please try again in a few minutes.",
     "slotTakenTitle": "This slot was taken",
     "slotTakenBody": "Someone confirmed the same time just before you did. Please pick another slot on the booking page — no worries, your original request has been dropped.",
     "slotTakenCta": "Choose another slot",

@@ -191,7 +191,7 @@ beforeEach(() => {
   // preexistants de rester STRICTEMENT INCHANGES.
   readMirrorFreshnessMock.mockResolvedValue({
     ok: true,
-    facts: { conflict_sources: 0, never_synced: 0, oldest_last_sync_at: null, mirror_ready: false },
+    facts: { conflict_sources: 0, never_synced: 0, oldest_last_sync_at: null, newest_last_sync_at: null, mirror_ready: false },
   })
   readMirrorBusyMock.mockResolvedValue({ ok: true, intervals: [] })
   rateLimitByIpMock.mockResolvedValue({ allowed: true })
@@ -533,6 +533,7 @@ const FRESH_OK = {
     never_synced:        0,
     // 10 minutes avant NOW : largement en deca du seuil de 30 minutes.
     oldest_last_sync_at: new Date(NOW.getTime() - 10 * MIN).toISOString(),
+    newest_last_sync_at: new Date(NOW.getTime() - 10 * MIN).toISOString(),
     mirror_ready:        true,
   },
 }
@@ -692,5 +693,138 @@ describe('LC21 (3)B — le controle de couverture ne s\'applique QU\'AU mode uti
     expect(res.status).toBe(200)
     expect(body.busy).toEqual([])
     expect(readMirrorBusyMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── LC21 (3)C — le miroir décide AVANT la création de réservation ─────────
+
+describe('LC21 (3)C — création : un créneau occupé chez Google ne peut pas être réservé', () => {
+  // File complète : contrôle de conflit, trois plafonds, insertion. Sans elle,
+  // un code fautif exploserait sur « queue exhausted » au lieu d'être pris en
+  // faute par l'assertion « aucune insertion ».
+  const fileComplete = () => [
+    { data: [], error: null },
+    zeroCount, zeroCount, zeroCount,
+    { data: { id: 'meeting-c' }, error: null },
+  ]
+
+  it('T5 — chevauchement Google -> 409, AUCUNE insertion, AUCUN e-mail', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    // Le créneau demandé est 10:00 -> 10:30 UTC.
+    readMirrorBusyMock.mockResolvedValue({
+      ok: true,
+      intervals: [{ starts_at: '2026-09-16T10:15:00.000Z', ends_at: '2026-09-16T10:45:00.000Z' }],
+    })
+    state.meetingsQueue = fileComplete()
+
+    const res = await POST(createRequest(), ctx)
+
+    expect(res.status).toBe(409)
+    expect(state.insertPayloads).toHaveLength(0)
+    expect(sendBookingConfirmationEmailMock).not.toHaveBeenCalled()
+    // Le refus tombe AVANT la lecture de meetings : elle n'a pas eu lieu.
+    expect(state.meetingsCalls).toBe(0)
+  })
+
+  it('T6 — chevauchement par le TAMPON SEUL -> 409', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    // 10:35 -> 11:05 : aucun recouvrement avec 10:00 -> 10:30. Mais le tampon
+    // de 15 minutes ramène le début bloquant à 10:20, DANS le créneau.
+    readMirrorBusyMock.mockResolvedValue({
+      ok: true,
+      intervals: [{ starts_at: '2026-09-16T10:35:00.000Z', ends_at: '2026-09-16T11:05:00.000Z' }],
+    })
+    state.meetingsQueue = fileComplete()
+
+    const res = await POST(createRequest(), ctx)
+    expect(res.status).toBe(409)
+    expect(state.insertPayloads).toHaveLength(0)
+  })
+
+  it('mode UTILISER sans chevauchement -> la réservation est créée, comportement nominal', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    readMirrorBusyMock.mockResolvedValue({ ok: true, intervals: [] })
+    state.meetingsQueue = fileComplete()
+
+    const res = await POST(createRequest(), ctx)
+    expect(res.status).toBe(202)
+    expect(state.insertPayloads).toHaveLength(1)
+  })
+
+  it('les quatre motifs de refus -> 503, aucune lecture meetings, aucune insertion', async () => {
+    const motifs = [
+      { ok: false as const, reason: 'lecture_sources' as const },
+      { ...FRESH_OK, facts: { ...FRESH_OK.facts, mirror_ready: false } },
+      { ...FRESH_OK, facts: { ...FRESH_OK.facts, never_synced: 1 } },
+      { ...FRESH_OK, facts: { ...FRESH_OK.facts,
+          oldest_last_sync_at: new Date(NOW.getTime() - 31 * MIN).toISOString(),
+          newest_last_sync_at: new Date(NOW.getTime() - 31 * MIN).toISOString() } },
+    ]
+    for (const f of motifs) {
+      state.meetingsQueue  = fileComplete()
+      state.meetingsCalls  = 0
+      state.insertPayloads = []
+      readMirrorFreshnessMock.mockResolvedValue(f)
+
+      const res  = await POST(createRequest(), ctx)
+      const body = await res.json()
+      expect(res.status).toBe(503)
+      expect(body.error).toBe('availability_unavailable')
+      // La charge du POST porte un `message` que la page localise — celle du
+      // GET n'en a pas. Preuve 14 du porteur.
+      expect(typeof body.message).toBe('string')
+      expect(state.insertPayloads).toHaveLength(0)
+      expect(state.meetingsCalls).toBe(0)
+    }
+  })
+
+  it('échec de readMirrorBusy -> 503, aucune insertion', async () => {
+    readMirrorFreshnessMock.mockResolvedValue(FRESH_OK)
+    readMirrorBusyMock.mockResolvedValue({ ok: false, reason: 'generation_instable' })
+    state.meetingsQueue = fileComplete()
+
+    const res = await POST(createRequest(), ctx)
+    expect(res.status).toBe(503)
+    expect(state.insertPayloads).toHaveLength(0)
+  })
+
+  it('T9 — espace SANS calendrier raccordé : la création reste servie, aucune régression', async () => {
+    // Défaut du beforeEach : conflict_sources = 0 -> mode `ignorer`.
+    state.meetingsQueue = fileComplete()
+
+    const res = await POST(createRequest(), ctx)
+
+    expect(res.status).toBe(202)
+    expect(state.insertPayloads).toHaveLength(1)
+    expect(readMirrorBusyMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('LC21 (3)C — la couverture est celle RÉELLEMENT synchronisée, pas `now + 120 j`', () => {
+  it('T7 — une journée sous now+120j mais AU-DELÀ de oldest+120j est refusée', async () => {
+    // Tampon nul : le cas porte sur la COUVERTURE, pas sur le tampon.
+    state.profile = {
+      ...okProfile,
+      data: { ...okProfile.data, booking_config: { ...BOOKING_CONFIG, buffer_minutes: 0 } },
+    }
+    // Dernière synchronisation il y a 25 minutes : encore fraîche (seuil 30),
+    // mais la couverture haute recule d'autant.
+    const sync25 = new Date(NOW.getTime() - 25 * MIN).toISOString()
+    readMirrorFreshnessMock.mockResolvedValue({
+      ok: true,
+      facts: { conflict_sources: 1, never_synced: 0, oldest_last_sync_at: sync25, newest_last_sync_at: sync25, mirror_ready: true },
+    })
+    state.meetingsQueue = [{ data: [], error: null }]
+
+    // Fuseau UTC-08:00 : la journée du 2027-01-13 se termine à
+    // 2027-01-14T07:59:59.999Z.
+    //   ancienne borne (now + 120 j)    = 2027-01-14T08:00:00.000Z  -> ACCEPTÉE
+    //   couverture réelle (sync + 120 j) = 2027-01-14T07:35:00.000Z -> REFUSÉE
+    const res  = await GET(availabilityRequest('2027-01-13', 'Pacific/Pitcairn'), ctx)
+    const body = await res.json()
+
+    expect(res.status).toBe(503)
+    expect(body.error).toBe('availability_unavailable')
+    expect(state.meetingsCalls).toBe(0)
   })
 })

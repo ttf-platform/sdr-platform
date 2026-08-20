@@ -44,6 +44,17 @@ import {
 
 // Borne technique provisoire du lot (2)c, a reconsiderer au lot (3), ne vaut
 // aucune regle produit.
+//
+// LC21 (3)C — INVARIANT. MODIFIER CES DEUX CONSTANTES EXIGE UN PLAN DE
+// RESYNCHRONISATION DES SOURCES EXISTANTES.
+//
+// Elles ne decrivent pas seulement ce que la synchronisation VA peupler : elles
+// servent aussi a deduire ce que le miroir contient DEJA — voir mirrorCoverage.
+// Les elargir sans resynchroniser ferait declarer couverte une plage que les
+// sources n'ont jamais remplie, et un creneau y serait rendu libre a tort. Les
+// retrecir ferait refuser des dates reellement couvertes. Dans les deux sens,
+// le changement doit etre suivi d'une resynchronisation complete de toutes les
+// sources avant que la nouvelle valeur ne soit servie.
 export const MIRROR_WINDOW_PAST_DAYS   = 1;
 export const MIRROR_WINDOW_FUTURE_DAYS = 120;
 
@@ -482,6 +493,10 @@ export type MirrorFacts = {
   conflict_sources:    number;
   never_synced:        number;
   oldest_last_sync_at: string | null;
+  // LC21 (3)C — le PLUS RECENT last_sync_at. Il ne remplace pas le plus ancien,
+  // il le complete : les deux bornes de la couverture reellement peuplee ne se
+  // deduisent pas de la meme source. Voir mirrorCoverage.
+  newest_last_sync_at: string | null;
   mirror_ready:        boolean;
 };
 
@@ -515,6 +530,20 @@ function oldestInstant(values: Array<string | null>): string | null {
   return bestIso;
 }
 
+// Plus recent last_sync_at, meme discipline : comparaison d'INSTANTS, jamais de
+// chaines. Une valeur non parsable est ecartee du choix.
+function newestInstant(values: Array<string | null>): string | null {
+  let bestIso: string | null = null;
+  let bestMs  = Number.NEGATIVE_INFINITY;
+  for (const v of values) {
+    if (typeof v !== 'string' || v.length === 0) continue;
+    const ms = Date.parse(v);
+    if (Number.isNaN(ms)) continue;
+    if (ms > bestMs) { bestMs = ms; bestIso = v; }
+  }
+  return bestIso;
+}
+
 export async function readMirrorFreshness(input: ReadMirrorFreshnessInput): Promise<MirrorFreshnessResult> {
   const admin = input.admin ?? makeAdmin();
 
@@ -533,6 +562,7 @@ export async function readMirrorFreshness(input: ReadMirrorFreshnessInput): Prom
   const conflict_sources    = rows.length;
   const never_synced        = rows.filter(r => r.last_sync_at === null).length;
   const oldest_last_sync_at = oldestInstant(rows.map(r => r.last_sync_at));
+  const newest_last_sync_at = newestInstant(rows.map(r => r.last_sync_at));
 
   // L'erreur de lecture de l'etat global etait AVALEE : `state.data?.…` la
   // rendait indiscernable d'un miroir non pret. Elle est desormais nommee.
@@ -544,7 +574,53 @@ export async function readMirrorFreshness(input: ReadMirrorFreshnessInput): Prom
   if (state.error) return { ok: false, reason: 'lecture_etat' };
   const mirror_ready = state.data?.mirror_ready === true;
 
-  return { ok: true, facts: { conflict_sources, never_synced, oldest_last_sync_at, mirror_ready } };
+  return { ok: true, facts: { conflict_sources, never_synced, oldest_last_sync_at, newest_last_sync_at, mirror_ready } };
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// mirrorCoverage — LA PLAGE REELLEMENT PEUPLEE PAR LE MIROIR.
+//
+// LC21 (3)C. Le lot (3)B bornait la couverture a `now - 1j` / `now + 120j`.
+// C'est FAUX, et c'est un fail-open : le miroir n'est pas peuple par l'heure
+// qu'il est, il est peuple par la derniere synchronisation. Entre cette
+// synchronisation et maintenant, l'horizon `now + 120j` a avance sans que la
+// moindre ligne ne soit ecrite. Une date situee dans cette frange etait declaree
+// couverte alors que le miroir n'en savait rien, et le creneau y etait rendu
+// libre.
+//
+// LES DEUX BORNES NE VIENNENT PAS DE LA MEME SOURCE, et c'est deliberé :
+//
+//   borne basse = plus RECENTE synchronisation - MIRROR_WINDOW_PAST_DAYS
+//     Une purge suit chaque synchronisation : la source qui a tourne le plus
+//     recemment a efface ce qui precede sa propre fenetre. La borne basse est
+//     donc celle de la source la PLUS avancee — la plus restrictive vers le
+//     passe.
+//
+//   borne haute = plus ANCIENNE synchronisation + MIRROR_WINDOW_FUTURE_DAYS
+//     Vers le futur, une source en retard n'a rien ecrit au-dela de SON propre
+//     horizon. La couverture commune s'arrete donc a l'horizon de la source la
+//     plus en retard — la plus restrictive vers le futur.
+//
+// C'est donc l'INTERSECTION des couvertures individuelles, pas leur union : on
+// ne declare couvert que ce que TOUTES les sources de conflit ont peuple.
+//
+// Rend null quand la couverture ne peut pas etre etablie — aucune source jamais
+// synchronisee, ou horodatage non parsable. L'appelant refuse : une couverture
+// inconnue n'est pas une couverture vide, et surtout pas une couverture totale.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type MirrorCoverage = { fromMs: number; toMs: number };
+
+export function mirrorCoverage(facts: MirrorFacts): MirrorCoverage | null {
+  const newestMs = facts.newest_last_sync_at === null ? NaN : Date.parse(facts.newest_last_sync_at);
+  const oldestMs = facts.oldest_last_sync_at === null ? NaN : Date.parse(facts.oldest_last_sync_at);
+  if (Number.isNaN(newestMs) || Number.isNaN(oldestMs)) return null;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return {
+    fromMs: newestMs - MIRROR_WINDOW_PAST_DAYS   * dayMs,
+    toMs:   oldestMs + MIRROR_WINDOW_FUTURE_DAYS * dayMs,
+  };
 }
 
 
