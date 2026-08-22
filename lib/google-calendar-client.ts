@@ -1,24 +1,29 @@
 /**
  * lib/google-calendar-client.ts
  *
- * LC21 (1) + (2)b + (2)c — SEUL endroit du lot qui parle a Google.
+ * LC21 (1) + (2)b + (2)c + (4)A — SEUL endroit du lot qui parle a Google.
  *
- * Expose six fonctions et rien de plus :
+ * Expose huit fonctions et rien de plus :
  *   - buildAuthUrl({ state, codeChallenge })
  *   - exchangeCode({ code, codeVerifier })
  *   - verifyIdentity(idToken)
  *   - revoke(token)
  *   - listCalendars({ refreshToken })
  *   - listEventsWindow({ refreshToken, calendarId, timeMin, timeMax })
+ *   - createEvent({ ... })                            [LC21 (4)A — inerte]
+ *   - getEvent({ ... })                               [LC21 (4)A — inerte]
  *
- * Aucune fonction d'ecriture d'evenement n'est exposee ni definie dans ce
- * module. Aucun events.watch, aucun stop de canal, aucun webhook.
+ * ET une fonction pure de classification d'erreur :
+ *   - classifyError({ status, reason })               [LC21 (4)A]
+ *
+ * Ces trois ajouts de (4)A sont STRICTEMENT INERTES : aucun appelant n'existe
+ * dans le depot en dehors de leurs propres tests. Aucun events.watch, aucun
+ * stop de canal, aucun webhook.
  *
  * PORTEE DU SCOPE calendar.events (ecriture) : le scope est demande PAR
- * ANTICIPATION pour le lot (4) — creation, mise a jour et suppression
- * d'evenements par Mirvo. AUCUNE ligne du lot (2) ne l'utilise en ecriture.
- * Ni ce module, ni les routes du lot (2), ne creent, modifient ni suppriment
- * d'evenement Google.
+ * ANTICIPATION pour le lot (4). La verification de son octroi effectif
+ * (calendar_connections.granted_scopes) appartient au lot (4)B, jamais a (4)A.
+ * (4)A n'emet aucun appel reel : le socle est livre sans appelant.
  *
  * Les quatre scopes ci-dessous sont l'ordre canonique demande. verifyIdToken
  * utilise l'audience GOOGLE_CALENDAR_CLIENT_ID (bibliotheque officielle).
@@ -370,4 +375,249 @@ export async function listEventsWindow(options: ListEventsWindowOptions): Promis
   } while (pageToken);
 
   return { events, nextSyncToken, calendarTimeZone, ignored };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LC21 (4)A — SOCLE D'ECRITURE GOOGLE, INERTE
+//
+// Trois ajouts : un TYPE D'ERREUR STRUCTURE (status + reason), et deux appels
+// createEvent / getEvent. Les appels existants du module (listCalendars,
+// listEventsWindow) NE SONT PAS MODIFIES : leurs `throw new Error(...)` restent
+// tels quels — leur refonte appartient a un futur lot, pas a (4)A.
+//
+// PORTEE : ces fonctions n'ont AUCUN appelant applicatif au moment de leur
+// livraison. Le socle est inerte ; (4)B les invoquera depuis une tache
+// planifiee dediee.
+//
+// CONFIDENTIALITE — I8 : la classe d'erreur GoogleApiError NE PORTE PAS le
+// corps de reponse. Un corps d'erreur d'insertion contient typiquement le
+// calendarId visee — soit une adresse e-mail. Seuls le statut HTTP et le
+// `reason` (jeu ferme de Google, jamais du texte libre client) sont exposes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Erreur structuree pour les appels de (4)A. Portee STRICTE :
+ *   - status : code HTTP integer ;
+ *   - reason : chaine du champ `error.errors[0].reason` de Google, ou null.
+ *
+ * NE PORTE PAS le corps de reponse ni son texte : les corps Google contiennent
+ * typiquement le calendarId — donc l'adresse e-mail du proprietaire — et
+ * doivent rester hors des journaux. `classifyError` decide sur (status,
+ * reason) seuls.
+ */
+export class GoogleApiError extends Error {
+  public readonly status: number;
+  public readonly reason: string | null;
+  constructor(status: number, reason: string | null, message?: string) {
+    super(message ?? `[google-calendar-client] Google API error ${status}${reason ? ` (${reason})` : ''}`);
+    this.name   = 'GoogleApiError';
+    this.status = status;
+    this.reason = reason;
+  }
+}
+
+// Charge utile stricte de createEvent. Aucun `attendees`, aucun `summary`
+// impose : le titre est un parametre applicatif, l'invitation ne se declenche
+// jamais (sendUpdates=none, pose explicitement).
+export type CreateEventInput = {
+  /** refreshToken Supabase-chiffre non-decrypte serait un abus : la fonction
+   *  recoit un refreshToken deja utilisable, la responsabilite de decryption
+   *  appartient a l'appelant (jamais (4)A puisque (4)A n'a aucun appelant). */
+  refreshToken:  string;
+  /** Identifiant du calendrier d'ecriture — pilote par (2)b via
+   *  calendar_sources.is_write_target. Non manipule ici. */
+  calendarId:    string;
+  /** Identifiant Google DERIVE de meetings.id par deriveGoogleEventId(),
+   *  jamais tire ni recompose ailleurs. */
+  eventId:       string;
+  summary:       string;
+  description?:  string;
+  /** Instant + fuseau : la charge utile porte start/end en dateTime AVEC leur
+   *  timeZone, comme le contrat Google l'attend pour les evenements horodates
+   *  (par opposition aux all-day). */
+  startsAt:      string; // ISO instant
+  endsAt:        string; // ISO instant
+  timeZone:      string; // ex: 'Europe/Paris'
+  /** Marqueur d'appartenance a TROIS composantes — I4. */
+  ownership: {
+    workspaceId:    string;
+    meetingId:      string;
+    environmentRef: string;
+  };
+};
+
+export type CreateEventResult = {
+  /** Egal a l'input.eventId — I9 : (4)A rend l'identifiant DERIVE effectivement
+   *  utilise, afin que (4)B n'ait jamais a le recalculer autrement. */
+  eventId: string;
+};
+
+/**
+ * Insere un evenement sur le calendrier cible avec un identifiant fourni.
+ *
+ * Contrat :
+ *   - start / end en dateTime + timeZone ;
+ *   - marqueur ownership serialise dans extendedProperties.private (I4) ;
+ *   - sendUpdates=none EXPLICITE (I3) ;
+ *   - AUCUN attendees (I3) ;
+ *   - I6 : l'`id` rendu par Google est compare a l'`eventId` demande ;
+ *     divergence => GoogleApiError('id_mismatch') pour que le decideur amont
+ *     classe `permanent`.
+ *
+ * INERTE — aucun appelant applicatif.
+ */
+export async function createEvent(options: CreateEventInput): Promise<CreateEventResult> {
+  const client = makeClient();
+  client.setCredentials({ refresh_token: options.refreshToken });
+
+  // Charge utile stricte. Aucune surface d'insertion d'attendees.
+  const body = {
+    id:            options.eventId,
+    summary:       options.summary,
+    ...(options.description !== undefined ? { description: options.description } : {}),
+    start: { dateTime: options.startsAt, timeZone: options.timeZone },
+    end:   { dateTime: options.endsAt,   timeZone: options.timeZone },
+    extendedProperties: {
+      private: {
+        // Serialisation stable et minuscule des trois composantes du marqueur.
+        mirvo_workspace_id:    options.ownership.workspaceId.toLowerCase(),
+        mirvo_meeting_id:      options.ownership.meetingId.toLowerCase(),
+        mirvo_environment_ref: options.ownership.environmentRef.toLowerCase(),
+      },
+    },
+  };
+
+  // sendUpdates=none pose EXPLICITEMENT dans l'URL — pas de repli, pas de defaut.
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(options.calendarId)}/events`,
+  );
+  url.searchParams.set('sendUpdates', 'none');
+
+  const { token } = await client.getAccessToken();
+  if (!token) throw new GoogleApiError(0, null, '[google-calendar-client] no access token');
+
+  const res = await fetch(url.toString(), {
+    method:  'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    // Lecture UNIQUE de reason ; le corps n'est pas conserve au-dela.
+    const reason = await readGoogleReason(res);
+    throw new GoogleApiError(res.status, reason);
+  }
+
+  const data = await res.json() as { id?: string };
+  // I6 — le contrat interne exige egalite exacte de l'id rendu et de l'id demande.
+  if (data.id !== options.eventId) {
+    throw new GoogleApiError(200, 'id_mismatch');
+  }
+  return { eventId: options.eventId };
+}
+
+export type GetEventInput = {
+  refreshToken: string;
+  calendarId:   string;
+  eventId:      string;
+};
+
+/**
+ * Charge utile complete d'un evenement Google, telle que (4)B / decideur
+ * l'exige pour appliquer I5. Contient status (cancelled possible car
+ * events.get retourne toujours l'evenement) et marqueur prive.
+ */
+export type GoogleEventPayload = {
+  id:     string;
+  status: 'confirmed' | 'tentative' | 'cancelled' | string;
+  start?: { dateTime?: string; date?: string; timeZone?: string };
+  end?:   { dateTime?: string; date?: string; timeZone?: string };
+  extendedProperties?: {
+    private?: {
+      mirvo_workspace_id?:    string;
+      mirvo_meeting_id?:      string;
+      mirvo_environment_ref?: string;
+    };
+  };
+};
+
+/**
+ * Recupere un evenement Google par identifiant. Utilisee EXCLUSIVEMENT par le
+ * decideur I5 (decideAfterConflict) apres un 409 sur createEvent. Le contrat
+ * Google : events.get RETOURNE TOUJOURS l'evenement, status = 'cancelled'
+ * inclus — la distinction est portee par le champ status et le decideur, non
+ * par cet appel.
+ */
+export async function getEvent(options: GetEventInput): Promise<GoogleEventPayload> {
+  const client = makeClient();
+  client.setCredentials({ refresh_token: options.refreshToken });
+
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(options.calendarId)}/events/${encodeURIComponent(options.eventId)}`,
+  );
+
+  const { token } = await client.getAccessToken();
+  if (!token) throw new GoogleApiError(0, null, '[google-calendar-client] no access token');
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const reason = await readGoogleReason(res);
+    throw new GoogleApiError(res.status, reason);
+  }
+
+  return await res.json() as GoogleEventPayload;
+}
+
+/** Lecture UNIQUE du champ `error.errors[0].reason` ; jamais du corps entier. */
+async function readGoogleReason(res: Response): Promise<string | null> {
+  try {
+    const j = await res.json() as { error?: { errors?: Array<{ reason?: string }> } };
+    const reason = j?.error?.errors?.[0]?.reason;
+    return typeof reason === 'string' && reason.length > 0 ? reason : null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// classifyError — fonction PURE, contrat d'entree { status, reason }.
+//
+// Ecart declare : la page officielle range 404 en rejouable. Sur une
+// insertion, 404 designe un calendrier d'ecriture introuvable — une
+// configuration, pas un alea. Classe 'permanent' : ne pas replayer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GoogleErrorClass = 'rejouable' | 'permanent' | 'deja_present';
+
+export function classifyError(input: { status: number; reason: string | null }): GoogleErrorClass {
+  const { status, reason } = input;
+
+  // 409 — evenement deja present. Ne juge JAMAIS un succes en soi (I5) : c'est
+  // au decideur d'invoquer getEvent puis les quatre conditions cumulatives.
+  if (status === 409) return 'deja_present';
+
+  // Rejouable : quotas et pannes transitoires cote Google.
+  if (status === 429) return 'rejouable';
+  if (status >= 500 && status < 600) return 'rejouable';
+  if (status === 403 && (reason === 'rateLimitExceeded' || reason === 'userRateLimitExceeded')) {
+    return 'rejouable';
+  }
+
+  // Permanent : configurations, permissions, requetes malformees.
+  if (status === 400) return 'permanent';
+  if (status === 401) return 'permanent';
+  if (status === 403) return 'permanent'; // insufficientPermissions, forbiddenForNonOrganizer, calendar usage limits, etc.
+  if (status === 404) return 'permanent'; // ECART : sur insertion, calendarId introuvable = configuration.
+
+  // Contrat interne : id rendu != id demande — I6. Ne se retente pas.
+  if (status === 200 && reason === 'id_mismatch') return 'permanent';
+
+  // Toute autre reponse : une classification qui NE SAIT PAS ne reessaie pas.
+  return 'permanent';
 }
